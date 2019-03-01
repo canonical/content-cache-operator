@@ -1,0 +1,11 @@
+*.pyc
+*.swp
+*~
+.coverage
+.pytest_cache/
+.tox/
+.unit-state.db
+__pycache__/
+builds/
+deps/
+revision

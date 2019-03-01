@@ -1,0 +1,15 @@
+name: cdn
+summary: Content distribution network (CDN)
+maintainer: CDN Charmers <cdn-charmers@lists.launchpad.net>
+description: |
+  Deploy CDN
+tags:
+  - cache-proxy
+  - ops
+series:
+  - bionic
+subordinate: false
+provides:
+  nrpe-external-master:
+    interface: nrpe-external-master
+    scope: container

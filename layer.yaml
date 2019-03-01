@@ -1,0 +1,5 @@
+includes:
+  - layer:basic
+  - layer:apt
+  - layer:nagios
+repo: lp:cdn-charm

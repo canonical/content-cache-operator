@@ -1,0 +1,13 @@
+options:
+  nagios_context:
+    type: string
+    default: "juju"
+    description: |
+      This string is prefixed to the hostname when writing
+      exported nagios config fragments.
+  nagios_servicegroups:
+    default: ""
+    type: string
+    description: |
+      A comma-separated list of nagios servicegroups.
+      If left empty, the nagios_context will be used as the servicegroup
