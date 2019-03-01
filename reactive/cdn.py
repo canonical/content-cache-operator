@@ -1,4 +1,4 @@
-from charms import reactive
+from charms import reactive, apt
 from charmhelpers.core import hookenv
 
 
@@ -18,6 +18,12 @@ def upgrade_charm():
 @reactive.when_not('cdn.installed')
 def install():
     reactive.clear_flag('cdn.active')
+
+    hookenv.log('Adding CDN dependencies to be installed')
+    packages = ['haproxy', 'nginx']
+    apt.queue_install(packages)
+    if not apt.install_queued():
+        return  # apt layer already set blocked state.
 
     reactive.clear_flag('cdn.configured')
     reactive.set_flag('cdn.installed')
