@@ -1,10 +1,12 @@
-name: cdn
-summary: Content distribution network (CDN)
-maintainer: CDN Charmers <cdn-charmers@lists.launchpad.net>
+name: content-cache
+summary: Content / Frontend Cache
+maintainer: Content Cache Charmers <content-cache-charmers@lists.launchpad.net>
 description: |
-  Deploy CDN
+  Deploy content / frontend caching
 tags:
   - cache-proxy
+  - content-cache
+  - web-cache
   - ops
 series:
   - bionic

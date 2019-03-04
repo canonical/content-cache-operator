@@ -21,7 +21,7 @@ async def model():
 async def apps(model):
     apps = []
     for entry in series:
-        app = model.applications['cdn-{}'.format(entry)]
+        app = model.applications['content_cache-{}'.format(entry)]
         apps.append(app)
     return apps
 
@@ -35,15 +35,15 @@ async def units(apps):
 
 
 @pytest.mark.parametrize('series', series)
-async def test_cdn_deploy(model, series):
+async def test_content_cache_deploy(model, series):
     # Starts a deploy for each series
-    await model.deploy('{}/builds/cdn'.format(juju_repository),
+    await model.deploy('{}/builds/content_cache'.format(juju_repository),
                        series=series,
-                       application_name='cdn-{}'.format(series))
+                       application_name='content_cache-{}'.format(series))
     assert True
 
 
-async def test_cdn_status(apps, model):
+async def test_content_cache_status(apps, model):
     # Verifies status for all deployed series of the charm
     for app in apps:
         await model.block_until(lambda: app.status == 'active')

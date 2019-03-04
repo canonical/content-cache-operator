@@ -10,7 +10,7 @@ from charms import apt  # NOQA: E402
 
 # Add path to where our reactive layer lives and import.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
-from reactive.cdn import (
+from reactive.content_cache import (
     install,
     config_changed,
     upgrade_charm,
