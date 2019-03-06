@@ -1,0 +1,19 @@
+proxy_cache_path /var/cache/nginx/site1.local use_temp_path=off levels=1:2 keys_zone=site1-cache:10m max_size=1g;
+
+server {
+    server_name site1.local;
+    listen 6081;
+
+    location / {
+        proxy_pass http://localhost:8081;
+        proxy_set_header Host "site1.local";
+        proxy_cache valid 200 1d;
+        proxy_cache_lock on;
+        proxy_cache_min_uses 5;
+        proxy_cache_revalidate on;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+    }
+
+    access_log /var/log/nginx/site1.local-access.log;
+    error_log /var/log/nginx/site1.local-access.log;
+}

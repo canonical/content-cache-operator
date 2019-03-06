@@ -11,3 +11,16 @@ options:
     description: |
       A comma-separated list of nagios servicegroups.
       If left empty, the nagios_context will be used as the servicegroup
+  sites:
+    default: ""
+    type: string
+    description: |
+      YAML-formatted virtual hosts/sites. e.g.
+      .
+      site1.local:
+        server:
+          server_name: site1.local
+          location:
+            path: /
+            proxy_pass: http://localhost:8081
+            proxy_set_header: Host "site1.local"
