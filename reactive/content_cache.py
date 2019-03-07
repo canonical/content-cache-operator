@@ -66,8 +66,10 @@ def configure_nginx():
     conf = yaml.safe_load(config.get('sites'))
     changed = False
     for site in conf.keys():
-        if ngx_conf.write(site, ngx_conf.parse(conf[site])):
+        if ngx_conf.write_site(site, ngx_conf.parse(conf[site])):
             changed = True
+    if ngx_conf.sync_sites(conf.keys()):
+        changed = True
     if changed:
         service_start_or_restart('nginx')
 

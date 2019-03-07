@@ -116,13 +116,13 @@ class TestCharm(unittest.TestCase):
             ngx_config = f.read().decode('utf-8')
         self.mock_config.return_value = {'sites': ngx_config}
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
-            mock_site_path.return_value = self.tmpdir
+            mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
+            os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
             content_cache.configure_nginx()
             self.assertEqual(service_start_or_restart.call_args_list, [mock.call('nginx')])
 
-        # Re-run with same set of sites.
-        with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
-            mock_site_path.return_value = self.tmpdir
+            # Re-run with same set of sites.
             content_cache.configure_nginx()
             self.assertEqual(service_start_or_restart.call_args_list, [mock.call('nginx')])
 

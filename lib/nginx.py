@@ -13,7 +13,7 @@ class NginxConf:
     def sites_path(self):
         return os.path.join(NGINX_SITE_BASE_PATH, 'sites-available')
 
-    def write(self, site, new):
+    def write_site(self, site, new):
         fname = os.path.join(self.sites_path, site)
         # Check if contents changed
         try:
@@ -24,9 +24,29 @@ class NginxConf:
         if new == current:
             return False
         with open(fname, 'wb') as f:
+            print('Writing... {}'.format(fname))
             f.write(new.encode('utf-8'))
-            print('writing... {}'.format(fname))
         return True
+
+    def sync_sites(self, sites):
+        changed = False
+        for site in os.listdir(self.sites_path):
+            available = os.path.join(self.sites_path, site)
+            enabled = os.path.join(os.path.dirname(self.sites_path), 'sites-enabled', site)
+            if site not in sites:
+                print('Removing... {}'.format(available))
+                os.remove(available)
+                changed = True
+                try:
+                    os.remove(enabled)
+                except FileNotFoundError:
+                    pass
+            if not os.path.exists(enabled):
+                print('Symlinking... {} -> {}'.format(available, enabled))
+                os.symlink(available, enabled)
+                changed = True
+
+        return changed
 
     def parse(self, conf):
         output = []
