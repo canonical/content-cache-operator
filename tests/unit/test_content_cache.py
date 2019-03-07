@@ -43,6 +43,7 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('charmhelpers.core.hookenv.status_set')
     def test_hook_install_packages(self, status_set):
+        ''' Test correct packages are installed via APT'''
         content_cache.install()
         expected = mock.call.queue_install(['haproxy', 'nginx'])
         self.assertTrue(expected in apt.method_calls)
@@ -53,6 +54,7 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_upgrade_charm_flags(self, clear_flag):
+        '''Test correct flags set via upgrade-charm hook'''
         content_cache.upgrade_charm()
         expected = [mock.call('content_cache.active'),
                     mock.call('content_cache.installed'),
@@ -63,6 +65,7 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('charms.reactive.set_flag')
     def test_hook_install_flags(self, set_flag, clear_flag):
+        '''Test correct flags are set via install charm hook'''
         content_cache.install()
         expected = [mock.call('content_cache.installed')]
         self.assertEqual(set_flag.call_args_list, expected)
@@ -73,6 +76,7 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_config_changed_flags(self, clear_flag):
+        '''Test correct flags are set via config-changed charm hook'''
         content_cache.config_changed()
         expected = [mock.call('content_cache.haproxy.configured'),
                     mock.call('content_cache.nginx.configured')]
@@ -89,6 +93,7 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charmhelpers.core.host.service_restart')
     @mock.patch('charmhelpers.core.host.service_start')
     def test_service_start_or_restart_running(self, service_start, service_restart, service_running):
+        '''Test service restarted when already running'''
         service_running.return_value = True
         content_cache.service_start_or_restart('someservice')
         self.assertEqual(service_start.call_args_list, [])
@@ -98,6 +103,7 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charmhelpers.core.host.service_restart')
     @mock.patch('charmhelpers.core.host.service_start')
     def test_service_start_or_restart_stopped(self, service_start, service_restart, service_running):
+        '''Test service started up when not running/stopped'''
         service_running.return_value = False
         content_cache.service_start_or_restart('someservice')
         self.assertEqual(service_start.call_args_list, [mock.call('someservice')])
@@ -106,25 +112,29 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('charmhelpers.core.hookenv.status_set')
     def test_configure_nginx_no_sites(self, status_set, clear_flag):
+        '''Test correct flags are set when no sites defined to configure Nginx'''
         content_cache.configure_nginx()
         self.assertEqual(clear_flag.call_args_list, [mock.call('content_cache.active')])
         self.assertEqual(status_set.call_args_list, [mock.call('blocked', 'requires list of sites to configure')])
 
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_nginx_sites(self, service_start_or_restart):
+        '''Test configuration of Nginx sites'''
         with open('tests/unit/files/nginx_config_parse_test_config.txt', 'rb') as f:
             ngx_config = f.read().decode('utf-8')
         self.mock_config.return_value = {'sites': ngx_config}
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
             mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
+            # sites-available and sites-enabled won't exist in our temp dir
             os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
             content_cache.configure_nginx()
             self.assertEqual(service_start_or_restart.call_args_list, [mock.call('nginx')])
 
-            # Re-run with same set of sites.
+            # Re-run with same set of sites, no change so shouldn't need to restart Nginx
+            service_start_or_restart.call_args_list = []  # Reset the call from the above.
             content_cache.configure_nginx()
-            self.assertEqual(service_start_or_restart.call_args_list, [mock.call('nginx')])
+            self.assertEqual(service_start_or_restart.call_args_list, [])
 
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('charmhelpers.core.hookenv.status_set')

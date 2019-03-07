@@ -24,9 +24,15 @@ class TestLibNginx(unittest.TestCase):
         self.assertEqual(ngx_conf.sites_path, sites_path)
 
     def test_nginx_config_parse(self):
+        '''Test parsing a YAML-formatted list of sites'''
+
+        ngx_conf = nginx.NginxConf()
+
         with open('tests/unit/files/nginx_config_parse_test_config.txt', 'rb') as f:
             conf = yaml.safe_load(f.read().decode('utf-8'))
-        ngx_conf = nginx.NginxConf()
+
+        # From the given YAML-formatted list of sites, check that each individual
+        # Nginx config parsed matches what's in tests/unit/files.
         for site in conf.keys():
             output_file = 'tests/unit/files/nginx_config_parse_test_output-{}.txt'.format(site)
             with open(output_file, 'rb') as f:
@@ -34,32 +40,44 @@ class TestLibNginx(unittest.TestCase):
             self.assertEqual(output, ngx_conf.parse(conf[site]))
 
     def test_nginx_config_write_sites(self):
-        conf_file = 'tests/unit/files/nginx_config_parse_test_output-site1.local.txt'
-        with open(conf_file, 'rb') as f:
-            conf = f.read().decode('utf-8')
+        '''Test writing out sites to individual Nginx site config files'''
         ngx_conf = nginx.NginxConf()
+
+        with open('tests/unit/files/nginx_config_parse_test_output-site1.local.txt', 'rb') as f:
+            conf = f.read().decode('utf-8')
+
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
             mock_site_path.return_value = self.tmpdir
             self.assertTrue(ngx_conf.write_site('site1.local', conf))
-            # Write again with same contents
+            # Write again with same contents, this time it should return 'False'
+            # as there's no change, thus no need to restart/reload Nginx.
             self.assertFalse(ngx_conf.write_site('site1.local', conf))
+
+        # Compare what's been written out matches what's in tests/unit/files.
         with open(os.path.join(self.tmpdir, 'site1.local'), 'rb') as f:
             output = f.read().decode('utf-8')
         self.assertEqual(conf, output)
 
     def test_nginx_config_sync_sites(self):
-        conf_file = 'tests/unit/files/nginx_config_parse_test_output-site1.local.txt'
-        with open(conf_file, 'rb') as f:
-            conf = f.read().decode('utf-8')
+        '''Test cleanup of stale sites and that sites are enabled'''
         ngx_conf = nginx.NginxConf()
+
+        with open('tests/unit/files/nginx_config_parse_test_output-site1.local.txt', 'rb') as f:
+            conf = f.read().decode('utf-8')
+
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
             mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
             os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+
+            # Write out an extra site config to test cleaning it up.
             for site in ['site1.local', 'site2.local']:
                 ngx_conf.write_site(site, conf)
             ngx_conf.write_site('site3.local', conf)
+
+            # Clean up anything that's not site1 and site2.
             self.assertTrue(ngx_conf.sync_sites(['site1.local', 'site2.local']))
+            # Check to make sure site1 still exists and is symlinked in site-senabled.
             self.assertTrue(os.path.exists(os.path.join(self.tmpdir, 'sites-available', 'site1.local')))
             self.assertTrue(os.path.islink(os.path.join(self.tmpdir, 'sites-enabled', 'site1.local')))
             # Only two sites, site3.local shouldn't exist.
