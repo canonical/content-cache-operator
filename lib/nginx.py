@@ -39,7 +39,7 @@ class NginxConf:
                     os.remove(enabled)
                 except FileNotFoundError:
                     pass
-            if not os.path.exists(enabled):
+            elif not os.path.exists(enabled):
                 os.symlink(available, enabled)
                 changed = True
 
