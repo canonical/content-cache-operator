@@ -4,7 +4,6 @@ import sys
 import tempfile
 import unittest
 import yaml
-from unittest import mock
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import nginx  # NOQA: E402
@@ -39,48 +38,45 @@ class TestLibNginx(unittest.TestCase):
 
     def test_nginx_config_write_sites(self):
         '''Test writing out sites to individual Nginx site config files'''
-        ngx_conf = nginx.NginxConf()
+        ngx_conf = nginx.NginxConf(self.tmpdir)
+        os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
+        os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
 
         with open('tests/unit/files/nginx_config_rendered_test_output-site1.local.txt', 'r', encoding='utf-8') as f:
             conf = f.read()
 
-        with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
-            mock_site_path.return_value = self.tmpdir
-            self.assertTrue(ngx_conf.write_site('site1.local', conf))
-            # Write again with same contents, this time it should return 'False'
-            # as there's no change, thus no need to restart/reload Nginx.
-            self.assertFalse(ngx_conf.write_site('site1.local', conf))
+        self.assertTrue(ngx_conf.write_site('site1.local', conf))
+        # Write again with same contents, this time it should return 'False'
+        # as there's no change, thus no need to restart/reload Nginx.
+        self.assertFalse(ngx_conf.write_site('site1.local', conf))
 
         # Compare what's been written out matches what's in tests/unit/files.
-        with open(os.path.join(self.tmpdir, 'site1.local'), 'r', encoding='utf-8') as f:
+        with open(os.path.join(self.tmpdir, 'sites-available', 'site1.local'), 'r', encoding='utf-8') as f:
             output = f.read()
         self.assertEqual(conf, output)
 
     def test_nginx_config_sync_sites(self):
         '''Test cleanup of stale sites and that sites are enabled'''
-        ngx_conf = nginx.NginxConf()
+        ngx_conf = nginx.NginxConf(self.tmpdir)
+        os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
+        os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
 
         with open('tests/unit/files/nginx_config_rendered_test_output-site1.local.txt', 'r', encoding='utf-8') as f:
             conf = f.read()
 
-        with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
-            mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
-            os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
-            os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+        # Write out an extra site config to test cleaning it up.
+        for site in ['site1.local', 'site2.local']:
+            ngx_conf.write_site(site, conf)
+        ngx_conf.write_site('site3.local', conf)
 
-            # Write out an extra site config to test cleaning it up.
-            for site in ['site1.local', 'site2.local']:
-                ngx_conf.write_site(site, conf)
-            ngx_conf.write_site('site3.local', conf)
-
-            # Clean up anything that's not site1 and site2.
-            self.assertTrue(ngx_conf.sync_sites(['site1.local', 'site2.local']))
-            # Check to make sure site1 still exists and is symlinked in site-senabled.
-            self.assertTrue(os.path.exists(os.path.join(self.tmpdir, 'sites-available', 'site1.local')))
-            self.assertTrue(os.path.islink(os.path.join(self.tmpdir, 'sites-enabled', 'site1.local')))
-            # Only two sites, site3.local shouldn't exist.
-            self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-available', 'site3.local')))
-            self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-enabled', 'site3.local')))
+        # Clean up anything that's not site1 and site2.
+        self.assertTrue(ngx_conf.sync_sites(['site1.local', 'site2.local']))
+        # Check to make sure site1 still exists and is symlinked in site-senabled.
+        self.assertTrue(os.path.exists(os.path.join(self.tmpdir, 'sites-available', 'site1.local')))
+        self.assertTrue(os.path.islink(os.path.join(self.tmpdir, 'sites-enabled', 'site1.local')))
+        # Only two sites, site3.local shouldn't exist.
+        self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-available', 'site3.local')))
+        self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-enabled', 'site3.local')))
 
 
 if __name__ == '__main__':
