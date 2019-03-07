@@ -5,9 +5,6 @@ import tempfile
 import unittest
 from unittest import mock
 
-sys.modules['charms.apt'] = mock.MagicMock()
-from charms import apt  # NOQA: E402
-
 # Add path to where our reactive layer lives and import.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from reactive import content_cache  # NOQA: E402
@@ -39,16 +36,6 @@ class TestCharm(unittest.TestCase):
         self.mock_config = patcher.start()
         self.addCleanup(patcher.stop)
         self.mock_config.return_value = {}
-
-    @mock.patch('charmhelpers.core.hookenv.status_set')
-    def test_hook_install_packages(self, status_set):
-        ''' Test correct packages are installed via APT'''
-        content_cache.install()
-        expected = mock.call.queue_install(['haproxy', 'nginx'])
-        self.assertTrue(expected in apt.method_calls)
-        apt.install_queued.return_value = False
-        content_cache.install()
-        self.assertFalse(status_set.assert_called_with('blocked', mock.ANY))
 
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_upgrade_charm_flags(self, clear_flag):

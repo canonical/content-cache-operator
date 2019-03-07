@@ -1,6 +1,6 @@
 import yaml
 
-from charms import reactive, apt
+from charms import reactive
 from charmhelpers.core import hookenv, host
 from lib import nginx
 
@@ -17,15 +17,6 @@ def upgrade_charm():
 @reactive.when_not('content_cache.installed')
 def install():
     reactive.clear_flag('content_cache.active')
-
-    hookenv.log('Adding content-cache dependencies to be installed')
-    packages = ['haproxy', 'nginx']
-    apt.queue_install(packages)
-    if not apt.install_queued():
-        # apt layer already set blocked state but we want to do it here as well
-        # for unit tests.
-        hookenv.status_set('blocked', 'Unable to install packages')
-        return
 
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
