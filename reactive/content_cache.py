@@ -67,8 +67,10 @@ def configure_nginx():
     changed = False
     for site in conf.keys():
         if ngx_conf.write_site(site, ngx_conf.parse(conf[site])):
+            hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
     if ngx_conf.sync_sites(conf.keys()):
+        hookenv.log('Enabled sites: {}'.format(' '.join(conf.keys())))
         changed = True
     if changed:
         service_start_or_restart('nginx')
