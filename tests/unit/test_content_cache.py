@@ -119,8 +119,8 @@ class TestCharm(unittest.TestCase):
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_nginx_sites(self, service_start_or_restart):
         '''Test configuration of Nginx sites'''
-        with open('tests/unit/files/nginx_config_test_config.txt', 'rb') as f:
-            ngx_config = f.read().decode('utf-8')
+        with open('tests/unit/files/nginx_config_test_config.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
         self.mock_config.return_value = {'sites': ngx_config}
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
             mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
@@ -144,8 +144,8 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_haproxy_sites(self, service_start_or_restart):
-        with open('tests/unit/files/nginx_config_test_config.txt', 'rb') as f:
-            ngx_config = f.read().decode('utf-8')
+        with open('tests/unit/files/nginx_config_test_config.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
         self.mock_config.return_value = {'sites': ngx_config}
         content_cache.configure_haproxy()
 

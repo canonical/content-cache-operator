@@ -38,6 +38,7 @@ def config_changed():
     reactive.clear_flag('content_cache.nginx.configured')
 
 
+@reactive.when('content_cache.nginx.configured', 'content_cache.haproxy.configured')
 @reactive.when_not('content_cache.active')
 def set_active():
     hookenv.status_set('active', 'ready')
@@ -86,5 +87,7 @@ def configure_haproxy():
         hookenv.status_set('blocked', 'requires list of sites to configure')
         reactive.clear_flag('content_cache.active')
         return
+
+    # TODO: Configure up and start/restart HAProxy
 
     reactive.set_flag('content_cache.haproxy.configured')

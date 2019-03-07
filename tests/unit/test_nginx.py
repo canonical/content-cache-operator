@@ -26,23 +26,23 @@ class TestLibNginx(unittest.TestCase):
 
         ngx_conf = nginx.NginxConf()
 
-        with open('tests/unit/files/nginx_config_test_config.txt', 'rb') as f:
-            conf = yaml.safe_load(f.read().decode('utf-8'))
+        with open('tests/unit/files/nginx_config_test_config.txt', 'r', encoding='utf-8') as f:
+            conf = yaml.safe_load(f.read())
 
         # From the given YAML-formatted list of sites, check that each individual
         # Nginx config rendered matches what's in tests/unit/files.
         for site in conf.keys():
             output_file = 'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site)
-            with open(output_file, 'rb') as f:
-                output = f.read().decode('utf-8')
+            with open(output_file, 'r', encoding='utf-8') as f:
+                output = f.read()
             self.assertEqual(output, ngx_conf.render(conf[site]))
 
     def test_nginx_config_write_sites(self):
         '''Test writing out sites to individual Nginx site config files'''
         ngx_conf = nginx.NginxConf()
 
-        with open('tests/unit/files/nginx_config_rendered_test_output-site1.local.txt', 'rb') as f:
-            conf = f.read().decode('utf-8')
+        with open('tests/unit/files/nginx_config_rendered_test_output-site1.local.txt', 'r', encoding='utf-8') as f:
+            conf = f.read()
 
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
             mock_site_path.return_value = self.tmpdir
@@ -52,16 +52,16 @@ class TestLibNginx(unittest.TestCase):
             self.assertFalse(ngx_conf.write_site('site1.local', conf))
 
         # Compare what's been written out matches what's in tests/unit/files.
-        with open(os.path.join(self.tmpdir, 'site1.local'), 'rb') as f:
-            output = f.read().decode('utf-8')
+        with open(os.path.join(self.tmpdir, 'site1.local'), 'r', encoding='utf-8') as f:
+            output = f.read()
         self.assertEqual(conf, output)
 
     def test_nginx_config_sync_sites(self):
         '''Test cleanup of stale sites and that sites are enabled'''
         ngx_conf = nginx.NginxConf()
 
-        with open('tests/unit/files/nginx_config_rendered_test_output-site1.local.txt', 'rb') as f:
-            conf = f.read().decode('utf-8')
+        with open('tests/unit/files/nginx_config_rendered_test_output-site1.local.txt', 'r', encoding='utf-8') as f:
+            conf = f.read()
 
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
             mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')

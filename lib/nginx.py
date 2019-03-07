@@ -17,14 +17,14 @@ class NginxConf:
         fname = os.path.join(self.sites_path, site)
         # Check if contents changed
         try:
-            with open(fname, 'rb') as f:
-                current = f.read().decode('utf-8')
+            with open(fname, 'r', encoding='utf-8') as f:
+                current = f.read()
         except FileNotFoundError:
             current = ''
         if new == current:
             return False
-        with open(fname, 'wb') as f:
-            f.write(new.encode('utf-8'))
+        with open(fname, 'w', encoding='utf-8') as f:
+            f.write(new)
         return True
 
     def sync_sites(self, sites):
