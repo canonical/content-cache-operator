@@ -10,7 +10,8 @@ def upgrade_charm():
     hookenv.status_set('maintenance', 'forcing reconfiguration on upgrade-charm')
     reactive.clear_flag('content_cache.active')
     reactive.clear_flag('content_cache.installed')
-    reactive.clear_flag('content_cache.configured')
+    reactive.clear_flag('content_cache.haproxy.configured')
+    reactive.clear_flag('content_cache.nginx.configured')
 
 
 @reactive.when_not('content_cache.installed')
@@ -26,16 +27,18 @@ def install():
         hookenv.status_set('blocked', 'Unable to install packages')
         return
 
-    reactive.clear_flag('content_cache.configured')
+    reactive.clear_flag('content_cache.haproxy.configured')
+    reactive.clear_flag('content_cache.nginx.configured')
     reactive.set_flag('content_cache.installed')
 
 
 @reactive.when('config.changed')
 def config_changed():
-    reactive.clear_flag('content_cache.configured')
+    reactive.clear_flag('content_cache.haproxy.configured')
+    reactive.clear_flag('content_cache.nginx.configured')
 
 
-@reactive.when('content_cache.active')
+@reactive.when_not('content_cache.active')
 def set_active():
     hookenv.status_set('active', 'ready')
     reactive.set_flag('content_cache.active')
@@ -50,8 +53,8 @@ def service_start_or_restart(name):
         host.service_start(name)
 
 
-@reactive.when_not('content_cache.configured')
-def configure_content_cache():
+@reactive.when_not('content_cache.nginx.configured')
+def configure_nginx():
     config = hookenv.config()
 
     if not config.get('sites'):
@@ -68,4 +71,16 @@ def configure_content_cache():
     if changed:
         service_start_or_restart('nginx')
 
-    reactive.set_flag('content_cache.configured')
+    reactive.set_flag('content_cache.nginx.configured')
+
+
+@reactive.when_not('content_cache.haproxy.configured')
+def configure_haproxy():
+    config = hookenv.config()
+
+    if not config.get('sites'):
+        hookenv.status_set('blocked', 'requires list of sites to configure')
+        reactive.clear_flag('content_cache.active')
+        return
+
+    reactive.set_flag('content_cache.haproxy.configured')

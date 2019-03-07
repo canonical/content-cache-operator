@@ -1,6 +1,6 @@
 import os
 
-NGINX_SITE_PATH = '/etc/nginx/sites-available'
+NGINX_SITE_BASE_PATH = '/etc/nginx'
 INDENT = '    '
 
 
@@ -11,7 +11,7 @@ class NginxConf:
 
     @property
     def sites_path(self):
-        return NGINX_SITE_PATH
+        return os.path.join(NGINX_SITE_BASE_PATH, 'sites-available')
 
     def write(self, site, new):
         fname = os.path.join(self.sites_path, site)
