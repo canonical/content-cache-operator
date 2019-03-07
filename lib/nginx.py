@@ -33,10 +33,10 @@ class NginxConf:
             available = os.path.join(self.sites_path, site)
             enabled = os.path.join(os.path.dirname(self.sites_path), 'sites-enabled', site)
             if site not in sites:
-                os.remove(available)
-                changed = True
                 try:
+                    os.remove(available)
                     os.remove(enabled)
+                    changed = True
                 except FileNotFoundError:
                     pass
             elif not os.path.exists(enabled):
