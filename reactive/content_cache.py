@@ -66,7 +66,7 @@ def configure_nginx():
     conf = yaml.safe_load(config.get('sites'))
     changed = False
     for site in conf.keys():
-        if ngx_conf.write_site(site, ngx_conf.parse(conf[site])):
+        if ngx_conf.write_site(site, ngx_conf.render(conf[site])):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
     if ngx_conf.sync_sites(conf.keys()):

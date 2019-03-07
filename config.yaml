@@ -16,7 +16,6 @@ options:
     type: string
     description: |
       YAML-formatted virtual hosts/sites. e.g.
-      .
       site1.local:
         server:
           server_name: site1.local

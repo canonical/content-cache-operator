@@ -1,7 +1,7 @@
 import os
 
 NGINX_SITE_BASE_PATH = '/etc/nginx'
-INDENT = '    '
+INDENT = ' '*4
 
 
 class NginxConf:
@@ -45,21 +45,21 @@ class NginxConf:
 
         return changed
 
-    def parse(self, conf):
+    def render(self, conf):
         output = []
         for key in conf.keys():
             if key == 'server':
-                output.append(self._parse_server(conf[key]))
+                output.append(self._render_server(conf[key]))
             else:
                 output.append('{key} {value};'
                               .format(key=key, value=conf[key]))
         return '\n'.join(output)
 
-    def _parse_server(self, conf):
+    def _render_server(self, conf):
         output = ['\nserver {']
         for key in conf.keys():
             if key == 'location':
-                output.append(self._parse_location(conf[key]))
+                output.append(self._render_location(conf[key]))
             else:
                 output.append('{indent}{key} {value};'
                               .format(indent=INDENT, key=key, value=conf[key]))
@@ -70,7 +70,7 @@ class NginxConf:
         output.append('}\n')
         return '\n'.join(output)
 
-    def _parse_location(self, conf):
+    def _render_location(self, conf):
         output = ['\n{}location {} {{'.format(INDENT, conf['path'])]
         for key in conf.keys():
             if key == 'path':
