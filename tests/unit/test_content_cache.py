@@ -7,6 +7,10 @@ from unittest import mock
 
 # Add path to where our reactive layer lives and import.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
+# We also need to mock up charms.layer so we can run unit tests without having
+# to build the charm and pull in layers such as layer-status.
+sys.modules['charms.layer'] = mock.MagicMock()
+from charms.layer import status  # NOQA: E402
 from reactive import content_cache  # NOQA: E402
 
 
@@ -69,11 +73,10 @@ class TestCharm(unittest.TestCase):
         self.assertFalse(clear_flag.assert_has_calls(expected, any_order=True))
 
     @mock.patch('charms.reactive.set_flag')
-    @mock.patch('charmhelpers.core.hookenv.status_set')
-    def test_hook_set_active(self, status_set, set_flag):
+    def test_hook_set_active(self, set_flag):
         content_cache.set_active()
         self.assertFalse(set_flag.assert_called_once_with('content_cache.active'))
-        self.assertFalse(status_set.assert_called_once_with('active', 'ready'))
+        self.assertFalse(status.active.assert_called())
 
     @mock.patch('charmhelpers.core.host.service_running')
     @mock.patch('charmhelpers.core.host.service_restart')
@@ -96,12 +99,11 @@ class TestCharm(unittest.TestCase):
         self.assertFalse(service_restart.assert_not_called())
 
     @mock.patch('charms.reactive.clear_flag')
-    @mock.patch('charmhelpers.core.hookenv.status_set')
-    def test_configure_nginx_no_sites(self, status_set, clear_flag):
+    def test_configure_nginx_no_sites(self, clear_flag):
         '''Test correct flags are set when no sites defined to configure Nginx'''
         content_cache.configure_nginx()
         self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
-        self.assertFalse(status_set.assert_called_with('blocked', mock.ANY))
+        self.assertFalse(status.blocked.assert_called())
 
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_nginx_sites(self, service_start_or_restart):
@@ -124,11 +126,10 @@ class TestCharm(unittest.TestCase):
             self.assertFalse(service_start_or_restart.assert_not_called())
 
     @mock.patch('charms.reactive.clear_flag')
-    @mock.patch('charmhelpers.core.hookenv.status_set')
-    def test_configure_haproxy_no_sites(self, status_set, clear_flag):
+    def test_configure_haproxy_no_sites(self, clear_flag):
         content_cache.configure_haproxy()
         self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
-        self.assertFalse(status_set.assert_called_with('blocked', mock.ANY))
+        self.assertFalse(status.blocked.assert_called())
 
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_haproxy_sites(self, service_start_or_restart):

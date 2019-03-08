@@ -1,13 +1,14 @@
 import yaml
 
 from charms import reactive
+from charms.layer import status
 from charmhelpers.core import hookenv, host
 from lib import nginx
 
 
 @reactive.hook('upgrade-charm')
 def upgrade_charm():
-    hookenv.status_set('maintenance', 'forcing reconfiguration on upgrade-charm')
+    status.maintenance('forcing reconfiguration on upgrade-charm')
     reactive.clear_flag('content_cache.active')
     reactive.clear_flag('content_cache.installed')
     reactive.clear_flag('content_cache.haproxy.configured')
@@ -32,7 +33,7 @@ def config_changed():
 @reactive.when('content_cache.nginx.configured', 'content_cache.haproxy.configured')
 @reactive.when_not('content_cache.active')
 def set_active():
-    hookenv.status_set('active', 'ready')
+    status.active('ready')  # XXX: Add more info such as nginx and haproxy status
     reactive.set_flag('content_cache.active')
 
 
@@ -50,7 +51,7 @@ def configure_nginx():
     config = hookenv.config()
 
     if not config.get('sites'):
-        hookenv.status_set('blocked', 'requires list of sites to configure')
+        status.blocked('requires list of sites to configure')
         reactive.clear_flag('content_cache.active')
         return
 
@@ -75,7 +76,7 @@ def configure_haproxy():
     config = hookenv.config()
 
     if not config.get('sites'):
-        hookenv.status_set('blocked', 'requires list of sites to configure')
+        status.blocked('requires list of sites to configure')
         reactive.clear_flag('content_cache.active')
         return
 
