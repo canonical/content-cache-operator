@@ -46,12 +46,12 @@ class TestCharm(unittest.TestCase):
         '''Test correct flags set via upgrade-charm hook'''
         status.maintenance.reset_mock()
         content_cache.upgrade_charm()
+        self.assertFalse(status.maintenance.assert_called())
         expected = [mock.call('content_cache.active'),
                     mock.call('content_cache.installed'),
                     mock.call('content_cache.haproxy.configured'),
                     mock.call('content_cache.nginx.configured')]
         self.assertFalse(clear_flag.assert_has_calls(expected, any_order=True))
-        self.assertFalse(status.maintenance.assert_called())
 
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('charms.reactive.set_flag')
@@ -78,8 +78,8 @@ class TestCharm(unittest.TestCase):
     def test_hook_set_active(self, set_flag):
         status.active.reset_mock()
         content_cache.set_active()
-        self.assertFalse(set_flag.assert_called_once_with('content_cache.active'))
         self.assertFalse(status.active.assert_called())
+        self.assertFalse(set_flag.assert_called_once_with('content_cache.active'))
 
     @mock.patch('charmhelpers.core.host.service_running')
     @mock.patch('charmhelpers.core.host.service_restart')
@@ -87,7 +87,9 @@ class TestCharm(unittest.TestCase):
     def test_service_start_or_restart_running(self, service_start, service_restart, service_running):
         '''Test service restarted when already running'''
         service_running.return_value = True
+        status.active.reset_mock()
         content_cache.service_start_or_restart('someservice')
+        self.assertFalse(status.maintenance.assert_called())
         self.assertFalse(service_start.assert_not_called())
         self.assertFalse(service_restart.assert_called_once_with('someservice'))
 
@@ -97,7 +99,9 @@ class TestCharm(unittest.TestCase):
     def test_service_start_or_restart_stopped(self, service_start, service_restart, service_running):
         '''Test service started up when not running/stopped'''
         service_running.return_value = False
+        status.active.reset_mock()
         content_cache.service_start_or_restart('someservice')
+        self.assertFalse(status.maintenance.assert_called())
         self.assertFalse(service_start.assert_called_once_with('someservice'))
         self.assertFalse(service_restart.assert_not_called())
 
@@ -133,8 +137,8 @@ class TestCharm(unittest.TestCase):
     def test_configure_haproxy_no_sites(self, clear_flag):
         status.blocked.reset_mock()
         content_cache.configure_haproxy()
-        self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
         self.assertFalse(status.blocked.assert_called())
+        self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
 
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_haproxy_sites(self, service_start_or_restart):

@@ -40,10 +40,10 @@ def set_active():
 
 def service_start_or_restart(name):
     if host.service_running(name):
-        hookenv.log('Restarting {}...'.format(name))
+        status.maintenance('Restarting {}...'.format(name))
         host.service_restart(name)
     else:
-        hookenv.log('Starting {}...'.format(name))
+        status.maintenance('Starting {}...'.format(name))
         host.service_start(name)
 
 
