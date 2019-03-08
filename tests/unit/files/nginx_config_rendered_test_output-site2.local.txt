@@ -1,0 +1,14 @@
+proxy_cache_path /var/cache/nginx/site2.local use_temp_path=off levels=1:2 keys_zone=site2-cache:10m max_size=1g;
+
+server {
+    server_name site2.local;
+    listen 6082;
+    access_log /var/log/nginx/site2.local-access.log;
+    error_log /var/log/nginx/site2.local-error.log;;
+
+    location / {
+        proxy_pass http://localhost:8082;
+        proxy_set_header Host "site2.local";
+    }
+
+}

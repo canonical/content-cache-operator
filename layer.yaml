@@ -2,4 +2,10 @@ includes:
   - layer:basic
   - layer:apt
   - layer:nagios
-repo: lp:cdn-charm
+  - layer:status
+repo: lp:content-cache-charm
+options:
+  basic:
+    packages:
+      - haproxy
+      - nginx

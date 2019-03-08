@@ -23,8 +23,8 @@ functionaltest:
 
 clean:
 	@echo "Cleaning files"
-	@if [ -d ./.tox ] ; then rm -r ./.tox ; fi
-	@if [ -d ./.pytest_cache ] ; then rm -r ./.pytest_cache ; fi
+	@rm -rf ./.tox
+	@rm -rf ./.pytest_cache
 
 # The targets below don't depend on a file
 .PHONY: lint test unittest functionaltest clean help

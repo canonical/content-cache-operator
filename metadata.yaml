@@ -1,10 +1,14 @@
-name: cdn
-summary: Content distribution network (CDN)
-maintainer: CDN Charmers <cdn-charmers@lists.launchpad.net>
+name: content-cache
+summary: Content / Frontend Cache
+maintainer: Content Cache Charmers <content-cache-charmers@lists.launchpad.net>
 description: |
-  Deploy CDN
+  Installs Nginx and HAProxy as a highly available web accelerator
+  with TLS support. Useful for providing local mirrors of HTTP servers
+  and building content delivery networks (CDN).
 tags:
   - cache-proxy
+  - content-cache
+  - web-cache
   - ops
 series:
   - bionic
