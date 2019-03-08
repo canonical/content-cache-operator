@@ -2,7 +2,9 @@ name: content-cache
 summary: Content / Frontend Cache
 maintainer: Content Cache Charmers <content-cache-charmers@lists.launchpad.net>
 description: |
-  Deploy content / frontend caching
+  Installs Nginx and HAProxy as a highly available web accelerator
+  with TLS support. Useful for providing local mirrors of HTTP servers
+  and building content delivery networks (CDN).
 tags:
   - cache-proxy
   - content-cache
