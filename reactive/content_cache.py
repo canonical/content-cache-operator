@@ -33,7 +33,8 @@ def config_changed():
 @reactive.when('content_cache.nginx.configured', 'content_cache.haproxy.configured')
 @reactive.when_not('content_cache.active')
 def set_active():
-    status.active('ready')  # XXX: Add more info such as nginx and haproxy status
+    # XXX: Add more info such as nginx and haproxy status
+    status.active('ready')
     reactive.set_flag('content_cache.active')
 
 

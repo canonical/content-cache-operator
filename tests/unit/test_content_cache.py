@@ -44,12 +44,14 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_upgrade_charm_flags(self, clear_flag):
         '''Test correct flags set via upgrade-charm hook'''
+        status.maintenance.reset_mock()
         content_cache.upgrade_charm()
         expected = [mock.call('content_cache.active'),
                     mock.call('content_cache.installed'),
                     mock.call('content_cache.haproxy.configured'),
                     mock.call('content_cache.nginx.configured')]
         self.assertFalse(clear_flag.assert_has_calls(expected, any_order=True))
+        self.assertFalse(status.maintenance.assert_called())
 
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('charms.reactive.set_flag')
@@ -74,6 +76,7 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('charms.reactive.set_flag')
     def test_hook_set_active(self, set_flag):
+        status.active.reset_mock()
         content_cache.set_active()
         self.assertFalse(set_flag.assert_called_once_with('content_cache.active'))
         self.assertFalse(status.active.assert_called())
@@ -101,9 +104,10 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_nginx_no_sites(self, clear_flag):
         '''Test correct flags are set when no sites defined to configure Nginx'''
+        status.blocked.reset_mock()
         content_cache.configure_nginx()
-        self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
         self.assertFalse(status.blocked.assert_called())
+        self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
 
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_nginx_sites(self, service_start_or_restart):
@@ -127,6 +131,7 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_haproxy_no_sites(self, clear_flag):
+        status.blocked.reset_mock()
         content_cache.configure_haproxy()
         self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
         self.assertFalse(status.blocked.assert_called())
