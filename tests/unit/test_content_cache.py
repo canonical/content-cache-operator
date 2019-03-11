@@ -5,12 +5,13 @@ import tempfile
 import unittest
 from unittest import mock
 
-# Add path to where our reactive layer lives and import.
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 # We also need to mock up charms.layer so we can run unit tests without having
 # to build the charm and pull in layers such as layer-status.
 sys.modules['charms.layer'] = mock.MagicMock()
+
 from charms.layer import status  # NOQA: E402
+# Add path to where our reactive layer lives and import.
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from reactive import content_cache  # NOQA: E402
 
 
