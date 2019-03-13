@@ -1,34 +1,21 @@
 import os
-import shutil
+# import shutil
 import sys
 import tempfile
 import unittest
+import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import haproxy as HAProxy  # NOQA: E402
 
 
-SITE_CONFIG1 = {
-    'site1.local': {
-        'port': 80,
-        'backends': ['127.0.1.10:80', '127.0.1.11:80', '127.0.1.12:80'],
-    },
-    'site2.local': {
-        'tls-cert-bundle': '/etc/haproxy/some-bundle.crt',
-        'backends': ['127.0.1.10:443', '127.0.1.11:443', '127.0.1.12:443'],
-        'backend-tls': True
-    },
-    'site3.local': {
-        'backends': ['127.0.1.10:80', '127.0.1.11:80', '127.0.1.12:80'],
-    }
-}
-
-
 class TestLibHAProxy(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp(prefix='charm-unittests-')
-        self.addCleanup(shutil.rmtree, self.tmpdir)
+        # self.addCleanup(shutil.rmtree, self.tmpdir)
         self.charm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
+            self.site_config = yaml.safe_load(f.read())
 
     def test_haproxy_config_path(self):
         conf_path = '/etc/haproxy'
@@ -49,58 +36,23 @@ class TestLibHAProxy(unittest.TestCase):
 
     def test_haproxy_config_render_listen_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
-        config = SITE_CONFIG1
-        expected = [
-            '\nlisten site1-local\n'
-            '    bind 0.0.0.0:80\n'
-            '    default_backend cached-site1-local\n',
-
-            '\nlisten site2-local\n'
-            '    bind 0.0.0.0:443 ssl crt /etc/haproxy/some-bundle.crt\n'
-            '    default_backend cached-site2-local\n',
-
-            '\nlisten site3-local\n'
-            '    bind 0.0.0.0:80\n'
-            '    default_backend cached-site3-local\n'
-        ]
-        self.assertEqual(haproxy.render_stanza_listen(config), expected)
+        config = self.site_config
+        with open('tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output.txt', 'r',
+                  encoding='utf-8') as f:
+            expected = f.read()
+        self.assertEqual(''.join(haproxy.render_stanza_listen(config)), expected)
 
     def test_haproxy_config_render_backend_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
-        config = SITE_CONFIG1
-        expected = [
-            '\nbackend cached-site1-local\n'
-            '    option httpchk HEAD / HTTP/1.0\\r\\nHost:\\ site1.local\\r\\nUser-Agent:\\ haproxy/httpchk\n'
-            '    http-request set-header Host site1.local\n'
-            '    balance leastconn\n'
-            '    server server_1 127.0.1.10:80 check inter 5000 rise 2 fall 5 maxconn 16\n'
-            '    server server_2 127.0.1.11:80 check inter 5000 rise 2 fall 5 maxconn 16\n'
-            '    server server_3 127.0.1.12:80 check inter 5000 rise 2 fall 5 maxconn 16\n',
-
-            '\nbackend cached-site2-local\n'
-            '    option httpchk HEAD / HTTP/1.0\\r\\nHost:\\ site2.local\\r\\nUser-Agent:\\ haproxy/httpchk\n'
-            '    http-request set-header Host site2.local\n'
-            '    balance leastconn\n'
-            '    server server_1 127.0.1.10:443 check inter 5000 rise 2 fall 5 maxconn 16 '
-            'ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt\n'
-            '    server server_2 127.0.1.11:443 check inter 5000 rise 2 fall 5 maxconn 16 '
-            'ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt\n'
-            '    server server_3 127.0.1.12:443 check inter 5000 rise 2 fall 5 maxconn 16 '
-            'ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt\n',
-
-            '\nbackend cached-site3-local\n'
-            '    option httpchk HEAD / HTTP/1.0\\r\\nHost:\\ site3.local\\r\\nUser-Agent:\\ haproxy/httpchk\n'
-            '    http-request set-header Host site3.local\n'
-            '    balance leastconn\n'
-            '    server server_1 127.0.1.10:80 check inter 5000 rise 2 fall 5 maxconn 16\n'
-            '    server server_2 127.0.1.11:80 check inter 5000 rise 2 fall 5 maxconn 16\n'
-            '    server server_3 127.0.1.12:80 check inter 5000 rise 2 fall 5 maxconn 16\n'
-        ]
-        self.assertEqual(haproxy.render_stanza_backend(config), expected)
+        config = self.site_config
+        with open('tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt', 'r',
+                  encoding='utf-8') as f:
+            expected = f.read()
+        self.assertEqual(''.join(haproxy.render_stanza_backend(config)), expected)
 
     def test_haproxy_config_render(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
-        config = SITE_CONFIG1
+        config = self.site_config
         num_procs = 4
         self.assertTrue(haproxy.write(haproxy.render(config, num_procs)))
         with open(haproxy.conf_file, 'r') as f:
