@@ -34,7 +34,7 @@ class TestLibHAProxy(unittest.TestCase):
         self.assertEqual(haproxy._generate_stanza_name('site1-canonical-com-canonical-com'),
                          'site1-canonical-com-canonical-co')
 
-    def test_haproxy_config_render_listen_stanzas(self):
+    def test_haproxy_config_rendered_listen_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
         with open('tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output.txt', 'r',
@@ -42,7 +42,7 @@ class TestLibHAProxy(unittest.TestCase):
             expected = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_listen(config)), expected)
 
-    def test_haproxy_config_render_backend_stanzas(self):
+    def test_haproxy_config_rendered_backend_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
         with open('tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt', 'r',
@@ -50,7 +50,7 @@ class TestLibHAProxy(unittest.TestCase):
             expected = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), expected)
 
-    def test_haproxy_config_render(self):
+    def test_haproxy_config_rendered_full_config(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
         num_procs = 4
