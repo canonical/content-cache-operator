@@ -1,9 +1,11 @@
+import multiprocessing
 import yaml
 
 from charms import reactive
 from charms.layer import status
 from charmhelpers.core import hookenv, host
 from lib import nginx
+from lib import haproxy as HAProxy
 
 
 @reactive.hook('upgrade-charm')
@@ -81,7 +83,10 @@ def configure_haproxy():
         reactive.clear_flag('content_cache.active')
         return
 
-    print(config.get('sites'))
-    # TODO: Configure up and start/restart HAProxy
+    haproxy = HAProxy.HAProxyConf()
+    num_procs = multiprocessing.cpu_count()
+    conf = yaml.safe_load(config.get('sites'))
+    if haproxy.write(haproxy.render(conf, num_procs)):
+        service_start_or_restart('haproxy')
 
     reactive.set_flag('content_cache.haproxy.configured')

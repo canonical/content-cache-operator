@@ -1,0 +1,17 @@
+site1.local:
+    backends:
+    - 127.0.1.10:80
+    - 127.0.1.11:80
+    - 127.0.1.12:80
+site2.local:
+    tls-cert-bundle: /etc/haproxy/some-bundle.crt
+    backend-tls: True
+    backends:
+    - 127.0.1.10:443
+    - 127.0.1.11:443
+    - 127.0.1.12:443
+site3.local:
+    backends:
+    - 127.0.1.10:80
+    - 127.0.1.11:80
+    - 127.0.1.12:80
