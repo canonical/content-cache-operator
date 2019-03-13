@@ -14,13 +14,12 @@ SITE_CONFIG1 = {
         'backends': ['127.0.1.10:80', '127.0.1.11:80', '127.0.1.12:80'],
     },
     'site2.local': {
-        'port': 80,
-        'backends': ['127.0.1.10:80', '127.0.1.11:80', '127.0.1.12:80'],
-        'tls': True,
+        'tls-cert-bundle': '/etc/haproxy/some-bundle.crt',
+        'backends': ['127.0.1.10:443', '127.0.1.11:443', '127.0.1.12:443'],
+        'backend-tls': True
     },
     'site3.local': {
         'backends': ['127.0.1.10:80', '127.0.1.11:80', '127.0.1.12:80'],
-        'tls': False,
     }
 }
 
@@ -57,7 +56,7 @@ class TestLibHAProxy(unittest.TestCase):
             '    default_backend cached-site1-local\n',
 
             '\nlisten site2-local\n'
-            '    bind 0.0.0.0:80\n'
+            '    bind 0.0.0.0:443 ssl crt /etc/haproxy/some-bundle.crt\n'
             '    default_backend cached-site2-local\n',
 
             '\nlisten site3-local\n'
@@ -82,9 +81,12 @@ class TestLibHAProxy(unittest.TestCase):
             '    option httpchk HEAD / HTTP/1.0\\r\\nHost:\\ site2.local\\r\\nUser-Agent:\\ haproxy/httpchk\n'
             '    http-request set-header Host site2.local\n'
             '    balance leastconn\n'
-            '    server server_1 127.0.1.10:80 check inter 5000 rise 2 fall 5 maxconn 16\n'
-            '    server server_2 127.0.1.11:80 check inter 5000 rise 2 fall 5 maxconn 16\n'
-            '    server server_3 127.0.1.12:80 check inter 5000 rise 2 fall 5 maxconn 16\n',
+            '    server server_1 127.0.1.10:443 check inter 5000 rise 2 fall 5 maxconn 16 '
+            'ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt\n'
+            '    server server_2 127.0.1.11:443 check inter 5000 rise 2 fall 5 maxconn 16 '
+            'ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt\n'
+            '    server server_3 127.0.1.12:443 check inter 5000 rise 2 fall 5 maxconn 16 '
+            'ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt\n',
 
             '\nbackend cached-site3-local\n'
             '    option httpchk HEAD / HTTP/1.0\\r\\nHost:\\ site3.local\\r\\nUser-Agent:\\ haproxy/httpchk\n'
@@ -99,9 +101,19 @@ class TestLibHAProxy(unittest.TestCase):
     def test_haproxy_config_render(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = SITE_CONFIG1
-        self.assertTrue(haproxy.render(config))
+        num_procs = 4
+        self.assertTrue(haproxy.write(haproxy.render(config, num_procs)))
         with open(haproxy.conf_file, 'r') as f:
             new_conf = f.read()
         with open('tests/unit/files/haproxy_config_rendered_test_output.txt', 'r') as f:
             expected = f.read()
         self.assertEqual(new_conf, expected)
+
+    def test_haproxy_config_write(self):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+        with open('tests/unit/files/haproxy_config_rendered_test_output.txt', 'r', encoding='utf-8') as f:
+            conf = f.read()
+        self.assertTrue(haproxy.write(conf))
+        # Write again with same contents, this time it should return 'False'
+        # as there should be no change.
+        self.assertFalse(haproxy.write(conf))

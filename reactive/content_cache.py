@@ -81,6 +81,7 @@ def configure_haproxy():
         reactive.clear_flag('content_cache.active')
         return
 
+    print(config.get('sites'))
     # TODO: Configure up and start/restart HAProxy
 
     reactive.set_flag('content_cache.haproxy.configured')
