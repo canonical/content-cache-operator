@@ -1,5 +1,5 @@
 import os
-# import shutil
+import shutil
 import sys
 import tempfile
 import unittest
@@ -11,8 +11,9 @@ from lib import haproxy as HAProxy  # NOQA: E402
 
 class TestLibHAProxy(unittest.TestCase):
     def setUp(self):
+        self.maxDiff = None
         self.tmpdir = tempfile.mkdtemp(prefix='charm-unittests-')
-        # self.addCleanup(shutil.rmtree, self.tmpdir)
+        self.addCleanup(shutil.rmtree, self.tmpdir)
         self.charm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             self.site_config = yaml.safe_load(f.read())

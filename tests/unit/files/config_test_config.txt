@@ -8,7 +8,7 @@ site1.local:
 
 # Test 2: TLS/SSL as well as backends (HTTPS)
 site2.local:
-    tls-cert-bundle: /etc/haproxy/some-bundle.crt
+    tls-cert-bundle-path: /etc/haproxy/some-bundle.crt
     backend-tls: True
     backends:
     - 127.0.1.10:443

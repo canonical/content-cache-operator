@@ -4,6 +4,7 @@ import yaml
 from charms import reactive
 from charms.layer import status
 from charmhelpers.core import hookenv, host
+
 from lib import nginx
 from lib import haproxy as HAProxy
 

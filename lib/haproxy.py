@@ -1,5 +1,6 @@
-import jinja2
 import os
+
+import jinja2
 
 
 HAPROXY_BASE_PATH = '/etc/haproxy'
@@ -30,19 +31,20 @@ listen {name}
 """
         rendered_output = []
         for site in config.keys():
-            port = config[site].get('port') or False
-            tls = ''
-            if config[site].get('tls-cert-bundle'):
-                tls = ' ssl crt {}'.format(config[site].get('tls-cert-bundle'))
-            if not port:
-                if tls:
-                    port = 443
-                else:
-                    port = 80
+            default_port = 80
+            tls_config = ''
+
+            tls_cert_bundle_path = config[site].get('tls-cert-bundle-path')
+            if tls_cert_bundle_path:
+                default_port = 443
+                tls_config = ' ssl crt {}'.format(tls_cert_bundle_path)
+
+            port = config[site].get('port', default_port)
 
             output = listen_stanza.format(name=self._generate_stanza_name(site),
-                                          port=port, tls=tls, indent=INDENT)
+                                          port=port, tls=tls_config, indent=INDENT)
             rendered_output.append(output)
+
         return rendered_output
 
     def render_stanza_backend(self, config):
@@ -51,22 +53,27 @@ backend cached-{name}
 {indent}option httpchk HEAD / HTTP/1.0\\r\\nHost:\\ {site}\\r\\nUser-Agent:\\ haproxy/httpchk
 {indent}http-request set-header Host {site}
 {indent}balance leastconn
+{backends}
 """
         rendered_output = []
         for site in config.keys():
-            output = backend_stanza.format(name=self._generate_stanza_name(site),
-                                           site=site, indent=INDENT)
-            count = 1
-            tls = ''
+            tls_config = ''
             if config[site].get('backend-tls'):
-                tls = ' ssl sni str({site}) check-sni {site} verify required ca-file ca-certificates.crt' \
-                      .format(site=site)
+                tls_config = ' ssl sni str({site}) check-sni {site} verify required ca-file ca-certificates.crt' \
+                             .format(site=site)
+            backends = []
+            count = 0
             for backend in config[site]['backends']:
-                name = 'server_{}'.format(count)
-                output += '{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn 16{tls}\n' \
-                          .format(name=name, backend=backend, tls=tls, indent=INDENT)
                 count += 1
+                name = 'server_{}'.format(count)
+                backends.append('{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn 16{tls}'
+                                .format(name=name, backend=backend, tls=tls_config, indent=INDENT))
+
+            output = backend_stanza.format(name=self._generate_stanza_name(site),
+                                           site=site, backends='\n'.join(backends), indent=INDENT)
+
             rendered_output.append(output)
+
         return rendered_output
 
     def render(self, config, num_procs):
