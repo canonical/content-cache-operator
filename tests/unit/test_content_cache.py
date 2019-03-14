@@ -17,6 +17,7 @@ from reactive import content_cache  # NOQA: E402
 
 class TestCharm(unittest.TestCase):
     def setUp(self):
+        self.maxDiff = None
         self.tmpdir = tempfile.mkdtemp(prefix='charm-unittests-')
         self.addCleanup(shutil.rmtree, self.tmpdir)
 

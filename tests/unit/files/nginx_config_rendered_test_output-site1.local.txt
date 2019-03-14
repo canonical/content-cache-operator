@@ -15,5 +15,5 @@ server {
     }
 
     access_log /var/log/nginx/site1.local-access.log;
-    error_log /var/log/nginx/site1.local-access.log;
+    error_log /var/log/nginx/site1.local-error.log;
 }

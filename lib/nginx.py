@@ -1,5 +1,8 @@
 import os
 
+import jinja2
+
+
 NGINX_SITE_BASE_PATH = '/etc/nginx'
 INDENT = ' '*4
 
@@ -47,37 +50,16 @@ class NginxConf:
 
         return changed
 
-    def render(self, conf):
-        output = []
-        for key in conf.keys():
-            if key == 'server':
-                output.append(self._render_server(conf[key]))
-            else:
-                output.append('{key} {value};'
-                              .format(key=key, value=conf[key]))
-        return '\n'.join(output)
+    def _generate_name(self, name):
+        return name.split('.')[0]
 
-    def _render_server(self, conf):
-        output = ['\nserver {']
-        for key in conf.keys():
-            if key == 'location':
-                output.append(self._render_location(conf[key]))
-            else:
-                output.append('{indent}{key} {value};'
-                              .format(indent=INDENT, key=key, value=conf[key]))
-        for log in ['access_log', 'error_log']:
-            if log not in conf:
-                output.append('{indent}{key} /var/log/nginx/{site}-access.log;'
-                              .format(indent=INDENT, key=log, site=conf['server_name']))
-        output.append('}\n')
-        return '\n'.join(output)
-
-    def _render_location(self, conf):
-        output = ['\n{}location {} {{'.format(INDENT, conf['path'])]
-        for key in conf.keys():
-            if key == 'path':
-                continue
-            output.append('{indent}{indent}{key} {value};'
-                          .format(indent=INDENT, key=key, value=conf[key]))
-        output.append('{}}}\n'.format(INDENT))
-        return '\n'.join(output)
+    def render(self, site, listen_port, backend):
+        base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
+        template = env.get_template('templates/nginx_cfg.tmpl')
+        return template.render({
+            'site': site,
+            'name': self._generate_name(site),
+            'port': listen_port,
+            'backend': backend,
+        })

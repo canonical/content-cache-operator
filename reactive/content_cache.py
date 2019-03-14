@@ -9,6 +9,10 @@ from lib import nginx
 from lib import haproxy as HAProxy
 
 
+BASE_LISTEN_PORT = 6080
+BASE_BACKEND_PORT = 8080
+
+
 @reactive.hook('upgrade-charm')
 def upgrade_charm():
     status.maintenance('forcing reconfiguration on upgrade-charm')
@@ -62,8 +66,13 @@ def configure_nginx():
     ngx_conf = nginx.NginxConf()
     conf = yaml.safe_load(config.get('sites'))
     changed = False
+    port = BASE_LISTEN_PORT
+    backend_port = BASE_BACKEND_PORT
     for site in conf.keys():
-        if ngx_conf.write_site(site, ngx_conf.render(conf[site])):
+        port += 1
+        backend_port += 1
+        backend = 'http://localhost:{}'.format(backend_port)
+        if ngx_conf.write_site(site, ngx_conf.render(site, port, backend)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
     if ngx_conf.sync_sites(conf.keys()):

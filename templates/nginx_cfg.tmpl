@@ -1,0 +1,20 @@
+proxy_cache_path /var/cache/nginx/{{site}} use_temp_path=off levels=1:2 keys_zone={{name}}-cache:10m max_size=1g;
+
+server {
+    server_name {{site}};
+    listen {{port}};
+
+    location / {
+        proxy_pass {{backend}};
+        proxy_set_header Host "{{site}}";
+        proxy_cache valid 200 1d;
+        proxy_cache_lock on;
+        proxy_cache_min_uses 5;
+        proxy_cache_revalidate on;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+    }
+
+    access_log /var/log/nginx/{{site}}-access.log;
+    error_log /var/log/nginx/{{site}}-error.log;
+}
+
