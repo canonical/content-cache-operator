@@ -27,7 +27,7 @@ class HAProxyConf:
         listen_stanza = """
 listen {name}
 {indent}bind 0.0.0.0:{port}{tls}
-{indent}default_backend backend-{name}
+{indent}default_backend backend-{backend_name}
 """
         rendered_output = []
         for site in config.keys():
@@ -41,7 +41,12 @@ listen {name}
 
             port = config[site].get('port', default_port)
 
-            output = listen_stanza.format(name=self._generate_stanza_name(site),
+            backend_name = config[site].get('backend-name')
+            if not backend_name:
+                backend_name = site
+            backend_name = self._generate_stanza_name(backend_name)
+
+            output = listen_stanza.format(name=self._generate_stanza_name(site), backend_name=backend_name,
                                           port=port, tls=tls_config, indent=INDENT)
             rendered_output.append(output)
 
@@ -50,13 +55,16 @@ listen {name}
     def render_stanza_backend(self, config):
         backend_stanza = """
 backend backend-{name}
-{indent}option httpchk HEAD / HTTP/1.0\\r\\nHost:\\ {site}\\r\\nUser-Agent:\\ haproxy/httpchk
-{indent}http-request set-header Host {site}
+{indent}option httpchk HEAD / HTTP/1.0\\r\\nHost:\\ {site_name}\\r\\nUser-Agent:\\ haproxy/httpchk
+{indent}http-request set-header Host {site_name}
 {indent}balance leastconn
 {backends}
 """
         rendered_output = []
         for site in config.keys():
+            site_name = config[site].get('site-name')
+            if not site_name:
+                site_name = site
             tls_config = ''
             if config[site].get('backend-tls'):
                 tls_config = ' ssl sni str({site}) check-sni {site} verify required ca-file ca-certificates.crt' \
@@ -70,7 +78,7 @@ backend backend-{name}
                                 .format(name=name, backend=backend, tls=tls_config, indent=INDENT))
 
             output = backend_stanza.format(name=self._generate_stanza_name(site),
-                                           site=site, backends='\n'.join(backends), indent=INDENT)
+                                           site=site, site_name=site_name, backends='\n'.join(backends), indent=INDENT)
 
             rendered_output.append(output)
 
