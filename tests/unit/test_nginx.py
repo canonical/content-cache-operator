@@ -8,9 +8,13 @@ import yaml
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import nginx  # NOQA: E402
 
+BASE_LISTEN_PORT = 6080
+BASE_BACKEND_PORT = 8080
+
 
 class TestLibNginx(unittest.TestCase):
     def setUp(self):
+        self.maxDiff = None
         self.tmpdir = tempfile.mkdtemp(prefix='charm-unittests-')
         self.addCleanup(shutil.rmtree, self.tmpdir)
         self.charm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -25,16 +29,21 @@ class TestLibNginx(unittest.TestCase):
 
         ngx_conf = nginx.NginxConf()
 
-        with open('tests/unit/files/nginx_config_test_config.txt', 'r', encoding='utf-8') as f:
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             conf = yaml.safe_load(f.read())
 
         # From the given YAML-formatted list of sites, check that each individual
         # Nginx config rendered matches what's in tests/unit/files.
+        port = BASE_LISTEN_PORT
+        backend_port = BASE_BACKEND_PORT
         for site in conf.keys():
+            port += 1
+            backend_port += 1
+            backend = 'http://localhost:{}'.format(backend_port)
             output_file = 'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site)
             with open(output_file, 'r', encoding='utf-8') as f:
                 output = f.read()
-            self.assertEqual(output, ngx_conf.render(conf[site]))
+            self.assertEqual(output, ngx_conf.render(site, port, backend))
 
     def test_nginx_config_write_sites(self):
         '''Test writing out sites to individual Nginx site config files'''
@@ -77,6 +86,9 @@ class TestLibNginx(unittest.TestCase):
         # Only two sites, site3.local shouldn't exist.
         self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-available', 'site3.local')))
         self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-enabled', 'site3.local')))
+
+        # Re-run, no change this time.
+        self.assertFalse(ngx_conf.sync_sites(['site1.local', 'site2.local']))
 
 
 if __name__ == '__main__':

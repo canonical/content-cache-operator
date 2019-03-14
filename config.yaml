@@ -17,9 +17,6 @@ options:
     description: |
       YAML-formatted virtual hosts/sites. e.g.
       site1.local:
-        server:
-          server_name: site1.local
-          location:
-            path: /
-            proxy_pass: http://localhost:8081
-            proxy_set_header: Host "site1.local"
+        backends:
+        - 91.189.88.149:80
+        - 91.189.88.152:80
