@@ -5,12 +5,13 @@ import tempfile
 import unittest
 from unittest import mock
 
-# Add path to where our reactive layer lives and import.
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 # We also need to mock up charms.layer so we can run unit tests without having
 # to build the charm and pull in layers such as layer-status.
 sys.modules['charms.layer'] = mock.MagicMock()
+
 from charms.layer import status  # NOQA: E402
+# Add path to where our reactive layer lives and import.
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from reactive import content_cache  # NOQA: E402
 
 
@@ -40,6 +41,11 @@ class TestCharm(unittest.TestCase):
         self.mock_config = patcher.start()
         self.addCleanup(patcher.stop)
         self.mock_config.return_value = {}
+
+        patcher = mock.patch('multiprocessing.cpu_count')
+        self.mock_cpu_count = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.mock_cpu_count.return_value = 4
 
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_upgrade_charm_flags(self, clear_flag):
@@ -142,10 +148,24 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_haproxy_sites(self, service_start_or_restart):
-        with open('tests/unit/files/nginx_config_test_config.txt', 'r', encoding='utf-8') as f:
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {'sites': ngx_config}
-        content_cache.configure_haproxy()
+
+        with open('tests/unit/files/haproxy_config_rendered_test_output.txt', 'r', encoding='utf-8') as f:
+            expected = f.read()
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            content_cache.configure_haproxy()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                current = f.read()
+            self.assertEqual(expected, current)
+            self.assertFalse(service_start_or_restart.assert_called_with('haproxy'))
+
+            # Again, this time should be no change so no need to restart HAProxy
+            service_start_or_restart.reset_mock()
+            content_cache.configure_haproxy()
+            self.assertFalse(service_start_or_restart.assert_not_called())
 
 
 if __name__ == '__main__':
