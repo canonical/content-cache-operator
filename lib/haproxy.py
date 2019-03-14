@@ -27,7 +27,7 @@ class HAProxyConf:
         listen_stanza = """
 listen {name}
 {indent}bind 0.0.0.0:{port}{tls}
-{indent}default_backend cached-{name}
+{indent}default_backend backend-{name}
 """
         rendered_output = []
         for site in config.keys():
@@ -49,7 +49,7 @@ listen {name}
 
     def render_stanza_backend(self, config):
         backend_stanza = """
-backend cached-{name}
+backend backend-{name}
 {indent}option httpchk HEAD / HTTP/1.0\\r\\nHost:\\ {site}\\r\\nUser-Agent:\\ haproxy/httpchk
 {indent}http-request set-header Host {site}
 {indent}balance leastconn

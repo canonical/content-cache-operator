@@ -96,7 +96,33 @@ def configure_haproxy():
     haproxy = HAProxy.HAProxyConf()
     num_procs = multiprocessing.cpu_count()
     conf = yaml.safe_load(config.get('sites'))
-    if haproxy.write(haproxy.render(conf, num_procs)):
+
+    # We need to slot in the caching layer here (so Nginx).
+    new_conf = {}
+    cache_port = BASE_LISTEN_PORT
+    backend_port = BASE_BACKEND_PORT
+    for site in conf.keys():
+        cache_port += 1
+        backend_port += 1
+
+        cached_site = 'cached-{}'.format(site)
+
+        new_conf[site] = {}
+        new_conf[cached_site] = {}
+
+        default_port = 80
+        tls_cert_bundle_path = conf[site].get('tls-cert-bundle-path')
+        if tls_cert_bundle_path:
+            default_port = 443
+            new_conf[site]['tls-cert-bundle-path'] = tls_cert_bundle_path
+            new_conf[site]['backend-tls'] = False
+            new_conf[cached_site]['backend-tls'] = True
+        new_conf[site]['port'] = conf[site].get('port') or default_port
+        new_conf[site]['backends'] = ['127.0.0.1:{}'.format(cache_port)]
+        new_conf[cached_site]['port'] = backend_port
+        new_conf[cached_site]['backends'] = conf[site]['backends']
+
+    if haproxy.write(haproxy.render(new_conf, num_procs)):
         service_start_or_restart('haproxy')
 
     reactive.set_flag('content_cache.haproxy.configured')
