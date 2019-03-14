@@ -19,7 +19,7 @@ class NginxConf:
         return self._sites_path
 
     def write_site(self, site, new):
-        fname = os.path.join(self.sites_path, site)
+        fname = os.path.join(self.sites_path, '{}.conf'.format(site))
         # Check if contents changed
         try:
             with open(fname, 'r', encoding='utf-8') as f:
@@ -34,9 +34,10 @@ class NginxConf:
 
     def sync_sites(self, sites):
         changed = False
-        for site in os.listdir(self.sites_path):
-            available = os.path.join(self.sites_path, site)
-            enabled = os.path.join(os.path.dirname(self.sites_path), 'sites-enabled', site)
+        for fname in os.listdir(self.sites_path):
+            site = fname.replace('.conf', '')
+            available = os.path.join(self.sites_path, '{}.conf'.format(site))
+            enabled = os.path.join(os.path.dirname(self.sites_path), 'sites-enabled', '{}.conf'.format(site))
             if site not in sites:
                 changed = True
                 try:
