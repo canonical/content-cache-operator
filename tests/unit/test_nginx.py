@@ -8,6 +8,9 @@ import yaml
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import nginx  # NOQA: E402
 
+BASE_LISTEN_PORT = 6080
+BASE_BACKEND_PORT = 8080
+
 
 class TestLibNginx(unittest.TestCase):
     def setUp(self):
@@ -31,8 +34,8 @@ class TestLibNginx(unittest.TestCase):
 
         # From the given YAML-formatted list of sites, check that each individual
         # Nginx config rendered matches what's in tests/unit/files.
-        port = 6080
-        backend_port = 8080
+        port = BASE_LISTEN_PORT
+        backend_port = BASE_BACKEND_PORT
         for site in conf.keys():
             port += 1
             backend_port += 1
