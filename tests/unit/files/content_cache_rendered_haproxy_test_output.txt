@@ -40,8 +40,8 @@ defaults
 
 listen combined-80
     bind 0.0.0.0:80
-    use_backend backend-cached-site1-local if { hdr(Host) -i cached-site1.local }
-    use_backend backend-cached-site3-local if { hdr(Host) -i cached-site3.local }
+    use_backend backend-cached-site1-local if { hdr(Host) -i site1.local }
+    use_backend backend-cached-site3-local if { hdr(Host) -i site3.local }
 
 listen site1-local
     bind 0.0.0.0:8081

@@ -53,6 +53,9 @@ listen {name}
             tls_cert_bundle_paths = []
             for site in config[port].keys():
                 site_conf = config[port][site]
+                site_name = site_conf.get('site-name')
+                if not site_name:
+                    site_name = site
 
                 if len(config[port].keys()) == 1:
                     name = self._generate_stanza_name(site)
@@ -67,8 +70,8 @@ listen {name}
                 if not backend_name:
                     backend_name = site
                 backend_name = self._generate_stanza_name(backend_name)
-                backend_config.append('{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site} }}\n'
-                                      .format(backend=backend_name, site=site, indent=INDENT))
+                backend_config.append('{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
+                                      .format(backend=backend_name, site_name=site_name, indent=INDENT))
 
             tls_config = ''
             if len(tls_cert_bundle_paths) > 0:
