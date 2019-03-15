@@ -94,9 +94,7 @@ backend backend-{name}
 """
         rendered_output = []
         for site in config.keys():
-            site_name = config[site].get('site-name')
-            if not site_name:
-                site_name = site
+            site_name = config[site].get('site-name', site)
             tls_config = ''
             if config[site].get('backend-tls'):
                 tls_config = ' ssl sni str({site}) check-sni {site} verify required ca-file ca-certificates.crt' \
