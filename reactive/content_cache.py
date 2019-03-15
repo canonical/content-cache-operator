@@ -9,7 +9,7 @@ from lib import nginx
 from lib import haproxy as HAProxy
 
 
-BASE_CACHED_PORT = 6080
+BASE_CACHE_PORT = 6080
 BASE_BACKEND_PORT = 8080
 
 
@@ -66,7 +66,7 @@ def configure_nginx():
     ngx_conf = nginx.NginxConf()
     conf = yaml.safe_load(config.get('sites'))
     changed = False
-    port = BASE_CACHED_PORT
+    port = BASE_CACHE_PORT
     backend_port = BASE_BACKEND_PORT
     for site in conf.keys():
         port += 1
@@ -97,9 +97,9 @@ def configure_haproxy():
     num_procs = multiprocessing.cpu_count()
     conf = yaml.safe_load(config.get('sites'))
 
-    # We need to slot in the caching layer here (so Nginx).
+    # We need to slot in the caching layer here.
     new_conf = {}
-    cache_port = BASE_CACHED_PORT
+    cache_port = BASE_CACHE_PORT
     backend_port = BASE_BACKEND_PORT
     for site in conf.keys():
         cache_port += 1

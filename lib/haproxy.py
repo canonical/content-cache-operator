@@ -40,13 +40,10 @@ listen {name}
                 tls_config = ' ssl crt {}'.format(tls_cert_bundle_path)
 
             port = config[site].get('port', default_port)
+            backend_name = self._generate_stanza_name(config[site].get('backend-name', site))
+            name = self._generate_stanza_name(site)
 
-            backend_name = config[site].get('backend-name')
-            if not backend_name:
-                backend_name = site
-            backend_name = self._generate_stanza_name(backend_name)
-
-            output = listen_stanza.format(name=self._generate_stanza_name(site), backend_name=backend_name,
+            output = listen_stanza.format(name=name, backend_name=backend_name,
                                           port=port, tls=tls_config, indent=INDENT)
             rendered_output.append(output)
 
@@ -62,9 +59,7 @@ backend backend-{name}
 """
         rendered_output = []
         for site in config.keys():
-            site_name = config[site].get('site-name')
-            if not site_name:
-                site_name = site
+            site_name = config[site].get('site-name', site)
             tls_config = ''
             if config[site].get('backend-tls'):
                 tls_config = ' ssl sni str({site}) check-sni {site} verify required ca-file ca-certificates.crt' \
