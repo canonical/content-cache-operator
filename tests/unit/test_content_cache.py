@@ -153,7 +153,7 @@ class TestCharm(unittest.TestCase):
             ngx_config = f.read()
         self.mock_config.return_value = {'sites': ngx_config}
 
-        with open('tests/unit/files/haproxy_config_rendered_test_output.txt', 'r', encoding='utf-8') as f:
+        with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
             expected = f.read()
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')

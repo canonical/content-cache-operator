@@ -9,7 +9,7 @@ from lib import nginx
 from lib import haproxy as HAProxy
 
 
-BASE_LISTEN_PORT = 6080
+BASE_CACHE_PORT = 6080
 BASE_BACKEND_PORT = 8080
 
 
@@ -66,7 +66,7 @@ def configure_nginx():
     ngx_conf = nginx.NginxConf()
     conf = yaml.safe_load(config.get('sites'))
     changed = False
-    port = BASE_LISTEN_PORT
+    port = BASE_CACHE_PORT
     backend_port = BASE_BACKEND_PORT
     for site in conf.keys():
         port += 1
@@ -96,7 +96,35 @@ def configure_haproxy():
     haproxy = HAProxy.HAProxyConf()
     num_procs = multiprocessing.cpu_count()
     conf = yaml.safe_load(config.get('sites'))
-    if haproxy.write(haproxy.render(conf, num_procs)):
+
+    # We need to slot in the caching layer here.
+    new_conf = {}
+    cache_port = BASE_CACHE_PORT
+    backend_port = BASE_BACKEND_PORT
+    for site in conf.keys():
+        cache_port += 1
+        backend_port += 1
+
+        cached_site = 'cached-{}'.format(site)
+        new_conf[cached_site] = {}
+        new_conf[site] = {}
+
+        default_port = 80
+        tls_cert_bundle_path = conf[site].get('tls-cert-bundle-path')
+        if tls_cert_bundle_path:
+            default_port = 443
+            new_conf[cached_site]['backend-tls'] = False
+            new_conf[cached_site]['tls-cert-bundle-path'] = tls_cert_bundle_path
+            new_conf[site]['backend-tls'] = True
+
+        new_conf[cached_site]['site-name'] = site
+        new_conf[cached_site]['port'] = conf[site].get('port') or default_port
+        new_conf[cached_site]['backends'] = ['127.0.0.1:{}'.format(cache_port)]
+        new_conf[site]['site-name'] = site
+        new_conf[site]['port'] = backend_port
+        new_conf[site]['backends'] = conf[site]['backends']
+
+    if haproxy.write(haproxy.render(new_conf, num_procs)):
         service_start_or_restart('haproxy')
 
     reactive.set_flag('content_cache.haproxy.configured')

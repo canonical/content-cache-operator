@@ -38,17 +38,35 @@ defaults
 	errorfile 504 /etc/haproxy/errors/504.http
 
 
-listen site1-local
+listen cached-site1-local
     bind 0.0.0.0:80
+    default_backend backend-cached-site1-local
+
+listen site1-local
+    bind 0.0.0.0:8081
     default_backend backend-site1-local
 
-listen site2-local
+listen cached-site2-local
     bind 0.0.0.0:443 ssl crt /etc/haproxy/some-bundle.crt
+    default_backend backend-cached-site2-local
+
+listen site2-local
+    bind 0.0.0.0:8082
     default_backend backend-site2-local
 
-listen site3-local
+listen cached-site3-local
     bind 0.0.0.0:80
+    default_backend backend-cached-site3-local
+
+listen site3-local
+    bind 0.0.0.0:8083
     default_backend backend-site3-local
+
+backend backend-cached-site1-local
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site1.local
+    balance leastconn
+    server server_1 127.0.0.1:6081 check inter 5000 rise 2 fall 5 maxconn 16
 
 backend backend-site1-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
@@ -58,6 +76,12 @@ backend backend-site1-local
     server server_2 127.0.1.11:80 check inter 5000 rise 2 fall 5 maxconn 16
     server server_3 127.0.1.12:80 check inter 5000 rise 2 fall 5 maxconn 16
 
+backend backend-cached-site2-local
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site2.local
+    balance leastconn
+    server server_1 127.0.0.1:6082 check inter 5000 rise 2 fall 5 maxconn 16
+
 backend backend-site2-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site2.local
@@ -65,6 +89,12 @@ backend backend-site2-local
     server server_1 127.0.1.10:443 check inter 5000 rise 2 fall 5 maxconn 16 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
     server server_2 127.0.1.11:443 check inter 5000 rise 2 fall 5 maxconn 16 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
     server server_3 127.0.1.12:443 check inter 5000 rise 2 fall 5 maxconn 16 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
+
+backend backend-cached-site3-local
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site3.local
+    balance leastconn
+    server server_1 127.0.0.1:6083 check inter 5000 rise 2 fall 5 maxconn 16
 
 backend backend-site3-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk
