@@ -7,7 +7,7 @@ server {
     location / {
         proxy_pass http://localhost:8081;
         proxy_set_header Host "site1.local";
-        proxy_cache site1;
+        proxy_cache site1-cache;
         proxy_cache_background_update on;
         proxy_cache_lock on;
         proxy_cache_min_uses 5;
