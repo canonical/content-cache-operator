@@ -31,7 +31,7 @@ class HAProxyConf:
             if tls_cert_bundle_path:
                 default_port = 443
             port = config[site].get('port', default_port)
-            if not new.get(port):
+            if port not in new:
                 new[port] = {}
             new[port][site] = config[site]
             new[port][site]['port'] = port
@@ -53,9 +53,7 @@ listen {name}
             tls_cert_bundle_paths = []
             for site in config[port].keys():
                 site_conf = config[port][site]
-                site_name = site_conf.get('site-name')
-                if not site_name:
-                    site_name = site
+                site_name = site_conf.get('site-name', site)
 
                 if len(config[port].keys()) == 1:
                     name = self._generate_stanza_name(site)
@@ -74,12 +72,13 @@ listen {name}
                                       .format(backend=backend_name, site_name=site_name, indent=INDENT))
 
             tls_config = ''
-            if len(tls_cert_bundle_paths) > 0:
+            if tls_cert_bundle_paths:
                 tls_config = ' ssl crt {}'.format(' '.join(tls_cert_bundle_paths))
 
             if len(backend_config) == 1:
                 backend = backend_config[0].split()[1]
                 backend_config = ['{indent}default_backend {backend}\n'.format(backend=backend, indent=INDENT)]
+
             output = listen_stanza.format(name=name, backend_config=''.join(backend_config),
                                           port=port, tls=tls_config, indent=INDENT)
             rendered_output.append(output)
