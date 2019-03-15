@@ -43,6 +43,11 @@ class TestLibHAProxy(unittest.TestCase):
             expected = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_listen(config)), expected)
 
+        # Test overriding backend-names
+        for site in config.keys():
+            config[site]['backend-name'] = site
+        self.assertEqual(''.join(haproxy.render_stanza_listen(config)), expected)
+
     def test_haproxy_config_rendered_backend_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
