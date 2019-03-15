@@ -38,9 +38,10 @@ defaults
 	errorfile 504 /etc/haproxy/errors/504.http
 
 
-listen cached-site1-local
+listen combined-80
     bind 0.0.0.0:80
-    default_backend backend-cached-site1-local
+    use_backend backend-cached-site1-local if { hdr(Host) -i site1.local }
+    use_backend backend-cached-site3-local if { hdr(Host) -i site3.local }
 
 listen site1-local
     bind 0.0.0.0:8081
@@ -53,10 +54,6 @@ listen cached-site2-local
 listen site2-local
     bind 0.0.0.0:8082
     default_backend backend-site2-local
-
-listen cached-site3-local
-    bind 0.0.0.0:80
-    default_backend backend-cached-site3-local
 
 listen site3-local
     bind 0.0.0.0:8083

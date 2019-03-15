@@ -75,3 +75,26 @@ class TestLibHAProxy(unittest.TestCase):
         # Write again with same contents, this time it should return 'False'
         # as there should be no change.
         self.assertFalse(haproxy.write(conf))
+
+    def test_haproxy_config_merge_listen_stanzas(self):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+        config = {
+            'site1.local': {'port': 80},
+            'site2.local': {'port': 80},
+            'site3.local': {},
+            'site4.local': {'port': 443},
+            'site5.local': {'tls-cert-bundle-path': '/tmp/somepath'},
+        }
+        expected = {
+            80: {
+                'site1.local': {'port': 80},
+                'site2.local': {'port': 80},
+                'site3.local': {'port': 80},
+            },
+            443: {
+                'site4.local': {'port': 443},
+                'site5.local': {'port': 443,
+                                'tls-cert-bundle-path': '/tmp/somepath'},
+            },
+        }
+        self.assertEqual(haproxy._merge_listen_stanzas(config), expected)
