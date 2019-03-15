@@ -1,5 +1,5 @@
 import os
-# import shutil
+import shutil
 import sys
 import tempfile
 import unittest
@@ -19,7 +19,7 @@ class TestCharm(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
         self.tmpdir = tempfile.mkdtemp(prefix='charm-unittests-')
-        # self.addCleanup(shutil.rmtree, self.tmpdir)
+        self.addCleanup(shutil.rmtree, self.tmpdir)
 
         self.charm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
