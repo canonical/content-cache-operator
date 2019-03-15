@@ -66,13 +66,12 @@ def configure_nginx():
     ngx_conf = nginx.NginxConf()
     conf = yaml.safe_load(config.get('sites'))
     changed = False
-    port = BASE_CACHE_PORT
-    backend_port = BASE_BACKEND_PORT
+    cache_port = 0
+    backend_port = 0
     for site in conf.keys():
-        port += 1
-        backend_port += 1
+        (cache_port, backend_port) = next_port_pair(cache_port, backend_port)
         backend = 'http://localhost:{}'.format(backend_port)
-        if ngx_conf.write_site(site, ngx_conf.render(site, port, backend)):
+        if ngx_conf.write_site(site, ngx_conf.render(site, cache_port, backend)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
     if ngx_conf.sync_sites(conf.keys()):
@@ -128,3 +127,27 @@ def configure_haproxy():
         service_start_or_restart('haproxy')
 
     reactive.set_flag('content_cache.haproxy.configured')
+
+
+class InvalidPortError(Exception):
+    pass
+
+
+def next_port_pair(cache_port, backend_port):
+    if cache_port == 0:
+        cache_port = BASE_CACHE_PORT
+    else:
+        cache_port += 1
+
+    if backend_port == 0:
+        backend_port = BASE_BACKEND_PORT
+    else:
+        backend_port += 1
+
+    if cache_port < BASE_CACHE_PORT or cache_port >= BASE_BACKEND_PORT:
+        raise InvalidPortError('Dynamically allocated cache_port out of range')
+
+    if backend_port < BASE_BACKEND_PORT or backend_port >= 60999:
+        raise InvalidPortError('Dynamically allocated backend_port out of range')
+
+    return (cache_port, backend_port)

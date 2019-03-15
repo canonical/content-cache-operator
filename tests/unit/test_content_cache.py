@@ -168,6 +168,18 @@ class TestCharm(unittest.TestCase):
             content_cache.configure_haproxy()
             self.assertFalse(service_start_or_restart.assert_not_called())
 
+    def test_next_port_pair(self):
+        cache_port = backend_port = 0
+        self.assertEqual(content_cache.next_port_pair(cache_port, backend_port),
+                         (content_cache.BASE_CACHE_PORT, content_cache.BASE_BACKEND_PORT))
+
+    def test_next_port_pair_out_of_range(self):
+        with self.assertRaises(content_cache.InvalidPortError):
+            content_cache.next_port_pair(1024, 0)
+
+        with self.assertRaises(content_cache.InvalidPortError):
+            content_cache.next_port_pair(0, 61000)
+
 
 if __name__ == '__main__':
     unittest.main()
