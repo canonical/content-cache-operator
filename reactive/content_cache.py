@@ -116,6 +116,11 @@ def configure_haproxy():
             new_conf[cached_site]['backend-tls'] = False
             new_conf[cached_site]['tls-cert-bundle-path'] = tls_cert_bundle_path
             new_conf[site]['backend-tls'] = True
+        else:
+            # Support for HTTP front to HTTPS backends. This shouldn't
+            # normally be used but it's useful for testing without having
+            # to ship out TLS/SSL certificate bundles.
+            new_conf[site]['backend-tls'] = conf[site].get('backend-tls')
 
         new_conf[cached_site]['site-name'] = site
         new_conf[cached_site]['port'] = conf[site].get('port') or default_port

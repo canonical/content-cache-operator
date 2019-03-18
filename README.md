@@ -7,3 +7,5 @@ Deploy your own content distribution network (CDN).
 
 
 # TODO
+- add nagios check / monitoring for configurable percentage of backends down
+  - e.g. 80% critical, 50% warning
