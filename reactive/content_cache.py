@@ -169,14 +169,12 @@ def configure_nagios():
         cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {port}{tls} -u {url} -j GET' \
               .format(site=site, port=default_port, url=url, tls=tls)
         nrpe_setup.add_check(check_name, '{} site listen check'.format(site), cmd)
-        print(cmd)
 
         # Cache layer check
         check_name = 'site_{}_cache'.format(generate_nagios_check_name(site))
         cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {cache_port} -u {url} -j GET' \
               .format(site=site, cache_port=cache_port, url=url)
         nrpe_setup.add_check(check_name, '{} cache check'.format(site), cmd)
-        print(cmd)
 
         # Backend proxy layer check
         check_name = 'site_{}_backend_proxy'.format(generate_nagios_check_name(site))
