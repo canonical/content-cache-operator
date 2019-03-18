@@ -41,7 +41,7 @@ class TestCharm(unittest.TestCase):
         patcher = mock.patch('charmhelpers.core.hookenv.config')
         self.mock_config = patcher.start()
         self.addCleanup(patcher.stop)
-        self.mock_config.return_value = {}
+        self.mock_config.return_value = {'nagios_context': 'juju'}
 
         patcher = mock.patch('multiprocessing.cpu_count')
         self.mock_cpu_count = patcher.start()
@@ -168,6 +168,46 @@ class TestCharm(unittest.TestCase):
             content_cache.configure_haproxy()
             self.assertFalse(service_start_or_restart.assert_not_called())
 
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.NRPE')
+    def test_configure_nagios(self, nrpe, get_nagios_hostname):
+        get_nagios_hostname.return_value = 'some-host.local'
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
+            config = f.read()
+        self.mock_config.return_value = {'sites': config}
+        nrpe_instance_mock = nrpe(get_nagios_hostname(), primary=True)
+        content_cache.configure_nagios()
+        expected = [mock.call('site_site1_local_listen', 'site1.local site listen check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80'
+                              ' -u http://site1.local -j GET'),
+                    mock.call('site_site1_local_cache', 'site1.local cache check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080'
+                              ' -u http://site1.local -j GET'),
+                    mock.call('site_site1_local_backend_proxy', 'site1.local backend proxy check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080'
+                              ' -u http://site1.local -j GET')]
+        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
+        expected = [mock.call('site_site2_local_listen', 'site2.local site listen check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 -S --sni'
+                              ' -u https://site2.local -j GET'),
+                    mock.call('site_site2_local_cache', 'site2.local cache check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 6081'
+                              ' -u https://site2.local -j GET'),
+                    mock.call('site_site2_local_backend_proxy', 'site2.local backend proxy check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 8081'
+                              ' -u https://site2.local -j GET')]
+        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
+        expected = [mock.call('site_site3_local_listen', 'site3.local site listen check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 80'
+                              ' -u http://site3.local -j GET'),
+                    mock.call('site_site3_local_cache', 'site3.local cache check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 6082'
+                              ' -u http://site3.local -j GET'),
+                    mock.call('site_site3_local_backend_proxy', 'site3.local backend proxy check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082'
+                              ' -u http://site3.local -j GET')]
+        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
+
     def test_next_port_pair(self):
         self.assertEqual(content_cache.next_port_pair(0, 0),
                          (content_cache.BASE_CACHE_PORT, content_cache.BASE_BACKEND_PORT))
@@ -204,6 +244,9 @@ class TestCharm(unittest.TestCase):
         with self.assertRaises(content_cache.InvalidPortError):
             content_cache.next_port_pair(0, content_cache.BACKEND_PORT_LIMIT,
                                          backend_port_limit=content_cache.BASE_BACKEND_PORT+10)
+
+    def test_generate_nagios_check_name(self):
+        self.assertEqual(content_cache.generate_nagios_check_name('site-1.local'), 'site_1_local')
 
 
 if __name__ == '__main__':
