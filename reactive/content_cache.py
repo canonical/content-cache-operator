@@ -4,6 +4,7 @@ import yaml
 from charms import reactive
 from charms.layer import status
 from charmhelpers.core import hookenv, host
+from charmhelpers.contrib.charmsupport import nrpe
 
 from lib import nginx
 from lib import haproxy as HAProxy
@@ -36,6 +37,7 @@ def install():
 def config_changed():
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
+    reactive.clear_flag('nagios-nrpe.configured')
 
 
 @reactive.when('content_cache.nginx.configured', 'content_cache.haproxy.configured')
@@ -135,6 +137,55 @@ def configure_haproxy():
     reactive.set_flag('content_cache.haproxy.configured')
 
 
+@reactive.when('content_cache.nginx.configured', 'content_cache.haproxy.configured')
+@reactive.when('nrpe-external-master.available')
+@reactive.when_not('nagios-nrpe.configured')
+def configure_nagios():
+    status.maintenance('setting up NRPE checks')
+
+    config = hookenv.config()
+
+    # Use charmhelpers.contrib.charmsupport's nrpe to determine hostname
+    hostname = nrpe.get_nagios_hostname()
+    nrpe_setup = nrpe.NRPE(hostname=hostname, primary=True)
+
+    conf = yaml.safe_load(config.get('sites'))
+    cache_port = 0
+    backend_port = 0
+    for site in conf.keys():
+        (cache_port, backend_port) = next_port_pair(cache_port, backend_port)
+
+        default_port = 80
+        url = 'http://{}'.format(site)
+        tls_cert_bundle_path = conf[site].get('tls-cert-bundle-path')
+        tls = ''
+        if tls_cert_bundle_path:
+            default_port = 443
+            url = 'https://{}'.format(site)
+            tls = ' -S --sni'
+
+        # Listen / frontend check
+        check_name = 'site_{}_listen'.format(generate_nagios_check_name(site))
+        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {port}{tls} -u {url} -j GET' \
+              .format(site=site, port=default_port, url=url, tls=tls)
+        nrpe_setup.add_check(check_name, '{} site listen check'.format(site), cmd)
+
+        # Cache layer check
+        check_name = 'site_{}_cache'.format(generate_nagios_check_name(site))
+        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {cache_port} -u {url} -j GET' \
+              .format(site=site, cache_port=cache_port, url=url)
+        nrpe_setup.add_check(check_name, '{} cache check'.format(site), cmd)
+
+        # Backend proxy layer check
+        check_name = 'site_{}_backend_proxy'.format(generate_nagios_check_name(site))
+        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port} -u {url} -j GET' \
+              .format(site=site, backend_port=backend_port, url=url)
+        nrpe_setup.add_check(check_name, '{} backend proxy check'.format(site), cmd)
+
+    nrpe_setup.write()
+    reactive.set_flag('nagios-nrpe.configured')
+
+
 class InvalidPortError(Exception):
     pass
 
@@ -164,3 +215,7 @@ def next_port_pair(cache_port, backend_port,
         raise InvalidPortError('Dynamically allocated backend_port out of range')
 
     return (cache_port, backend_port)
+
+
+def generate_nagios_check_name(site):
+    return site.replace('.', '_').replace('-', '_')
