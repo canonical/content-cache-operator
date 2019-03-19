@@ -67,16 +67,17 @@ def configure_nginx():
         return
 
     ngx_conf = nginx.NginxConf()
-    conf = yaml.safe_load(config.get('sites'))
+    conf = map_sites_port_pairs(config.get('sites'))
+
     changed = False
-    cache_port = 0
-    backend_port = 0
     for site in conf.keys():
-        (cache_port, backend_port) = next_port_pair(cache_port, backend_port)
+        cache_port = conf[site]['cache_port']
+        backend_port = conf[site]['backend_port']
         backend = 'http://localhost:{}'.format(backend_port)
         if ngx_conf.write_site(site, ngx_conf.render(site, cache_port, backend)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
+
     if ngx_conf.sync_sites(conf.keys()):
         hookenv.log('Enabled sites: {}'.format(' '.join(conf.keys())))
         changed = True
@@ -96,16 +97,15 @@ def configure_haproxy():
         return
 
     haproxy = HAProxy.HAProxyConf()
+    conf = map_sites_port_pairs(config.get('sites'))
+
     num_procs = multiprocessing.cpu_count()
-    conf = yaml.safe_load(config.get('sites'))
 
     # We need to slot in the caching layer here.
     new_conf = {}
-    cache_port = BASE_CACHE_PORT
-    backend_port = BASE_BACKEND_PORT
     for site in conf.keys():
-        cache_port += 1
-        backend_port += 1
+        cache_port = conf[site]['cache_port']
+        backend_port = conf[site]['backend_port']
 
         cached_site = 'cached-{}'.format(site)
         new_conf[cached_site] = {}
@@ -149,11 +149,11 @@ def configure_nagios():
     hostname = nrpe.get_nagios_hostname()
     nrpe_setup = nrpe.NRPE(hostname=hostname, primary=True)
 
-    conf = yaml.safe_load(config.get('sites'))
-    cache_port = 0
-    backend_port = 0
+    conf = map_sites_port_pairs(config.get('sites'))
+
     for site in conf.keys():
-        (cache_port, backend_port) = next_port_pair(cache_port, backend_port)
+        cache_port = conf[site]['cache_port']
+        backend_port = conf[site]['backend_port']
 
         default_port = 80
         url = 'http://{}'.format(site)
@@ -215,6 +215,17 @@ def next_port_pair(cache_port, backend_port,
         raise InvalidPortError('Dynamically allocated backend_port out of range')
 
     return (cache_port, backend_port)
+
+
+def map_sites_port_pairs(sites):
+    conf = yaml.safe_load(sites)
+    cache_port = 0
+    backend_port = 0
+    for site in conf.keys():
+        (cache_port, backend_port) = next_port_pair(cache_port, backend_port)
+        conf[site]['cache_port'] = cache_port
+        conf[site]['backend_port'] = backend_port
+    return conf
 
 
 def generate_nagios_check_name(site):
