@@ -36,8 +36,8 @@ class NginxConf:
         changed = False
         for fname in os.listdir(self.sites_path):
             site = fname.replace('.conf', '')
-            available = os.path.join(self.sites_path, '{}.conf'.format(site))
-            enabled = os.path.join(os.path.dirname(self.sites_path), 'sites-enabled', '{}.conf'.format(site))
+            available = os.path.join(self.sites_path, fname)
+            enabled = os.path.join(os.path.dirname(self.sites_path), 'sites-enabled', fname)
             if site not in sites:
                 changed = True
                 try:

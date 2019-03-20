@@ -77,15 +77,19 @@ class TestLibNginx(unittest.TestCase):
         for site in ['site1.local', 'site2.local']:
             ngx_conf.write_site(site, conf)
         ngx_conf.write_site('site3.local', conf)
+        # Also one that doesn't end in .conf
+        with open(os.path.join(self.tmpdir, 'sites-available', 'default'), 'w') as f:
+            f.write('some site')
 
         # Clean up anything that's not site1 and site2.
         self.assertTrue(ngx_conf.sync_sites(['site1.local', 'site2.local']))
         # Check to make sure site1 still exists and is symlinked in site-senabled.
         self.assertTrue(os.path.exists(os.path.join(self.tmpdir, 'sites-available', 'site1.local.conf')))
         self.assertTrue(os.path.islink(os.path.join(self.tmpdir, 'sites-enabled', 'site1.local.conf')))
-        # Only two sites, site3.local shouldn't exist.
+        # Only two sites, site3.local and 'default' shouldn't exist.
         self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-available', 'site3.local.conf')))
         self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-enabled', 'site3.local.conf')))
+        self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-available', 'default')))
 
         # Re-run, no change this time.
         self.assertFalse(ngx_conf.sync_sites(['site1.local', 'site2.local']))
