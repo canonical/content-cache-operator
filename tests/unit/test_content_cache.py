@@ -48,10 +48,13 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.mock_cpu_count.return_value = 4
 
+        status.active.reset_mock()
+        status.blocked.reset_mock()
+        status.maintenance.reset_mock()
+
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_upgrade_charm_flags(self, clear_flag):
         '''Test correct flags set via upgrade-charm hook'''
-        status.maintenance.reset_mock()
         content_cache.upgrade_charm()
         self.assertFalse(status.maintenance.assert_called())
         expected = [mock.call('content_cache.active'),
@@ -83,7 +86,6 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('charms.reactive.set_flag')
     def test_hook_set_active(self, set_flag):
-        status.active.reset_mock()
         content_cache.set_active()
         self.assertFalse(status.active.assert_called())
         self.assertFalse(set_flag.assert_called_once_with('content_cache.active'))
@@ -94,7 +96,6 @@ class TestCharm(unittest.TestCase):
     def test_service_start_or_restart_running(self, service_start, service_restart, service_running):
         '''Test service restarted when already running'''
         service_running.return_value = True
-        status.active.reset_mock()
         content_cache.service_start_or_restart('someservice')
         self.assertFalse(status.maintenance.assert_called())
         self.assertFalse(service_start.assert_not_called())
@@ -106,7 +107,6 @@ class TestCharm(unittest.TestCase):
     def test_service_start_or_restart_stopped(self, service_start, service_restart, service_running):
         '''Test service started up when not running/stopped'''
         service_running.return_value = False
-        status.active.reset_mock()
         content_cache.service_start_or_restart('someservice')
         self.assertFalse(status.maintenance.assert_called())
         self.assertFalse(service_start.assert_called_once_with('someservice'))
@@ -115,7 +115,6 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_nginx_no_sites(self, clear_flag):
         '''Test correct flags are set when no sites defined to configure Nginx'''
-        status.blocked.reset_mock()
         content_cache.configure_nginx()
         self.assertFalse(status.blocked.assert_called())
         self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
@@ -142,7 +141,6 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_haproxy_no_sites(self, clear_flag):
-        status.blocked.reset_mock()
         content_cache.configure_haproxy()
         self.assertFalse(status.blocked.assert_called())
         self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
@@ -168,15 +166,19 @@ class TestCharm(unittest.TestCase):
             content_cache.configure_haproxy()
             self.assertFalse(service_start_or_restart.assert_not_called())
 
+    @mock.patch('charms.reactive.set_flag')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.NRPE')
-    def test_configure_nagios(self, nrpe, get_nagios_hostname):
+    def test_configure_nagios(self, nrpe, get_nagios_hostname, set_flag):
         get_nagios_hostname.return_value = 'some-host.local'
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             config = f.read()
         self.mock_config.return_value = {'sites': config}
         nrpe_instance_mock = nrpe(get_nagios_hostname(), primary=True)
+
         content_cache.configure_nagios()
+        self.assertFalse(status.maintenance.assert_called())
+
         expected = [mock.call('site_site1_local_listen', 'site1.local site listen check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80'
                               ' -u http://site1.local -j GET'),
@@ -207,6 +209,11 @@ class TestCharm(unittest.TestCase):
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082'
                               ' -u http://site3.local -j GET')]
         self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
+
+        self.assertFalse(nrpe_instance_mock.write.assert_called())
+
+        expected = [mock.call('nagios-nrpe.configured')]
+        self.assertFalse(set_flag.assert_has_calls(expected, any_order=True))
 
     def test_next_port_pair(self):
         self.assertEqual(content_cache.next_port_pair(0, 0),
@@ -247,6 +254,34 @@ class TestCharm(unittest.TestCase):
 
     def test_generate_nagios_check_name(self):
         self.assertEqual(content_cache.generate_nagios_check_name('site-1.local'), 'site_1_local')
+
+    def test_sites_from_config(self):
+        config_yaml = '''
+site1.local:
+        port: 80
+site2.local:
+        port: 80
+site3.local:
+        port: 80
+'''
+        expected = {
+            'site1.local': {
+                'port': 80,
+                'cache_port': 6080,
+                'backend_port': 8080
+            },
+            'site2.local': {
+                'port': 80,
+                'cache_port': 6081,
+                'backend_port': 8081
+            },
+            'site3.local': {
+                'port': 80,
+                'cache_port': 6082,
+                'backend_port': 8082
+            }
+        }
+        self.assertEqual(content_cache.sites_from_config(config_yaml), expected)
 
 
 if __name__ == '__main__':
