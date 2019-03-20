@@ -44,7 +44,7 @@ listen combined-80
     use_backend backend-cached-site3-local if { hdr(Host) -i site3.local }
 
 listen site1-local
-    bind 0.0.0.0:8081
+    bind 0.0.0.0:8080
     default_backend backend-site1-local
 
 listen cached-site2-local
@@ -52,18 +52,18 @@ listen cached-site2-local
     default_backend backend-cached-site2-local
 
 listen site2-local
-    bind 0.0.0.0:8082
+    bind 0.0.0.0:8081
     default_backend backend-site2-local
 
 listen site3-local
-    bind 0.0.0.0:8083
+    bind 0.0.0.0:8082
     default_backend backend-site3-local
 
 backend backend-cached-site1-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site1.local
     balance leastconn
-    server server_1 127.0.0.1:6081 check inter 5000 rise 2 fall 5 maxconn 16
+    server server_1 127.0.0.1:6080 check inter 5000 rise 2 fall 5 maxconn 16
 
 backend backend-site1-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
@@ -77,7 +77,7 @@ backend backend-cached-site2-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site2.local
     balance leastconn
-    server server_1 127.0.0.1:6082 check inter 5000 rise 2 fall 5 maxconn 16
+    server server_1 127.0.0.1:6081 check inter 5000 rise 2 fall 5 maxconn 16
 
 backend backend-site2-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk
@@ -91,7 +91,7 @@ backend backend-cached-site3-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site3.local
     balance leastconn
-    server server_1 127.0.0.1:6083 check inter 5000 rise 2 fall 5 maxconn 16
+    server server_1 127.0.0.1:6082 check inter 5000 rise 2 fall 5 maxconn 16
 
 backend backend-site3-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk

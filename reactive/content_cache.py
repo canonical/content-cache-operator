@@ -67,18 +67,19 @@ def configure_nginx():
         return
 
     ngx_conf = nginx.NginxConf()
-    conf = yaml.safe_load(config.get('sites'))
+    sites = sites_from_config(config.get('sites'))
+
     changed = False
-    cache_port = 0
-    backend_port = 0
-    for site in conf.keys():
-        (cache_port, backend_port) = next_port_pair(cache_port, backend_port)
+    for site in sites.keys():
+        cache_port = sites[site]['cache_port']
+        backend_port = sites[site]['backend_port']
         backend = 'http://localhost:{}'.format(backend_port)
         if ngx_conf.write_site(site, ngx_conf.render(site, cache_port, backend)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
-    if ngx_conf.sync_sites(conf.keys()):
-        hookenv.log('Enabled sites: {}'.format(' '.join(conf.keys())))
+
+    if ngx_conf.sync_sites(sites.keys()):
+        hookenv.log('Enabled sites: {}'.format(' '.join(sites.keys())))
         changed = True
     if changed:
         service_start_or_restart('nginx')
@@ -96,23 +97,22 @@ def configure_haproxy():
         return
 
     haproxy = HAProxy.HAProxyConf()
+    sites = sites_from_config(config.get('sites'))
+
     num_procs = multiprocessing.cpu_count()
-    conf = yaml.safe_load(config.get('sites'))
 
     # We need to slot in the caching layer here.
     new_conf = {}
-    cache_port = BASE_CACHE_PORT
-    backend_port = BASE_BACKEND_PORT
-    for site in conf.keys():
-        cache_port += 1
-        backend_port += 1
+    for site in sites.keys():
+        cache_port = sites[site]['cache_port']
+        backend_port = sites[site]['backend_port']
 
         cached_site = 'cached-{}'.format(site)
         new_conf[cached_site] = {}
         new_conf[site] = {}
 
         default_port = 80
-        tls_cert_bundle_path = conf[site].get('tls-cert-bundle-path')
+        tls_cert_bundle_path = sites[site].get('tls-cert-bundle-path')
         if tls_cert_bundle_path:
             default_port = 443
             new_conf[cached_site]['backend-tls'] = False
@@ -122,14 +122,14 @@ def configure_haproxy():
             # Support for HTTP front to HTTPS backends. This shouldn't
             # normally be used but it's useful for testing without having
             # to ship out TLS/SSL certificate bundles.
-            new_conf[site]['backend-tls'] = conf[site].get('backend-tls')
+            new_conf[site]['backend-tls'] = sites[site].get('backend-tls')
 
         new_conf[cached_site]['site-name'] = site
-        new_conf[cached_site]['port'] = conf[site].get('port') or default_port
+        new_conf[cached_site]['port'] = sites[site].get('port') or default_port
         new_conf[cached_site]['backends'] = ['127.0.0.1:{}'.format(cache_port)]
         new_conf[site]['site-name'] = site
         new_conf[site]['port'] = backend_port
-        new_conf[site]['backends'] = conf[site]['backends']
+        new_conf[site]['backends'] = sites[site]['backends']
 
     if haproxy.write(haproxy.render(new_conf, num_procs)):
         service_start_or_restart('haproxy')
@@ -149,15 +149,15 @@ def configure_nagios():
     hostname = nrpe.get_nagios_hostname()
     nrpe_setup = nrpe.NRPE(hostname=hostname, primary=True)
 
-    conf = yaml.safe_load(config.get('sites'))
-    cache_port = 0
-    backend_port = 0
-    for site in conf.keys():
-        (cache_port, backend_port) = next_port_pair(cache_port, backend_port)
+    sites = sites_from_config(config.get('sites'))
+
+    for site in sites.keys():
+        cache_port = sites[site]['cache_port']
+        backend_port = sites[site]['backend_port']
 
         default_port = 80
         url = 'http://{}'.format(site)
-        tls_cert_bundle_path = conf[site].get('tls-cert-bundle-path')
+        tls_cert_bundle_path = sites[site].get('tls-cert-bundle-path')
         tls = ''
         if tls_cert_bundle_path:
             default_port = 443
@@ -215,6 +215,17 @@ def next_port_pair(cache_port, backend_port,
         raise InvalidPortError('Dynamically allocated backend_port out of range')
 
     return (cache_port, backend_port)
+
+
+def sites_from_config(sites_yaml):
+    conf = yaml.safe_load(sites_yaml)
+    cache_port = 0
+    backend_port = 0
+    for site in conf.keys():
+        (cache_port, backend_port) = next_port_pair(cache_port, backend_port)
+        conf[site]['cache_port'] = cache_port
+        conf[site]['backend_port'] = backend_port
+    return conf
 
 
 def generate_nagios_check_name(site):
