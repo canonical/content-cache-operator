@@ -7,10 +7,8 @@ from unittest import mock
 
 # We also need to mock up charms.layer so we can run unit tests without having
 # to build the charm and pull in layers such as layer-status.
-sys.modules['charms.apt'] = mock.MagicMock()
 sys.modules['charms.layer'] = mock.MagicMock()
 
-from charms import apt  # NOQA: E402
 from charms.layer import status  # NOQA: E402
 # Add path to where our reactive layer lives and import.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
@@ -250,19 +248,6 @@ class TestCharm(unittest.TestCase):
 
         expected = [mock.call('nagios-nrpe.configured')]
         self.assertFalse(set_flag.assert_has_calls(expected, any_order=True))
-
-    @mock.patch('charms.reactive.set_flag')
-    def test_nginx_install_lua(self, set_flag):
-        apt.install_queued.return_value = True
-        content_cache.nginx_install_lua()
-        expected = [mock.call.queue_install(['libnginx-mod-http-lua']), mock.call.install_queued()]
-        self.assertEqual(apt.method_calls, expected)
-        self.assertFalse(set_flag.assert_called_once_with('apt.installed.libnginx-mod-http-lua'))
-
-        apt.install_queued.return_value = False
-        set_flag.reset_mock()
-        content_cache.nginx_install_lua()
-        self.assertFalse(set_flag.assert_not_called())
 
     def test_next_port_pair(self):
         self.assertEqual(content_cache.next_port_pair(0, 0),
