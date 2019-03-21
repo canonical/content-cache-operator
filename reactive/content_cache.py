@@ -1,7 +1,7 @@
 import multiprocessing
 import yaml
 
-from charms import reactive
+from charms import apt, reactive
 from charms.layer import status
 from charmhelpers.core import hookenv, host
 from charmhelpers.contrib.charmsupport import nrpe
@@ -79,6 +79,8 @@ def configure_nginx():
         if ngx_conf.write_site(site, ngx_conf.render(site, cache_port, backend, signed_url_hmac_key)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
+        if signed_url_hmac_key:
+            reactive.set_flag('content_cache.nginx.install_lua')
 
     if ngx_conf.sync_sites(sites.keys()):
         hookenv.log('Enabled sites: {}'.format(' '.join(sites.keys())))
@@ -87,6 +89,15 @@ def configure_nginx():
         service_start_or_restart('nginx')
 
     reactive.set_flag('content_cache.nginx.configured')
+
+
+@reactive.when_not('apt.installed.libnginx-mod-http-lua')
+@reactive.when('content_cache.nginx.install_lua')
+def nginx_install_lua():
+    apt.queue_install(['libnginx-mod-http-lua'])
+    if not apt.install_queued():
+        return  # apt layer already set blocked state.
+    reactive.set_flag('apt.installed.libnginx-mod-http-lua')
 
 
 @reactive.when_not('content_cache.haproxy.configured')
