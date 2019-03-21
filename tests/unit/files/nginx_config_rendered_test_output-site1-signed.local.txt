@@ -21,10 +21,6 @@ server {
             local uri = ngx.var.uri
             local args = ngx.var.args
 
-            if ngx.var.remote_addr == "127.0.0.1" then
-                return ngx.exit(ngx.HTTP_OK)
-            end
-
             local args, err = ngx.req.get_uri_args(0)
             if err then
                 ngx.log(ngx.WARN, "unable to get args")
