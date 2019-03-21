@@ -22,28 +22,32 @@ server {
             local uri = ngx.var.uri
             local args = ngx.var.args
 
+            if ngx.var.remote_addr == "127.0.0.1" then
+                return ngx.exit(ngx.HTTP_OK)
+            end
+
             local args, err = ngx.req.get_uri_args(0)
             if err then
                 ngx.log(ngx.WARN, "unable to get args")
-                return ngx.exit(403)
+                return ngx.exit(ngx.HTTP_FORBIDDEN)
             end
 
             local token = args["token"]
             if not token then
                 ngx.log(ngx.WARN, "request contains no token")
-                return ngx.exit(403)
+                return ngx.exit(ngx.HTTP_FORBIDDEN)
             end
 
             local m = ngx.re.match(token, [[^(?<expiry>[0-9]+)_(?<signature>[0-9a-fA-F]+)$]])
             if not m then
                 ngx.log(ngx.WARN, "request contains invalid token")
-                return ngx.exit(403)
+                return ngx.exit(ngx.HTTP_FORBIDDEN)
             end
 
             local expiry = tonumber(m["expiry"])
             if not expiry then
                 ngx.log(ngx.WARN, "invalid expiry time")
-                return ngx.exit(403)
+                return ngx.exit(ngx.HTTP_FORBIDDEN)
             end
 
             local digest = ngx.hmac_sha1(hmac_key, uri .. expiry)
@@ -56,7 +60,7 @@ server {
             local signature = m["signature"]
             if string.len(digest_hex) ~= string.len(signature) then
                 ngx.log(ngx.WARN, "invalid signature")
-                return ngx.exit(403)
+                return ngx.exit(ngx.HTTP_FORBIDDEN)
             end
 
             digest_valid = true
@@ -68,7 +72,7 @@ server {
 
             if not digest_valid then
                 ngx.log(ngx.WARN, "invalid signature")
-                return ngx.exit(403)
+                return ngx.exit(ngx.HTTP_FORBIDDEN)
             end
 
             if ngx.now() > expiry then
