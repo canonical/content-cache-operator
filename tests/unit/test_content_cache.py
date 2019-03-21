@@ -122,7 +122,7 @@ class TestCharm(unittest.TestCase):
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_nginx_sites(self, service_start_or_restart):
         '''Test configuration of Nginx sites'''
-        with open('tests/unit/files/nginx_config_test_config.txt', 'r', encoding='utf-8') as f:
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {'sites': ngx_config}
 
