@@ -139,6 +139,15 @@ class TestCharm(unittest.TestCase):
             content_cache.configure_nginx()
             self.assertFalse(service_start_or_restart.assert_not_called())
 
+            for site in ['site1.local', 'site2.local', 'site3.local']:
+                with open('tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site),
+                          'r', encoding='utf-8') as f:
+                    expected = f.read()
+                with open(os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site)),
+                          'r', encoding='utf-8') as f:
+                    current = f.read()
+                self.assertEqual(expected, current)
+
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_haproxy_no_sites(self, clear_flag):
         content_cache.configure_haproxy()
@@ -151,20 +160,21 @@ class TestCharm(unittest.TestCase):
             ngx_config = f.read()
         self.mock_config.return_value = {'sites': ngx_config}
 
-        with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
-            expected = f.read()
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
             content_cache.configure_haproxy()
-            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
-                current = f.read()
-            self.assertEqual(expected, current)
             self.assertFalse(service_start_or_restart.assert_called_with('haproxy'))
 
             # Again, this time should be no change so no need to restart HAProxy
             service_start_or_restart.reset_mock()
             content_cache.configure_haproxy()
             self.assertFalse(service_start_or_restart.assert_not_called())
+
+            with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
+                expected = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                current = f.read()
+            self.assertEqual(expected, current)
 
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')

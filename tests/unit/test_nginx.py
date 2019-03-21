@@ -34,8 +34,8 @@ class TestLibNginx(unittest.TestCase):
 
         # From the given YAML-formatted list of sites, check that each individual
         # Nginx config rendered matches what's in tests/unit/files.
-        port = BASE_LISTEN_PORT
-        backend_port = BASE_BACKEND_PORT
+        port = BASE_LISTEN_PORT - 1
+        backend_port = BASE_BACKEND_PORT - 1
         for site in conf.keys():
             port += 1
             backend_port += 1
