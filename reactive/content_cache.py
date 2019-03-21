@@ -74,8 +74,9 @@ def configure_nginx():
         cache_port = sites[site]['cache_port']
         backend_port = sites[site]['backend_port']
         backend = 'http://localhost:{}'.format(backend_port)
-        # Per site or global HMAC key
-        signed_url_hmac_key = sites[site].get('signed-url-hmac-key', config.get('signed-url-hmac-key'))
+        # Per site secret HMAC key, if it exists. We pass this through to the
+        # caching layer to activate the bit to restrict access.
+        signed_url_hmac_key = sites[site].get('signed-url-hmac-key')
         if ngx_conf.write_site(site, ngx_conf.render(site, cache_port, backend, signed_url_hmac_key)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True

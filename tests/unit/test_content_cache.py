@@ -165,7 +165,7 @@ class TestCharm(unittest.TestCase):
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
             content_cache.configure_nginx()
 
-            for site in ['site1.local', 'site2.local']:
+            for site in ['site1.local']:
                 with open('tests/unit/files/nginx_config_rendered_test_output-{}_signed_url.txt'.format(site),
                           'r', encoding='utf-8') as f:
                     expected = f.read()

@@ -20,11 +20,3 @@ options:
         backends:
         - 91.189.88.149:80
         - 91.189.88.152:80
-  signed-url-hmac-key:
-    default: ""
-    type: string
-    description: |
-      Enable signed URL / URL token validation using this key. Use the command
-      below to generate a key:
-
-        $ while (b=$(openssl rand -base64 32) ; echo $b; echo $b | base64 -d | hd | grep " 00 " > /dev/null); do :; done | tail -1
