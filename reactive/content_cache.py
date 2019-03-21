@@ -68,13 +68,14 @@ def configure_nginx():
 
     ngx_conf = nginx.NginxConf()
     sites = sites_from_config(config.get('sites'))
+    signed_url_hmac_key = config.get('signed-url-hmac-key')
 
     changed = False
     for site in sites.keys():
         cache_port = sites[site]['cache_port']
         backend_port = sites[site]['backend_port']
         backend = 'http://localhost:{}'.format(backend_port)
-        if ngx_conf.write_site(site, ngx_conf.render(site, cache_port, backend)):
+        if ngx_conf.write_site(site, ngx_conf.render(site, cache_port, backend, signed_url_hmac_key)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
 
