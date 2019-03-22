@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import jinja2
@@ -104,7 +105,8 @@ backend backend-{name}
             path = '/'
             signed_url_hmac_key = config[site].get('signed-url-hmac-key')
             if signed_url_hmac_key:
-                path = '{}?token={}'.format(path, utils.generate_token(signed_url_hmac_key, path, 315360000))
+                expiry_time = datetime.datetime.now() + datetime.timedelta(days=3650)
+                path = '{}?token={}'.format(path, utils.generate_token(signed_url_hmac_key, path, expiry_time))
 
             backends = []
             count = 0
