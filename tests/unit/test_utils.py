@@ -1,7 +1,8 @@
-import freezegun
 import os
 import sys
 import unittest
+
+import freezegun
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import utils  # NOQA: E402

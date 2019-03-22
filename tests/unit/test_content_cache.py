@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+import freezegun
+
 # We also need to mock up charms.layer so we can run unit tests without having
 # to build the charm and pull in layers such as layer-status.
 sys.modules['charms.layer'] = mock.MagicMock()
@@ -215,39 +217,68 @@ class TestCharm(unittest.TestCase):
 
         expected = [mock.call('site_site1_local_listen', 'site1.local site listen check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80'
-                              ' -u http://site1.local -j GET'),
+                              ' -u http://site1.local/ -j GET'),
                     mock.call('site_site1_local_cache', 'site1.local cache check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080'
-                              ' -u http://site1.local -j GET'),
+                              ' -u http://site1.local/ -j GET'),
                     mock.call('site_site1_local_backend_proxy', 'site1.local backend proxy check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080'
-                              ' -u http://site1.local -j GET')]
+                              ' -u http://site1.local/ -j GET')]
         self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
         expected = [mock.call('site_site2_local_listen', 'site2.local site listen check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 -S --sni'
-                              ' -u https://site2.local -j GET'),
+                              ' -u https://site2.local/ -j GET'),
                     mock.call('site_site2_local_cache', 'site2.local cache check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 6081'
-                              ' -u https://site2.local -j GET'),
+                              ' -u https://site2.local/ -j GET'),
                     mock.call('site_site2_local_backend_proxy', 'site2.local backend proxy check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 8081'
-                              ' -u https://site2.local -j GET')]
+                              ' -u https://site2.local/ -j GET')]
         self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
         expected = [mock.call('site_site3_local_listen', 'site3.local site listen check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 80'
-                              ' -u http://site3.local -j GET'),
+                              ' -u http://site3.local/ -j GET'),
                     mock.call('site_site3_local_cache', 'site3.local cache check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 6082'
-                              ' -u http://site3.local -j GET'),
+                              ' -u http://site3.local/ -j GET'),
                     mock.call('site_site3_local_backend_proxy', 'site3.local backend proxy check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082'
-                              ' -u http://site3.local -j GET')]
+                              ' -u http://site3.local/ -j GET')]
         self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
 
         self.assertFalse(nrpe_instance_mock.write.assert_called())
 
         expected = [mock.call('nagios-nrpe.configured')]
         self.assertFalse(set_flag.assert_has_calls(expected, any_order=True))
+
+    @freezegun.freeze_time("2019-03-22")
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.NRPE')
+    def test_configure_nagios_signed_url(self, nrpe, get_nagios_hostname, set_flag):
+        get_nagios_hostname.return_value = 'some-host.local'
+        with open('tests/unit/files/config_test_config_signed_url.txt', 'r', encoding='utf-8') as f:
+            config = f.read()
+        self.mock_config.return_value = {'sites': config}
+        nrpe_instance_mock = nrpe(get_nagios_hostname(), primary=True)
+
+        content_cache.configure_nagios()
+        self.assertFalse(status.maintenance.assert_called())
+
+        expected = [mock.call('site_site1_local_listen', 'site1.local site listen check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80'
+                              ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'
+                              ' -j GET'),
+                    mock.call('site_site1_local_cache', 'site1.local cache check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080'
+                              ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'
+                              ' -j GET'),
+                    mock.call('site_site1_local_backend_proxy', 'site1.local backend proxy check',
+                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080'
+                              ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'
+                              ' -j GET')]
+        print(nrpe_instance_mock.add_check.call_args_list)
+        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
 
     def test_next_port_pair(self):
         self.assertEqual(content_cache.next_port_pair(0, 0),
