@@ -1,3 +1,4 @@
+import datetime
 import multiprocessing
 import yaml
 
@@ -166,7 +167,8 @@ def configure_nagios():
         path = ''
         signed_url_hmac_key = sites[site].get('signed-url-hmac-key')
         if signed_url_hmac_key:
-            path = '/?token={}'.format(utils.generate_token(signed_url_hmac_key, '/', 315360000))
+            expiry_time = datetime.datetime.now() + datetime.timedelta(days=3650)
+            path = '/?token={}'.format(utils.generate_token(signed_url_hmac_key, '/', expiry_time))
 
         # Listen / frontend check
         check_name = 'site_{}_listen'.format(utils.generate_nagios_check_name(site))
