@@ -148,6 +148,30 @@ class TestCharm(unittest.TestCase):
                     current = f.read()
                 self.assertEqual(expected, current)
 
+    def test_configure_nginx_sites_signed_url(self):
+        with open('tests/unit/files/config_test_config_signed_url.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
+        self.mock_config.return_value = {
+            'sites': ngx_config,
+            'signed-url-hmac-key': '2PNKDi6xkqUFp/yZvI/sFBi3lknbnDLFDvaBCvZDQW0=',
+        }
+
+        with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
+            mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
+            # sites-available and sites-enabled won't exist in our temp dir
+            os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+            content_cache.configure_nginx()
+
+            for site in ['site1.local']:
+                with open('tests/unit/files/nginx_config_rendered_test_output-{}_signed_url.txt'.format(site),
+                          'r', encoding='utf-8') as f:
+                    expected = f.read()
+                with open(os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site)),
+                          'r', encoding='utf-8') as f:
+                    current = f.read()
+                self.assertEqual(expected, current)
+
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_haproxy_no_sites(self, clear_flag):
         content_cache.configure_haproxy()

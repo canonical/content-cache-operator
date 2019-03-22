@@ -1,23 +1,22 @@
-proxy_cache_path /var/lib/nginx/proxy/{{site}} use_temp_path=off levels=1:2 keys_zone={{name}}-cache:10m max_size=1g;
+proxy_cache_path /var/lib/nginx/proxy/site1.local use_temp_path=off levels=1:2 keys_zone=site1-cache:10m max_size=1g;
 
 server {
-    server_name {{site}};
-    listen {{port}};
+    server_name site1.local;
+    listen 6080;
 
     location / {
-        proxy_pass {{backend}};
-        proxy_set_header Host "{{site}}";
-        proxy_cache {{name}}-cache;
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host "site1.local";
+        proxy_cache site1-cache;
         proxy_cache_background_update on;
         proxy_cache_lock on;
         proxy_cache_min_uses 5;
         proxy_cache_revalidate on;
         proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
         proxy_cache_valid 200 1d;
-{%- if signed_url_hmac_key %}
 
         access_by_lua_block {
-            local hmac_key = "{{signed_url_hmac_key}}"
+            local hmac_key = "SrRorTsImr92B6FfSKBFrSIiR5NYGS+gdjd8oGoVH44="
 
             local uri = ngx.var.uri
             local args = ngx.var.args
@@ -79,10 +78,8 @@ server {
             args["token"] = nil
             ngx.req.set_uri_args(args)
         }
-{%- endif %}
     }
 
-    access_log /var/log/nginx/{{site}}-access.log;
-    error_log /var/log/nginx/{{site}}-error.log;
+    access_log /var/log/nginx/site1.local-access.log;
+    error_log /var/log/nginx/site1.local-error.log;
 }
-

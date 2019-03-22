@@ -10,3 +10,4 @@ options:
       - haproxy
       - nginx
       - python3-jinja2
+      - libnginx-mod-http-lua
