@@ -6,6 +6,10 @@ site1.local:
     - 127.0.1.11:80
     - 127.0.1.12:80
     signed-url-hmac-key: SrRorTsImr92B6FfSKBFrSIiR5NYGS+gdjd8oGoVH44=
+    origin-headers:
+    - X-Origin-Key: Sae6oob2aethuosh
+    - X-Some-Header-1: something one two three
+    - X-Some-Header-2: something:one:two:three
 
 # Test 2: TLS/SSL as well as backends (HTTPS)
 site2.local:
