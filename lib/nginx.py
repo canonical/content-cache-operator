@@ -61,6 +61,7 @@ class NginxConf:
         return template.render({
             'backend': backend,
             'name': self._generate_name(site),
+            # FIXME: handle when origin-headers have values with semi-colons.
             'origin_headers': origin_headers,
             'port': listen_port,
             'signed_url_hmac_key': signed_url_hmac_key,
