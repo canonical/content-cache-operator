@@ -168,10 +168,10 @@ def configure_nagios():
             default_port = 443
             url = 'https://{}'.format(site)
             tls = ' -S --sni'
-        path = '/'
+        path = ''
         signed_url_hmac_key = sites[site].get('signed-url-hmac-key')
         if signed_url_hmac_key:
-            path = '{}?token={}'.format(path, utils.generate_token(signed_url_hmac_key, path, 315360000))
+            path = '/?token={}'.format(utils.generate_token(signed_url_hmac_key, '/', 315360000))
 
         # Listen / frontend check
         check_name = 'site_{}_listen'.format(generate_nagios_check_name(site))
@@ -187,7 +187,7 @@ def configure_nagios():
 
         # Backend proxy layer check
         check_name = 'site_{}_backend_proxy'.format(generate_nagios_check_name(site))
-        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port} -u {url}/ -j GET' \
+        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port} -u {url} -j GET' \
               .format(site=site, backend_port=backend_port, url=url)
         nrpe_setup.add_check(check_name, '{} backend proxy check'.format(site), cmd)
 
