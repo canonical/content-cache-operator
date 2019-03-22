@@ -156,7 +156,6 @@ class TestCharm(unittest.TestCase):
             ngx_config = f.read()
         self.mock_config.return_value = {
             'sites': ngx_config,
-            'signed-url-hmac-key': '2PNKDi6xkqUFp/yZvI/sFBi3lknbnDLFDvaBCvZDQW0=',
         }
 
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:

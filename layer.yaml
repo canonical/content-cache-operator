@@ -8,6 +8,6 @@ options:
   basic:
     packages:
       - haproxy
+      - libnginx-mod-http-lua
       - nginx
       - python3-jinja2
-      - libnginx-mod-http-lua
