@@ -2,6 +2,8 @@ import os
 
 import jinja2
 
+from lib import utils
+
 
 HAPROXY_BASE_PATH = '/etc/haproxy'
 INDENT = ' '*4
@@ -87,7 +89,7 @@ listen {name}
     def render_stanza_backend(self, config):
         backend_stanza = """
 backend backend-{name}
-{indent}option httpchk HEAD / HTTP/1.0\\r\\nHost:\\ {site_name}\\r\\nUser-Agent:\\ haproxy/httpchk
+{indent}option httpchk HEAD {path} HTTP/1.0\\r\\nHost:\\ {site_name}\\r\\nUser-Agent:\\ haproxy/httpchk
 {indent}http-request set-header Host {site_name}
 {indent}balance leastconn
 {backends}
@@ -99,6 +101,11 @@ backend backend-{name}
             if config[site].get('backend-tls'):
                 tls_config = ' ssl sni str({site}) check-sni {site} verify required ca-file ca-certificates.crt' \
                              .format(site=site)
+            path = '/'
+            signed_url_hmac_key = config[site].get('signed-url-hmac-key')
+            if signed_url_hmac_key:
+                path = '{}?token={}'.format(path, utils.generate_token(signed_url_hmac_key, path, 315360000))
+
             backends = []
             count = 0
             for backend in config[site]['backends']:
@@ -107,8 +114,8 @@ backend backend-{name}
                 backends.append('{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn 16{tls}'
                                 .format(name=name, backend=backend, tls=tls_config, indent=INDENT))
 
-            output = backend_stanza.format(name=self._generate_stanza_name(site),
-                                           site=site, site_name=site_name, backends='\n'.join(backends), indent=INDENT)
+            output = backend_stanza.format(name=self._generate_stanza_name(site), site=site, site_name=site_name,
+                                           path=path, backends='\n'.join(backends), indent=INDENT)
 
             rendered_output.append(output)
 
