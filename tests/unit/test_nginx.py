@@ -94,7 +94,3 @@ class TestLibNginx(unittest.TestCase):
 
         # Re-run, no change this time.
         self.assertFalse(ngx_conf.sync_sites(['site1.local', 'site2.local']))
-
-
-if __name__ == '__main__':
-    unittest.main()
