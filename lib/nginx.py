@@ -54,7 +54,7 @@ class NginxConf:
     def _generate_name(self, name):
         return name.split('.')[0]
 
-    def render(self, site, listen_port, backend, signed_url_hmac_key):
+    def render(self, site, listen_port, backend, signed_url_hmac_key, origin_headers):
         base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
         template = env.get_template('templates/nginx_cfg.tmpl')
@@ -64,4 +64,5 @@ class NginxConf:
             'port': listen_port,
             'backend': backend,
             'signed_url_hmac_key': signed_url_hmac_key,
+            'origin_headers': origin_headers,
         })

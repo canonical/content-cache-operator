@@ -41,10 +41,11 @@ class TestLibNginx(unittest.TestCase):
             backend_port += 1
             backend = 'http://localhost:{}'.format(backend_port)
             signed_url_hmac_key = conf[site].get('signed-url-hmac-key')
+            origin_headers = conf[site].get('origin-headers')
             output_file = 'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site)
             with open(output_file, 'r', encoding='utf-8') as f:
                 output = f.read()
-            self.assertEqual(output, ngx_conf.render(site, port, backend, signed_url_hmac_key))
+            self.assertEqual(output, ngx_conf.render(site, port, backend, signed_url_hmac_key, origin_headers))
 
     def test_nginx_config_write_sites(self):
         '''Test writing out sites to individual Nginx site config files'''
