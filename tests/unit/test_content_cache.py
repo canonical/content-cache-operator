@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+import freezegun
+
 # We also need to mock up charms.layer so we can run unit tests without having
 # to build the charm and pull in layers such as layer-status.
 sys.modules['charms.layer'] = mock.MagicMock()
@@ -148,36 +150,13 @@ class TestCharm(unittest.TestCase):
                     current = f.read()
                 self.assertEqual(expected, current)
 
-    def test_configure_nginx_sites_signed_url(self):
-        with open('tests/unit/files/config_test_config_signed_url.txt', 'r', encoding='utf-8') as f:
-            ngx_config = f.read()
-        self.mock_config.return_value = {
-            'sites': ngx_config,
-            'signed-url-hmac-key': '2PNKDi6xkqUFp/yZvI/sFBi3lknbnDLFDvaBCvZDQW0=',
-        }
-
-        with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
-            mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
-            # sites-available and sites-enabled won't exist in our temp dir
-            os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
-            os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
-            content_cache.configure_nginx()
-
-            for site in ['site1.local']:
-                with open('tests/unit/files/nginx_config_rendered_test_output-{}_signed_url.txt'.format(site),
-                          'r', encoding='utf-8') as f:
-                    expected = f.read()
-                with open(os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site)),
-                          'r', encoding='utf-8') as f:
-                    current = f.read()
-                self.assertEqual(expected, current)
-
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_haproxy_no_sites(self, clear_flag):
         content_cache.configure_haproxy()
         self.assertFalse(status.blocked.assert_called())
         self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
 
+    @freezegun.freeze_time("2019-03-22")
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_haproxy_sites(self, service_start_or_restart):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
@@ -200,6 +179,7 @@ class TestCharm(unittest.TestCase):
                 current = f.read()
             self.assertEqual(expected, current)
 
+    @freezegun.freeze_time("2019-03-22")
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.NRPE')
@@ -215,10 +195,12 @@ class TestCharm(unittest.TestCase):
 
         expected = [mock.call('site_site1_local_listen', 'site1.local site listen check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80'
-                              ' -u http://site1.local -j GET'),
+                              ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'
+                              ' -j GET'),
                     mock.call('site_site1_local_cache', 'site1.local cache check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080'
-                              ' -u http://site1.local -j GET'),
+                              ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'
+                              ' -j GET'),
                     mock.call('site_site1_local_backend_proxy', 'site1.local backend proxy check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080'
                               ' -u http://site1.local -j GET')]

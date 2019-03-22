@@ -5,6 +5,8 @@ import tempfile
 import unittest
 import yaml
 
+import freezegun
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import haproxy as HAProxy  # NOQA: E402
 
@@ -48,6 +50,7 @@ class TestLibHAProxy(unittest.TestCase):
             config[site]['backend-name'] = site
         self.assertEqual(''.join(haproxy.render_stanza_listen(config)), expected)
 
+    @freezegun.freeze_time("2019-03-22")
     def test_haproxy_config_rendered_backend_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
@@ -56,6 +59,7 @@ class TestLibHAProxy(unittest.TestCase):
             expected = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), expected)
 
+    @freezegun.freeze_time("2019-03-22")
     def test_haproxy_config_rendered_full_config(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
