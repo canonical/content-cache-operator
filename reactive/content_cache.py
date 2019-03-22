@@ -131,6 +131,7 @@ def configure_haproxy():
         new_conf[cached_site]['site-name'] = site
         new_conf[cached_site]['port'] = sites[site].get('port') or default_port
         new_conf[cached_site]['backends'] = ['127.0.0.1:{}'.format(cache_port)]
+        new_conf[cached_site]['signed-url-hmac-key'] = sites[site].get('signed-url-hmac-key')
         new_conf[site]['site-name'] = site
         new_conf[site]['port'] = backend_port
         new_conf[site]['backends'] = sites[site]['backends']

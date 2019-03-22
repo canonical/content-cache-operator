@@ -150,6 +150,7 @@ class TestCharm(unittest.TestCase):
                     current = f.read()
                 self.assertEqual(expected, current)
 
+    @freezegun.freeze_time("2019-03-22")
     def test_configure_nginx_sites_signed_url(self):
         with open('tests/unit/files/config_test_config_signed_url.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
@@ -197,6 +198,22 @@ class TestCharm(unittest.TestCase):
             self.assertFalse(service_start_or_restart.assert_not_called())
 
             with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
+                expected = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                current = f.read()
+            self.assertEqual(expected, current)
+
+    @freezegun.freeze_time("2019-03-22")
+    def test_configure_haproxy_sites_signed_url(self):
+        with open('tests/unit/files/config_test_config_signed_url.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
+        self.mock_config.return_value = {'sites': ngx_config}
+
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            content_cache.configure_haproxy()
+            with open('tests/unit/files/content_cache_rendered_haproxy_test_output_signed_url.txt', 'r',
+                      encoding='utf-8') as f:
                 expected = f.read()
             with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
                 current = f.read()
