@@ -231,46 +231,6 @@ class TestCharm(unittest.TestCase):
         expected = [mock.call('nagios-nrpe.configured')]
         self.assertFalse(set_flag.assert_has_calls(expected, any_order=True))
 
-    def test_next_port_pair(self):
-        self.assertEqual(content_cache.next_port_pair(0, 0),
-                         (content_cache.BASE_CACHE_PORT, content_cache.BASE_BACKEND_PORT))
-        cache_port = content_cache.BASE_CACHE_PORT
-        backend_port = content_cache.BASE_BACKEND_PORT
-        # Make sure next_port_pair() is incrementing.
-        (cache_port, backend_port) = content_cache.next_port_pair(cache_port, backend_port)
-        self.assertEqual((cache_port, backend_port),
-                         (content_cache.BASE_CACHE_PORT + 1, content_cache.BASE_BACKEND_PORT + 1))
-        (cache_port, backend_port) = content_cache.next_port_pair(cache_port, backend_port)
-        self.assertEqual((cache_port, backend_port),
-                         (content_cache.BASE_CACHE_PORT + 2, content_cache.BASE_BACKEND_PORT + 2))
-
-        # Test last port still within range.
-        max_ports = content_cache.BASE_BACKEND_PORT - content_cache.BASE_CACHE_PORT - 1
-        (cache_port, backend_port) = content_cache.next_port_pair(content_cache.BASE_CACHE_PORT + max_ports - 1,
-                                                                  content_cache.BASE_BACKEND_PORT + max_ports - 1)
-        self.assertEqual((cache_port, backend_port),
-                         (content_cache.BASE_BACKEND_PORT - 1, content_cache.BASE_BACKEND_PORT + max_ports))
-
-    def test_next_port_pair_out_of_range(self):
-        with self.assertRaises(content_cache.InvalidPortError):
-            content_cache.next_port_pair(1024, 0)
-        with self.assertRaises(content_cache.InvalidPortError):
-            content_cache.next_port_pair(content_cache.BASE_CACHE_PORT - 2, 0)
-
-        max_ports = content_cache.BASE_BACKEND_PORT - content_cache.BASE_CACHE_PORT - 1
-        with self.assertRaises(content_cache.InvalidPortError):
-            content_cache.next_port_pair(0, content_cache.BASE_BACKEND_PORT + max_ports)
-        with self.assertRaises(content_cache.InvalidPortError):
-            content_cache.next_port_pair(0, content_cache.BACKEND_PORT_LIMIT)
-
-        # Absolute max. based on net.ipv4.ip_local_port_range defaults
-        with self.assertRaises(content_cache.InvalidPortError):
-            content_cache.next_port_pair(0, content_cache.BACKEND_PORT_LIMIT,
-                                         backend_port_limit=content_cache.BASE_BACKEND_PORT+10)
-
-    def test_generate_nagios_check_name(self):
-        self.assertEqual(content_cache.generate_nagios_check_name('site-1.local'), 'site_1_local')
-
     def test_sites_from_config(self):
         config_yaml = '''
 site1.local:
@@ -298,7 +258,3 @@ site3.local:
             }
         }
         self.assertEqual(content_cache.sites_from_config(config_yaml), expected)
-
-
-if __name__ == '__main__':
-    unittest.main()
