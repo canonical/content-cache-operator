@@ -50,6 +50,7 @@ class TestLibHAProxy(unittest.TestCase):
             config[site]['backend-name'] = site
         self.assertEqual(''.join(haproxy.render_stanza_listen(config)), expected)
 
+    @freezegun.freeze_time("2019-03-22")
     def test_haproxy_config_rendered_backend_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
@@ -59,15 +60,6 @@ class TestLibHAProxy(unittest.TestCase):
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), expected)
 
     @freezegun.freeze_time("2019-03-22")
-    def test_haproxy_config_rendered_backend_stanzas_signed_url(self):
-        haproxy = HAProxy.HAProxyConf(self.tmpdir)
-        with open('tests/unit/files/config_test_config_signed_url.txt', 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f.read())
-        with open('tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output_signed_url.txt', 'r',
-                  encoding='utf-8') as f:
-            expected = f.read()
-        self.assertEqual(''.join(haproxy.render_stanza_backend(config)), expected)
-
     def test_haproxy_config_rendered_full_config(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
