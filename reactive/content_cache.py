@@ -187,8 +187,8 @@ def configure_nagios():
 
         # Backend proxy layer check
         check_name = 'site_{}_backend_proxy'.format(generate_nagios_check_name(site))
-        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port} -u {url}{path} -j GET' \
-              .format(site=site, backend_port=backend_port, url=url, path=path)
+        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port} -u {url}/ -j GET' \
+              .format(site=site, backend_port=backend_port, url=url)
         nrpe_setup.add_check(check_name, '{} backend proxy check'.format(site), cmd)
 
     nrpe_setup.write()

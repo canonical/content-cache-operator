@@ -292,7 +292,7 @@ class TestCharm(unittest.TestCase):
                               ' -j GET'),
                     mock.call('site_site1_local_backend_proxy', 'site1.local backend proxy check',
                               '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080'
-                              ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'
+                              ' -u http://site1.local/'
                               ' -j GET')]
         print(nrpe_instance_mock.add_check.call_args_list)
         self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
