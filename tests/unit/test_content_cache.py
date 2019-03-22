@@ -230,3 +230,31 @@ class TestCharm(unittest.TestCase):
 
         expected = [mock.call('nagios-nrpe.configured')]
         self.assertFalse(set_flag.assert_has_calls(expected, any_order=True))
+
+    def test_sites_from_config(self):
+        config_yaml = '''
+site1.local:
+        port: 80
+site2.local:
+        port: 80
+site3.local:
+        port: 80
+'''
+        expected = {
+            'site1.local': {
+                'port': 80,
+                'cache_port': 6080,
+                'backend_port': 8080
+            },
+            'site2.local': {
+                'port': 80,
+                'cache_port': 6081,
+                'backend_port': 8081
+            },
+            'site3.local': {
+                'port': 80,
+                'cache_port': 6082,
+                'backend_port': 8082
+            }
+        }
+        self.assertEqual(content_cache.sites_from_config(config_yaml), expected)

@@ -1,7 +1,5 @@
-import datetime
 import hashlib
 import hmac
-import yaml
 
 
 BASE_CACHE_PORT = 6080
@@ -40,24 +38,12 @@ def next_port_pair(cache_port, backend_port,
     return (cache_port, backend_port)
 
 
-def sites_from_config(sites_yaml):
-    conf = yaml.safe_load(sites_yaml)
-    cache_port = 0
-    backend_port = 0
-    for site in conf.keys():
-        (cache_port, backend_port) = next_port_pair(cache_port, backend_port)
-        conf[site]['cache_port'] = cache_port
-        conf[site]['backend_port'] = backend_port
-    return conf
-
-
 def generate_nagios_check_name(site):
     return site.replace('.', '_').replace('-', '_')
 
 
-def generate_token(signing_secret, url_path, expiry):
-    expires = datetime.datetime.now() + datetime.timedelta(seconds=expiry)
-    expiration = int(expires.timestamp())
+def generate_token(signing_secret, url_path, expiry_time):
+    expiration = int(expiry_time.timestamp())
     string_to_sign = "{0}{1}".format(url_path, expiration)
     digest = hmac.new(signing_secret.encode(), string_to_sign.encode(),
                       hashlib.sha1)

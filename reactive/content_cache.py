@@ -1,4 +1,6 @@
+import datetime
 import multiprocessing
+import yaml
 
 from charms import reactive
 from charms.layer import status
@@ -62,7 +64,7 @@ def configure_nginx():
         return
 
     ngx_conf = nginx.NginxConf()
-    sites = utils.sites_from_config(config.get('sites'))
+    sites = sites_from_config(config.get('sites'))
 
     changed = False
     for site in sites.keys():
@@ -96,7 +98,7 @@ def configure_haproxy():
         return
 
     haproxy = HAProxy.HAProxyConf()
-    sites = utils.sites_from_config(config.get('sites'))
+    sites = sites_from_config(config.get('sites'))
 
     num_procs = multiprocessing.cpu_count()
 
@@ -149,7 +151,7 @@ def configure_nagios():
     hostname = nrpe.get_nagios_hostname()
     nrpe_setup = nrpe.NRPE(hostname=hostname, primary=True)
 
-    sites = utils.sites_from_config(config.get('sites'))
+    sites = sites_from_config(config.get('sites'))
 
     for site in sites.keys():
         cache_port = sites[site]['cache_port']
@@ -166,7 +168,8 @@ def configure_nagios():
         path = ''
         signed_url_hmac_key = sites[site].get('signed-url-hmac-key')
         if signed_url_hmac_key:
-            path = '/?token={}'.format(utils.generate_token(signed_url_hmac_key, '/', 315360000))
+            expiry_time = datetime.datetime.now() + datetime.timedelta(days=3650)
+            path = '/?token={}'.format(utils.generate_token(signed_url_hmac_key, '/', expiry_time))
 
         # Listen / frontend check
         check_name = 'site_{}_listen'.format(utils.generate_nagios_check_name(site))
@@ -188,3 +191,14 @@ def configure_nagios():
 
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe.configured')
+
+
+def sites_from_config(sites_yaml):
+    conf = yaml.safe_load(sites_yaml)
+    cache_port = 0
+    backend_port = 0
+    for site in conf.keys():
+        (cache_port, backend_port) = utils.next_port_pair(cache_port, backend_port)
+        conf[site]['cache_port'] = cache_port
+        conf[site]['backend_port'] = backend_port
+    return conf

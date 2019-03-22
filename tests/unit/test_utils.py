@@ -1,3 +1,4 @@
+import datetime
 import os
 import sys
 import unittest
@@ -52,36 +53,13 @@ class TestLibUtils(unittest.TestCase):
     def test_generate_nagios_check_name(self):
         self.assertEqual(utils.generate_nagios_check_name('site-1.local'), 'site_1_local')
 
-    def test_sites_from_config(self):
-        config_yaml = '''
-site1.local:
-        port: 80
-site2.local:
-        port: 80
-site3.local:
-        port: 80
-'''
-        expected = {
-            'site1.local': {
-                'port': 80,
-                'cache_port': 6080,
-                'backend_port': 8080
-            },
-            'site2.local': {
-                'port': 80,
-                'cache_port': 6081,
-                'backend_port': 8081
-            },
-            'site3.local': {
-                'port': 80,
-                'cache_port': 6082,
-                'backend_port': 8082
-            }
-        }
-        self.assertEqual(utils.sites_from_config(config_yaml), expected)
-
     @freezegun.freeze_time("2019-03-22")
     def test_generate_token(self):
         signing_key = '2KmMh3/rx1LQRdjZIzto07Qaz/+LghG1c2G7od7FC/I='
+        expiry_time = datetime.datetime.now() + datetime.timedelta(hours=1)
         expected = '1553176800_f8a6667ad994a013645eab53e9a757e65c206ee2'
-        self.assertEqual(utils.generate_token(signing_key, '/', 3600), expected)
+        self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), expected)
+
+        expiry_time = datetime.datetime.now() + datetime.timedelta(days=1)
+        expected = '1553259600_4cbf405bf08cee57eadcceb2ea98fc6767c6007b'
+        self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), expected)
