@@ -6,6 +6,7 @@ from charms.layer import status
 from charmhelpers.core import hookenv, host
 from charmhelpers.contrib.charmsupport import nrpe
 
+from lib import utils
 from lib import nginx
 from lib import haproxy as HAProxy
 
@@ -130,6 +131,7 @@ def configure_haproxy():
         new_conf[cached_site]['site-name'] = site
         new_conf[cached_site]['port'] = sites[site].get('port') or default_port
         new_conf[cached_site]['backends'] = ['127.0.0.1:{}'.format(cache_port)]
+        new_conf[cached_site]['signed-url-hmac-key'] = sites[site].get('signed-url-hmac-key')
         new_conf[site]['site-name'] = site
         new_conf[site]['port'] = backend_port
         new_conf[site]['backends'] = sites[site]['backends']
@@ -166,17 +168,21 @@ def configure_nagios():
             default_port = 443
             url = 'https://{}'.format(site)
             tls = ' -S --sni'
+        path = ''
+        signed_url_hmac_key = sites[site].get('signed-url-hmac-key')
+        if signed_url_hmac_key:
+            path = '/?token={}'.format(utils.generate_token(signed_url_hmac_key, '/', 315360000))
 
         # Listen / frontend check
         check_name = 'site_{}_listen'.format(generate_nagios_check_name(site))
-        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {port}{tls} -u {url} -j GET' \
-              .format(site=site, port=default_port, url=url, tls=tls)
+        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {port}{tls} -u {url}{path} -j GET' \
+              .format(site=site, port=default_port, url=url, path=path, tls=tls)
         nrpe_setup.add_check(check_name, '{} site listen check'.format(site), cmd)
 
         # Cache layer check
         check_name = 'site_{}_cache'.format(generate_nagios_check_name(site))
-        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {cache_port} -u {url} -j GET' \
-              .format(site=site, cache_port=cache_port, url=url)
+        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {cache_port} -u {url}{path} -j GET' \
+              .format(site=site, cache_port=cache_port, url=url, path=path)
         nrpe_setup.add_check(check_name, '{} cache check'.format(site), cmd)
 
         # Backend proxy layer check

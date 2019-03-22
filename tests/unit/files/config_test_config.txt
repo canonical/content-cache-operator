@@ -5,6 +5,7 @@ site1.local:
     - 127.0.1.10:80
     - 127.0.1.11:80
     - 127.0.1.12:80
+    signed-url-hmac-key: SrRorTsImr92B6FfSKBFrSIiR5NYGS+gdjd8oGoVH44=
 
 # Test 2: TLS/SSL as well as backends (HTTPS)
 site2.local:
