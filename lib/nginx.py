@@ -59,10 +59,10 @@ class NginxConf:
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
         template = env.get_template('templates/nginx_cfg.tmpl')
         return template.render({
-            'site': site,
-            'name': self._generate_name(site),
-            'port': listen_port,
             'backend': backend,
-            'signed_url_hmac_key': signed_url_hmac_key,
+            'name': self._generate_name(site),
             'origin_headers': origin_headers,
+            'port': listen_port,
+            'signed_url_hmac_key': signed_url_hmac_key,
+            'site': site,
         })

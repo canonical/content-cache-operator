@@ -16,8 +16,9 @@ server {
         proxy_cache_valid 200 1d;
 {%- if origin_headers %}
 {%- for header_pair in origin_headers -%}
-{% set header = header_pair.split(':') %}
-        proxy_set_header {{header[0]}} {{header[1]}};
+{% for header, value in header_pair.items() %}
+        proxy_set_header {{header}} {{value}};
+{%- endfor -%}
 {%- endfor -%}
 {%- endif %}
 {%- if signed_url_hmac_key %}
