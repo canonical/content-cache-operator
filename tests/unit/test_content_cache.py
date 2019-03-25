@@ -62,7 +62,8 @@ class TestCharm(unittest.TestCase):
         expected = [mock.call('content_cache.active'),
                     mock.call('content_cache.installed'),
                     mock.call('content_cache.haproxy.configured'),
-                    mock.call('content_cache.nginx.configured')]
+                    mock.call('content_cache.nginx.configured'),
+                    mock.call('nagios-nrpe.configured')]
         self.assertFalse(clear_flag.assert_has_calls(expected, any_order=True))
 
     @mock.patch('charms.reactive.clear_flag')

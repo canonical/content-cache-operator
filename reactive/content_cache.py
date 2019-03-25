@@ -19,6 +19,7 @@ def upgrade_charm():
     reactive.clear_flag('content_cache.installed')
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
+    reactive.clear_flag('nagios-nrpe.configured')
 
 
 @reactive.when_not('content_cache.installed')
