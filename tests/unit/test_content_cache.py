@@ -152,6 +152,15 @@ class TestCharm(unittest.TestCase):
                 self.assertEqual(expected, current)
 
     @mock.patch('charms.reactive.clear_flag')
+    @mock.patch('charms.reactive.set_flag')
+    def test_configure_nginx_sites_no_backend(self, set_flag, clear_flag):
+        self.mock_config.return_value = {'sites': 'site1.local:\n  port: 80'}
+        content_cache.configure_nginx()
+        self.assertFalse(status.blocked.assert_called())
+        self.assertFalse(clear_flag.assert_called_with('content_cache.active'))
+        self.assertFalse(set_flag.assert_not_called())
+
+    @mock.patch('charms.reactive.clear_flag')
     def test_configure_haproxy_no_sites(self, clear_flag):
         content_cache.configure_haproxy()
         self.assertFalse(status.blocked.assert_called())
@@ -179,6 +188,15 @@ class TestCharm(unittest.TestCase):
             with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
                 current = f.read()
             self.assertEqual(expected, current)
+
+    @mock.patch('charms.reactive.clear_flag')
+    @mock.patch('charms.reactive.set_flag')
+    def test_configure_haproxy_sites_no_backend(self, set_flag, clear_flag):
+        self.mock_config.return_value = {'sites': 'site1.local:\n  port: 80'}
+        content_cache.configure_haproxy()
+        self.assertFalse(status.blocked.assert_called())
+        self.assertFalse(clear_flag.assert_called_with('content_cache.active'))
+        self.assertFalse(set_flag.assert_not_called())
 
     @freezegun.freeze_time("2019-03-22")
     @mock.patch('charms.reactive.set_flag')
@@ -236,26 +254,46 @@ class TestCharm(unittest.TestCase):
         config_yaml = '''
 site1.local:
         port: 80
+        backends:
+          - 91.189.88.152:80
 site2.local:
         port: 80
+        backends:
+          - 91.189.88.152:80
 site3.local:
         port: 80
+        backends:
+          - 91.189.88.152:80
 '''
         expected = {
             'site1.local': {
                 'port': 80,
                 'cache_port': 6080,
-                'backend_port': 8080
+                'backend_port': 8080,
+                'backends': ['91.189.88.152:80'],
             },
             'site2.local': {
                 'port': 80,
                 'cache_port': 6081,
-                'backend_port': 8081
+                'backend_port': 8081,
+                'backends': ['91.189.88.152:80'],
             },
             'site3.local': {
                 'port': 80,
                 'cache_port': 6082,
-                'backend_port': 8082
+                'backend_port': 8082,
+                'backends': ['91.189.88.152:80'],
             }
         }
         self.assertEqual(content_cache.sites_from_config(config_yaml), expected)
+        config_yaml = '''
+site1.local:
+        port: 80
+        backends: []
+'''
+        self.assertFalse(content_cache.sites_from_config(config_yaml))
+        config_yaml = '''
+site1.local:
+        port: 80
+'''
+        self.assertFalse(content_cache.sites_from_config(config_yaml))

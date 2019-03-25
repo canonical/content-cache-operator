@@ -66,6 +66,10 @@ def configure_nginx():
 
     ngx_conf = nginx.NginxConf()
     sites = sites_from_config(config.get('sites'))
+    if not sites:
+        status.blocked('list of sites provided has no backends or seems invalid')
+        reactive.clear_flag('content_cache.active')
+        return
 
     changed = False
     for site in sites.keys():
@@ -100,6 +104,10 @@ def configure_haproxy():
 
     haproxy = HAProxy.HAProxyConf()
     sites = sites_from_config(config.get('sites'))
+    if not sites:
+        status.blocked('list of sites provided has no backends or seems invalid')
+        reactive.clear_flag('content_cache.active')
+        return
 
     num_procs = multiprocessing.cpu_count()
 
@@ -198,8 +206,12 @@ def sites_from_config(sites_yaml):
     conf = yaml.safe_load(sites_yaml)
     cache_port = 0
     backend_port = 0
-    for site in conf.keys():
+    for site, site_conf in conf.items():
+        # Make backends a requirement and that at least one backend has been
+        # provided.
+        if not site_conf.get('backends'):
+            return None
         (cache_port, backend_port) = utils.next_port_pair(cache_port, backend_port)
-        conf[site]['cache_port'] = cache_port
-        conf[site]['backend_port'] = backend_port
+        site_conf['cache_port'] = cache_port
+        site_conf['backend_port'] = backend_port
     return conf
