@@ -221,8 +221,12 @@ def sites_from_config(sites_yaml):
 
 def secrets_from_config(secrets_yaml):
     secrets = ''
-    if secrets_yaml:
+    if not secrets_yaml:
+        return {}
+    try:
         secrets = yaml.safe_load(secrets_yaml)
+    except yaml.YAMLError:
+        return {}
     if isinstance(secrets, dict):
         return secrets
     else:

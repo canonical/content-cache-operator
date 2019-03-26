@@ -158,11 +158,11 @@ class TestCharm(unittest.TestCase):
         config = '''
 site1.local:
     backends:
-    - 127.0.1.10:80
-    - 127.0.1.11:80
-    - 127.0.1.12:80
+      - 127.0.1.10:80
+      - 127.0.1.11:80
+      - 127.0.1.12:80
     origin-headers:
-    - X-Origin-Key: ${secret}
+      - X-Origin-Key: ${secret}
 '''
         self.mock_config.return_value = {
             'sites': config,
@@ -344,6 +344,7 @@ site1.local:
         self.assertEqual(content_cache.secrets_from_config(secrets_yaml), expected)
         self.assertEqual(content_cache.secrets_from_config(''), {})
         self.assertEqual(content_cache.secrets_from_config('invalid YAML'), {})
+        self.assertEqual(content_cache.secrets_from_config('invalid\n\tYAML'), {})
 
     def test_map_origin_headers_to_secrets(self):
         origin_headers = [{'X-Origin-Key': '${secret}'}]
