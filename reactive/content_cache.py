@@ -1,6 +1,7 @@
 import datetime
 import multiprocessing
 import yaml
+from copy import deepcopy
 
 from charms import reactive
 from charms.layer import status
@@ -243,6 +244,7 @@ def secrets_from_config(secrets_yaml):
 
 
 def interpolate_secrets(sites, secrets):
+    sites = deepcopy(sites)
     for site, site_conf in sites.items():
         if not secrets.get(site):
             continue
@@ -258,6 +260,7 @@ def interpolate_secrets(sites, secrets):
 
 
 def _interpolate_secrets_origin_headers(headers, secrets):
+    headers = deepcopy(headers)
     for header in headers:
         for k, v in header.items():
             if v != '${secret}':
