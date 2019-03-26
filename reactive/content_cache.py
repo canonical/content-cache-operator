@@ -66,13 +66,12 @@ def configure_nginx():
         return
 
     ngx_conf = nginx.NginxConf()
-    sites = sites_from_config(config.get('sites'))
+    sites_secrets = secrets_from_config(config.get('sites_secrets'))
+    sites = sites_from_config(config.get('sites'), sites_secrets)
     if not sites:
         status.blocked('list of sites provided has no backends or seems invalid')
         reactive.clear_flag('content_cache.active')
         return
-    sites_secrets = secrets_from_config(config.get('sites_secrets'))
-    sites = interpolate_secrets(sites, sites_secrets)
 
     changed = False
     for site, site_conf in sites.items():
@@ -106,13 +105,12 @@ def configure_haproxy():
         return
 
     haproxy = HAProxy.HAProxyConf()
-    sites = sites_from_config(config.get('sites'))
+    sites_secrets = secrets_from_config(config.get('sites_secrets'))
+    sites = sites_from_config(config.get('sites'), sites_secrets)
     if not sites:
         status.blocked('list of sites provided has no backends or seems invalid')
         reactive.clear_flag('content_cache.active')
         return
-    sites_secrets = secrets_from_config(config.get('sites_secrets'))
-    sites = interpolate_secrets(sites, sites_secrets)
 
     num_procs = multiprocessing.cpu_count()
 
@@ -174,9 +172,8 @@ def configure_nagios():
     hostname = nrpe.get_nagios_hostname()
     nrpe_setup = nrpe.NRPE(hostname=hostname, primary=True)
 
-    sites = sites_from_config(config.get('sites'))
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
-    sites = interpolate_secrets(sites, sites_secrets)
+    sites = sites_from_config(config.get('sites'), sites_secrets)
 
     for site in sites.keys():
         cache_port = sites[site]['cache_port']
@@ -218,11 +215,12 @@ def configure_nagios():
     reactive.set_flag('nagios-nrpe.configured')
 
 
-def sites_from_config(sites_yaml):
+def sites_from_config(sites_yaml, sites_secrets=None):
     conf = yaml.safe_load(sites_yaml)
+    sites = interpolate_secrets(conf, sites_secrets)
     cache_port = 0
     backend_port = 0
-    for site, site_conf in conf.items():
+    for site, site_conf in sites.items():
         # Make backends a requirement and that at least one backend has been
         # provided.
         if not site_conf.get('backends'):
@@ -230,7 +228,7 @@ def sites_from_config(sites_yaml):
         (cache_port, backend_port) = utils.next_port_pair(cache_port, backend_port)
         site_conf['cache_port'] = cache_port
         site_conf['backend_port'] = backend_port
-    return conf
+    return sites
 
 
 def secrets_from_config(secrets_yaml):
@@ -250,7 +248,7 @@ def secrets_from_config(secrets_yaml):
 def interpolate_secrets(sites, secrets):
     sites = deepcopy(sites)
     for site, site_conf in sites.items():
-        if not secrets.get(site):
+        if not secrets or not secrets.get(site):
             continue
         signed_url_hmac_key = site_conf.get('signed-url-hmac-key')
         if signed_url_hmac_key == '${secret}':

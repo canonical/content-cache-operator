@@ -332,6 +332,10 @@ site1.local:
 '''
         self.assertFalse(content_cache.sites_from_config(config_yaml))
 
+        # There are secrets, but none for the sites listed.
+        secrets = {'siteX.local': {}}
+        self.assertFalse(content_cache.sites_from_config(config_yaml, secrets))
+
     def test_secrets_from_config(self):
         secrets_yaml = '''
 site1.local:
