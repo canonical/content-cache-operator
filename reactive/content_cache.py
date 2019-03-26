@@ -111,6 +111,8 @@ def configure_haproxy():
         status.blocked('list of sites provided has no backends or seems invalid')
         reactive.clear_flag('content_cache.active')
         return
+    sites_secrets = secrets_from_config(config.get('sites_secrets'))
+    sites = interpolate_secrets(sites, sites_secrets)
 
     num_procs = multiprocessing.cpu_count()
 
@@ -173,6 +175,8 @@ def configure_nagios():
     nrpe_setup = nrpe.NRPE(hostname=hostname, primary=True)
 
     sites = sites_from_config(config.get('sites'))
+    sites_secrets = secrets_from_config(config.get('sites_secrets'))
+    sites = interpolate_secrets(sites, sites_secrets)
 
     for site in sites.keys():
         cache_port = sites[site]['cache_port']
