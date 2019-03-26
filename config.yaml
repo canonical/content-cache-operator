@@ -21,7 +21,7 @@ options:
           - 91.189.88.149:80
           - 91.189.88.152:80
         origin-headers:
-          - X-Origin-Key: '{{secret}}'
+          - X-Origin-Key: ${secret}
   sites_secrets:
     default: ""
     type: string

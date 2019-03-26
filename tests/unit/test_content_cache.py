@@ -162,7 +162,7 @@ site1.local:
     - 127.0.1.11:80
     - 127.0.1.12:80
     origin-headers:
-    - X-Origin-Key: '{{secret}}'
+    - X-Origin-Key: ${secret}
 '''
         self.mock_config.return_value = {
             'sites': config,
@@ -332,7 +332,7 @@ site1.local:
         self.assertFalse(content_cache.sites_from_config(config_yaml))
 
     def test_map_origin_headers_to_secrets(self):
-        origin_headers = [{'X-Origin-Key': '{{secret}}'}]
+        origin_headers = [{'X-Origin-Key': '${secret}'}]
         secrets = {'X-Origin-Key': 'Sae6oob2aethuosh'}
         expected = [{'X-Origin-Key': 'Sae6oob2aethuosh'}]
         self.assertEqual(content_cache.map_origin_headers_to_secrets(origin_headers, secrets), expected)

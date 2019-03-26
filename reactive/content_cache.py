@@ -231,6 +231,6 @@ def map_origin_headers_to_secrets(origin_headers, secrets):
     if origin_headers:
         for l in origin_headers:
             for header, value in l.items():
-                if value == '{{secret}}':
+                if value == '${secret}':
                     l[header] = secrets.get(header)
     return origin_headers
