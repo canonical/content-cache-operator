@@ -115,16 +115,16 @@ def configure_haproxy():
 
     # We need to slot in the caching layer here.
     new_conf = {}
-    for site in sites.keys():
-        cache_port = sites[site]['cache_port']
-        backend_port = sites[site]['backend_port']
+    for site, site_conf in sites.items():
+        cache_port = site_conf['cache_port']
+        backend_port = site_conf['backend_port']
 
         cached_site = 'cached-{}'.format(site)
         new_conf[cached_site] = {}
         new_conf[site] = {}
 
         default_port = 80
-        tls_cert_bundle_path = sites[site].get('tls-cert-bundle-path')
+        tls_cert_bundle_path = site_conf.get('tls-cert-bundle-path')
         if tls_cert_bundle_path:
             default_port = 443
             new_conf[cached_site]['backend-tls'] = False
@@ -134,15 +134,24 @@ def configure_haproxy():
             # Support for HTTP front to HTTPS backends. This shouldn't
             # normally be used but it's useful for testing without having
             # to ship out TLS/SSL certificate bundles.
-            new_conf[site]['backend-tls'] = sites[site].get('backend-tls')
+            new_conf[site]['backend-tls'] = site_conf.get('backend-tls')
+
+        backend_check_method = site_conf.get('backend-check-method')
+        if backend_check_method:
+            new_conf[cached_site]['backend-check-method'] = backend_check_method
+            new_conf[site]['backend-check-method'] = backend_check_method
+        backend_check_path = site_conf.get('backend-check-path')
+        if backend_check_path:
+            new_conf[cached_site]['backend-check-path'] = backend_check_path
+            new_conf[site]['backend-check-path'] = backend_check_path
 
         new_conf[cached_site]['site-name'] = site
-        new_conf[cached_site]['port'] = sites[site].get('port') or default_port
+        new_conf[cached_site]['port'] = site_conf.get('port') or default_port
         new_conf[cached_site]['backends'] = ['127.0.0.1:{}'.format(cache_port)]
-        new_conf[cached_site]['signed-url-hmac-key'] = sites[site].get('signed-url-hmac-key')
+        new_conf[cached_site]['signed-url-hmac-key'] = site_conf.get('signed-url-hmac-key')
         new_conf[site]['site-name'] = site
         new_conf[site]['port'] = backend_port
-        new_conf[site]['backends'] = sites[site]['backends']
+        new_conf[site]['backends'] = site_conf['backends']
 
     if haproxy.write(haproxy.render(new_conf, num_procs)):
         service_start_or_restart('haproxy')
