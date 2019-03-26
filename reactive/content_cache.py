@@ -71,6 +71,7 @@ def configure_nginx():
         reactive.clear_flag('content_cache.active')
         return
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
+    sites = interpolate_secrets(sites, sites_secrets)
 
     changed = False
     for site, site_conf in sites.items():
@@ -80,8 +81,7 @@ def configure_nginx():
         # Per site secret HMAC key, if it exists. We pass this through to the
         # caching layer to activate the bit to restrict access.
         signed_url_hmac_key = site_conf.get('signed-url-hmac-key')
-        secrets = sites_secrets.get(site)
-        origin_headers = map_origin_headers_to_secrets(site_conf.get('origin-headers'), secrets)
+        origin_headers = site_conf.get('origin-headers')
         if ngx_conf.write_site(site, ngx_conf.render(site, cache_port, backend, signed_url_hmac_key, origin_headers)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
@@ -242,10 +242,25 @@ def secrets_from_config(secrets_yaml):
         return {}
 
 
-def map_origin_headers_to_secrets(origin_headers, secrets):
-    if origin_headers:
-        for l in origin_headers:
-            for header, value in l.items():
-                if value == '${secret}':
-                    l[header] = secrets.get(header)
-    return origin_headers
+def interpolate_secrets(sites, secrets):
+    for site, site_conf in sites.items():
+        if not secrets.get(site):
+            continue
+        signed_url_hmac_key = site_conf.get('signed-url-hmac-key')
+        if signed_url_hmac_key == '${secret}':
+            site_conf['signed-url-hmac-key'] = secrets.get(site).get('signed-url-hmac-key')
+        origin_headers = site_conf.get('origin-headers')
+        if origin_headers:
+            origin_header_secrets = secrets.get(site).get('origin-headers')
+            site_conf['origin-headers'] = _interpolate_secrets_origin_headers(origin_headers, origin_header_secrets)
+
+    return sites
+
+
+def _interpolate_secrets_origin_headers(headers, secrets):
+    for header in headers:
+        for k, v in header.items():
+            if v != '${secret}':
+                continue
+            header[k] = secrets.get(k)
+    return headers

@@ -163,6 +163,7 @@ site1.local:
       - 127.0.1.12:80
     origin-headers:
       - X-Origin-Key: ${secret}
+    signed-url-hmac-key: ${secret}
 '''
         self.mock_config.return_value = {
             'sites': config,
@@ -334,11 +335,14 @@ site1.local:
     def test_secrets_from_config(self):
         secrets_yaml = '''
 site1.local:
-        X-Some-Header: myvalue
+  origin-headers:
+    X-Some-Header: myvalue
 '''
         expected = {
             'site1.local': {
-                'X-Some-Header': 'myvalue',
+                'origin-headers': {
+                    'X-Some-Header': 'myvalue',
+                }
             }
         }
         self.assertEqual(content_cache.secrets_from_config(secrets_yaml), expected)
@@ -346,8 +350,42 @@ site1.local:
         self.assertEqual(content_cache.secrets_from_config('invalid YAML'), {})
         self.assertEqual(content_cache.secrets_from_config('invalid\n\tYAML'), {})
 
-    def test_map_origin_headers_to_secrets(self):
-        origin_headers = [{'X-Origin-Key': '${secret}'}]
-        secrets = {'X-Origin-Key': 'Sae6oob2aethuosh'}
-        expected = [{'X-Origin-Key': 'Sae6oob2aethuosh'}]
-        self.assertEqual(content_cache.map_origin_headers_to_secrets(origin_headers, secrets), expected)
+    def test_interpolate_secrets(self):
+        secrets = {
+            'site1.local': {
+                'origin-headers': {
+                    'X-Origin-Key': 'Sae6oob2aethuosh'
+                },
+                'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0'
+            }
+        }
+        config = {
+            'site1.local': {
+                'origin-headers': [{'X-Origin-Key': '${secret}'}],
+                'signed-url-hmac-key': '${secret}',
+            }
+        }
+        expected = {
+            'site1.local': {
+                'origin-headers': [{'X-Origin-Key': 'Sae6oob2aethuosh'}],
+                'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0',
+            }
+        }
+        self.assertEqual(content_cache.interpolate_secrets(config, secrets), expected)
+
+        # No secrets to interpolate
+        config = expected
+        self.assertEqual(content_cache.interpolate_secrets(config, secrets), expected)
+
+        # No origin headers, just signed-url-hmac-key.
+        config = {
+            'site1.local': {
+                'signed-url-hmac-key': '${secret}',
+            }
+        }
+        expected = {
+            'site1.local': {
+                'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0',
+            }
+        }
+        self.assertEqual(content_cache.interpolate_secrets(config, secrets), expected)
