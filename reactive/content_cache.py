@@ -189,26 +189,28 @@ def configure_nagios():
             tls = ' -S --sni'
         method = site_conf.get('backend-check-method', 'HEAD')
         path = site_conf.get('backend-check-path', '/')
+        token = ''
         signed_url_hmac_key = site_conf.get('signed-url-hmac-key')
         if signed_url_hmac_key:
             expiry_time = datetime.datetime.now() + datetime.timedelta(days=3650)
-            token_path = '{}?token={}'.format(path, utils.generate_token(signed_url_hmac_key, path, expiry_time))
-        else:
-            token_path = path
+            token = '?token={}'.format(utils.generate_token(signed_url_hmac_key, path, expiry_time))
 
         # Listen / frontend check
         check_name = 'site_{}_listen'.format(utils.generate_nagios_check_name(site))
-        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {port}{tls} -j {method} -u {url}{path}' \
-              .format(site=site, port=default_port, method=method, url=url, path=token_path, tls=tls)
+        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
+              ' -p {port}{tls} -j {method} -u {url}{path}{token}' \
+              .format(site=site, port=default_port, method=method, url=url, path=path, token=token, tls=tls)
         nrpe_setup.add_check(check_name, '{} site listen check'.format(site), cmd)
 
         # Cache layer check
         check_name = 'site_{}_cache'.format(utils.generate_nagios_check_name(site))
-        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {cache_port} -j {method} -u {url}{path}' \
-              .format(site=site, cache_port=cache_port, method=method, url=url, path=token_path)
+        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
+              ' -p {cache_port} -j {method} -u {url}{path}{token}' \
+              .format(site=site, cache_port=cache_port, method=method, url=url, path=path, token=token)
         nrpe_setup.add_check(check_name, '{} cache check'.format(site), cmd)
 
-        # Backend proxy layer check
+        # Backend proxy layer check; no token needs to be passed here as it's
+        # stripped by the cache layer.
         check_name = 'site_{}_backend_proxy'.format(utils.generate_nagios_check_name(site))
         cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port} -j {method} -u {url}{path}' \
               .format(site=site, backend_port=backend_port, method=method, url=url, path=path)
