@@ -151,6 +151,39 @@ class TestCharm(unittest.TestCase):
                     current = f.read()
                 self.assertEqual(expected, current)
 
+    @mock.patch('reactive.content_cache.service_start_or_restart')
+    def test_configure_nginx_sites_secrets(self, service_start_or_restart):
+        with open('tests/unit/files/config_test_secrets.txt', 'r', encoding='utf-8') as f:
+            secrets = f.read()
+        config = '''
+site1.local:
+    backends:
+      - 127.0.1.10:80
+      - 127.0.1.11:80
+      - 127.0.1.12:80
+    origin-headers:
+      - X-Origin-Key: ${secret}
+'''
+        self.mock_config.return_value = {
+            'sites': config,
+            'sites_secrets': secrets,
+        }
+
+        with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
+            mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
+            # sites-available and sites-enabled won't exist in our temp dir
+            os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+            content_cache.configure_nginx()
+            for site in ['site1.local']:
+                with open('tests/unit/files/nginx_config_rendered_test_output-{}-secrets.txt'.format(site),
+                          'r', encoding='utf-8') as f:
+                    expected = f.read()
+                with open(os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site)),
+                          'r', encoding='utf-8') as f:
+                    current = f.read()
+                self.assertEqual(expected, current)
+
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('charms.reactive.set_flag')
     def test_configure_nginx_sites_no_backend(self, set_flag, clear_flag):
@@ -297,3 +330,24 @@ site1.local:
         port: 80
 '''
         self.assertFalse(content_cache.sites_from_config(config_yaml))
+
+    def test_secrets_from_config(self):
+        secrets_yaml = '''
+site1.local:
+        X-Some-Header: myvalue
+'''
+        expected = {
+            'site1.local': {
+                'X-Some-Header': 'myvalue',
+            }
+        }
+        self.assertEqual(content_cache.secrets_from_config(secrets_yaml), expected)
+        self.assertEqual(content_cache.secrets_from_config(''), {})
+        self.assertEqual(content_cache.secrets_from_config('invalid YAML'), {})
+        self.assertEqual(content_cache.secrets_from_config('invalid\n\tYAML'), {})
+
+    def test_map_origin_headers_to_secrets(self):
+        origin_headers = [{'X-Origin-Key': '${secret}'}]
+        secrets = {'X-Origin-Key': 'Sae6oob2aethuosh'}
+        expected = [{'X-Origin-Key': 'Sae6oob2aethuosh'}]
+        self.assertEqual(content_cache.map_origin_headers_to_secrets(origin_headers, secrets), expected)

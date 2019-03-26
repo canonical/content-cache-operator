@@ -70,16 +70,18 @@ def configure_nginx():
         status.blocked('list of sites provided has no backends or seems invalid')
         reactive.clear_flag('content_cache.active')
         return
+    sites_secrets = secrets_from_config(config.get('sites_secrets'))
 
     changed = False
-    for site in sites.keys():
-        cache_port = sites[site]['cache_port']
-        backend_port = sites[site]['backend_port']
+    for site, site_conf in sites.items():
+        cache_port = site_conf['cache_port']
+        backend_port = site_conf['backend_port']
         backend = 'http://localhost:{}'.format(backend_port)
         # Per site secret HMAC key, if it exists. We pass this through to the
         # caching layer to activate the bit to restrict access.
-        signed_url_hmac_key = sites[site].get('signed-url-hmac-key')
-        origin_headers = sites[site].get('origin-headers')
+        signed_url_hmac_key = site_conf.get('signed-url-hmac-key')
+        secrets = sites_secrets.get(site)
+        origin_headers = map_origin_headers_to_secrets(site_conf.get('origin-headers'), secrets)
         if ngx_conf.write_site(site, ngx_conf.render(site, cache_port, backend, signed_url_hmac_key, origin_headers)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
@@ -215,3 +217,26 @@ def sites_from_config(sites_yaml):
         site_conf['cache_port'] = cache_port
         site_conf['backend_port'] = backend_port
     return conf
+
+
+def secrets_from_config(secrets_yaml):
+    secrets = ''
+    if not secrets_yaml:
+        return {}
+    try:
+        secrets = yaml.safe_load(secrets_yaml)
+    except yaml.YAMLError:
+        return {}
+    if isinstance(secrets, dict):
+        return secrets
+    else:
+        return {}
+
+
+def map_origin_headers_to_secrets(origin_headers, secrets):
+    if origin_headers:
+        for l in origin_headers:
+            for header, value in l.items():
+                if value == '${secret}':
+                    l[header] = secrets.get(header)
+    return origin_headers
