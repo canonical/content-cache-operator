@@ -220,11 +220,13 @@ def sites_from_config(sites_yaml):
 
 
 def secrets_from_config(secrets_yaml):
-    try:
+    secrets = ''
+    if secrets_yaml:
         secrets = yaml.safe_load(secrets_yaml)
-    except Exception:
-        secrets = {}
-    return secrets
+    if isinstance(secrets, dict):
+        return secrets
+    else:
+        return {}
 
 
 def map_origin_headers_to_secrets(origin_headers, secrets):

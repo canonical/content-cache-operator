@@ -331,6 +331,20 @@ site1.local:
 '''
         self.assertFalse(content_cache.sites_from_config(config_yaml))
 
+    def test_secrets_from_config(self):
+        secrets_yaml = '''
+site1.local:
+        X-Some-Header: myvalue
+'''
+        expected = {
+            'site1.local': {
+                'X-Some-Header': 'myvalue',
+            }
+        }
+        self.assertEqual(content_cache.secrets_from_config(secrets_yaml), expected)
+        self.assertEqual(content_cache.secrets_from_config(''), {})
+        self.assertEqual(content_cache.secrets_from_config('invalid YAML'), {})
+
     def test_map_origin_headers_to_secrets(self):
         origin_headers = [{'X-Origin-Key': '${secret}'}]
         secrets = {'X-Origin-Key': 'Sae6oob2aethuosh'}
