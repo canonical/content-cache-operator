@@ -28,4 +28,6 @@ options:
     description: |
       YAML-formatted dictionary of secrets/keys. e.g.
       site1.local:
-        X-Origin-Key: mysecretkey
+        origin-headers:
+          X-Origin-Key: my-origin-secret-key
+        signed-url-hmac-key: my-signed-url-secret-key
