@@ -59,33 +59,33 @@ class TestCharm(unittest.TestCase):
         '''Test correct flags set via upgrade-charm hook'''
         content_cache.upgrade_charm()
         self.assertFalse(status.maintenance.assert_called())
-        expected = [mock.call('content_cache.active'),
-                    mock.call('content_cache.installed'),
-                    mock.call('content_cache.haproxy.configured'),
-                    mock.call('content_cache.nginx.configured'),
-                    mock.call('nagios-nrpe.configured')]
-        self.assertFalse(clear_flag.assert_has_calls(expected, any_order=True))
+        want = [mock.call('content_cache.active'),
+                mock.call('content_cache.installed'),
+                mock.call('content_cache.haproxy.configured'),
+                mock.call('content_cache.nginx.configured'),
+                mock.call('nagios-nrpe.configured')]
+        self.assertFalse(clear_flag.assert_has_calls(want, any_order=True))
 
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('charms.reactive.set_flag')
     def test_hook_install_flags(self, set_flag, clear_flag):
         '''Test correct flags are set via install charm hook'''
         content_cache.install()
-        expected = [mock.call('content_cache.installed')]
-        self.assertFalse(set_flag.assert_has_calls(expected, any_order=True))
+        want = [mock.call('content_cache.installed')]
+        self.assertFalse(set_flag.assert_has_calls(want, any_order=True))
 
-        expected = [mock.call('content_cache.active'),
-                    mock.call('content_cache.haproxy.configured'),
-                    mock.call('content_cache.nginx.configured')]
-        self.assertFalse(clear_flag.assert_has_calls(expected, any_order=True))
+        want = [mock.call('content_cache.active'),
+                mock.call('content_cache.haproxy.configured'),
+                mock.call('content_cache.nginx.configured')]
+        self.assertFalse(clear_flag.assert_has_calls(want, any_order=True))
 
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_config_changed_flags(self, clear_flag):
         '''Test correct flags are set via config-changed charm hook'''
         content_cache.config_changed()
-        expected = [mock.call('content_cache.haproxy.configured'),
-                    mock.call('content_cache.nginx.configured')]
-        self.assertFalse(clear_flag.assert_has_calls(expected, any_order=True))
+        want = [mock.call('content_cache.haproxy.configured'),
+                mock.call('content_cache.nginx.configured')]
+        self.assertFalse(clear_flag.assert_has_calls(want, any_order=True))
 
     @mock.patch('charms.reactive.set_flag')
     def test_hook_set_active(self, set_flag):
@@ -145,11 +145,11 @@ class TestCharm(unittest.TestCase):
             for site in ['site1.local', 'site2.local', 'site3.local']:
                 with open('tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site),
                           'r', encoding='utf-8') as f:
-                    expected = f.read()
+                    want = f.read()
                 with open(os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site)),
                           'r', encoding='utf-8') as f:
-                    current = f.read()
-                self.assertEqual(expected, current)
+                    got = f.read()
+                self.assertEqual(got, want)
 
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_nginx_sites_secrets(self, service_start_or_restart):
@@ -179,11 +179,11 @@ site1.local:
             for site in ['site1.local']:
                 with open('tests/unit/files/nginx_config_rendered_test_output-{}-secrets.txt'.format(site),
                           'r', encoding='utf-8') as f:
-                    expected = f.read()
+                    want = f.read()
                 with open(os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site)),
                           'r', encoding='utf-8') as f:
-                    current = f.read()
-                self.assertEqual(expected, current)
+                    got = f.read()
+                self.assertEqual(got, want)
 
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('charms.reactive.set_flag')
@@ -218,10 +218,10 @@ site1.local:
             self.assertFalse(service_start_or_restart.assert_not_called())
 
             with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
-                expected = f.read()
+                want = f.read()
             with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
-                current = f.read()
-            self.assertEqual(expected, current)
+                got = f.read()
+            self.assertEqual(got, want)
 
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('charms.reactive.set_flag')
@@ -246,41 +246,41 @@ site1.local:
         content_cache.configure_nagios()
         self.assertFalse(status.maintenance.assert_called())
 
-        expected = [mock.call('site_site1_local_listen', 'site1.local site listen check',
-                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80 -j HEAD'
-                              ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'),
-                    mock.call('site_site1_local_cache', 'site1.local cache check',
-                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
-                              ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'),
-                    mock.call('site_site1_local_backend_proxy', 'site1.local backend proxy check',
-                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080 -j HEAD'
-                              ' -u http://site1.local/')]
-        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
-        expected = [mock.call('site_site2_local_listen', 'site2.local site listen check',
-                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 -S --sni'
-                              ' -j GET -u https://site2.local/check/'),
-                    mock.call('site_site2_local_cache', 'site2.local cache check',
-                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 6081'
-                              ' -j GET -u https://site2.local/check/'),
-                    mock.call('site_site2_local_backend_proxy', 'site2.local backend proxy check',
-                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 8081'
-                              ' -j GET -u https://site2.local/check/')]
-        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
-        expected = [mock.call('site_site3_local_listen', 'site3.local site listen check',
-                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 80 -j HEAD'
-                              ' -u http://site3.local/'),
-                    mock.call('site_site3_local_cache', 'site3.local cache check',
-                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 6082 -j HEAD'
-                              ' -u http://site3.local/'),
-                    mock.call('site_site3_local_backend_proxy', 'site3.local backend proxy check',
-                              '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082 -j HEAD'
-                              ' -u http://site3.local/')]
-        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(expected, any_order=True))
+        want = [mock.call('site_site1_local_listen', 'site1.local site listen check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80 -j HEAD'
+                          ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'),
+                mock.call('site_site1_local_cache', 'site1.local cache check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
+                          ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'),
+                mock.call('site_site1_local_backend_proxy', 'site1.local backend proxy check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080 -j HEAD'
+                          ' -u http://site1.local/')]
+        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
+        want = [mock.call('site_site2_local_listen', 'site2.local site listen check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 -S --sni'
+                          ' -j GET -u https://site2.local/check/'),
+                mock.call('site_site2_local_cache', 'site2.local cache check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 6081'
+                          ' -j GET -u https://site2.local/check/'),
+                mock.call('site_site2_local_backend_proxy', 'site2.local backend proxy check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 8081'
+                          ' -j GET -u https://site2.local/check/')]
+        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
+        want = [mock.call('site_site3_local_listen', 'site3.local site listen check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 80 -j HEAD'
+                          ' -u http://site3.local/'),
+                mock.call('site_site3_local_cache', 'site3.local cache check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 6082 -j HEAD'
+                          ' -u http://site3.local/'),
+                mock.call('site_site3_local_backend_proxy', 'site3.local backend proxy check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082 -j HEAD'
+                          ' -u http://site3.local/')]
+        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
 
         self.assertFalse(nrpe_instance_mock.write.assert_called())
 
-        expected = [mock.call('nagios-nrpe.configured')]
-        self.assertFalse(set_flag.assert_has_calls(expected, any_order=True))
+        want = [mock.call('nagios-nrpe.configured')]
+        self.assertFalse(set_flag.assert_has_calls(want, any_order=True))
 
     def test_sites_from_config(self):
         config_yaml = '''
@@ -297,7 +297,7 @@ site3.local:
         backends:
           - 91.189.88.152:80
 '''
-        expected = {
+        want = {
             'site1.local': {
                 'port': 80,
                 'cache_port': 6080,
@@ -317,7 +317,7 @@ site3.local:
                 'backends': ['91.189.88.152:80'],
             }
         }
-        self.assertEqual(content_cache.sites_from_config(config_yaml), expected)
+        self.assertEqual(want, content_cache.sites_from_config(config_yaml))
         config_yaml = '''
 site1.local:
         port: 80
@@ -340,14 +340,14 @@ site1.local:
   origin-headers:
     X-Some-Header: myvalue
 '''
-        expected = {
+        want = {
             'site1.local': {
                 'origin-headers': {
                     'X-Some-Header': 'myvalue',
                 }
             }
         }
-        self.assertEqual(content_cache.secrets_from_config(secrets_yaml), expected)
+        self.assertEqual(content_cache.secrets_from_config(secrets_yaml), want)
         self.assertEqual(content_cache.secrets_from_config(''), {})
         self.assertEqual(content_cache.secrets_from_config('invalid YAML'), {})
         self.assertEqual(content_cache.secrets_from_config('invalid\n\tYAML'), {})
@@ -367,17 +367,17 @@ site1.local:
                 'signed-url-hmac-key': '${secret}',
             }
         }
-        expected = {
+        want = {
             'site1.local': {
                 'origin-headers': [{'X-Origin-Key': 'Sae6oob2aethuosh'}],
                 'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0',
             }
         }
-        self.assertEqual(content_cache.interpolate_secrets(config, secrets), expected)
+        self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)
 
         # No secrets to interpolate
-        config = expected
-        self.assertEqual(content_cache.interpolate_secrets(config, secrets), expected)
+        config = want
+        self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)
 
         # No origin headers, just signed-url-hmac-key.
         config = {
@@ -385,9 +385,9 @@ site1.local:
                 'signed-url-hmac-key': '${secret}',
             }
         }
-        expected = {
+        want = {
             'site1.local': {
                 'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0',
             }
         }
-        self.assertEqual(content_cache.interpolate_secrets(config, secrets), expected)
+        self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)

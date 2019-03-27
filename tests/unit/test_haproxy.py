@@ -42,13 +42,13 @@ class TestLibHAProxy(unittest.TestCase):
         config = self.site_config
         with open('tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output.txt', 'r',
                   encoding='utf-8') as f:
-            expected = f.read()
-        self.assertEqual(''.join(haproxy.render_stanza_listen(config)), expected)
+            want = f.read()
+        self.assertEqual(''.join(haproxy.render_stanza_listen(config)), want)
 
         # Test overriding backend-names
         for site in config.keys():
             config[site]['backend-name'] = site
-        self.assertEqual(''.join(haproxy.render_stanza_listen(config)), expected)
+        self.assertEqual(''.join(haproxy.render_stanza_listen(config)), want)
 
     @freezegun.freeze_time("2019-03-22")
     def test_haproxy_config_rendered_backend_stanzas(self):
@@ -56,8 +56,8 @@ class TestLibHAProxy(unittest.TestCase):
         config = self.site_config
         with open('tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt', 'r',
                   encoding='utf-8') as f:
-            expected = f.read()
-        self.assertEqual(''.join(haproxy.render_stanza_backend(config)), expected)
+            want = f.read()
+        self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
 
     @freezegun.freeze_time("2019-03-22")
     def test_haproxy_config_rendered_full_config(self):
@@ -68,8 +68,8 @@ class TestLibHAProxy(unittest.TestCase):
         with open(haproxy.conf_file, 'r') as f:
             new_conf = f.read()
         with open('tests/unit/files/haproxy_config_rendered_test_output.txt', 'r') as f:
-            expected = f.read()
-        self.assertEqual(new_conf, expected)
+            want = f.read()
+        self.assertEqual(new_conf, want)
 
     def test_haproxy_config_write(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
@@ -89,7 +89,7 @@ class TestLibHAProxy(unittest.TestCase):
             'site4.local': {'port': 443},
             'site5.local': {'tls-cert-bundle-path': '/tmp/somepath'},
         }
-        expected = {
+        want = {
             80: {
                 'site1.local': {'port': 80},
                 'site2.local': {'port': 80},
@@ -101,4 +101,4 @@ class TestLibHAProxy(unittest.TestCase):
                                 'tls-cert-bundle-path': '/tmp/somepath'},
             },
         }
-        self.assertEqual(haproxy._merge_listen_stanzas(config), expected)
+        self.assertEqual(haproxy._merge_listen_stanzas(config), want)
