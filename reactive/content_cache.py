@@ -58,11 +58,13 @@ def service_start_or_restart(name):
 
 @reactive.when_not('content_cache.nginx.configured')
 def configure_nginx():
+    status.maintenance('setting up Nginx as caching layer')
+    reactive.clear_flag('content_cache.active')
+
     config = hookenv.config()
 
     if not config.get('sites'):
         status.blocked('requires list of sites to configure')
-        reactive.clear_flag('content_cache.active')
         return
 
     ngx_conf = nginx.NginxConf()
@@ -70,7 +72,6 @@ def configure_nginx():
     sites = sites_from_config(config.get('sites'), sites_secrets)
     if not sites:
         status.blocked('list of sites provided has no backends or seems invalid')
-        reactive.clear_flag('content_cache.active')
         return
 
     changed = False
@@ -97,11 +98,13 @@ def configure_nginx():
 
 @reactive.when_not('content_cache.haproxy.configured')
 def configure_haproxy():
+    status.maintenance('setting up HAProxy for frontend and backend proxy')
+    reactive.clear_flag('content_cache.active')
+
     config = hookenv.config()
 
     if not config.get('sites'):
         status.blocked('requires list of sites to configure')
-        reactive.clear_flag('content_cache.active')
         return
 
     haproxy = HAProxy.HAProxyConf()
@@ -109,7 +112,6 @@ def configure_haproxy():
     sites = sites_from_config(config.get('sites'), sites_secrets)
     if not sites:
         status.blocked('list of sites provided has no backends or seems invalid')
-        reactive.clear_flag('content_cache.active')
         return
 
     num_procs = multiprocessing.cpu_count()
@@ -165,6 +167,7 @@ def configure_haproxy():
 @reactive.when_not('nagios-nrpe.configured')
 def configure_nagios():
     status.maintenance('setting up NRPE checks')
+    reactive.clear_flag('content_cache.active')
 
     config = hookenv.config()
 
