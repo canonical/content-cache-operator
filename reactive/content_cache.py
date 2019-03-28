@@ -74,6 +74,9 @@ def configure_nginx():
         status.blocked('list of sites provided has no backends or seems invalid')
         return
 
+    # We only want the cache layer to listen only on localhost. This allows us
+    # to deploy to edge networks and not worry about having to firewall off
+    # access.
     listen_addr = '127.0.0.1'
     changed = False
     for site, site_conf in sites.items():
@@ -155,6 +158,9 @@ def configure_haproxy():
         new_conf[cached_site]['backends'] = ['127.0.0.1:{}'.format(cache_port)]
         new_conf[cached_site]['signed-url-hmac-key'] = site_conf.get('signed-url-hmac-key')
         new_conf[site]['site-name'] = site
+        # We only want the backend proxy layer to listen only on localhost. This
+        # allows us to deploy to edge networks and not worry about having to
+        # firewall off access.
         new_conf[site]['listen-addr'] = '127.0.0.1'
         new_conf[site]['port'] = backend_port
         new_conf[site]['backends'] = site_conf['backends']
