@@ -2,7 +2,7 @@ proxy_cache_path /var/lib/nginx/proxy/{{site}} use_temp_path=off levels=1:2 keys
 
 server {
     server_name {{site}};
-    listen {{port}};
+    listen {% if addr %}{{addr}}:{% endif %}{{port}};
 
     location / {
         proxy_pass {{backend}};

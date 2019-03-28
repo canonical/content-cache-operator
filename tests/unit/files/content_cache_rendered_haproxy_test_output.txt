@@ -44,7 +44,7 @@ listen combined-80
     use_backend backend-cached-site3-local if { hdr(Host) -i site3.local }
 
 listen site1-local
-    bind 0.0.0.0:8080
+    bind 127.0.0.1:8080
     default_backend backend-site1-local
 
 listen cached-site2-local
@@ -52,11 +52,11 @@ listen cached-site2-local
     default_backend backend-cached-site2-local
 
 listen site2-local
-    bind 0.0.0.0:8081
+    bind 127.0.0.1:8081
     default_backend backend-site2-local
 
 listen site3-local
-    bind 0.0.0.0:8082
+    bind 127.0.0.1:8082
     default_backend backend-site3-local
 
 backend backend-cached-site1-local
