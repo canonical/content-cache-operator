@@ -29,21 +29,23 @@ class HAProxyConf:
     def _merge_listen_stanzas(self, config):
         new = {}
         for site in config.keys():
+            listen_address = config[site].get('listen-address', '0.0.0.0')
             default_port = 80
             tls_cert_bundle_path = config[site].get('tls-cert-bundle-path')
             if tls_cert_bundle_path:
                 default_port = 443
             port = config[site].get('port', default_port)
-            if port not in new:
-                new[port] = {}
-            new[port][site] = config[site]
-            new[port][site]['port'] = port
+            name = '{}:{}'.format(listen_address, port)
+            if name not in new:
+                new[name] = {}
+            new[name][site] = config[site]
+            new[name][site]['port'] = port
         return new
 
     def render_stanza_listen(self, config):
         listen_stanza = """
 listen {name}
-{indent}bind 0.0.0.0:{port}{tls}
+{indent}bind {address_port}{tls}
 {backend_config}"""
 
         rendered_output = []
@@ -51,17 +53,17 @@ listen {name}
         # For listen stanzas, we need to merge them and use 'use_backend' with
         # the 'Host' header to direct to the correct backends.
         config = self._merge_listen_stanzas(config)
-        for port in config:
+        for address_port in config:
             backend_config = []
             tls_cert_bundle_paths = []
-            for site in config[port].keys():
-                site_conf = config[port][site]
+            for site in config[address_port].keys():
+                site_conf = config[address_port][site]
                 site_name = site_conf.get('site-name', site)
 
-                if len(config[port].keys()) == 1:
+                if len(config[address_port].keys()) == 1:
                     name = self._generate_stanza_name(site)
                 else:
-                    name = 'combined-{}'.format(port)
+                    name = 'combined-{}'.format(address_port.split(':')[1])
 
                 tls_path = site_conf.get('tls-cert-bundle-path')
                 if tls_path:
@@ -83,7 +85,7 @@ listen {name}
                 backend_config = ['{indent}default_backend {backend}\n'.format(backend=backend, indent=INDENT)]
 
             output = listen_stanza.format(name=name, backend_config=''.join(backend_config),
-                                          port=port, tls=tls_config, indent=INDENT)
+                                          address_port=address_port, tls=tls_config, indent=INDENT)
             rendered_output.append(output)
         return rendered_output
 

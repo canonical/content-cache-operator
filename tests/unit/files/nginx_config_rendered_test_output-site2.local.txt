@@ -2,7 +2,7 @@ proxy_cache_path /var/lib/nginx/proxy/site2.local use_temp_path=off levels=1:2 k
 
 server {
     server_name site2.local;
-    listen 6081;
+    listen 127.0.0.1:6081;
 
     location / {
         proxy_pass http://localhost:8081;

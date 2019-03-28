@@ -54,7 +54,7 @@ class NginxConf:
     def _generate_name(self, name):
         return name.split('.')[0]
 
-    def render(self, site, listen_port, backend, signed_url_hmac_key, origin_headers):
+    def render(self, site, listen_address, listen_port, backend, signed_url_hmac_key, origin_headers):
         base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
         template = env.get_template('templates/nginx_cfg.tmpl')
@@ -63,6 +63,7 @@ class NginxConf:
             'name': self._generate_name(site),
             # FIXME: handle when origin-headers have values with semi-colons.
             'origin_headers': origin_headers,
+            'address': listen_address,
             'port': listen_port,
             'signed_url_hmac_key': signed_url_hmac_key,
             'site': site,

@@ -90,12 +90,12 @@ class TestLibHAProxy(unittest.TestCase):
             'site5.local': {'tls-cert-bundle-path': '/tmp/somepath'},
         }
         want = {
-            80: {
+            '0.0.0.0:80': {
                 'site1.local': {'port': 80},
                 'site2.local': {'port': 80},
                 'site3.local': {'port': 80},
             },
-            443: {
+            '0.0.0.0:443': {
                 'site4.local': {'port': 443},
                 'site5.local': {'port': 443,
                                 'tls-cert-bundle-path': '/tmp/somepath'},

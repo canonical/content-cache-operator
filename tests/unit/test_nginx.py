@@ -32,6 +32,7 @@ class TestLibNginx(unittest.TestCase):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             conf = yaml.safe_load(f.read())
 
+        listen_address = '127.0.0.1'
         # From the given YAML-formatted list of sites, check that each individual
         # Nginx config rendered matches what's in tests/unit/files.
         port = BASE_LISTEN_PORT - 1
@@ -45,7 +46,8 @@ class TestLibNginx(unittest.TestCase):
             output_file = 'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site)
             with open(output_file, 'r', encoding='utf-8') as f:
                 output = f.read()
-            self.assertEqual(output, ngx_conf.render(site, port, backend, signed_url_hmac_key, origin_headers))
+            self.assertEqual(output, ngx_conf.render(site, listen_address, port, backend, signed_url_hmac_key,
+                                                     origin_headers))
 
     def test_nginx_config_write_sites(self):
         '''Test writing out sites to individual Nginx site config files'''
