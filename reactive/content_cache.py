@@ -77,7 +77,7 @@ def configure_nginx():
     # We only want the cache layer to listen only on localhost. This allows us
     # to deploy to edge networks and not worry about having to firewall off
     # access.
-    listen_addr = '127.0.0.1'
+    listen_address = '127.0.0.1'
     changed = False
     for site, site_conf in sites.items():
         cache_port = site_conf['cache_port']
@@ -87,7 +87,7 @@ def configure_nginx():
         # caching layer to activate the bit to restrict access.
         signed_url_hmac_key = site_conf.get('signed-url-hmac-key')
         origin_headers = site_conf.get('origin-headers')
-        if ngx_conf.write_site(site, ngx_conf.render(site, listen_addr, cache_port, backend, signed_url_hmac_key,
+        if ngx_conf.write_site(site, ngx_conf.render(site, listen_address, cache_port, backend, signed_url_hmac_key,
                                                      origin_headers)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
@@ -161,7 +161,7 @@ def configure_haproxy():
         # We only want the backend proxy layer to listen only on localhost. This
         # allows us to deploy to edge networks and not worry about having to
         # firewall off access.
-        new_conf[site]['listen-addr'] = '127.0.0.1'
+        new_conf[site]['listen-address'] = '127.0.0.1'
         new_conf[site]['port'] = backend_port
         new_conf[site]['backends'] = site_conf['backends']
 
