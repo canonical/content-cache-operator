@@ -296,9 +296,10 @@ def _interpolate_secrets_origin_headers(headers, secrets):
 
 
 def copy_file(source_path, dest_path, perms=0o644, owner=None, group=None):
-    """Copy a file from the charm directory onto this unit's filesystem.
+    """Copy a file from the charm directory onto the local filesystem.
 
-Returns True if the file was copied, False if the file already exists and is identical.
+    Returns True if the file was copied, False if the file already exists and
+    is identical.
     """
 
     # Compare and only write out file on change.
