@@ -14,9 +14,9 @@ server {
         proxy_cache_revalidate on;
         proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
         proxy_cache_valid 200 1d;
-        proxy_set_header X-Origin-Key Sae6oob2aethuosh;
-        proxy_set_header X-Some-Header-1 something one two three;
-        proxy_set_header X-Some-Header-2 something:one:two:three;
+        proxy_set_header X-Origin-Key 'Sae6oob2aethuosh';
+        proxy_set_header X-Some-Header-1 'something one two three';
+        proxy_set_header X-Some-Header-2 'something:one:two:three';
 
         access_by_lua_block {
             local hmac_key = "SrRorTsImr92B6FfSKBFrSIiR5NYGS+gdjd8oGoVH44="
