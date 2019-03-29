@@ -19,9 +19,18 @@ class TestLibNginx(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmpdir)
         self.charm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
+    def test_nginx_config_conf_path(self):
+        conf_path = '/etc/nginx/conf.d'
+        ngx_conf = nginx.NginxConf()
+        self.assertEqual(ngx_conf.conf_path, conf_path)
+        ngx_conf = nginx.NginxConf(None)
+        self.assertEqual(ngx_conf.conf_path, conf_path)
+
     def test_nginx_config_sites_path(self):
         sites_path = '/etc/nginx/sites-available'
         ngx_conf = nginx.NginxConf()
+        self.assertEqual(ngx_conf.sites_path, sites_path)
+        ngx_conf = nginx.NginxConf(None)
         self.assertEqual(ngx_conf.sites_path, sites_path)
 
     def test_nginx_config_render(self):

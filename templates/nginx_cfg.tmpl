@@ -89,7 +89,7 @@ server {
 {%- endif %}
     }
 
-    access_log /var/log/nginx/{{site}}-access.log;
+    access_log /var/log/nginx/{{site}}-access.log content_cache;
     error_log /var/log/nginx/{{site}}-error.log;
 }
 
