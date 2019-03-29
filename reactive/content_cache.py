@@ -165,6 +165,7 @@ def configure_haproxy():
         new_conf[cached_site]['port'] = site_conf.get('port') or default_port
         new_conf[cached_site]['backends'] = ['127.0.0.1:{}'.format(cache_port)]
         new_conf[cached_site]['signed-url-hmac-key'] = site_conf.get('signed-url-hmac-key')
+        new_conf[cached_site]['backend-options'] = ['forwardfor']
         new_conf[site]['site-name'] = site
         # We only want the backend proxy layer to listen only on localhost. This
         # allows us to deploy to edge networks and not worry about having to
