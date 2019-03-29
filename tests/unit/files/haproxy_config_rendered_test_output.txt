@@ -64,6 +64,8 @@ backend backend-site2-local
     server server_3 127.0.1.12:443 check inter 5000 rise 2 fall 5 maxconn 16 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
 
 backend backend-site3-local
+    option forwardfor except 127.0.0.1
+    option forceclose
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site3.local
     balance leastconn

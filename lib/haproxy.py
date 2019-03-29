@@ -92,7 +92,7 @@ listen {name}
     def render_stanza_backend(self, config):
         backend_stanza = """
 backend backend-{name}
-{indent}option httpchk {method} {path} HTTP/1.0\\r\\nHost:\\ {site_name}\\r\\nUser-Agent:\\ haproxy/httpchk
+{options}{indent}option httpchk {method} {path} HTTP/1.0\\r\\nHost:\\ {site_name}\\r\\nUser-Agent:\\ haproxy/httpchk
 {indent}http-request set-header Host {site_name}
 {indent}balance leastconn
 {backends}
@@ -119,8 +119,16 @@ backend backend-{name}
                 backends.append('{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn 16{tls}'
                                 .format(name=name, backend=backend, tls=tls_config, indent=INDENT))
 
+            opts = []
+            for option in config[site].get('backend-options', []):
+                opts.append('{indent}option {opt}'.format(opt=option, indent=INDENT))
+            options = ''
+            if opts:
+                options = '\n'.join(opts + [''])
+
             output = backend_stanza.format(name=self._generate_stanza_name(site), site=site, site_name=site_name,
-                                           method=method, path=path, backends='\n'.join(backends), indent=INDENT)
+                                           method=method, path=path, backends='\n'.join(backends), options=options,
+                                           indent=INDENT)
 
             rendered_output.append(output)
 
