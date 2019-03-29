@@ -15,3 +15,4 @@ Deploy your own content distribution network (CDN).
 - update cipher suites HAProxy disabling DHE - 'ECDH+AESGCM:ECDH+AES256:ECDH+AES128:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS'
 - update SSL/TLS support in HAProxy disabling TLS 1.0 and TLS1.1
 - update to enable HAProxy monitoring status/admin and ensure IP restricted
+- make some things such as cache max_size and proxy_cache_min_uses tunable (charm options).
