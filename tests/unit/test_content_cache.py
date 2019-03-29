@@ -410,15 +410,15 @@ site1.local:
         }
         self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)
 
-    def test_file_to_units(self):
+    def test_copy_file(self):
         source = os.path.join(self.charm_dir, 'files/nginx-logging-format.conf')
         dest = os.path.join(self.tmpdir, os.path.basename(source))
         owner = pwd.getpwuid(os.getuid()).pw_name
         group = grp.getgrgid(os.getgid()).gr_name
 
-        self.assertTrue(content_cache.file_to_units(source, dest, owner=owner, group=group))
+        self.assertTrue(content_cache.copy_file(source, dest, owner=owner, group=group))
         # Write again, should return False and not True per above.
-        self.assertFalse(content_cache.file_to_units(source, dest, owner=owner, group=group))
+        self.assertFalse(content_cache.copy_file(source, dest, owner=owner, group=group))
 
         # Check ownership and group
         self.assertEqual(pwd.getpwuid(os.stat(dest).st_uid).pw_name, owner)

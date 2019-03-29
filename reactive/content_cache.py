@@ -99,8 +99,7 @@ def configure_nginx(conf_path=None):
         hookenv.log('Enabled sites: {}'.format(' '.join(sites.keys())))
         changed = True
 
-    if file_to_units('files/nginx-logging-format.conf',
-                     os.path.join(ngx_conf.conf_path, 'nginx-logging-format.conf')):
+    if copy_file('files/nginx-logging-format.conf', os.path.join(ngx_conf.conf_path, 'nginx-logging-format.conf')):
         changed = True
 
     if changed:
@@ -296,15 +295,18 @@ def _interpolate_secrets_origin_headers(headers, secrets):
     return headers
 
 
-def file_to_units(local_path, unit_path, perms=0o644, owner=None, group=None):
-    """ copy a file from the charm onto our unit(s) """
+def copy_file(source_path, dest_path, perms=0o644, owner=None, group=None):
+    """Copy a file from the charm directory onto this unit's filesystem.
+
+Returns True if the file was copied, False if the file already exists and is identical.
+    """
 
     # Compare and only write out file on change.
-    with open(local_path, 'r') as f:
+    with open(source_path, 'r') as f:
         source = f.read()
     dest = ''
-    if os.path.exists(unit_path):
-        with open(unit_path, 'r') as f:
+    if os.path.exists(dest_path):
+        with open(dest_path, 'r') as f:
             dest = f.read()
 
     if source == dest:
@@ -315,6 +317,6 @@ def file_to_units(local_path, unit_path, perms=0o644, owner=None, group=None):
     if not group:
         group = grp.getgrgid(os.getgid()).gr_name
 
-    host.write_file(path=unit_path, content=source, owner=owner, group=group,
+    host.write_file(path=dest_path, content=source, owner=owner, group=group,
                     perms=perms)
     return True
