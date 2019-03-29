@@ -1,5 +1,8 @@
 import datetime
+import grp
 import multiprocessing
+import os
+import pwd
 import yaml
 from copy import deepcopy
 
@@ -57,7 +60,7 @@ def service_start_or_restart(name):
 
 
 @reactive.when_not('content_cache.nginx.configured')
-def configure_nginx():
+def configure_nginx(conf_path=None):
     status.maintenance('setting up Nginx as caching layer')
     reactive.clear_flag('content_cache.active')
 
@@ -67,7 +70,7 @@ def configure_nginx():
         status.blocked('requires list of sites to configure')
         return
 
-    ngx_conf = nginx.NginxConf()
+    ngx_conf = nginx.NginxConf(conf_path)
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     sites = sites_from_config(config.get('sites'), sites_secrets)
     if not sites:
@@ -95,6 +98,11 @@ def configure_nginx():
     if ngx_conf.sync_sites(sites.keys()):
         hookenv.log('Enabled sites: {}'.format(' '.join(sites.keys())))
         changed = True
+
+    if file_to_units('files/nginx-logging-format.conf',
+                     os.path.join(ngx_conf.conf_path, 'nginx-logging-format.conf')):
+        changed = True
+
     if changed:
         service_start_or_restart('nginx')
 
@@ -286,3 +294,27 @@ def _interpolate_secrets_origin_headers(headers, secrets):
                 continue
             header[k] = secrets.get(k)
     return headers
+
+
+def file_to_units(local_path, unit_path, perms=0o644, owner=None, group=None):
+    """ copy a file from the charm onto our unit(s) """
+
+    # Compare and only write out file on change.
+    with open(local_path, 'r') as f:
+        source = f.read()
+    dest = ''
+    if os.path.exists(unit_path):
+        with open(unit_path, 'r') as f:
+            dest = f.read()
+
+    if source == dest:
+        return False
+
+    if not owner:
+        owner = pwd.getpwuid(os.getuid()).pw_name
+    if not group:
+        group = grp.getgrgid(os.getgid()).gr_name
+
+    host.write_file(path=unit_path, content=source, owner=owner, group=group,
+                    perms=perms)
+    return True

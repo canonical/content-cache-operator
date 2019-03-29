@@ -1,4 +1,6 @@
+import grp
 import os
+import pwd
 import shutil
 import sys
 import tempfile
@@ -44,6 +46,11 @@ class TestCharm(unittest.TestCase):
         self.mock_config = patcher.start()
         self.addCleanup(patcher.stop)
         self.mock_config.return_value = {'nagios_context': 'juju'}
+
+        patcher = mock.patch('charmhelpers.core.host.log')
+        self.mock_log = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.mock_log.return_value = ''
 
         patcher = mock.patch('multiprocessing.cpu_count')
         self.mock_cpu_count = patcher.start()
@@ -118,7 +125,7 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_nginx_no_sites(self, clear_flag):
         '''Test correct flags are set when no sites defined to configure Nginx'''
-        content_cache.configure_nginx()
+        content_cache.configure_nginx(self.tmpdir)
         self.assertFalse(status.blocked.assert_called())
         self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
 
@@ -131,15 +138,17 @@ class TestCharm(unittest.TestCase):
 
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
             mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
-            # sites-available and sites-enabled won't exist in our temp dir
+            # conf.d, sites-available, and sites-enabled won't exist in our
+            # temporary directory.
+            os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
-            content_cache.configure_nginx()
+            content_cache.configure_nginx(self.tmpdir)
             self.assertFalse(service_start_or_restart.assert_called_once_with('nginx'))
 
             # Re-run with same set of sites, no change so shouldn't need to restart Nginx
             service_start_or_restart.reset_mock()
-            content_cache.configure_nginx()
+            content_cache.configure_nginx(self.tmpdir)
             self.assertFalse(service_start_or_restart.assert_not_called())
 
             for site in ['site1.local', 'site2.local', 'site3.local']:
@@ -150,6 +159,13 @@ class TestCharm(unittest.TestCase):
                           'r', encoding='utf-8') as f:
                     got = f.read()
                 self.assertEqual(got, want)
+
+        # Logging config
+        with open('files/nginx-logging-format.conf', 'r') as f:
+            want = f.read()
+        with open(os.path.join(self.tmpdir, 'conf.d', 'nginx-logging-format.conf'), 'r') as f:
+            got = f.read()
+        self.assertEqual(got, want)
 
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_nginx_sites_secrets(self, service_start_or_restart):
@@ -172,10 +188,12 @@ site1.local:
 
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
             mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
-            # sites-available and sites-enabled won't exist in our temp dir
+            # conf.d, sites-available, and sites-enabled won't exist in our
+            # temporary directory.
+            os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
-            content_cache.configure_nginx()
+            content_cache.configure_nginx(self.tmpdir)
             for site in ['site1.local']:
                 with open('tests/unit/files/nginx_config_rendered_test_output-{}-secrets.txt'.format(site),
                           'r', encoding='utf-8') as f:
@@ -189,7 +207,7 @@ site1.local:
     @mock.patch('charms.reactive.set_flag')
     def test_configure_nginx_sites_no_backend(self, set_flag, clear_flag):
         self.mock_config.return_value = {'sites': 'site1.local:\n  port: 80'}
-        content_cache.configure_nginx()
+        content_cache.configure_nginx(self.tmpdir)
         self.assertFalse(status.blocked.assert_called())
         self.assertFalse(clear_flag.assert_called_with('content_cache.active'))
         self.assertFalse(set_flag.assert_not_called())
@@ -391,3 +409,24 @@ site1.local:
             }
         }
         self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)
+
+    def test_file_to_units(self):
+        source = os.path.join(self.charm_dir, 'files/nginx-logging-format.conf')
+        dest = os.path.join(self.tmpdir, os.path.basename(source))
+        owner = pwd.getpwuid(os.getuid()).pw_name
+        group = grp.getgrgid(os.getgid()).gr_name
+
+        self.assertTrue(content_cache.file_to_units(source, dest, owner=owner, group=group))
+        # Write again, should return False and not True per above.
+        self.assertFalse(content_cache.file_to_units(source, dest, owner=owner, group=group))
+
+        # Check ownership and group
+        self.assertEqual(pwd.getpwuid(os.stat(dest).st_uid).pw_name, owner)
+        self.assertEqual(grp.getgrgid(os.stat(dest).st_gid).gr_name, group)
+
+        # Check contents
+        with open(source, 'r') as f:
+            want = f.read()
+        with open(dest, 'r') as f:
+            got = f.read()
+        self.assertEqual(got, want)

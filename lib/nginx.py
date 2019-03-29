@@ -9,8 +9,17 @@ INDENT = ' '*4
 
 class NginxConf:
 
-    def __init__(self, sites_base_path=NGINX_SITE_BASE_PATH):
-        self._sites_path = os.path.join(sites_base_path, 'sites-available')
+    def __init__(self, conf_path=NGINX_SITE_BASE_PATH):
+        if not conf_path:
+            conf_path = NGINX_SITE_BASE_PATH
+        self._conf_path = os.path.join(conf_path, 'conf.d')
+        self._sites_path = os.path.join(conf_path, 'sites-available')
+
+    # Expose conf_path as a property to allow mocking in indirect calls to
+    # this class.
+    @property
+    def conf_path(self, conf_base_path=NGINX_SITE_BASE_PATH):
+        return self._conf_path
 
     # Expose sites_path as a property to allow mocking in indirect calls to
     # this class.

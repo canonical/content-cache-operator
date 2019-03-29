@@ -17,7 +17,7 @@ server {
 {%- if origin_headers %}
 {%- for header_pair in origin_headers -%}
 {% for header, value in header_pair.items() %}
-        proxy_set_header {{header}} {{value}};
+        proxy_set_header {{header}} '{{value}}';
 {%- endfor -%}
 {%- endfor -%}
 {%- endif %}
@@ -89,7 +89,7 @@ server {
 {%- endif %}
     }
 
-    access_log /var/log/nginx/{{site}}-access.log;
+    access_log /var/log/nginx/{{site}}-access.log content_cache;
     error_log /var/log/nginx/{{site}}-error.log;
 }
 
