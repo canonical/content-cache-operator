@@ -119,13 +119,12 @@ backend backend-{name}
                 backends.append('{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn 16{tls}'
                                 .format(name=name, backend=backend, tls=tls_config, indent=INDENT))
 
+            opts = []
+            for option in config[site].get('backend-options', []):
+                opts.append('{indent}option {opt}'.format(opt=option, indent=INDENT))
             options = ''
-            if config[site].get('backend-options'):
-                opts = []
-                for option in config[site].get('backend-options'):
-                    opts.append('{indent}option {opt}'.format(opt=option, indent=INDENT))
-                opts.append('')
-                options = '\n'.join(opts)
+            if opts:
+                options = '\n'.join(opts + [''])
 
             output = backend_stanza.format(name=self._generate_stanza_name(site), site=site, site_name=site_name,
                                            method=method, path=path, backends='\n'.join(backends), options=options,
