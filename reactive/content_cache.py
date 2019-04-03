@@ -217,14 +217,14 @@ def configure_nagios():
             tls = ' --ssl=1.2 --sni'
 
             # Negative Listen/frontend checks to alert on obsolete TLS versions
-            for tlsrev in ('1', '1.1', '3'):
+            for tlsrev in ('1', '1.1'):
                 check_name = 'site_{}_no_tls_{}'.format(utils.generate_nagios_check_name(site),
                                                         tlsrev.replace('.', '_'))
                 cmd = '/usr/lib/nagios/plugins/negate' \
                       ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
                       ' -p {port} --ssl={tls} --sni -j {method} -u {url}{path}{token}' \
                       .format(site=site, port=default_port, method=method, url=url, path=path, token=token, tls=tlsrev)
-                nrpe_setup.add_check(check_name, '{} confirm SSL/TLS v{} denied'.format(site, tlsrev), cmd)
+                nrpe_setup.add_check(check_name, '{} confirm obsolete TLS v{} denied'.format(site, tlsrev), cmd)
 
         # Listen / frontend check
         check_name = 'site_{}_listen'.format(utils.generate_nagios_check_name(site))
