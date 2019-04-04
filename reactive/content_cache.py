@@ -25,6 +25,14 @@ def upgrade_charm():
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('nagios-nrpe.configured')
 
+    # Work around for
+    # https://github.com/cmars/nrpe-external-master-interface/issues/12
+    n = reactive.endpoint_from_name('nrpe-external-master')
+    if n is None:
+        hookenv.log('no nrpe-external-master relation to force')
+    else:
+        reactive.set_flag('nrpe-external-master.available')
+
 
 @reactive.when_not('content_cache.installed')
 def install():
