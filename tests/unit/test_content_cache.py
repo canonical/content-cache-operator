@@ -274,8 +274,16 @@ site1.local:
                           '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080 -j HEAD'
                           ' -u http://site1.local/')]
         self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
-        want = [mock.call('site_site2_local_listen', 'site2.local site listen check',
-                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 -S --sni'
+        want = [mock.call('site_site2_local_no_tls_1', 'site2.local confirm obsolete TLS v1 denied',
+                          '/usr/lib/nagios/plugins/negate'
+                          ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 --ssl=1 --sni'
+                          ' -j GET -u https://site2.local/check/'),
+                mock.call('site_site2_local_no_tls_1_1', 'site2.local confirm obsolete TLS v1.1 denied',
+                          '/usr/lib/nagios/plugins/negate'
+                          ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 --ssl=1.1 --sni'
+                          ' -j GET -u https://site2.local/check/'),
+                mock.call('site_site2_local_listen', 'site2.local site listen check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 --ssl=1.2 --sni'
                           ' -j GET -u https://site2.local/check/'),
                 mock.call('site_site2_local_cache', 'site2.local cache check',
                           '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 6081'
