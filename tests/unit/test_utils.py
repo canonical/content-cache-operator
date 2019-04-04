@@ -53,13 +53,13 @@ class TestLibUtils(unittest.TestCase):
     def test_generate_nagios_check_name(self):
         self.assertEqual(utils.generate_nagios_check_name('site-1.local'), 'site_1_local')
 
-    @freezegun.freeze_time("2019-03-22")
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
     def test_generate_token(self):
         signing_key = '2KmMh3/rx1LQRdjZIzto07Qaz/+LghG1c2G7od7FC/I='
         expiry_time = datetime.datetime.now() + datetime.timedelta(hours=1)
-        want = '1553176800_f8a6667ad994a013645eab53e9a757e65c206ee2'
+        want = '1553216400_cd3920a15f1d58b9953ef7a8e7e9c46d4522a5e9'
         self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), want)
 
         expiry_time = datetime.datetime.now() + datetime.timedelta(days=1)
-        want = '1553259600_4cbf405bf08cee57eadcceb2ea98fc6767c6007b'
+        want = '1553299200_d5257bb9f1e5e27065f2e7c986ca8c95f4cc3680'
         self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), want)

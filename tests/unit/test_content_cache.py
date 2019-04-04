@@ -218,7 +218,7 @@ site1.local:
         self.assertFalse(status.blocked.assert_called())
         self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
 
-    @freezegun.freeze_time("2019-03-22")
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_haproxy_sites(self, service_start_or_restart):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
@@ -250,7 +250,7 @@ site1.local:
         self.assertFalse(clear_flag.assert_called_with('content_cache.active'))
         self.assertFalse(set_flag.assert_not_called())
 
-    @freezegun.freeze_time("2019-03-22")
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.NRPE')
@@ -266,10 +266,10 @@ site1.local:
 
         want = [mock.call('site_site1_local_listen', 'site1.local site listen check',
                           '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80 -j HEAD'
-                          ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'),
+                          ' -u http://site1.local/?token=1868572800_4eb30fc94f247635f7ed445083a4783862ad58de'),
                 mock.call('site_site1_local_cache', 'site1.local cache check',
                           '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
-                          ' -u http://site1.local/?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad'),
+                          ' -u http://site1.local/?token=1868572800_4eb30fc94f247635f7ed445083a4783862ad58de'),
                 mock.call('site_site1_local_backend_proxy', 'site1.local backend proxy check',
                           '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080 -j HEAD'
                           ' -u http://site1.local/')]

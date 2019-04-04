@@ -61,7 +61,7 @@ listen site3-local
 
 backend backend-cached-site1-local
     option forwardfor
-    option httpchk HEAD /?token=1868533200_bd98d0a61eb5006de53d00549ba0f78b365b72ad HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
+    option httpchk HEAD /?token=1868572800_4eb30fc94f247635f7ed445083a4783862ad58de HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site1.local
     balance leastconn
     server server_1 127.0.0.1:6080 check inter 5000 rise 2 fall 5 maxconn 16
