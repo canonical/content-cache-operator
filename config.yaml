@@ -23,8 +23,8 @@ options:
         origin-headers:
           - X-Origin-Key: ${secret}
         local-content:
-          - /my-local-content:
-              - local-path: /var/www/html
+          my-local-content:
+            root-path: /var/www/html
   sites_secrets:
     default: ""
     type: string

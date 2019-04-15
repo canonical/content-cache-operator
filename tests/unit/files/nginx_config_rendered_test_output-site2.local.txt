@@ -16,11 +16,11 @@ server {
         proxy_cache_valid 200 1d;
     }
 
-    location /my-local-content {
+    location /my-local-content/ {
         root /var/www/html;
     }
 
-    location /my-local-content2 {
+    location /my-local-content2/ {
         root /var/www/html2;
     }
 
