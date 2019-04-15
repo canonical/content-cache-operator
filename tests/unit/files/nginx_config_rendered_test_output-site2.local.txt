@@ -17,11 +17,13 @@ server {
     }
 
     location /my-local-content/ {
+        # Serve local content in /var/www/html/my-local-content/
         root /var/www/html;
     }
 
     location /my-local-content2/ {
-        root /var/www/html2;
+        # Serve local content in /var/www/html/my-local-content2/
+        root /var/www/html;
     }
 
 

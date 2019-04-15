@@ -25,7 +25,7 @@ site2.local:
         my-local-content:
             root-path: /var/www/html
         my-local-content2:
-            root-path: /var/www/html2
+            root-path: /var/www/html
 
 # Test 3: No port, just backends (HTTP)
 site3.local:
