@@ -39,24 +39,30 @@ class TestLibNginx(unittest.TestCase):
         ngx_conf = nginx.NginxConf()
 
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
-            conf = yaml.safe_load(f.read())
+            site_conf = yaml.safe_load(f.read())
 
-        listen_address = '127.0.0.1'
+        conf = {}
+        conf['listen_address'] = '127.0.0.1'
         # From the given YAML-formatted list of sites, check that each individual
         # Nginx config rendered matches what's in tests/unit/files.
         port = BASE_LISTEN_PORT - 1
         backend_port = BASE_BACKEND_PORT - 1
-        for site in conf.keys():
+        for site in site_conf.keys():
             port += 1
             backend_port += 1
-            backend = 'http://localhost:{}'.format(backend_port)
-            signed_url_hmac_key = conf[site].get('signed-url-hmac-key')
-            origin_headers = conf[site].get('origin-headers')
+
+            conf['site'] = site
+            conf['listen_port'] = port
+            conf['backend'] = 'http://localhost:{}'.format(backend_port)
+            conf['signed_url_hmac_key'] = site_conf[site].get('signed-url-hmac-key')
+            conf['origin_headers'] = site_conf[site].get('origin-headers')
+            conf['local_content'] = site_conf[site].get('local-content')
+
             output_file = 'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site)
             with open(output_file, 'r', encoding='utf-8') as f:
                 output = f.read()
-            self.assertEqual(output, ngx_conf.render(site, listen_address, port, backend, signed_url_hmac_key,
-                                                     origin_headers))
+
+            self.assertEqual(ngx_conf.render(conf), output)
 
     def test_nginx_config_write_sites(self):
         '''Test writing out sites to individual Nginx site config files'''

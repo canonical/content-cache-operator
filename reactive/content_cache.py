@@ -88,18 +88,22 @@ def configure_nginx(conf_path=None):
     # We only want the cache layer to listen only on localhost. This allows us
     # to deploy to edge networks and not worry about having to firewall off
     # access.
-    listen_address = '127.0.0.1'
+    conf = {}
+    conf['listen_address'] = '127.0.0.1'
     changed = False
     for site, site_conf in sites.items():
         cache_port = site_conf['cache_port']
         backend_port = site_conf['backend_port']
-        backend = 'http://localhost:{}'.format(backend_port)
+
+        conf['site'] = site
+        conf['listen_port'] = cache_port
+        conf['backend'] = 'http://localhost:{}'.format(backend_port)
         # Per site secret HMAC key, if it exists. We pass this through to the
         # caching layer to activate the bit to restrict access.
-        signed_url_hmac_key = site_conf.get('signed-url-hmac-key')
-        origin_headers = site_conf.get('origin-headers')
-        if ngx_conf.write_site(site, ngx_conf.render(site, listen_address, cache_port, backend, signed_url_hmac_key,
-                                                     origin_headers)):
+        conf['signed_url_hmac_key'] = site_conf.get('signed-url-hmac-key')
+        conf['origin_headers'] = site_conf.get('origin-headers')
+        conf['local_content'] = site_conf.get('local-content')
+        if ngx_conf.write_site(site, ngx_conf.render(conf)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
 

@@ -21,6 +21,11 @@ site2.local:
     - 127.0.1.10:443
     - 127.0.1.11:443
     - 127.0.1.12:443
+    local-content:
+        my-local-content:
+            root-path: /var/www/html
+        my-local-content2:
+            root-path: /var/www/html
 
 # Test 3: No port, just backends (HTTP)
 site3.local:
