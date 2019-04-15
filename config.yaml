@@ -22,6 +22,9 @@ options:
           - 91.189.88.152:80
         origin-headers:
           - X-Origin-Key: ${secret}
+        local-content:
+          - /my-local-content:
+              - local-path: /var/www/html
   sites_secrets:
     default: ""
     type: string

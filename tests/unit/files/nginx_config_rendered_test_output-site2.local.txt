@@ -16,6 +16,15 @@ server {
         proxy_cache_valid 200 1d;
     }
 
+    location /my-local-content {
+        root /var/www/html;
+    }
+
+    location /my-local-content2 {
+        root /var/www/html2;
+    }
+
+
     access_log /var/log/nginx/site2.local-access.log content_cache;
     error_log /var/log/nginx/site2.local-error.log;
 }

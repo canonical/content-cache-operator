@@ -89,6 +89,14 @@ server {
 {%- endif %}
     }
 
+{%- if local_content %}
+{% for location, stanza in local_content.items() %}
+    location /{{ location }} {
+        root {{ stanza['local-path'] }};
+    }
+{% endfor %}
+{%- endif %}
+
     access_log /var/log/nginx/{{site}}-access.log content_cache;
     error_log /var/log/nginx/{{site}}-error.log;
 }
