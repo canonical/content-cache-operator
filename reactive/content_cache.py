@@ -82,7 +82,7 @@ def configure_nginx(conf_path=None):
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     sites = sites_from_config(config.get('sites'), sites_secrets)
     if not sites:
-        status.blocked('list of sites provided has no backends or seems invalid')
+        status.blocked('list of sites provided seems invalid')
         return
 
     # We only want the cache layer to listen only on localhost. This allows us
@@ -93,11 +93,16 @@ def configure_nginx(conf_path=None):
     changed = False
     for site, site_conf in sites.items():
         cache_port = site_conf['cache_port']
-        backend_port = site_conf['backend_port']
-
         conf['site'] = site
         conf['listen_port'] = cache_port
+
+        for location, loc_conf in site_conf.get('locations', {}).items():
+            # Backend port used for generating monitoring checks.
+            backend_port = loc_conf.get('backend_port')
+
+        backend_port = site_conf['locations']['/']['backend_port']
         conf['backend'] = 'http://localhost:{}'.format(backend_port)
+
         # Per site secret HMAC key, if it exists. We pass this through to the
         # caching layer to activate the bit to restrict access.
         conf['signed_url_hmac_key'] = site_conf.get('signed-url-hmac-key')
@@ -135,7 +140,7 @@ def configure_haproxy():
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     sites = sites_from_config(config.get('sites'), sites_secrets)
     if not sites:
-        status.blocked('list of sites provided has no backends or seems invalid')
+        status.blocked('list of sites provided seems invalid')
         return
 
     num_procs = multiprocessing.cpu_count()
@@ -144,46 +149,72 @@ def configure_haproxy():
     new_conf = {}
     for site, site_conf in sites.items():
         cache_port = site_conf['cache_port']
-        backend_port = site_conf['backend_port']
-
         cached_site = 'cached-{}'.format(site)
-        new_conf[cached_site] = {}
-        new_conf[site] = {}
+        new_conf[cached_site] = {
+            'site-name': site_conf.get('site-name') or site,
+            'locations': {},
+        }
 
         default_port = 80
         tls_cert_bundle_path = site_conf.get('tls-cert-bundle-path')
         if tls_cert_bundle_path:
             default_port = 443
-            new_conf[cached_site]['backend-tls'] = False
             new_conf[cached_site]['tls-cert-bundle-path'] = tls_cert_bundle_path
-            new_conf[site]['backend-tls'] = True
-        else:
-            # Support for HTTP front to HTTPS backends. This shouldn't
-            # normally be used but it's useful for testing without having
-            # to ship out TLS/SSL certificate bundles.
-            new_conf[site]['backend-tls'] = site_conf.get('backend-tls')
 
-        backend_check_method = site_conf.get('backend-check-method')
-        if backend_check_method:
-            new_conf[cached_site]['backend-check-method'] = backend_check_method
-            new_conf[site]['backend-check-method'] = backend_check_method
-        backend_check_path = site_conf.get('backend-check-path')
-        if backend_check_path:
-            new_conf[cached_site]['backend-check-path'] = backend_check_path
-            new_conf[site]['backend-check-path'] = backend_check_path
-
-        new_conf[cached_site]['site-name'] = site
         new_conf[cached_site]['port'] = site_conf.get('port') or default_port
-        new_conf[cached_site]['backends'] = ['127.0.0.1:{}'.format(cache_port)]
-        new_conf[cached_site]['signed-url-hmac-key'] = site_conf.get('signed-url-hmac-key')
-        new_conf[cached_site]['backend-options'] = ['forwardfor']
-        new_conf[site]['site-name'] = site
-        # We only want the backend proxy layer to listen only on localhost. This
-        # allows us to deploy to edge networks and not worry about having to
-        # firewall off access.
-        new_conf[site]['listen-address'] = '127.0.0.1'
-        new_conf[site]['port'] = backend_port
-        new_conf[site]['backends'] = site_conf['backends']
+
+        # XXX: Reduce complexity here
+
+        for location, loc_conf in site_conf.get('locations', {}).items():
+            # new_conf[cached_site]['locations'][location] = {}
+            # new_cached_loc_conf = new_conf[cached_site]['locations'][location]
+            new_cached_loc_conf = {}
+            new_cached_loc_conf['backends'] = ['127.0.0.1:{}'.format(cache_port)]
+            new_cached_loc_conf['backend-options'] = ['forwardfor']
+
+            # No backends
+            if not site_conf['locations'][location].get('backends'):
+                if len(new_conf[cached_site]['locations'].keys()) == 0:
+                    new_conf[cached_site]['locations'][location] = new_cached_loc_conf
+                continue
+
+            if new_conf.get(site) is None:
+                new_conf[site] = {
+                    'site-name': site_conf.get('site-name') or site,
+                    # We only want the backend proxy layer to listen only on localhost. This
+                    # allows us to deploy to edge networks and not worry about having to
+                    # firewall off access.
+                    'listen-address': '127.0.0.1',
+                    'port': loc_conf.get('backend_port'),
+                    'locations': {},
+                }
+
+            new_loc_conf = new_conf[site]['locations'][location] = {
+                'backends': loc_conf['backends']
+            }
+
+            backend_check_method = loc_conf.get('backend-check-method')
+            if backend_check_method:
+                new_cached_loc_conf['backend-check-method'] = backend_check_method
+                new_loc_conf['backend-check-method'] = backend_check_method
+            backend_check_path = loc_conf.get('backend-check-path')
+            if backend_check_path:
+                new_cached_loc_conf['backend-check-path'] = backend_check_path
+                new_loc_conf['backend-check-path'] = backend_check_path
+            new_cached_loc_conf['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
+            if tls_cert_bundle_path:
+                new_cached_loc_conf['backend-tls'] = False
+                new_loc_conf['backend-tls'] = True
+            else:
+                # Support for HTTP front to HTTPS backends. This shouldn't
+                # normally be used but it's useful for testing without having
+                # to ship out TLS/SSL certificate bundles.
+                new_loc_conf['backend-tls'] = site_conf.get('backend-tls')
+
+            # When we have multiple locations, we only want/need one HAProxy
+            # stanza to redirect requests to the cache.
+            if len(new_conf[cached_site]['locations'].keys()) == 0:
+                new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
     if haproxy.write(haproxy.render(new_conf, num_procs)):
         service_start_or_restart('haproxy')
@@ -269,13 +300,12 @@ def sites_from_config(sites_yaml, sites_secrets=None):
     cache_port = 0
     backend_port = 0
     for site, site_conf in sites.items():
-        # Make backends a requirement and that at least one backend has been
-        # provided.
-        if not site_conf.get('backends'):
-            return None
-        (cache_port, backend_port) = utils.next_port_pair(cache_port, backend_port)
+        (cache_port, unused_backend_port) = utils.next_port_pair(cache_port, backend_port)
         site_conf['cache_port'] = cache_port
-        site_conf['backend_port'] = backend_port
+        for location, loc_conf in site_conf.get('locations', {}).items():
+            if loc_conf and loc_conf.get('backends'):
+                (unused_cache_port, backend_port) = utils.next_port_pair(cache_port, backend_port)
+                loc_conf['backend_port'] = backend_port
     return sites
 
 
@@ -298,13 +328,17 @@ def interpolate_secrets(sites, secrets):
     for site, site_conf in sites.items():
         if not secrets or not secrets.get(site):
             continue
-        signed_url_hmac_key = site_conf.get('signed-url-hmac-key')
-        if signed_url_hmac_key == '${secret}':
-            site_conf['signed-url-hmac-key'] = secrets.get(site).get('signed-url-hmac-key')
-        origin_headers = site_conf.get('origin-headers')
-        if origin_headers:
-            origin_header_secrets = secrets.get(site).get('origin-headers')
-            site_conf['origin-headers'] = _interpolate_secrets_origin_headers(origin_headers, origin_header_secrets)
+        for location, loc_conf in site_conf.get('locations', {}).items():
+            location_secrets = secrets.get(site).get(location)
+
+            signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')
+            if signed_url_hmac_key == '${secret}':
+                loc_conf['signed-url-hmac-key'] = location_secrets.get('signed-url-hmac-key')
+
+            origin_headers = loc_conf.get('origin-headers')
+            if origin_headers:
+                origin_header_secrets = location_secrets.get('origin-headers')
+                loc_conf['origin-headers'] = _interpolate_secrets_origin_headers(origin_headers, origin_header_secrets)
 
     return sites
 

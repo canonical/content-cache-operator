@@ -79,7 +79,7 @@ listen {name}
                 if tls_path:
                     tls_cert_bundle_paths.append(tls_path)
 
-                backend_name = self._generate_stanza_name(site_conf.get('locations').get('backend-name') or site)
+                backend_name = self._generate_stanza_name(site_conf.get('locations', {}).get('backend-name') or site)
                 backend_config.append(
                     backend_conf.format(backend=backend_name, site_name=site_name, indent=INDENT))
 
@@ -108,7 +108,7 @@ backend backend-{name}
         for site, site_conf in config.items():
             backends = []
 
-            for location, loc_conf in site_conf.get('locations').items():
+            for location, loc_conf in site_conf.get('locations', {}).items():
                 # No backends, so nothing needed
                 if not loc_conf.get('backends'):
                     continue
