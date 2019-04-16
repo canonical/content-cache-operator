@@ -23,8 +23,17 @@ class HAProxyConf:
     def conf_file(self):
         return os.path.join(self._conf_path, 'haproxy.cfg')
 
-    def _generate_stanza_name(self, name):
-        return name.replace('.', '-')[0:32]
+    def _generate_stanza_name(self, name, exclude=[]):
+        name = name.replace('.', '-')[0:32]
+        if name not in exclude:
+            return name
+        count = 2
+        while True:
+            new_name = '{}-{}'.format(name, count)
+            count += 1
+            if new_name not in exclude:
+                break
+        return new_name
 
     def _merge_listen_stanzas(self, config):
         new = {}
@@ -57,8 +66,7 @@ listen {name}
         for address_port in config:
             backend_config = []
             tls_cert_bundle_paths = []
-            for site in config[address_port].keys():
-                site_conf = config[address_port][site]
+            for site, site_conf in config[address_port].items():
                 site_name = site_conf.get('site-name', site)
 
                 if len(config[address_port].keys()) == 1:
@@ -70,12 +78,9 @@ listen {name}
                 if tls_path:
                     tls_cert_bundle_paths.append(tls_path)
 
-                backends = self._get_backends(config[address_port][site]['locations'])
-                backend_name = self._generate_stanza_name(backends.get('backend-name') or site)
-
-                if backend_name:
-                    backend_config.append(backend_conf
-                                          .format(backend=backend_name, site_name=site_name, indent=INDENT))
+                backend_name = self._generate_stanza_name(site_conf.get('locations').get('backend-name') or site)
+                backend_config.append(
+                    backend_conf.format(backend=backend_name, site_name=site_name, indent=INDENT))
 
             tls_config = ''
             if tls_cert_bundle_paths:
@@ -100,11 +105,13 @@ backend backend-{name}
 """
         rendered_output = []
         for site, site_conf in config.items():
+            backends = []
 
             for location, loc_conf in site_conf.get('locations').items():
                 # No backends, so nothing needed
                 if not loc_conf.get('backends'):
                     continue
+
                 site_name = config[site].get('site-name', site)
 
                 tls_config = ''
@@ -118,13 +125,20 @@ backend backend-{name}
                     expiry_time = datetime.datetime.now() + datetime.timedelta(days=3650)
                     path = '{}?token={}'.format(path, utils.generate_token(signed_url_hmac_key, path, expiry_time))
 
-                backends = []
+                # There may be more than one backend for a site, we need to deal
+                # with it and ensure our name for the backend stanza is unique.
+                backend_name = self._generate_stanza_name(site, backends)
+                backends.append(backend_name)
+
+                backend_confs = []
                 count = 0
                 for backend in loc_conf.get('backends'):
                     count += 1
+
                     name = 'server_{}'.format(count)
-                    backends.append('{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn 16{tls}'
-                                    .format(name=name, backend=backend, tls=tls_config, indent=INDENT))
+                    backend_confs.append(
+                        '{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn 16{tls}'
+                        .format(name=name, backend=backend, tls=tls_config, indent=INDENT))
 
                 opts = []
                 for option in loc_conf.get('backend-options', []):
@@ -134,9 +148,9 @@ backend backend-{name}
                     options = '\n'.join(opts + [''])
 
                 output = backend_stanza.format(
-                    name=self._generate_stanza_name(site), site=site,
-                    site_name=site_name, method=method, path=path,
-                    backends='\n'.join(backends), options=options, indent=INDENT)
+                    name=backend_name, site=site, site_name=site_name,
+                    method=method, path=path, backends='\n'.join(backend_confs),
+                    options=options, indent=INDENT)
 
                 rendered_output.append(output)
 
@@ -164,11 +178,3 @@ backend backend-{name}
         with open(self.conf_file, 'w', encoding='utf-8') as f:
             f.write(content)
         return True
-
-    def _get_backends(self, conf):
-        for k, v in conf.items():
-            if not isinstance(v, dict):
-                continue
-            if v.get('backends'):
-                return v
-        return {}
