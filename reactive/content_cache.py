@@ -82,7 +82,7 @@ def configure_nginx(conf_path=None):
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     sites = sites_from_config(config.get('sites'), sites_secrets)
     if not sites:
-        status.blocked('list of sites provided seems invalid')
+        status.blocked('list of sites provided is invalid')
         return
 
     # We only want the cache layer to listen only on localhost. This allows us
@@ -93,16 +93,10 @@ def configure_nginx(conf_path=None):
     changed = False
     for site, site_conf in sites.items():
         cache_port = site_conf['cache_port']
+        backend_port = site_conf['backend_port']
         conf['site'] = site
         conf['listen_port'] = cache_port
-
-        for location, loc_conf in site_conf.get('locations', {}).items():
-            # Backend port used for generating monitoring checks.
-            backend_port = loc_conf.get('backend_port')
-
-        backend_port = site_conf['locations']['/']['backend_port']
         conf['backend'] = 'http://localhost:{}'.format(backend_port)
-
         # Per site secret HMAC key, if it exists. We pass this through to the
         # caching layer to activate the bit to restrict access.
         conf['signed_url_hmac_key'] = site_conf.get('signed-url-hmac-key')
@@ -140,7 +134,7 @@ def configure_haproxy():
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     sites = sites_from_config(config.get('sites'), sites_secrets)
     if not sites:
-        status.blocked('list of sites provided seems invalid')
+        status.blocked('list of sites provided is invalid')
         return
 
     num_procs = multiprocessing.cpu_count()
@@ -166,15 +160,13 @@ def configure_haproxy():
         # XXX: Reduce complexity here
 
         for location, loc_conf in site_conf.get('locations', {}).items():
-            # new_conf[cached_site]['locations'][location] = {}
-            # new_cached_loc_conf = new_conf[cached_site]['locations'][location]
             new_cached_loc_conf = {}
             new_cached_loc_conf['backends'] = ['127.0.0.1:{}'.format(cache_port)]
             new_cached_loc_conf['backend-options'] = ['forwardfor']
 
             # No backends
             if not site_conf['locations'][location].get('backends'):
-                if len(new_conf[cached_site]['locations'].keys()) == 0:
+                if not new_conf[cached_site]['locations']:
                     new_conf[cached_site]['locations'][location] = new_cached_loc_conf
                 continue
 
@@ -213,7 +205,7 @@ def configure_haproxy():
 
             # When we have multiple locations, we only want/need one HAProxy
             # stanza to redirect requests to the cache.
-            if len(new_conf[cached_site]['locations'].keys()) == 0:
+            if not new_conf[cached_site]['locations']:
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
     if haproxy.write(haproxy.render(new_conf, num_procs)):
