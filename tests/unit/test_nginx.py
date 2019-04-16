@@ -35,7 +35,6 @@ class TestLibNginx(unittest.TestCase):
 
     def test_nginx_config_render(self):
         '''Test parsing a YAML-formatted list of sites'''
-
         ngx_conf = nginx.NginxConf()
 
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
