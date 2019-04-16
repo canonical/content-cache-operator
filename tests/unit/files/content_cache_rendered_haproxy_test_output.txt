@@ -42,6 +42,7 @@ listen combined-80
     bind 0.0.0.0:80
     use_backend backend-cached-site1-local if { hdr(Host) -i site1.local }
     use_backend backend-cached-site3-local if { hdr(Host) -i site3.local }
+    use_backend backend-cached-site4-local if { hdr(Host) -i site4.local }
 
 listen site1-local
     bind 127.0.0.1:8080
@@ -58,6 +59,10 @@ listen site2-local
 listen site3-local
     bind 127.0.0.1:8082
     default_backend backend-site3-local
+
+listen site4-local
+    bind 127.0.0.1:8083
+    default_backend backend-site4-local
 
 backend backend-cached-site1-local
     option forwardfor
@@ -103,3 +108,16 @@ backend backend-site3-local
     server server_1 127.0.1.10:80 check inter 5000 rise 2 fall 5 maxconn 16
     server server_2 127.0.1.11:80 check inter 5000 rise 2 fall 5 maxconn 16
     server server_3 127.0.1.12:80 check inter 5000 rise 2 fall 5 maxconn 16
+
+backend backend-cached-site4-local
+    option forwardfor
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site4.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site4.local
+    balance leastconn
+    server server_1 127.0.0.1:6083 check inter 5000 rise 2 fall 5 maxconn 16
+
+backend backend-site4-local
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site4.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site4.local
+    balance leastconn
+    server server_1 127.0.1.10:80 check inter 5000 rise 2 fall 5 maxconn 16

@@ -90,10 +90,11 @@ server {
     }
 
 {%- if local_content %}
-{% for location, stanza in local_content.items() %}
-    location /{{ location }}/ {
-        # Serve local content in {{ stanza['root-path'] }}/{{ location }}/
-        root {{ stanza['root-path'] }};
+{% for location, stanza in local_content['locations'].items() %}
+    location {{ location }} {
+{%- for conf in stanza %}
+        {{ conf }};
+{%- endfor %}
     }
 {% endfor %}
 {%- endif %}

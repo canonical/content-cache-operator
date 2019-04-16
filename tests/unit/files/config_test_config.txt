@@ -22,10 +22,11 @@ site2.local:
     - 127.0.1.11:443
     - 127.0.1.12:443
     local-content:
-        my-local-content:
-            root-path: /var/www/html
-        my-local-content2:
-            root-path: /var/www/html
+        locations:
+            /my-local-content/:
+                - root /var/www/html
+            /my-local-content2/:
+                - root /var/www/html
 
 # Test 3: No port, just backends (HTTP)
 site3.local:
@@ -36,3 +37,16 @@ site3.local:
     backend-options:
     - forwardfor except 127.0.0.1
     - forceclose
+
+# Test 4: No backends, a few local content
+site4.local:
+    backends:
+        - 127.0.1.10:80
+    local-content:
+        locations:
+            /:
+                - autoindex on
+            /ubuntu/pool/:
+                - autoindex on
+                - auth_request /auth
+
