@@ -23,7 +23,9 @@ class HAProxyConf:
     def conf_file(self):
         return os.path.join(self._conf_path, 'haproxy.cfg')
 
-    def _generate_stanza_name(self, name, exclude=[]):
+    def _generate_stanza_name(self, name, exclude=None):
+        if exclude is None:
+            exclude = []
         name = name.replace('.', '-')[0:32]
         if name not in exclude:
             return name
@@ -32,8 +34,7 @@ class HAProxyConf:
             new_name = '{}-{}'.format(name, count)
             count += 1
             if new_name not in exclude:
-                break
-        return new_name
+                return new_name
 
     def _merge_listen_stanzas(self, config):
         new = {}
