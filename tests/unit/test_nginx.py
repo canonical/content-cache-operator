@@ -38,7 +38,7 @@ class TestLibNginx(unittest.TestCase):
         ngx_conf = nginx.NginxConf()
 
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
-            site_conf = yaml.safe_load(f.read())
+            sites = yaml.safe_load(f.read())
 
         conf = {}
         conf['listen_address'] = '127.0.0.1'
@@ -46,16 +46,23 @@ class TestLibNginx(unittest.TestCase):
         # Nginx config rendered matches what's in tests/unit/files.
         port = BASE_LISTEN_PORT - 1
         backend_port = BASE_BACKEND_PORT - 1
-        for site in site_conf.keys():
+        for site, site_conf in sites.items():
             port += 1
-            backend_port += 1
-
-            conf['site'] = site
+            conf['site'] = site_conf.get('site-name') or site
             conf['listen_port'] = port
-            conf['backend'] = 'http://localhost:{}'.format(backend_port)
-            conf['signed_url_hmac_key'] = site_conf[site].get('signed-url-hmac-key')
-            conf['origin_headers'] = site_conf[site].get('origin-headers')
-            conf['local_content'] = site_conf[site].get('local-content')
+
+            conf['locations'] = {}
+            for location, loc_conf in site_conf.get('locations', {}).items():
+                conf['locations'][location] = {}
+                lc = conf['locations'][location]
+
+                if loc_conf.get('backends'):
+                    backend_port += 1
+                    lc['backend'] = 'http://localhost:{}'.format(backend_port)
+
+                lc['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
+                lc['origin-headers'] = loc_conf.get('origin-headers')
+                lc['extra-config'] = loc_conf.get('extra-config')
 
             output_file = 'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site)
             with open(output_file, 'r', encoding='utf-8') as f:

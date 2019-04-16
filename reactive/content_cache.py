@@ -99,15 +99,15 @@ def configure_nginx(conf_path=None):
         for location, loc_conf in site_conf.get('locations', {}).items():
             conf['locations'][location] = {}
             lc = conf['locations'][location]
-            # Per site secret HMAC key, if it exists. We pass this through to
-            # the caching layer to activate the bit to restrict access.
-            lc['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
-            lc['origin-headers'] = loc_conf.get('origin-headers')
 
             backend_port = loc_conf.get('backend_port')
             if backend_port:
                 lc['backend'] = 'http://localhost:{}'.format(backend_port)
 
+            # Per site secret HMAC key, if it exists. We pass this through to
+            # the caching layer to activate the bit to restrict access.
+            lc['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
+            lc['origin-headers'] = loc_conf.get('origin-headers')
             lc['extra-config'] = loc_conf.get('extra-config')
 
         if ngx_conf.write_site(site, ngx_conf.render(conf)):
