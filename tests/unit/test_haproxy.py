@@ -36,6 +36,9 @@ class TestLibHAProxy(unittest.TestCase):
         self.assertEqual(haproxy._generate_stanza_name('site1.local'), 'site1-local')
         self.assertEqual(haproxy._generate_stanza_name('site1-canonical-com-canonical-com'),
                          'site1-canonical-com-canonical-co')
+        self.assertEqual(haproxy._generate_stanza_name('site1.local', ['site1-local']), 'site1-local-2')
+        self.assertEqual(haproxy._generate_stanza_name('site1.local', ['site1-local', 'site1-local-2']),
+                         'site1-local-3')
 
     def test_haproxy_config_rendered_listen_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
