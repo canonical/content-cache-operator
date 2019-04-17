@@ -151,7 +151,7 @@ class TestCharm(unittest.TestCase):
             content_cache.configure_nginx(self.tmpdir)
             self.assertFalse(service_start_or_restart.assert_not_called())
 
-            for site in ['site1.local', 'site2.local', 'site3.local', 'site4.local', 'site5']:
+            for site in ['site1.local', 'site2.local', 'site3.local', 'site4.local', 'site5', 'site6.local']:
                 with open('tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site),
                           'r', encoding='utf-8') as f:
                     want = f.read()

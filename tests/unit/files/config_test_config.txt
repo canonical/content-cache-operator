@@ -68,3 +68,15 @@ site5:
         - 127.0.1.11:80
       backend-path: /auth-check/
       cache-validity: '200 401 1h'
+
+# Test 6: TLS/SSL to backends only
+site6.local:
+  locations:
+    /:
+      backend-tls: True
+      backend-check-method: GET
+      backend-check-path: /check/
+      backends:
+        - 127.0.1.10:443
+        - 127.0.1.11:443
+        - 127.0.1.12:443

@@ -209,7 +209,7 @@ def configure_haproxy():
                 # Support for HTTP front to HTTPS backends. This shouldn't
                 # normally be used but it's useful for testing without having
                 # to ship out TLS/SSL certificate bundles.
-                new_loc_conf['backend-tls'] = site_conf.get('backend-tls')
+                new_loc_conf['backend-tls'] = loc_conf.get('backend-tls')
 
             # When we have multiple locations, we only want/need one HAProxy
             # stanza to redirect requests to the cache.
