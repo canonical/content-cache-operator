@@ -286,6 +286,26 @@ site1.local:
                           '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082 -j HEAD'
                           ' -u http://site3.local/')]
         self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
+        want = [mock.call('site_site3_local_listen', 'site3.local site listen check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 80 -j HEAD'
+                          ' -u http://site3.local/'),
+                mock.call('site_site3_local_cache', 'site3.local cache check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 6082 -j HEAD'
+                          ' -u http://site3.local/'),
+                mock.call('site_site3_local_backend_proxy', 'site3.local backend proxy check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082 -j HEAD'
+                          ' -u http://site3.local/')]
+        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
+        want = [mock.call('site_site3_local_listen', 'site3.local site listen check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 80 -j HEAD'
+                          ' -u http://site3.local/'),
+                mock.call('site_site3_local_cache', 'site3.local cache check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 6082 -j HEAD'
+                          ' -u http://site3.local/'),
+                mock.call('site_site3_local_backend_proxy', 'site3.local backend proxy check',
+                          '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082 -j HEAD'
+                          ' -u http://site3.local/')]
+        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
 
         self.assertFalse(nrpe_instance_mock.write.assert_called())
 
