@@ -1,4 +1,5 @@
 import datetime
+import multiprocessing
 import os
 
 import jinja2
@@ -157,7 +158,10 @@ backend backend-{name}
 
         return rendered_output
 
-    def render(self, config, num_procs):
+    def render(self, config, num_procs=None):
+        if not num_procs:
+            num_procs = multiprocessing.cpu_count()
+
         base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
         template = env.get_template('templates/haproxy_cfg.tmpl')
