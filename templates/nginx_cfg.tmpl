@@ -4,8 +4,11 @@ server {
     server_name {{site}};
     listen {% if address %}{{address}}:{% endif %}{{port}};
 
-    location / {
-        proxy_pass {{backend}};
+{%- for location, conf in locations.items() %}
+
+    location {{ location }} {
+{%- if conf['backend'] %}
+        proxy_pass {{conf['backend']}};
         proxy_set_header Host "{{site}}";
         proxy_cache {{name}}-cache;
         proxy_cache_background_update on;
@@ -14,17 +17,26 @@ server {
         proxy_cache_revalidate on;
         proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
         proxy_cache_valid 200 1d;
-{%- if origin_headers %}
-{%- for header_pair in origin_headers -%}
+{%- endif %}
+
+{%- if conf['origin-headers'] %}
+{%- for header_pair in conf['origin-headers'] -%}
 {% for header, value in header_pair.items() %}
         proxy_set_header {{header}} '{{value}}';
 {%- endfor -%}
 {%- endfor -%}
 {%- endif %}
-{%- if signed_url_hmac_key %}
+
+{%- if conf['extra-config'] %}
+{%- for extra in conf['extra-config'] %}
+        {{extra}};
+{%- endfor -%}
+{%- endif %}
+
+{%- if conf['signed-url-hmac-key'] %}
 
         access_by_lua_block {
-            local hmac_key = "{{signed_url_hmac_key}}"
+            local hmac_key = "{{conf['signed-url-hmac-key']}}"
 
             local uri = ngx.var.uri
             local args = ngx.var.args
@@ -86,18 +98,10 @@ server {
             args["token"] = nil
             ngx.req.set_uri_args(args)
         }
-{%- endif %}
-    }
 
-{%- if local_content %}
-{% for location, stanza in local_content['locations'].items() %}
-    location {{ location }} {
-{%- for conf in stanza %}
-        {{ conf }};
-{%- endfor %}
+{%- endif %}
     }
 {% endfor %}
-{%- endif %}
 
     access_log /var/log/nginx/{{site}}-access.log content_cache;
     error_log /var/log/nginx/{{site}}-error.log;

@@ -16,6 +16,7 @@ server {
         proxy_cache_valid 200 1d;
     }
 
+
     access_log /var/log/nginx/site3.local-access.log content_cache;
     error_log /var/log/nginx/site3.local-error.log;
 }

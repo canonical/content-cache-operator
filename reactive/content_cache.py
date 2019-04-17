@@ -92,16 +92,24 @@ def configure_nginx(conf_path=None):
     conf['listen_address'] = '127.0.0.1'
     changed = False
     for site, site_conf in sites.items():
-        cache_port = site_conf['cache_port']
-        backend_port = site_conf['backend_port']
-        conf['site'] = site
-        conf['listen_port'] = cache_port
-        conf['backend'] = 'http://localhost:{}'.format(backend_port)
-        # Per site secret HMAC key, if it exists. We pass this through to the
-        # caching layer to activate the bit to restrict access.
-        conf['signed_url_hmac_key'] = site_conf.get('signed-url-hmac-key')
-        conf['origin_headers'] = site_conf.get('origin-headers')
-        conf['local_content'] = site_conf.get('local-content')
+        conf['site'] = site_conf.get('site-name') or site
+        conf['listen_port'] = site_conf['cache_port']
+
+        conf['locations'] = {}
+        for location, loc_conf in site_conf.get('locations', {}).items():
+            conf['locations'][location] = {}
+            lc = conf['locations'][location]
+
+            backend_port = loc_conf.get('backend_port')
+            if backend_port:
+                lc['backend'] = 'http://localhost:{}'.format(backend_port)
+
+            # Per site secret HMAC key, if it exists. We pass this through to
+            # the caching layer to activate the bit to restrict access.
+            lc['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
+            lc['origin-headers'] = loc_conf.get('origin-headers')
+            lc['extra-config'] = loc_conf.get('extra-config')
+
         if ngx_conf.write_site(site, ngx_conf.render(conf)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True

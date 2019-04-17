@@ -66,13 +66,9 @@ class NginxConf:
     def render(self, conf):
         data = {
             'address': conf['listen_address'],
-            'backend': conf['backend'],
-            'local_content': conf['local_content'],
             'name': self._generate_name(conf['site']),
-            # FIXME: handle when origin-headers have values with semi-colons.
-            'origin_headers': conf['origin_headers'],
+            'locations': conf['locations'],
             'port': conf['listen_port'],
-            'signed_url_hmac_key': conf['signed_url_hmac_key'],
             'site': conf['site'],
         }
         base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
