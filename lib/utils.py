@@ -57,3 +57,13 @@ def generate_token(signing_secret, url_path, expiry_time):
     digest = hmac.new(signing_secret.encode(), string_to_sign.encode(),
                       hashlib.sha1)
     return "{0}_{1}".format(expiration, digest.hexdigest())
+
+
+def generate_uri(host, port='80', path='', scheme='http'):
+    host_port_path = '{host}:{port}'.format(host=host, port=port)
+    if path:
+        host_port_path = '{}/{}'.format(host_port_path, path)
+        # Clean up when we provide something like '/path' making it '//path'
+        host_port_path = host_port_path.replace('//', '/')
+    uri = '{scheme}://{host_port_path}'.format(scheme=scheme, host_port_path=host_port_path)
+    return uri

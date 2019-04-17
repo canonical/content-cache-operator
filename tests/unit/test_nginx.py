@@ -7,6 +7,7 @@ import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import nginx  # NOQA: E402
+from lib import utils  # NOQA: E402
 
 BASE_LISTEN_PORT = 6080
 BASE_BACKEND_PORT = 8080
@@ -59,7 +60,8 @@ class TestLibNginx(unittest.TestCase):
 
                 if loc_conf.get('backends'):
                     backend_port += 1
-                    lc['backend'] = 'http://localhost:{}'.format(backend_port)
+                    backend_path = loc_conf.get('backend-path')
+                    lc['backend'] = utils.generate_uri('localhost', backend_port, backend_path)
 
                 lc['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
                 lc['origin-headers'] = loc_conf.get('origin-headers')

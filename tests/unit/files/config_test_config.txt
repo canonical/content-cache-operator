@@ -66,3 +66,4 @@ site5:
       modifier: '='
       backends:
         - 127.0.1.11:80
+      backend-path: /auth-check/

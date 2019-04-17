@@ -103,7 +103,8 @@ def configure_nginx(conf_path=None):
 
             backend_port = loc_conf.get('backend_port')
             if backend_port:
-                lc['backend'] = 'http://localhost:{}'.format(backend_port)
+                backend_path = loc_conf.get('backend-path')
+                lc['backend'] = utils.generate_uri('localhost', backend_port, backend_path)
 
             # Per site secret HMAC key, if it exists. We pass this through to
             # the caching layer to activate the bit to restrict access.
