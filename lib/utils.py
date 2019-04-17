@@ -38,8 +38,17 @@ def next_port_pair(cache_port, backend_port,
     return (cache_port, backend_port)
 
 
-def generate_nagios_check_name(site):
-    return site.replace('.', '_').replace('-', '_')
+def _nagios_check_name_strip(name):
+    return name.replace('.', '_').replace('-', '_').replace('/', '').replace('__', '_').strip('_')
+
+
+def generate_nagios_check_name(name, prefix='', suffix=''):
+    check_name = name
+    if prefix:
+        check_name = '{}_{}'.format(prefix, check_name)
+    if suffix:
+        check_name = '{}_{}'.format(check_name, suffix)
+    return _nagios_check_name_strip(check_name)
 
 
 def generate_token(signing_secret, url_path, expiry_time):

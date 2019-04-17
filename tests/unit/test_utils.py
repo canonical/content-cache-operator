@@ -52,6 +52,11 @@ class TestLibUtils(unittest.TestCase):
 
     def test_generate_nagios_check_name(self):
         self.assertEqual(utils.generate_nagios_check_name('site-1.local'), 'site_1_local')
+        self.assertEqual(utils.generate_nagios_check_name('site-1.local_'), 'site_1_local')
+        self.assertEqual(utils.generate_nagios_check_name('site-1.local__'), 'site_1_local')
+        self.assertEqual(utils.generate_nagios_check_name('site-1.local', 'site', '/'), 'site_site_1_local')
+        self.assertEqual(utils.generate_nagios_check_name('site-1.local', 'site', '/somepath'),
+                         'site_site_1_local_somepath')
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     def test_generate_token(self):

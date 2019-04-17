@@ -240,55 +240,64 @@ def configure_nagios():
 
     for site, site_conf in sites.items():
         cache_port = site_conf['cache_port']
-        backend_port = site_conf['backend_port']
 
         default_port = 80
         url = 'http://{}'.format(site)
         tls_cert_bundle_path = site_conf.get('tls-cert-bundle-path')
         tls = ''
-        method = site_conf.get('backend-check-method', 'HEAD')
-        path = site_conf.get('backend-check-path', '/')
-        token = ''
-        signed_url_hmac_key = site_conf.get('signed-url-hmac-key')
-        if signed_url_hmac_key:
-            expiry_time = datetime.datetime.now() + datetime.timedelta(days=3650)
-            token = '?token={}'.format(utils.generate_token(signed_url_hmac_key, path, expiry_time))
-
         if tls_cert_bundle_path:
             default_port = 443
             url = 'https://{}'.format(site)
             tls = ' --ssl=1.2 --sni'
 
-            # Negative Listen/frontend checks to alert on obsolete TLS versions
-            for tlsrev in ('1', '1.1'):
-                check_name = 'site_{}_no_tls_{}'.format(utils.generate_nagios_check_name(site),
-                                                        tlsrev.replace('.', '_'))
-                cmd = '/usr/lib/nagios/plugins/negate' \
-                      ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
-                      ' -p {port} --ssl={tls} --sni -j {method} -u {url}{path}{token}' \
-                      .format(site=site, port=default_port, method=method, url=url, path=path, token=token, tls=tlsrev)
-                nrpe_setup.add_check(check_name, '{} confirm obsolete TLS v{} denied'.format(site, tlsrev), cmd)
+        frontend_port = site_conf.get('port') or default_port
 
-        # Listen / frontend check
-        check_name = 'site_{}_listen'.format(utils.generate_nagios_check_name(site))
-        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
-              ' -p {port}{tls} -j {method} -u {url}{path}{token}' \
-              .format(site=site, port=default_port, method=method, url=url, path=path, token=token, tls=tls)
-        nrpe_setup.add_check(check_name, '{} site listen check'.format(site), cmd)
+        for location, loc_conf in site_conf.get('locations', {}).items():
+            backend_port = loc_conf.get('backend_port')
+            method = loc_conf.get('backend-check-method', 'HEAD')
+            path = loc_conf.get('backend-check-path', location)
+            token = ''
+            signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')
+            if signed_url_hmac_key:
+                expiry_time = datetime.datetime.now() + datetime.timedelta(days=3650)
+                token = '?token={}'.format(utils.generate_token(signed_url_hmac_key, path, expiry_time))
 
-        # Cache layer check
-        check_name = 'site_{}_cache'.format(utils.generate_nagios_check_name(site))
-        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
-              ' -p {cache_port} -j {method} -u {url}{path}{token}' \
-              .format(site=site, cache_port=cache_port, method=method, url=url, path=path, token=token)
-        nrpe_setup.add_check(check_name, '{} cache check'.format(site), cmd)
+            nagios_name = '{}-{}'.format(site, location)
 
-        # Backend proxy layer check; no token needs to be passed here as it's
-        # stripped by the cache layer.
-        check_name = 'site_{}_backend_proxy'.format(utils.generate_nagios_check_name(site))
-        cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port} -j {method} -u {url}{path}' \
-              .format(site=site, backend_port=backend_port, method=method, url=url, path=path)
-        nrpe_setup.add_check(check_name, '{} backend proxy check'.format(site), cmd)
+            if tls:
+                # Negative Listen/frontend checks to alert on obsolete TLS versions
+                for tlsrev in ('1', '1.1'):
+                    check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'no_tls_{}'.format(
+                        tlsrev.replace('.', '_')))
+                    cmd = '/usr/lib/nagios/plugins/negate' \
+                          ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
+                          ' -p {port} --ssl={tls} --sni -j {method} -u {url}{path}{token}' \
+                          .format(site=site, port=frontend_port, method=method, url=url, path=path, token=token,
+                                  tls=tlsrev)
+                    nrpe_setup.add_check(check_name, '{} confirm obsolete TLS v{} denied'.format(site, tlsrev), cmd)
+
+            # Listen / frontend check
+            check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'listen')
+            cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
+                  ' -p {port}{tls} -j {method} -u {url}{path}{token}' \
+                  .format(site=site, port=frontend_port, method=method, url=url, path=path, token=token, tls=tls)
+            nrpe_setup.add_check(check_name, '{} site listen check'.format(site), cmd)
+
+            # Cache layer check
+            check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'cache')
+            cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
+                  ' -p {cache_port} -j {method} -u {url}{path}{token}' \
+                  .format(site=site, cache_port=cache_port, method=method, url=url, path=path, token=token)
+            nrpe_setup.add_check(check_name, '{} cache check'.format(site), cmd)
+
+            if backend_port:
+                # Backend proxy layer check; no token needs to be passed here as it's
+                # stripped by the cache layer.
+                check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'backend_proxy')
+                cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port}' \
+                      ' -j {method} -u {url}{path}' \
+                      .format(site=site, backend_port=backend_port, method=method, url=url, path=path)
+                nrpe_setup.add_check(check_name, '{} backend proxy check'.format(site), cmd)
 
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe.configured')
