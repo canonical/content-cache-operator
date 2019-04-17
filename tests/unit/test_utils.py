@@ -68,3 +68,10 @@ class TestLibUtils(unittest.TestCase):
         expiry_time = datetime.datetime.now() + datetime.timedelta(days=1)
         want = '1553299200_d5257bb9f1e5e27065f2e7c986ca8c95f4cc3680'
         self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), want)
+
+    def test_generate_uri(self):
+        self.assertEqual(utils.generate_uri('localhost'), 'http://localhost:80')
+        self.assertEqual(utils.generate_uri('localhost', 8080), 'http://localhost:8080')
+        self.assertEqual(utils.generate_uri('localhost', path='mypath'), 'http://localhost:80/mypath')
+        self.assertEqual(utils.generate_uri('localhost', path='/mypath'), 'http://localhost:80/mypath')
+        self.assertEqual(utils.generate_uri('10.0.0.1', path='/mypath'), 'http://10.0.0.1:80/mypath')
