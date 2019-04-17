@@ -1,6 +1,5 @@
 import datetime
 import grp
-import multiprocessing
 import os
 import pwd
 import yaml
@@ -148,8 +147,6 @@ def configure_haproxy():
         status.blocked('list of sites provided is invalid')
         return
 
-    num_procs = multiprocessing.cpu_count()
-
     # We need to slot in the caching layer here.
     new_conf = {}
     for site, site_conf in sites.items():
@@ -219,7 +216,7 @@ def configure_haproxy():
             if not new_conf[cached_site]['locations']:
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
-    if haproxy.write(haproxy.render(new_conf, num_procs)):
+    if haproxy.write(haproxy.render(new_conf)):
         service_start_or_restart('haproxy')
 
     reactive.set_flag('content_cache.haproxy.configured')
