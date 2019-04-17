@@ -55,6 +55,7 @@ class TestLibNginx(unittest.TestCase):
             for location, loc_conf in site_conf.get('locations', {}).items():
                 conf['locations'][location] = {}
                 lc = conf['locations'][location]
+                lc['modifier'] = loc_conf.get('modifier')
 
                 if loc_conf.get('backends'):
                     backend_port += 1

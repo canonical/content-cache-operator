@@ -6,7 +6,7 @@ server {
 
 {%- for location, conf in locations.items() %}
 
-    location {{ location }} {
+    location {% if conf['modifier'] %}{{conf['modifier']}} {% endif %}{{ location }} {
 {%- if conf['backend'] %}
         proxy_pass {{conf['backend']}};
         proxy_set_header Host "{{site}}";
