@@ -202,14 +202,13 @@ def configure_haproxy():
                 new_cached_loc_conf['backend-check-path'] = backend_check_path
                 new_loc_conf['backend-check-path'] = backend_check_path
             new_cached_loc_conf['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
-            if tls_cert_bundle_path:
+            # If 'backend-tls' is defined, pass it through.
+            if 'backend-tls' in loc_conf:
+                new_loc_conf['backend-tls'] = loc_conf.get('backend-tls')
+            # No 'backend-tls' provided so let's try work out automatically.
+            elif tls_cert_bundle_path:
                 new_cached_loc_conf['backend-tls'] = False
                 new_loc_conf['backend-tls'] = True
-            else:
-                # Support for HTTP front to HTTPS backends. This shouldn't
-                # normally be used but it's useful for testing without having
-                # to ship out TLS/SSL certificate bundles.
-                new_loc_conf['backend-tls'] = loc_conf.get('backend-tls')
 
             # When we have multiple locations, we only want/need one HAProxy
             # stanza to redirect requests to the cache.

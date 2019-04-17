@@ -8,5 +8,9 @@ listen combined-80
     use_backend backend-site6-local if { hdr(Host) -i site6.local }
 
 listen site2-local
-    bind 0.0.0.0:443 ssl crt /etc/haproxy/some-bundle.crt
+    bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt
     default_backend backend-site2-local
+
+listen site7-local
+    bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt
+    default_backend backend-site7-local

@@ -15,7 +15,7 @@ site1.local:
 
 # Test 2: TLS/SSL as well as backends (HTTPS)
 site2.local:
-  tls-cert-bundle-path: /etc/haproxy/some-bundle.crt
+  tls-cert-bundle-path: /etc/haproxy/site2-bundle.crt
   locations:
     /:
       backend-tls: True
@@ -69,14 +69,20 @@ site5:
       backend-path: /auth-check/
       cache-validity: '200 401 1h'
 
-# Test 6: TLS/SSL to backends only
+# Test 6: TLS/SSL/HTTPS to backends only
 site6.local:
   locations:
     /:
       backend-tls: True
-      backend-check-method: GET
-      backend-check-path: /check/
       backends:
         - 127.0.1.10:443
-        - 127.0.1.11:443
-        - 127.0.1.12:443
+
+# Test 7: TLS/SSL frontend but plain HTTP to backend
+site7.local:
+  port: 444
+  tls-cert-bundle-path: /etc/haproxy/site7-bundle.crt
+  locations:
+    /:
+      backend-tls: False
+      backends:
+        - 127.0.1.10:80
