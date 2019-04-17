@@ -127,7 +127,7 @@ def configure_nginx(conf_path=None):
     reactive.set_flag('content_cache.nginx.configured')
 
 
-@reactive.when_not('content_cache.haproxy.configured')
+@reactive.when_not('content_cache.haproxy.configured')  # NOQA: C901 LP#1825084
 def configure_haproxy():
     status.maintenance('setting up HAProxy for frontend and backend proxy')
     reactive.clear_flag('content_cache.active')
