@@ -17,7 +17,7 @@ server {
     }
 
 
-    location /auth {
+    location = /auth {
         proxy_pass http://localhost:8084;
         proxy_set_header Host "site5.local";
         proxy_cache site5-cache;

@@ -99,6 +99,7 @@ def configure_nginx(conf_path=None):
         for location, loc_conf in site_conf.get('locations', {}).items():
             conf['locations'][location] = {}
             lc = conf['locations'][location]
+            lc['modifier'] = loc_conf.get('modifier')
 
             backend_port = loc_conf.get('backend_port')
             if backend_port:

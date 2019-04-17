@@ -63,5 +63,6 @@ site5:
       backends:
         - 127.0.1.10:80
     /auth:
+      modifier: '='
       backends:
         - 127.0.1.11:80
