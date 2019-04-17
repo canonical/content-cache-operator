@@ -62,6 +62,7 @@ class TestLibNginx(unittest.TestCase):
                     backend_port += 1
                     backend_path = loc_conf.get('backend-path')
                     lc['backend'] = utils.generate_uri('localhost', backend_port, backend_path)
+                    lc['cache-validity'] = loc_conf.get('cache-validity', '200 1d')
 
                 lc['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
                 lc['origin-headers'] = loc_conf.get('origin-headers')
