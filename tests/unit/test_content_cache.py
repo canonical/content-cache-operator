@@ -173,13 +173,15 @@ class TestCharm(unittest.TestCase):
             secrets = f.read()
         config = '''
 site1.local:
-    backends:
-      - 127.0.1.10:80
-      - 127.0.1.11:80
-      - 127.0.1.12:80
-    origin-headers:
-      - X-Origin-Key: ${secret}
-    signed-url-hmac-key: ${secret}
+  locations:
+    /:
+      backends:
+        - 127.0.1.10:80
+        - 127.0.1.11:80
+        - 127.0.1.12:80
+      origin-headers:
+        - X-Origin-Key: ${secret}
+      signed-url-hmac-key: ${secret}
 '''
         self.mock_config.return_value = {
             'sites': config,
@@ -202,15 +204,6 @@ site1.local:
                           'r', encoding='utf-8') as f:
                     got = f.read()
                 self.assertEqual(got, want)
-
-    @mock.patch('charms.reactive.clear_flag')
-    @mock.patch('charms.reactive.set_flag')
-    def test_configure_nginx_sites_no_backend(self, set_flag, clear_flag):
-        self.mock_config.return_value = {'sites': 'site1.local:\n  port: 80'}
-        content_cache.configure_nginx(self.tmpdir)
-        self.assertFalse(status.blocked.assert_called())
-        self.assertFalse(clear_flag.assert_called_with('content_cache.active'))
-        self.assertFalse(set_flag.assert_not_called())
 
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_haproxy_no_sites(self, clear_flag):
@@ -240,15 +233,6 @@ site1.local:
             with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
                 got = f.read()
             self.assertEqual(got, want)
-
-    @mock.patch('charms.reactive.clear_flag')
-    @mock.patch('charms.reactive.set_flag')
-    def test_configure_haproxy_sites_no_backend(self, set_flag, clear_flag):
-        self.mock_config.return_value = {'sites': 'site1.local:\n  port: 80'}
-        content_cache.configure_haproxy()
-        self.assertFalse(status.blocked.assert_called())
-        self.assertFalse(clear_flag.assert_called_with('content_cache.active'))
-        self.assertFalse(set_flag.assert_not_called())
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charms.reactive.set_flag')
@@ -311,65 +295,100 @@ site1.local:
     def test_sites_from_config(self):
         config_yaml = '''
 site1.local:
-        port: 80
-        backends:
-          - 91.189.88.152:80
+  port: 80
+  locations:
+    /:
+      backends:
+        - 91.189.88.152:80
 site2.local:
-        port: 80
-        backends:
-          - 91.189.88.152:80
+  port: 80
+  locations:
+    /:
+      backends:
+        - 91.189.88.152:80
 site3.local:
-        port: 80
-        backends:
-          - 91.189.88.152:80
+  port: 80
+  locations:
+    /:
+      backends:
+        - 91.189.88.152:80
+site4.local:
+  port: 80
+site5.local:
+  port: 80
+  locations:
+    /:
+      backends:
+        - 91.189.88.152:80
+    /auth:
+      backends:
+        - 91.189.88.152:80
 '''
         want = {
             'site1.local': {
                 'port': 80,
                 'cache_port': 6080,
-                'backend_port': 8080,
-                'backends': ['91.189.88.152:80'],
+                'locations': {
+                    '/': {
+                        'backend_port': 8080,
+                        'backends': ['91.189.88.152:80'],
+                    }
+                }
             },
             'site2.local': {
                 'port': 80,
                 'cache_port': 6081,
-                'backend_port': 8081,
-                'backends': ['91.189.88.152:80'],
+                'locations': {
+                    '/': {
+                        'backend_port': 8081,
+                        'backends': ['91.189.88.152:80'],
+                    }
+                }
             },
             'site3.local': {
                 'port': 80,
                 'cache_port': 6082,
-                'backend_port': 8082,
-                'backends': ['91.189.88.152:80'],
+                'locations': {
+                    '/': {
+                        'backend_port': 8082,
+                        'backends': ['91.189.88.152:80'],
+                    }
+                }
+            },
+            'site4.local': {
+                'port': 80,
+                'cache_port': 6083,
+            },
+            'site5.local': {
+                'port': 80,
+                'cache_port': 6084,
+                'locations': {
+                    '/': {
+                        'backend_port': 8083,
+                        'backends': ['91.189.88.152:80'],
+                    },
+                    '/auth': {
+                        'backend_port': 8084,
+                        'backends': ['91.189.88.152:80'],
+                    }
+                }
             }
         }
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
-        config_yaml = '''
-site1.local:
-        port: 80
-        backends: []
-'''
-        self.assertFalse(content_cache.sites_from_config(config_yaml))
-        config_yaml = '''
-site1.local:
-        port: 80
-'''
-        self.assertFalse(content_cache.sites_from_config(config_yaml))
-
-        # There are secrets, but none for the sites listed.
-        secrets = {'siteX.local': {}}
-        self.assertFalse(content_cache.sites_from_config(config_yaml, secrets))
 
     def test_secrets_from_config(self):
         secrets_yaml = '''
 site1.local:
-  origin-headers:
-    X-Some-Header: myvalue
+  /:
+    origin-headers:
+      X-Some-Header: myvalue
 '''
         want = {
             'site1.local': {
-                'origin-headers': {
-                    'X-Some-Header': 'myvalue',
+                '/': {
+                    'origin-headers': {
+                        'X-Some-Header': 'myvalue',
+                    }
                 }
             }
         }
@@ -381,22 +400,32 @@ site1.local:
     def test_interpolate_secrets(self):
         secrets = {
             'site1.local': {
-                'origin-headers': {
-                    'X-Origin-Key': 'Sae6oob2aethuosh'
-                },
-                'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0'
+                '/': {
+                    'origin-headers': {
+                        'X-Origin-Key': 'Sae6oob2aethuosh'
+                    },
+                    'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0'
+                }
             }
         }
         config = {
             'site1.local': {
-                'origin-headers': [{'X-Origin-Key': '${secret}'}],
-                'signed-url-hmac-key': '${secret}',
+                'locations': {
+                    '/': {
+                        'origin-headers': [{'X-Origin-Key': '${secret}'}],
+                        'signed-url-hmac-key': '${secret}',
+                    }
+                }
             }
         }
         want = {
             'site1.local': {
-                'origin-headers': [{'X-Origin-Key': 'Sae6oob2aethuosh'}],
-                'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0',
+                'locations': {
+                    '/': {
+                        'origin-headers': [{'X-Origin-Key': 'Sae6oob2aethuosh'}],
+                        'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0',
+                    }
+                }
             }
         }
         self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)
@@ -408,12 +437,20 @@ site1.local:
         # No origin headers, just signed-url-hmac-key.
         config = {
             'site1.local': {
-                'signed-url-hmac-key': '${secret}',
+                'locations': {
+                    '/': {
+                        'signed-url-hmac-key': '${secret}',
+                    }
+                }
             }
         }
         want = {
             'site1.local': {
-                'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0',
+                'locations': {
+                    '/': {
+                        'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0',
+                    }
+                }
             }
         }
         self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)
