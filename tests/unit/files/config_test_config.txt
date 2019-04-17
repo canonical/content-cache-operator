@@ -67,3 +67,4 @@ site5:
       backends:
         - 127.0.1.11:80
       backend-path: /auth-check/
+      cache-validity: '200 401 1h'
