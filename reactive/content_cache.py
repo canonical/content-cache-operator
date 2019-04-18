@@ -284,8 +284,7 @@ def configure_nagios():
                   ' -p {port}{tls} -j {method} -u {url}{path}{token}' \
                   .format(site=site, port=frontend_port, method=method, url=url, path=path, token=token, tls=tls)
             if 'nagios-expect' in loc_conf:
-                cmd = '{cmd} --expect="{expected}"'.format(
-                    cmd=cmd, expected=loc_conf['nagios-expect'])
+                cmd = '{cmd} --expect="{expected}"'.format(cmd=cmd, expected=loc_conf['nagios-expect'])
             nrpe_setup.add_check(check_name, '{} site listen check'.format(site), cmd)
 
             # Cache layer check
@@ -294,8 +293,7 @@ def configure_nagios():
                   ' -p {cache_port} -j {method} -u {url}{path}{token}' \
                   .format(site=site, cache_port=cache_port, method=method, url=url, path=path, token=token)
             if 'nagios-expect' in loc_conf:
-                cmd = '{cmd} --expect="{expected}"'.format(
-                    cmd=cmd, expected=loc_conf['nagios-expect'])
+                cmd = '{cmd} --expect="{expected}"'.format(cmd=cmd, expected=loc_conf['nagios-expect'])
             nrpe_setup.add_check(check_name, '{} cache check'.format(site), cmd)
 
             if backend_port:
