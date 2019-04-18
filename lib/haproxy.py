@@ -118,7 +118,8 @@ backend backend-{name}
 
                 tls_config = ''
                 if loc_conf.get('backend-tls'):
-                    tls_config = ' ssl sni str({site_name}) check-sni {site_name} verify required ca-file ca-certificates.crt' \
+                    tls_config = ' ssl sni str({site_name}) check-sni {site_name} verify required' \
+                                 ' ca-file ca-certificates.crt' \
                                  .format(site_name=site_name)
                 method = loc_conf.get('backend-check-method', 'HEAD')
                 path = loc_conf.get('backend-check-path', '/')
