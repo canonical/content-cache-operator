@@ -171,8 +171,6 @@ def configure_haproxy():
             new_cached_loc_conf = {}
             new_cached_loc_conf['backends'] = ['127.0.0.1:{}'.format(cache_port)]
             new_cached_loc_conf['backend-options'] = ['forwardfor']
-            if 'site-name' in loc_conf:
-                new_cached_loc_conf['site-name'] = loc_conf['site-name']
 
             # No backends
             if not site_conf['locations'][location].get('backends'):
@@ -207,6 +205,9 @@ def configure_haproxy():
             # If 'backend-tls' is defined, pass it through.
             if 'backend-tls' in loc_conf:
                 new_loc_conf['backend-tls'] = loc_conf.get('backend-tls')
+            # If the backend site-name is defined, pass it through.
+            if 'site-name' in loc_conf:
+                new_cached_loc_conf['site-name'] = loc_conf['site-name']
             # No 'backend-tls' provided so let's try work out automatically.
             elif tls_cert_bundle_path:
                 new_cached_loc_conf['backend-tls'] = False
