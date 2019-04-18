@@ -194,7 +194,7 @@ backend backend-site8-local
     server server_1 127.0.1.10:80 check inter 5000 rise 2 fall 5 maxconn 16
 
 backend backend-site8-local-2
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header Host site8.local
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ auth.site8.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host auth.site8.local
     balance leastconn
-    server server_1 127.0.1.10:443 check inter 5000 rise 2 fall 5 maxconn 16 ssl sni str(site8.local) check-sni site8.local verify required ca-file ca-certificates.crt
+    server server_1 127.0.1.10:443 check inter 5000 rise 2 fall 5 maxconn 16 ssl sni str(auth.site8.local) check-sni auth.site8.local verify required ca-file ca-certificates.crt
