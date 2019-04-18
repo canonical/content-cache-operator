@@ -86,3 +86,18 @@ site7.local:
       backend-tls: False
       backends:
         - 127.0.1.10:80
+
+# Test 8: per-location backend site-name
+site8.local:
+  port: 444
+  tls-cert-bundle-path: /etc/haproxy/site8-bundle.crt
+  locations:
+    /:
+      backend-tls: False
+      backends:
+        - 127.0.1.10:80
+    /auth:
+      backend-tls: True
+      backends:
+        - 127.0.1.10:443
+      site-name: auth.site8.local
