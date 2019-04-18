@@ -171,6 +171,8 @@ def configure_haproxy():
             new_cached_loc_conf = {}
             new_cached_loc_conf['backends'] = ['127.0.0.1:{}'.format(cache_port)]
             new_cached_loc_conf['backend-options'] = ['forwardfor']
+            if 'site-name' in loc_conf:
+                new_cached_loc_conf['site-name'] = loc_conf['site-name']
 
             # No backends
             if not site_conf['locations'][location].get('backends'):
