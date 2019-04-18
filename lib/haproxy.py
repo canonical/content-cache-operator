@@ -114,12 +114,12 @@ backend backend-{name}
                 if not loc_conf.get('backends'):
                     continue
 
-                site_name = config[site].get('site-name', site)
+                site_name = loc_conf.get('site-name', site_conf.get('site-name', site))
 
                 tls_config = ''
                 if loc_conf.get('backend-tls'):
-                    tls_config = ' ssl sni str({site}) check-sni {site} verify required ca-file ca-certificates.crt' \
-                                 .format(site=site)
+                    tls_config = ' ssl sni str({site_name}) check-sni {site_name} verify required ca-file ca-certificates.crt' \
+                                 .format(site_name=site_name)
                 method = loc_conf.get('backend-check-method', 'HEAD')
                 path = loc_conf.get('backend-check-path', '/')
                 signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')

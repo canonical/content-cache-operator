@@ -50,9 +50,10 @@ listen site2-local
     bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt
     default_backend backend-site2-local
 
-listen site7-local
-    bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt
-    default_backend backend-site7-local
+listen combined-444
+    bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt /etc/haproxy/site8-bundle.crt
+    use_backend backend-site7-local if { hdr(Host) -i site7.local }
+    use_backend backend-site8-local if { hdr(Host) -i site8.local }
 
 backend backend-site1-local
     option httpchk HEAD /?token=1868572800_4eb30fc94f247635f7ed445083a4783862ad58de HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
@@ -103,3 +104,15 @@ backend backend-site7-local
     http-request set-header Host site7.local
     balance leastconn
     server server_1 127.0.1.10:80 check inter 5000 rise 2 fall 5 maxconn 16
+
+backend backend-site8-local
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site8.local
+    balance leastconn
+    server server_1 127.0.1.10:80 check inter 5000 rise 2 fall 5 maxconn 16
+
+backend backend-site8-local-2
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ auth.site8.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host auth.site8.local
+    balance leastconn
+    server server_1 127.0.1.10:443 check inter 5000 rise 2 fall 5 maxconn 16 ssl sni str(auth.site8.local) check-sni auth.site8.local verify required ca-file ca-certificates.crt
