@@ -202,12 +202,12 @@ def configure_haproxy():
                 new_cached_loc_conf['backend-check-path'] = backend_check_path
                 new_loc_conf['backend-check-path'] = backend_check_path
             new_cached_loc_conf['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
-            # If 'backend-tls' is defined, pass it through.
-            if 'backend-tls' in loc_conf:
-                new_loc_conf['backend-tls'] = loc_conf.get('backend-tls')
             # If the backend site-name is defined, pass it through.
             if 'site-name' in loc_conf:
                 new_cached_loc_conf['site-name'] = loc_conf['site-name']
+            # If 'backend-tls' is defined, pass it through.
+            if 'backend-tls' in loc_conf:
+                new_loc_conf['backend-tls'] = loc_conf.get('backend-tls')
             # No 'backend-tls' provided so let's try work out automatically.
             elif tls_cert_bundle_path:
                 new_cached_loc_conf['backend-tls'] = False
