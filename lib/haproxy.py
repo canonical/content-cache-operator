@@ -27,12 +27,15 @@ class HAProxyConf:
 
     @property
     def monitoring_password(self):
-        with open(self.conf_file, 'r') as f:
-            m = re.search(r"stats auth\s+(\w+):(\w+)", f.read())
-            if m is not None:
-                return m.group(2)
-            else:
-                return None
+        try:
+            with open(self.conf_file, 'r') as f:
+                m = re.search(r"stats auth\s+(\w+):(\w+)", f.read())
+                if m is not None:
+                    return m.group(2)
+                else:
+                    return None
+        except FileNotFoundError:
+            return None
 
     def _generate_stanza_name(self, name, exclude=None):
         if exclude is None:
