@@ -218,7 +218,9 @@ def configure_haproxy():
             if not new_conf[cached_site]['locations']:
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
-    if haproxy.write(haproxy.render(new_conf)):
+    monitoring_conf = {x:y for (x, y) in config.items() if x.startswith('monitoring_')}
+
+    if haproxy.write(haproxy.render(new_conf, **monitoring_conf)):
         service_start_or_restart('haproxy')
 
     reactive.set_flag('content_cache.haproxy.configured')
