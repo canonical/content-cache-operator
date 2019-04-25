@@ -39,6 +39,17 @@ defaults
 	errorfile 503 /etc/haproxy/errors/503.http
 	errorfile 504 /etc/haproxy/errors/504.http
 
+listen  stats   127.0.0.1:10000
+	acl allowed_cidr src 127.0.0.0/8
+	http-request deny unless allowed_cidr
+
+	mode http
+	stats enable
+	stats uri /
+	stats realm Haproxy\ Statistics
+	stats auth haproxy:biometricsarenotsecret
+	stats refresh 3
+
 
 listen combined-80
     bind 0.0.0.0:80

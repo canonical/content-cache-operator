@@ -39,18 +39,16 @@ defaults
 	errorfile 503 /etc/haproxy/errors/503.http
 	errorfile 504 /etc/haproxy/errors/504.http
 
-{% if enable_monitoring %}
-listen  stats   127.0.0.1:{{monitoring_port}}
-	acl allowed_cidr src {{monitoring_allowed_cidr}}
+listen  stats   127.0.0.1:10000
+	acl allowed_cidr src 127.0.0.0/8
 	http-request deny unless allowed_cidr
 
 	mode http
 	stats enable
 	stats uri /
 	stats realm Haproxy\ Statistics
-	stats auth {{monitoring_username}}:{{monitoring_password}}
-	stats refresh {{monitoring_stats_refresh}}
-{%- endif -%}
+	stats auth haproxy:{{monitoring_password}}
+	stats refresh 3
 
 {% for stanza in listen -%}
 {{stanza}}

@@ -34,27 +34,3 @@ options:
         origin-headers:
           X-Origin-Key: my-origin-secret-key
         signed-url-hmac-key: my-signed-url-secret-key
-  enable_monitoring:
-    default: False
-    type: boolean
-    description: Enable monitoring
-  monitoring_port:
-    default: 10000
-    type: int
-    description: Default monitoring port
-  monitoring_allowed_cidr:
-    default: "127.0.0.1/32"
-    type: string
-    description: |
-        CIDR allowed ( multiple CIDRs separated by space ) access to the
-        monitoring interface.
-  monitoring_username:
-    default: "haproxy"
-    type: string
-    description: Monitoring username
-  monitoring_password:
-    default: "changeme"
-    type: string
-    description: |
-        Password to the monitoring interface ( if "changeme", a new password
-        will be generated and displayed in juju-log )

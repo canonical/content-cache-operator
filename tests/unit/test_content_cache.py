@@ -221,7 +221,8 @@ site1.local:
 
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
-            content_cache.configure_haproxy()
+            with mock.patch('charmhelpers.core.host.pwgen', return_value="biometricsarenotsecret"):
+              content_cache.configure_haproxy()
             self.assertFalse(service_start_or_restart.assert_called_with('haproxy'))
 
             # Again, this time should be no change so no need to restart HAProxy

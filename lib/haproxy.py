@@ -172,13 +172,7 @@ backend backend-{name}
 
         return rendered_output
 
-    def render(self, config, num_procs=None,
-               enable_monitoring=False,
-               monitoring_port=10000,
-               monitoring_allowed_cidr="127.0.0.1/32",
-               monitoring_username="haproxy",
-               monitoring_password="changeme",
-               monitoring_stats_refresh=3):
+    def render(self, config, num_procs=None, monitoring_password=None):
         if not num_procs:
             num_procs = multiprocessing.cpu_count()
 
@@ -189,12 +183,7 @@ backend backend-{name}
             'listen': self.render_stanza_listen(config),
             'backend': self.render_stanza_backend(config),
             'num_procs': num_procs,
-            'enable_monitoring': enable_monitoring,
-            'monitoring_port': monitoring_port,
-            'monitoring_allowed_cidr': monitoring_allowed_cidr,
-            'monitoring_username': monitoring_username,
-            'monitoring_password': monitoring_password,
-            'monitoring_stats_refresh': monitoring_stats_refresh,
+            'monitoring_password': monitoring_password or self.monitoring_password,
         })
 
     def write(self, content):
