@@ -15,16 +15,8 @@ options:
     default: ""
     type: string
     description: |
-      YAML-formatted virtual hosts/sites. e.g.
-      site1.local:
-        backends:
-          - 91.189.88.149:80
-          - 91.189.88.152:80
-        origin-headers:
-          - X-Origin-Key: ${secret}
-        local-content:
-          my-local-content:
-            root-path: /var/www/html
+      YAML-formatted virtual hosts/sites. See the README.md for more details
+      and examples.
   sites_secrets:
     default: ""
     type: string
