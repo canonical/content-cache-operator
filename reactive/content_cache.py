@@ -218,10 +218,10 @@ def configure_haproxy():
             if not new_conf[cached_site]['locations']:
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
-    if not haproxy.monitoring_password:
-        rendered_config = haproxy.render(new_conf, monitoring_password=host.pwgen(length=20))
+    if haproxy.monitoring_password:
+        rendered_config = haproxy.render(new_conf, monitoring_password=haproxy.monitoring_password)
     else:
-        rendered_config = haproxy.render(new_conf)
+        rendered_config = haproxy.render(new_conf, monitoring_password=host.pwgen(length=20))
 
     if haproxy.write(rendered_config):
         service_start_or_restart('haproxy')
