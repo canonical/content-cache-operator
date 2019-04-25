@@ -2,7 +2,6 @@
 
 Deploy your own content distribution network (CDN).
 
-
 # Usage
 
 To deploy the charm:
@@ -11,73 +10,39 @@ To deploy the charm:
 
 Set juju config for the `site` option as required. For example:
 
-# Test 1: The basic port and backends (HTTP)
-site1.local:
-  port: 80
+# Site with some public, some authenticated content, using another site
+# with two IPs for authentication. In this case, 10.1.1.2 and 10.1.1.3
+# would need to listen on 443 for auth.example1.com and process
+# authentication requests.
+example1.com:
+  tls-cert-bundle-path: /var/lib/haproxy
   locations:
-    /:
-      backends:
-        - 127.0.1.10:80
-        - 127.0.1.11:80
-        - 127.0.1.12:80
-      signed-url-hmac-key: SOMEHMACKEY
-      origin-headers:
-        - X-Origin-Key: SOMEXORIGINKEY
-        - X-Some-Header-1: something one two three
-        - X-Some-Header-2: something:one:two:three
-
-# Test 2: TLS/SSL as well as backends (HTTPS)
-site2.local:
-  tls-cert-bundle-path: /etc/haproxy/some-bundle.crt
-  locations:
-    /:
-      backend-tls: True
-      backend-check-method: GET
-      backend-check-path: /check/
-      backends:
-        - 127.0.1.10:443
-        - 127.0.1.11:443
-        - 127.0.1.12:443
-    /my-local-content/:
+    '/':
       extra-config:
-        - root /var/www/html
-    /my-local-content2/:
-      extra-config:
-        - root /var/www/html
-
-# Test 3: No port, just backends (HTTP)
-site3.local:
-  locations:
-    /:
-      backends:
-        - 127.0.1.10:80
-        - 127.0.1.11:80
-        - 127.0.1.12:80
-      backend-options:
-        - forwardfor except 127.0.0.1
-        - forceclose
-
-# Test 4: No backends, a few local content
-site4.local:
-  locations:
-    /:
-      extra-config:
+        - root /srv/example1.com/content/
         - autoindex on
-    /ubuntu/pool/:
-      extra-config:
-        - autoindex on
-        - auth_request /auth
-
-# Test 5: Multiple backends
-site5:
-  site-name: site5.local
-  locations:
-    /:
-      backends:
-        - 127.0.1.10:80
-    /auth:
+    '/auth':
       modifier: '='
       backends:
-        - 127.0.1.11:80
+        - 10.1.1.2:443
+        - 10.1.1.3:443
+      backend-check-path: /status
       backend-path: /auth-check/
+      backend-tls: True
       cache-validity: '200 401 1h'
+      origin-headers:
+        - Original-URI: $request_uri
+        - Resource-Name: example1
+      extra-config:
+        - internal
+        - proxy_cache_key $http_authorization
+      site-name: auth.example1.com
+    '/status':
+      extra-config:
+        - stub_status on
+    '/private/content/':
+      extra-config:
+        - root /srv/example1.com/content/
+        - autoindex on
+        - auth_request /auth
+      nagios-expect: 401 Unauthorized
