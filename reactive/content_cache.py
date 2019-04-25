@@ -218,7 +218,16 @@ def configure_haproxy():
             if not new_conf[cached_site]['locations']:
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
-    monitoring_conf = {x:y for (x, y) in config.items() if x.startswith('monitoring_')}
+    monitoring_conf = {x: y for (x, y) in config.items() if x.startswith('monitoring_')}
+    if 'monitoring_password' not in monitoring_conf or \
+            monitoring_conf['monitoring_password'] == 'changeme':
+        # If we don't have a good password in our settings
+        if haproxy.monitoring_password:
+            # See if we set a good one in the config file earlier
+            monitoring_conf['monitoring_password'] = haproxy.monitoring_password
+        else:
+            # Or just make a better one
+            monitoring_conf['monitoring_password'] = host.pwgen(length=20)
 
     if haproxy.write(haproxy.render(new_conf, **monitoring_conf)):
         service_start_or_restart('haproxy')
