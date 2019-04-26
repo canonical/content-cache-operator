@@ -340,7 +340,7 @@ def advertise_stats_endpoint():
 def check_haproxy_alerts():
     nrpe_setup = nrpe.NRPE(hostname=nrpe.get_nagios_hostname(), primary=True)
     cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate"'
-    nrpe_setup.add_check('check_haproxy_telegraf_metrics',
+    nrpe_setup.add_check('haproxy_telegraf_metrics',
                          'Verify haproxy metrics are visible via telegraf subordinate', cmd)
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe-telegraf.configured')
