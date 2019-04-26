@@ -39,7 +39,8 @@ defaults
 	errorfile 503 /etc/haproxy/errors/503.http
 	errorfile 504 /etc/haproxy/errors/504.http
 
-listen  stats   127.0.0.1:10000
+listen  stats
+	bind 127.0.0.1:10000
 	acl allowed_cidr src 127.0.0.0/8
 	http-request deny unless allowed_cidr
 
