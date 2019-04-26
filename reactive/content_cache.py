@@ -34,6 +34,12 @@ def upgrade_charm():
         reactive.set_flag('nrpe-external-master.available')
 
 
+@reactive.hook('haproxy-statistics-relation-joined', 'haproxy-statistics-relation-changed')
+def fire_stats_hook():
+    """We don't have an interface for this relation yet, so just fake it here."""
+    reactive.set_flag('haproxy-statistics.available')
+
+
 @reactive.when_not('content_cache.installed')
 def install():
     reactive.clear_flag('content_cache.active')
@@ -322,8 +328,8 @@ def advertise_stats_endpoint():
     password = HAProxy.HAProxyConf().monitoring_password
 
     for rel in rels['haproxy-statistics'].values():
-        rel.local['enabled'] = True
-        rel.local['port'] = 10000
+        rel.local['enabled'] = "True"
+        rel.local['port'] = "10000"
         rel.local['user'] = "haproxy"
         rel.local['password'] = password
 
