@@ -17,3 +17,6 @@ provides:
   nrpe-external-master:
     interface: nrpe-external-master
     scope: container
+  haproxy-statistics:
+    interface: statistics
+    scope: container

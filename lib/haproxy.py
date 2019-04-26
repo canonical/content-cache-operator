@@ -1,6 +1,7 @@
 import datetime
 import multiprocessing
 import os
+import re
 
 import jinja2
 
@@ -23,6 +24,18 @@ class HAProxyConf:
     @property
     def conf_file(self):
         return os.path.join(self._conf_path, 'haproxy.cfg')
+
+    @property
+    def monitoring_password(self):
+        try:
+            with open(self.conf_file, 'r') as f:
+                m = re.search(r"stats auth\s+(\w+):(\w+)", f.read())
+                if m is not None:
+                    return m.group(2)
+                else:
+                    return None
+        except FileNotFoundError:
+            return None
 
     def _generate_stanza_name(self, name, exclude=None):
         if exclude is None:
@@ -159,7 +172,7 @@ backend backend-{name}
 
         return rendered_output
 
-    def render(self, config, num_procs=None):
+    def render(self, config, num_procs=None, monitoring_password=None):
         if not num_procs:
             num_procs = multiprocessing.cpu_count()
 
@@ -170,6 +183,7 @@ backend backend-{name}
             'listen': self.render_stanza_listen(config),
             'backend': self.render_stanza_backend(config),
             'num_procs': num_procs,
+            'monitoring_password': monitoring_password or self.monitoring_password,
         })
 
     def write(self, content):

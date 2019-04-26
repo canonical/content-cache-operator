@@ -7,6 +7,7 @@ from copy import deepcopy
 
 from charms import reactive
 from charms.layer import status
+from charmhelpers import context
 from charmhelpers.core import hookenv, host
 from charmhelpers.contrib.charmsupport import nrpe
 
@@ -31,6 +32,12 @@ def upgrade_charm():
         hookenv.log('no nrpe-external-master relation to force')
     else:
         reactive.set_flag('nrpe-external-master.available')
+
+
+@reactive.hook('haproxy-statistics-relation-joined', 'haproxy-statistics-relation-changed')
+def fire_stats_hook():
+    """We don't have an interface for this relation yet, so just fake it here."""
+    reactive.set_flag('haproxy-statistics.available')
 
 
 @reactive.when_not('content_cache.installed')
@@ -218,7 +225,12 @@ def configure_haproxy():
             if not new_conf[cached_site]['locations']:
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
-    if haproxy.write(haproxy.render(new_conf)):
+    if haproxy.monitoring_password:
+        rendered_config = haproxy.render(new_conf, monitoring_password=haproxy.monitoring_password)
+    else:
+        rendered_config = haproxy.render(new_conf, monitoring_password=host.pwgen(length=20))
+
+    if haproxy.write(rendered_config):
         service_start_or_restart('haproxy')
 
     reactive.set_flag('content_cache.haproxy.configured')
@@ -307,6 +319,19 @@ def configure_nagios():
 
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe.configured')
+
+
+@reactive.when('content_cache.haproxy.configured')
+@reactive.when('haproxy-statistics.available')
+def advertise_stats_endpoint():
+    rels = context.Relations()
+    password = HAProxy.HAProxyConf().monitoring_password
+
+    for rel in rels['haproxy-statistics'].values():
+        rel.local['enabled'] = "True"
+        rel.local['port'] = "10000"
+        rel.local['user'] = "haproxy"
+        rel.local['password'] = password
 
 
 def sites_from_config(sites_yaml, sites_secrets=None):
