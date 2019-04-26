@@ -7,6 +7,7 @@ from copy import deepcopy
 
 from charms import reactive
 from charms.layer import status
+from charmhelpers import context
 from charmhelpers.core import hookenv, host
 from charmhelpers.contrib.charmsupport import nrpe
 
@@ -312,6 +313,19 @@ def configure_nagios():
 
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe.configured')
+
+
+@reactive.when('content_cache.haproxy.configured')
+@reactive.when('haproxy-statistics.available')
+def advertise_stats_endpoint():
+    rels = context.Relations()
+    password = HAProxy.HAProxyConf().monitoring_password
+
+    for rel in rels['haproxy-statistics'].values():
+        rel.local['enabled'] = True
+        rel.local['port'] = 10000
+        rel.local['user'] = "haproxy"
+        rel.local['password'] = password
 
 
 def sites_from_config(sites_yaml, sites_secrets=None):
