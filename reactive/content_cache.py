@@ -154,6 +154,8 @@ def configure_haproxy():
         status.blocked('list of sites provided is invalid')
         return
 
+    old_ports = set(hookenv.opened_ports())
+    opened_ports = set()
     # We need to slot in the caching layer here.
     new_conf = {}
     for site, site_conf in sites.items():
@@ -171,6 +173,12 @@ def configure_haproxy():
             new_conf[cached_site]['tls-cert-bundle-path'] = tls_cert_bundle_path
 
         new_conf[cached_site]['port'] = site_conf.get('port') or default_port
+        try:
+            new_port = int(new_conf[cached_site]['port'])
+        except ValueError as e:
+            hookenv.log('Only integer ports are supported: {}'.format(e))
+        hookenv.open_port(new_port)
+        opened_ports.add(new_port)
 
         # XXX: Reduce complexity here
 
@@ -224,6 +232,9 @@ def configure_haproxy():
             # stanza to redirect requests to the cache.
             if not new_conf[cached_site]['locations']:
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
+
+    for obsolete_port in old_ports.difference(opened_ports):
+        hookenv.close_port(obsolete_port)
 
     if haproxy.monitoring_password:
         rendered_config = haproxy.render(new_conf, monitoring_password=haproxy.monitoring_password)
