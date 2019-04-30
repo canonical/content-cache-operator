@@ -171,6 +171,10 @@ def configure_haproxy():
             new_conf[cached_site]['tls-cert-bundle-path'] = tls_cert_bundle_path
 
         new_conf[cached_site]['port'] = site_conf.get('port') or default_port
+        try:
+            hookenv.open_port(int(new_conf[cached_site]['port']))
+        except ValueError as e:
+            hookenv.log('Could not open_port: {}'.format(e))
 
         # XXX: Reduce complexity here
 
