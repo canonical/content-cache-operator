@@ -2,17 +2,47 @@
 
 Deploy your own content distribution network (CDN).
 
-
 # Usage
 
+To deploy the charm:
 
-# TODO
-- add nagios check / monitoring for configurable percentage of backends down
-  - e.g. 80% critical, 50% warning
-- add removal of NRPE checks for sites that no longer exists.
-- add unconfigure_nagios() for when NRPE relation is destroyed/removed.
-- add code to juju open-port / close-port per site
-- update cipher suites HAProxy disabling DHE - 'ECDH+AESGCM:ECDH+AES256:ECDH+AES128:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS'
-- update SSL/TLS support in HAProxy disabling TLS 1.0 and TLS1.1
-- update to enable HAProxy monitoring status/admin and ensure IP restricted
-- make some things such as cache max_size and proxy_cache_min_uses tunable (charm options).
+    juju deploy cs:content-cache
+
+Set juju config for the `site` option as required. For example:
+
+# Site with some public, some authenticated content, using another site
+# with two IPs for authentication. In this case, 10.1.1.2 and 10.1.1.3
+# would need to listen on 443 for auth.example1.com and process
+# authentication requests.
+example1.com:
+  tls-cert-bundle-path: /var/lib/haproxy
+  locations:
+    '/':
+      extra-config:
+        - root /srv/example1.com/content/
+        - autoindex on
+    '/auth':
+      modifier: '='
+      backends:
+        - 10.1.1.2:443
+        - 10.1.1.3:443
+      backend-check-path: /status
+      backend-path: /auth-check/
+      backend-tls: True
+      cache-validity: '200 401 1h'
+      origin-headers:
+        - Original-URI: $request_uri
+        - Resource-Name: example1
+      extra-config:
+        - internal
+        - proxy_cache_key $http_authorization
+      site-name: auth.example1.com
+    '/status':
+      extra-config:
+        - stub_status on
+    '/private/content/':
+      extra-config:
+        - root /srv/example1.com/content/
+        - autoindex on
+        - auth_request /auth
+      nagios-expect: 401 Unauthorized
