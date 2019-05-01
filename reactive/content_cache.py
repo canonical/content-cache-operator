@@ -235,7 +235,7 @@ def configure_haproxy():
             if not new_conf[cached_site]['locations']:
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
-    hookenv.log("Current opened ports: {}".format(opened_ports))
+    hookenv.log("Desired opened ports: {}".format(opened_ports))
     for obsolete_port in old_ports.difference(opened_ports):
         hookenv.log("Closing obsolete port: {}".format(obsolete_port))
         hookenv.close_port(obsolete_port)
