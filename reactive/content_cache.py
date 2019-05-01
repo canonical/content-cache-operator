@@ -154,8 +154,10 @@ def configure_haproxy():
         status.blocked('list of sites provided is invalid')
         return
 
-    old_ports = {x.partition('/')[0] for x in hookenv.opened_ports()}
+    old_ports = {int(x.partition('/')[0]) for x in hookenv.opened_ports()}
+    hookenv.log("Current opened ports: {}".format(old_ports))
     opened_ports = set()
+
     # We need to slot in the caching layer here.
     new_conf = {}
     for site, site_conf in sites.items():
@@ -233,7 +235,9 @@ def configure_haproxy():
             if not new_conf[cached_site]['locations']:
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
+    hookenv.log("Desired opened ports: {}".format(opened_ports))
     for obsolete_port in old_ports.difference(opened_ports):
+        hookenv.log("Closing obsolete port: {}".format(obsolete_port))
         hookenv.close_port(obsolete_port)
 
     if haproxy.monitoring_password:
