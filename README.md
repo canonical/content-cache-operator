@@ -46,3 +46,11 @@ Set juju config for the `site` option as required. For example:
             - autoindex on
             - auth_request /auth
           nagios-expect: 401 Unauthorized
+
+To get metrics:
+
+    juju deploy cs:telegraf
+    juju add-relation telegraf:haproxy content-cache:haproxy-statistics
+
+You can then query the telegraf endpoint to get HAProxy metrics from the
+content-cache charm.
