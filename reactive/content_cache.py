@@ -155,8 +155,8 @@ def configure_haproxy():
         return
 
     old_ports = {int(x.partition('/')[0]) for x in hookenv.opened_ports()}
-    opened_ports = set()
     hookenv.log("Current opened ports: {}".format(old_ports))
+    opened_ports = set()
 
     # We need to slot in the caching layer here.
     new_conf = {}
