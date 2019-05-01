@@ -222,14 +222,14 @@ site1.local:
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
             with mock.patch('charmhelpers.core.host.pwgen', return_value="biometricsarenotsecret"), \
-                 mock.patch('charmhelpers.core.hookenv.opened_ports', return_value=[443]), \
+                 mock.patch('charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]), \
                  mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
                 content_cache.configure_haproxy()
             self.assertFalse(service_start_or_restart.assert_called_with('haproxy'))
 
             # Again, this time should be no change so no need to restart HAProxy
             service_start_or_restart.reset_mock()
-            with mock.patch('charmhelpers.core.hookenv.opened_ports', return_value=[443]),\
+            with mock.patch('charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]),\
                  mock.patch('charmhelpers.core.hookenv.open_port'), \
                  mock.patch('charmhelpers.core.hookenv.close_port'):
                 content_cache.configure_haproxy()
