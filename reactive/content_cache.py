@@ -154,7 +154,7 @@ def configure_haproxy():
         status.blocked('list of sites provided is invalid')
         return
 
-    old_ports = set(hookenv.opened_ports())
+    old_ports = {x.partition('/')[0] for x in hookenv.opened_ports()}
     opened_ports = set()
     # We need to slot in the caching layer here.
     new_conf = {}
