@@ -4,6 +4,8 @@ server {
     server_name site4.local;
     listen 127.0.0.1:6083;
 
+    port_in_redirect off;
+
     location / {
         autoindex on;
     }

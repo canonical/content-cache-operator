@@ -4,6 +4,8 @@ server {
     server_name site7.local;
     listen 127.0.0.1:6086;
 
+    port_in_redirect off;
+
     location / {
         proxy_pass http://localhost:8086;
         proxy_set_header Host "site7.local";

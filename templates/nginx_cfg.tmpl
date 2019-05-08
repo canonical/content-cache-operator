@@ -4,6 +4,8 @@ server {
     server_name {{site}};
     listen {% if address %}{{address}}:{% endif %}{{port}};
 
+    port_in_redirect off;
+
 {%- for location, conf in locations.items() %}
 
     location {% if conf['modifier'] %}{{conf['modifier']}} {% endif %}{{ location }} {
