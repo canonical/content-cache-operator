@@ -37,9 +37,11 @@ async def units(apps):
 @pytest.mark.parametrize('series', series)
 async def test_content_cache_deploy(model, series):
     # Starts a deploy for each series
-    await model.deploy('{}/builds/content_cache'.format(juju_repository),
-                       series=series,
-                       application_name='content_cache-{}'.format(series))
+    await model.deploy(
+        '{}/builds/content_cache'.format(juju_repository),
+        series=series,
+        application_name='content_cache-{}'.format(series),
+    )
     assert True
 
 
