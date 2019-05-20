@@ -454,15 +454,18 @@ site5.local:
     def test_secrets_from_config(self):
         secrets_yaml = '''
 site1.local:
-  /:
-    origin-headers:
-      X-Some-Header: myvalue
+  locations:
+    /:
+      origin-headers:
+        X-Some-Header: myvalue
 '''
         want = {
             'site1.local': {
-                '/': {
-                    'origin-headers': {
-                        'X-Some-Header': 'myvalue',
+                'locations': {
+                    '/': {
+                        'origin-headers': {
+                          'X-Some-Header': 'myvalue',
+                        }
                     }
                 }
             }
@@ -475,14 +478,17 @@ site1.local:
     def test_interpolate_secrets(self):
         secrets = {
             'site1.local': {
-                '/': {
-                    'origin-headers': {
-                        'X-Origin-Key': 'Sae6oob2aethuosh'
-                    },
-                    'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0'
+                'locations': {
+                    '/': {
+                        'origin-headers': {
+                            'X-Origin-Key': 'Sae6oob2aethuosh'
+                        },
+                        'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0'
+                    }
                 }
             }
         }
+
         config = {
             'site1.local': {
                 'locations': {
