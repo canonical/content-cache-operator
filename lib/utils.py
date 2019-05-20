@@ -11,10 +11,13 @@ class InvalidPortError(Exception):
     pass
 
 
-def next_port_pair(cache_port, backend_port,
-                   base_cache_port=BASE_CACHE_PORT,
-                   base_backend_port=BASE_BACKEND_PORT,
-                   backend_port_limit=BACKEND_PORT_LIMIT):
+def next_port_pair(
+    cache_port,
+    backend_port,
+    base_cache_port=BASE_CACHE_PORT,
+    base_backend_port=BASE_BACKEND_PORT,
+    backend_port_limit=BACKEND_PORT_LIMIT,
+):
     if cache_port == 0:
         cache_port = base_cache_port
     else:
@@ -54,8 +57,7 @@ def generate_nagios_check_name(name, prefix='', suffix=''):
 def generate_token(signing_secret, url_path, expiry_time):
     expiration = int(expiry_time.timestamp())
     string_to_sign = "{0}{1}".format(url_path, expiration)
-    digest = hmac.new(signing_secret.encode(), string_to_sign.encode(),
-                      hashlib.sha1)
+    digest = hmac.new(signing_secret.encode(), string_to_sign.encode(), hashlib.sha1)
     return "{0}_{1}".format(expiration, digest.hexdigest())
 
 
