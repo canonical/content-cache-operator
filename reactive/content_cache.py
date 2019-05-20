@@ -396,7 +396,7 @@ def interpolate_secrets(sites, secrets):
         if not secrets or not secrets.get(site):
             continue
         for location, loc_conf in site_conf.get('locations', {}).items():
-            location_secrets = secrets.get(site).get(location)
+            location_secrets = secrets.get(site).get('locations').get(location)
 
             signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')
             if signed_url_hmac_key == '${secret}':
