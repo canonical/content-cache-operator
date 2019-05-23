@@ -10,6 +10,8 @@ help:
 	@echo ""
 
 lint:
+	@echo "Normalising python layout with black."
+	@tox -e black
 	@echo "Running flake8"
 	@tox -e lint
 

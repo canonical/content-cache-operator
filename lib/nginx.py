@@ -4,11 +4,10 @@ import jinja2
 
 
 NGINX_BASE_PATH = '/etc/nginx'
-INDENT = ' '*4
+INDENT = ' ' * 4
 
 
 class NginxConf:
-
     def __init__(self, conf_path=None):
         if not conf_path:
             conf_path = NGINX_BASE_PATH

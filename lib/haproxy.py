@@ -9,11 +9,10 @@ from lib import utils
 
 
 HAPROXY_BASE_PATH = '/etc/haproxy'
-INDENT = ' '*4
+INDENT = ' ' * 4
 
 
 class HAProxyConf:
-
     def __init__(self, conf_path=HAPROXY_BASE_PATH):
         self._conf_path = conf_path
 
@@ -94,8 +93,7 @@ listen {name}
                     tls_cert_bundle_paths.append(tls_path)
 
                 backend_name = self._generate_stanza_name(site_conf.get('locations', {}).get('backend-name') or site)
-                backend_config.append(
-                    backend_conf.format(backend=backend_name, site_name=site_name, indent=INDENT))
+                backend_config.append(backend_conf.format(backend=backend_name, site_name=site_name, indent=INDENT))
 
             tls_config = ''
             if tls_cert_bundle_paths:
@@ -105,8 +103,13 @@ listen {name}
                 backend = backend_config[0].split()[1]
                 backend_config = ['{indent}default_backend {backend}\n'.format(backend=backend, indent=INDENT)]
 
-            output = listen_stanza.format(name=name, backend_config=''.join(backend_config),
-                                          address_port=address_port, tls=tls_config, indent=INDENT)
+            output = listen_stanza.format(
+                name=name,
+                backend_config=''.join(backend_config),
+                address_port=address_port,
+                tls=tls_config,
+                indent=INDENT,
+            )
             rendered_output.append(output)
         return rendered_output
 
@@ -131,9 +134,10 @@ backend backend-{name}
 
                 tls_config = ''
                 if loc_conf.get('backend-tls'):
-                    tls_config = ' ssl sni str({site_name}) check-sni {site_name} verify required' \
-                                 ' ca-file ca-certificates.crt' \
-                                 .format(site_name=site_name)
+                    tls_config = (
+                        ' ssl sni str({site_name}) check-sni {site_name} verify required'
+                        ' ca-file ca-certificates.crt'.format(site_name=site_name)
+                    )
                 method = loc_conf.get('backend-check-method', 'HEAD')
                 path = loc_conf.get('backend-check-path', '/')
                 signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')
@@ -153,8 +157,10 @@ backend backend-{name}
 
                     name = 'server_{}'.format(count)
                     backend_confs.append(
-                        '{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn 16{tls}'
-                        .format(name=name, backend=backend, tls=tls_config, indent=INDENT))
+                        '{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn 16{tls}'.format(
+                            name=name, backend=backend, tls=tls_config, indent=INDENT
+                        )
+                    )
 
                 opts = []
                 for option in loc_conf.get('backend-options', []):
@@ -164,9 +170,15 @@ backend backend-{name}
                     options = '\n'.join(opts + [''])
 
                 output = backend_stanza.format(
-                    name=backend_name, site=site, site_name=site_name,
-                    method=method, path=path, backends='\n'.join(backend_confs),
-                    options=options, indent=INDENT)
+                    name=backend_name,
+                    site=site,
+                    site_name=site_name,
+                    method=method,
+                    path=path,
+                    backends='\n'.join(backend_confs),
+                    options=options,
+                    indent=INDENT,
+                )
 
                 rendered_output.append(output)
 
@@ -179,12 +191,14 @@ backend backend-{name}
         base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
         template = env.get_template('templates/haproxy_cfg.tmpl')
-        return template.render({
-            'listen': self.render_stanza_listen(config),
-            'backend': self.render_stanza_backend(config),
-            'num_procs': num_procs,
-            'monitoring_password': monitoring_password or self.monitoring_password,
-        })
+        return template.render(
+            {
+                'listen': self.render_stanza_listen(config),
+                'backend': self.render_stanza_backend(config),
+                'num_procs': num_procs,
+                'monitoring_password': monitoring_password or self.monitoring_password,
+            }
+        )
 
     def write(self, content):
         # Check if contents changed

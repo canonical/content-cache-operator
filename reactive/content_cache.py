@@ -169,10 +169,7 @@ def configure_haproxy():
     for site, site_conf in sites.items():
         cache_port = site_conf['cache_port']
         cached_site = 'cached-{}'.format(site)
-        new_conf[cached_site] = {
-            'site-name': site_conf.get('site-name') or site,
-            'locations': {},
-        }
+        new_conf[cached_site] = {'site-name': site_conf.get('site-name') or site, 'locations': {}}
 
         default_port = 80
         tls_cert_bundle_path = site_conf.get('tls-cert-bundle-path')
@@ -212,9 +209,7 @@ def configure_haproxy():
                     'locations': {},
                 }
 
-            new_loc_conf = new_conf[site]['locations'][location] = {
-                'backends': loc_conf['backends']
-            }
+            new_loc_conf = new_conf[site]['locations'][location] = {'backends': loc_conf['backends']}
 
             backend_check_method = loc_conf.get('backend-check-method')
             if backend_check_method:
@@ -302,29 +297,38 @@ def configure_nagios():
             if tls:
                 # Negative Listen/frontend checks to alert on obsolete TLS versions
                 for tlsrev in ('1', '1.1'):
-                    check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'no_tls_{}'.format(
-                        tlsrev.replace('.', '_')))
-                    cmd = '/usr/lib/nagios/plugins/negate' \
-                          ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
-                          ' -p {port} --ssl={tls} --sni -j {method} -u {url}{path}{token}' \
-                          .format(site=site, port=frontend_port, method=method, url=url, path=path, token=token,
-                                  tls=tlsrev)
+                    check_name = utils.generate_nagios_check_name(
+                        nagios_name, 'site', 'no_tls_{}'.format(tlsrev.replace('.', '_'))
+                    )
+                    cmd = (
+                        '/usr/lib/nagios/plugins/negate'
+                        ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}'
+                        ' -p {port} --ssl={tls} --sni -j {method} -u {url}{path}{token}'.format(
+                            site=site, port=frontend_port, method=method, url=url, path=path, token=token, tls=tlsrev
+                        )
+                    )
                     nrpe_setup.add_check(check_name, '{} confirm obsolete TLS v{} denied'.format(site, tlsrev), cmd)
 
             # Listen / frontend check
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'listen')
-            cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
-                  ' -p {port}{tls} -j {method} -u {url}{path}{token}' \
-                  .format(site=site, port=frontend_port, method=method, url=url, path=path, token=token, tls=tls)
+            cmd = (
+                '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}'
+                ' -p {port}{tls} -j {method} -u {url}{path}{token}'.format(
+                    site=site, port=frontend_port, method=method, url=url, path=path, token=token, tls=tls
+                )
+            )
             if 'nagios-expect' in loc_conf:
                 cmd = '{cmd} --expect="{expected}"'.format(cmd=cmd, expected=loc_conf['nagios-expect'])
             nrpe_setup.add_check(check_name, '{} site listen check'.format(site), cmd)
 
             # Cache layer check
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'cache')
-            cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}' \
-                  ' -p {cache_port} -j {method} -u {url}{path}{token}' \
-                  .format(site=site, cache_port=cache_port, method=method, url=url, path=path, token=token)
+            cmd = (
+                '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}'
+                ' -p {cache_port} -j {method} -u {url}{path}{token}'.format(
+                    site=site, cache_port=cache_port, method=method, url=url, path=path, token=token
+                )
+            )
             if 'nagios-expect' in loc_conf:
                 cmd = '{cmd} --expect="{expected}"'.format(cmd=cmd, expected=loc_conf['nagios-expect'])
             nrpe_setup.add_check(check_name, '{} cache check'.format(site), cmd)
@@ -333,9 +337,12 @@ def configure_nagios():
                 # Backend proxy layer check; no token needs to be passed here as it's
                 # stripped by the cache layer.
                 check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'backend_proxy')
-                cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port}' \
-                      ' -j {method} -u {url}{path}' \
-                      .format(site=site, backend_port=backend_port, method=method, url=url, path=path)
+                cmd = (
+                    '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port}'
+                    ' -j {method} -u {url}{path}'.format(
+                        site=site, backend_port=backend_port, method=method, url=url, path=path
+                    )
+                )
                 nrpe_setup.add_check(check_name, '{} backend proxy check'.format(site), cmd)
 
     nrpe_setup.write()
@@ -361,8 +368,7 @@ def advertise_stats_endpoint():
 def check_haproxy_alerts():
     nrpe_setup = nrpe.NRPE(hostname=nrpe.get_nagios_hostname(), primary=True)
     cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate"'
-    nrpe_setup.add_check('haproxy_telegraf_metrics',
-                         'Verify haproxy metrics are visible via telegraf subordinate', cmd)
+    nrpe_setup.add_check('haproxy_telegraf_metrics', 'Verify haproxy metrics are visible via telegraf subordinate', cmd)
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe-telegraf.configured')
 
@@ -449,6 +455,5 @@ def copy_file(source_path, dest_path, perms=0o644, owner=None, group=None):
     if not group:
         group = grp.getgrgid(os.getgid()).gr_name
 
-    host.write_file(path=dest_path, content=source, owner=owner, group=group,
-                    perms=perms)
+    host.write_file(path=dest_path, content=source, owner=owner, group=group, perms=perms)
     return True

@@ -34,17 +34,20 @@ class TestLibHAProxy(unittest.TestCase):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         self.assertEqual(haproxy._generate_stanza_name('site1'), 'site1')
         self.assertEqual(haproxy._generate_stanza_name('site1.local'), 'site1-local')
-        self.assertEqual(haproxy._generate_stanza_name('site1-canonical-com-canonical-com'),
-                         'site1-canonical-com-canonical-co')
+        self.assertEqual(
+            haproxy._generate_stanza_name('site1-canonical-com-canonical-com'), 'site1-canonical-com-canonical-co'
+        )
         self.assertEqual(haproxy._generate_stanza_name('site1.local', ['site1-local']), 'site1-local-2')
-        self.assertEqual(haproxy._generate_stanza_name('site1.local', ['site1-local', 'site1-local-2']),
-                         'site1-local-3')
+        self.assertEqual(
+            haproxy._generate_stanza_name('site1.local', ['site1-local', 'site1-local-2']), 'site1-local-3'
+        )
 
     def test_haproxy_config_rendered_listen_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
-        with open('tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output.txt', 'r',
-                  encoding='utf-8') as f:
+        with open(
+            'tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output.txt', 'r', encoding='utf-8'
+        ) as f:
             want = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_listen(config)), want)
 
@@ -57,8 +60,9 @@ class TestLibHAProxy(unittest.TestCase):
     def test_haproxy_config_rendered_backend_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
-        with open('tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt', 'r',
-                  encoding='utf-8') as f:
+        with open(
+            'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt', 'r', encoding='utf-8'
+        ) as f:
             want = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
 
@@ -94,15 +98,10 @@ class TestLibHAProxy(unittest.TestCase):
             'site5.local': {'tls-cert-bundle-path': '/tmp/somepath'},
         }
         want = {
-            '0.0.0.0:80': {
-                'site1.local': {'port': 80},
-                'site2.local': {'port': 80},
-                'site3.local': {'port': 80},
-            },
+            '0.0.0.0:80': {'site1.local': {'port': 80}, 'site2.local': {'port': 80}, 'site3.local': {'port': 80}},
             '0.0.0.0:443': {
                 'site4.local': {'port': 443},
-                'site5.local': {'port': 443,
-                                'tls-cert-bundle-path': '/tmp/somepath'},
+                'site5.local': {'port': 443, 'tls-cert-bundle-path': '/tmp/somepath'},
             },
         }
         self.assertEqual(haproxy._merge_listen_stanzas(config), want)
