@@ -58,6 +58,7 @@ site4.local:
 # Test 5: Multiple backends
 site5:
   site-name: site5.local
+  port: 55555
   locations:
     /:
       backends:

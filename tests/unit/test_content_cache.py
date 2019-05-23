@@ -427,7 +427,7 @@ site1.local:
             mock.call(
                 'site_site5_listen',
                 'site5 site listen check',
-                '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 80 -j HEAD' ' -u http://site5/',
+                '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 55555 -j HEAD' ' -u http://site5/',
             ),
             mock.call(
                 'site_site5_cache',
@@ -442,7 +442,7 @@ site1.local:
             mock.call(
                 'site_site5_auth_listen',
                 'site5 site listen check',
-                '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 80 -j HEAD' ' -u http://site5/auth',
+                '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 55555 -j HEAD' ' -u http://site5/auth',
             ),
             mock.call(
                 'site_site5_auth_cache',
