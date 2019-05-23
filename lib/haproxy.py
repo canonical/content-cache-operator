@@ -63,6 +63,21 @@ class HAProxyConf:
                 new[name] = {}
             new[name][site] = config[site]
             new[name][site]['port'] = port
+
+            for location, loc_conf in config[site].get('locations', {}).items():
+                if 'backend_port' in loc_conf:
+                    port = loc_conf['backend_port']
+                    name = '{}:{}'.format(listen_address, port)
+                    if name not in new:
+                        new[name] = {}
+                    count = 2
+                    new_site = site
+                    while new_site in new[name]:
+                        new_site = '{}-{}'.format(site, count)
+                        count += 1
+                    if site not in new[name] or new[name][site]['port'] != port:
+                        new[name][new_site] = config[site]
+                        new[name][new_site]['port'] = port
         return new
 
     def render_stanza_listen(self, config):
@@ -73,6 +88,7 @@ listen {name}
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
 
         rendered_output = []
+        stanza_names = []
 
         # For listen stanzas, we need to merge them and use 'use_backend' with
         # the 'Host' header to direct to the correct backends.
@@ -84,9 +100,10 @@ listen {name}
                 site_name = site_conf.get('site-name', site)
 
                 if len(config[address_port].keys()) == 1:
-                    name = self._generate_stanza_name(site)
+                    name = self._generate_stanza_name(site, stanza_names)
                 else:
                     name = 'combined-{}'.format(address_port.split(':')[1])
+                stanza_names.append(name)
 
                 tls_path = site_conf.get('tls-cert-bundle-path')
                 if tls_path:

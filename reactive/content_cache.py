@@ -210,6 +210,8 @@ def configure_haproxy():
                 }
 
             new_loc_conf = new_conf[site]['locations'][location] = {'backends': loc_conf['backends']}
+            if 'backend_port' in loc_conf:
+                new_loc_conf['backend_port'] = loc_conf['backend_port']
 
             backend_check_method = loc_conf.get('backend-check-method')
             if backend_check_method:
