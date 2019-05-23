@@ -63,6 +63,15 @@ class HAProxyConf:
                 new[name] = {}
             new[name][site] = config[site]
             new[name][site]['port'] = port
+
+            for location, loc_conf in config[site].get('locations', {}).items():
+                if 'backend_port' in loc_conf:
+                    port = loc_conf['backend_port']
+                    name = '{}:{}'.format(listen_address, port)
+                    if name not in new:
+                        new[name] = {}
+                    new[name][site] = config[site]
+                    new[name][site]['port'] = port
         return new
 
     def render_stanza_listen(self, config):
