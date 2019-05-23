@@ -70,8 +70,13 @@ class HAProxyConf:
                     name = '{}:{}'.format(listen_address, port)
                     if name not in new:
                         new[name] = {}
-                    new[name][site] = config[site]
-                    new[name][site]['port'] = port
+                    count = 2
+                    new_site = site
+                    while new_site in new[name]:
+                        new_site = '{}-{}'.format(site, count)
+                        count += 1
+                    new[name][new_site] = config[site]
+                    new[name][new_site]['port'] = port
         return new
 
     def render_stanza_listen(self, config):

@@ -57,6 +57,7 @@ listen combined-80
     use_backend backend-cached-site1-local if { hdr(Host) -i site1.local }
     use_backend backend-cached-site3-local if { hdr(Host) -i site3.local }
     use_backend backend-cached-site4-local if { hdr(Host) -i site4.local }
+    use_backend backend-cached-site5 if { hdr(Host) -i site5.local }
     use_backend backend-cached-site6-local if { hdr(Host) -i site6.local }
 
 listen site1-local
@@ -75,12 +76,12 @@ listen site3-local
     bind 127.0.0.1:8082
     default_backend backend-site3-local
 
-listen cached-site5
-    bind 0.0.0.0:55555
-    default_backend backend-cached-site5
-
 listen site5
     bind 127.0.0.1:8083
+    default_backend backend-site5
+
+listen site5
+    bind 127.0.0.1:8084
     default_backend backend-site5
 
 listen site6-local
@@ -98,6 +99,10 @@ listen site7-local
 
 listen site8-local
     bind 127.0.0.1:8087
+    default_backend backend-site8-local
+
+listen site8-local
+    bind 127.0.0.1:8088
     default_backend backend-site8-local
 
 backend backend-cached-site1-local
