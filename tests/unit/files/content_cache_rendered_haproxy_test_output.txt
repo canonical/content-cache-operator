@@ -80,7 +80,7 @@ listen site5
     bind 127.0.0.1:8083
     default_backend backend-site5
 
-listen site5
+listen site5-2
     bind 127.0.0.1:8084
     default_backend backend-site5
 
@@ -101,7 +101,7 @@ listen site8-local
     bind 127.0.0.1:8087
     default_backend backend-site8-local
 
-listen site8-local
+listen site8-local-2
     bind 127.0.0.1:8088
     default_backend backend-site8-local
 

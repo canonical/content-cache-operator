@@ -88,6 +88,7 @@ listen {name}
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
 
         rendered_output = []
+        stanza_names = []
 
         # For listen stanzas, we need to merge them and use 'use_backend' with
         # the 'Host' header to direct to the correct backends.
@@ -99,9 +100,10 @@ listen {name}
                 site_name = site_conf.get('site-name', site)
 
                 if len(config[address_port].keys()) == 1:
-                    name = self._generate_stanza_name(site)
+                    name = self._generate_stanza_name(site, stanza_names)
                 else:
                     name = 'combined-{}'.format(address_port.split(':')[1])
+                stanza_names.append(name)
 
                 tls_path = site_conf.get('tls-cert-bundle-path')
                 if tls_path:
