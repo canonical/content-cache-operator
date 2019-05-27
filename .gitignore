@@ -8,4 +8,5 @@
 __pycache__/
 builds/
 deps/
+repo-info
 revision

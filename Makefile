@@ -20,8 +20,14 @@ test: unittest functionaltest lint
 unittest:
 	@tox -e unit
 
-functionaltest:
+functionaltest: build
 	@tox -e functional
+
+build: clean
+	@echo "Building charm to base directory $(JUJU_REPOSITORY)"
+	@-git describe --tags > ./repo-info
+	@LAYER_PATH=./layers INTERFACE_PATH=./interfaces TERM=linux \
+		JUJU_REPOSITORY=$(JUJU_REPOSITORY) charm build . --force
 
 clean:
 	@echo "Cleaning files"
@@ -31,4 +37,4 @@ clean:
 	@rm -rf ./.coverage ./.unit-state.db
 
 # The targets below don't depend on a file
-.PHONY: lint test unittest functionaltest clean help
+.PHONY: lint test unittest functionaltest build clean help
