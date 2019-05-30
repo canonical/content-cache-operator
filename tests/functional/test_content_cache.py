@@ -21,7 +21,7 @@ async def model():
 async def apps(model):
     apps = []
     for entry in series:
-        app = model.applications['content_cache-{}'.format(entry)]
+        app = model.applications['content-cache-{}'.format(entry)]
         apps.append(app)
     return apps
 
@@ -38,9 +38,9 @@ async def units(apps):
 async def test_content_cache_deploy(model, series):
     # Starts a deploy for each series
     await model.deploy(
-        '{}/builds/content_cache'.format(juju_repository),
+        '{}/builds/content-cache'.format(juju_repository),
         series=series,
-        application_name='content_cache-{}'.format(series),
+        application_name='content-cache-{}'.format(series),
     )
     assert True
 

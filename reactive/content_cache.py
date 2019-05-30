@@ -16,16 +16,6 @@ from lib import nginx
 from lib import haproxy as HAProxy
 
 
-def nrpe_workaround():
-    # Work around for
-    # https://github.com/cmars/nrpe-external-master-interface/issues/12
-    n = reactive.endpoint_from_name("nrpe-external-master")
-    if n is None:
-        hookenv.log("no nrpe-external-master relation to force")
-    else:
-        reactive.set_flag("nrpe-external-master.available")
-
-
 @reactive.hook('upgrade-charm')
 def upgrade_charm():
     status.maintenance('forcing reconfiguration on upgrade-charm')
@@ -34,8 +24,6 @@ def upgrade_charm():
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('nagios-nrpe.configured')
-
-    nrpe_workaround()
 
 
 @reactive.hook('haproxy-statistics-relation-joined', 'haproxy-statistics-relation-changed')
@@ -58,8 +46,6 @@ def config_changed():
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('nagios-nrpe.configured')
-
-    nrpe_workaround()
 
 
 @reactive.when('content_cache.nginx.configured', 'content_cache.haproxy.configured')
