@@ -582,12 +582,16 @@ site1.local:
         owner = pwd.getpwuid(os.getuid()).pw_name
         group = grp.getgrgid(os.getgid()).gr_name
 
-        self.assertTrue(content_cache.copy_file(source, dest, owner=owner, group=group))
+        self.assertTrue(content_cache.copy_file(source, dest))
         # Write again, should return False and not True per above.
         self.assertFalse(content_cache.copy_file(source, dest, owner=owner, group=group))
 
         # Check ownership and group
+        os.remove(dest)
+        content_cache.copy_file(source, dest, owner=owner)
         self.assertEqual(pwd.getpwuid(os.stat(dest).st_uid).pw_name, owner)
+        os.remove(dest)
+        content_cache.copy_file(source, dest, group=group)
         self.assertEqual(grp.getgrgid(os.stat(dest).st_gid).gr_name, group)
 
         # Check contents
