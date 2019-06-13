@@ -1,6 +1,4 @@
-import grp
 import os
-import pwd
 import shutil
 import sys
 import tempfile
@@ -579,16 +577,10 @@ site1.local:
     def test_copy_file(self):
         source = os.path.join(self.charm_dir, 'files/nginx-logging-format.conf')
         dest = os.path.join(self.tmpdir, os.path.basename(source))
-        owner = pwd.getpwuid(os.getuid()).pw_name
-        group = grp.getgrgid(os.getgid()).gr_name
 
-        self.assertTrue(content_cache.copy_file(source, dest, owner=owner, group=group))
+        self.assertTrue(content_cache.copy_file(source, dest))
         # Write again, should return False and not True per above.
-        self.assertFalse(content_cache.copy_file(source, dest, owner=owner, group=group))
-
-        # Check ownership and group
-        self.assertEqual(pwd.getpwuid(os.stat(dest).st_uid).pw_name, owner)
-        self.assertEqual(grp.getgrgid(os.stat(dest).st_gid).gr_name, group)
+        self.assertFalse(content_cache.copy_file(source, dest))
 
         # Check contents
         with open(source, 'r') as f:
@@ -596,3 +588,18 @@ site1.local:
         with open(dest, 'r') as f:
             got = f.read()
         self.assertEqual(got, want)
+
+    @mock.patch('charmhelpers.core.host.write_file')
+    def test_copy_file_ownership(self, write_file):
+        source = os.path.join(self.charm_dir, 'tests/unit/files/test_file.txt')
+        dest = os.path.join(self.tmpdir, os.path.basename(source))
+
+        # We can't check file ownership and group without running tests as root
+        # so let's just check the write_file() call to ensure it's correctly
+        # passing the owner and group.
+        content_cache.copy_file(source, dest, owner='somedude', group='somegroup', perms=444)
+        self.assertFalse(
+            write_file.assert_called_once_with(
+                content='test content\n', group='somegroup', owner='somedude', path=dest, perms=444
+            )
+        )
