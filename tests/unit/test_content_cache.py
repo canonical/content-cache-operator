@@ -227,6 +227,47 @@ site1.local:
                     got = f.read()
                 self.assertEqual(got, want)
 
+    def test_configure_nginx_cache_config(self):
+        config = '''
+site1.local:
+  locations:
+    /:
+      backends:
+        - 127.0.1.10:80
+'''
+
+        with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
+            mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
+            # conf.d, sites-available, and sites-enabled won't exist in our
+            # temporary directory.
+            os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+
+            self.mock_config.return_value = {
+                'cache_max_size': '1g',
+                'cache_path': '/var/lib/nginx/proxy',
+                'sites': config,
+            }
+            want = (
+                'proxy_cache_path /var/lib/nginx/proxy/site1.local use_temp_path=off levels=1:2'
+                ' keys_zone=site1-cache:10m max_size=1g;'
+            )
+            content_cache.configure_nginx(self.tmpdir)
+            with open(os.path.join(self.tmpdir, 'sites-available/site1.local.conf'), 'r', encoding='utf-8') as f:
+                got = f.readline().strip()
+            self.assertEqual(got, want)
+
+            self.mock_config.return_value = {'cache_max_size': '20g', 'cache_path': '/srv/cache', 'sites': config}
+            want = (
+                'proxy_cache_path /srv/cache/site1.local use_temp_path=off levels=1:2'
+                ' keys_zone=site1-cache:10m max_size=20g;'
+            )
+            content_cache.configure_nginx(self.tmpdir)
+            with open(os.path.join(self.tmpdir, 'sites-available/site1.local.conf'), 'r', encoding='utf-8') as f:
+                got = f.readline().strip()
+            self.assertEqual(got, want)
+
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_haproxy_no_sites(self, clear_flag):
         content_cache.configure_haproxy()
