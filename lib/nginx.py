@@ -65,8 +65,9 @@ class NginxConf:
     def render(self, conf):
         data = {
             'address': conf['listen_address'],
-            'name': self._generate_name(conf['site']),
+            'cache_path': conf['cache_path'],
             'locations': conf['locations'],
+            'name': self._generate_name(conf['site']),
             'port': conf['listen_port'],
             'site': conf['site'],
         }

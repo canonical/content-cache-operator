@@ -136,7 +136,7 @@ class TestCharm(unittest.TestCase):
         '''Test configuration of Nginx sites'''
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
-        self.mock_config.return_value = {'sites': ngx_config}
+        self.mock_config.return_value = {'sites': ngx_config, 'cache_path': '/var/lib/nginx/proxy'}
 
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
             mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
@@ -195,7 +195,11 @@ site1.local:
         - X-Origin-Key: ${secret}
       signed-url-hmac-key: ${secret}
 '''
-        self.mock_config.return_value = {'sites': config, 'sites_secrets': secrets}
+        self.mock_config.return_value = {
+            'sites': config,
+            'sites_secrets': secrets,
+            'cache_path': '/var/lib/nginx/proxy',
+        }
 
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
             mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')

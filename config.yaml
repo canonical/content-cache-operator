@@ -1,4 +1,9 @@
 options:
+  cache_path:
+    type: string
+    default: "/var/lib/nginx/proxy"
+    description: |
+      Path or directory to store cached objects.
   nagios_context:
     type: string
     default: "juju"
