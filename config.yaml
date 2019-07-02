@@ -1,4 +1,9 @@
 options:
+  cache_max_size:
+    type: string
+    default: "1g"
+    description: |
+      Maximum size of content cache storage.
   cache_path:
     type: string
     default: "/var/lib/nginx/proxy"
