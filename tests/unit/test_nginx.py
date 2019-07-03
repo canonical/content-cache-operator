@@ -42,6 +42,8 @@ class TestLibNginx(unittest.TestCase):
             sites = yaml.safe_load(f.read())
 
         conf = {}
+        conf['cache_max_size'] = '1g'
+        conf['cache_path'] = '/var/lib/nginx/proxy'
         conf['listen_address'] = '127.0.0.1'
         # From the given YAML-formatted list of sites, check that each individual
         # Nginx config rendered matches what's in tests/unit/files.
