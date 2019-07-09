@@ -298,9 +298,9 @@ def configure_nagios():
                         )
                     )
                     nrpe_setup.add_check(
-                        shortname = check_name,
-                        description = '{} confirm obsolete TLS v{} denied'.format(site, tlsrev),
-                        check_cmd = cmd
+                        shortname=check_name,
+                        description='{} confirm obsolete TLS v{} denied'.format(site, tlsrev),
+                        check_cmd=cmd,
                     )
 
             # Listen / frontend check
@@ -313,11 +313,7 @@ def configure_nagios():
             )
             if 'nagios-expect' in loc_conf:
                 cmd = '{cmd} --expect="{expected}"'.format(cmd=cmd, expected=loc_conf['nagios-expect'])
-            nrpe_setup.add_check(
-                shortname = check_name,
-                description = '{} site listen check'.format(site),
-                check_cmd = cmd
-            )
+            nrpe_setup.add_check(shortname=check_name, description='{} site listen check'.format(site), check_cmd=cmd)
 
             # Cache layer check
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'cache')
@@ -329,11 +325,7 @@ def configure_nagios():
             )
             if 'nagios-expect' in loc_conf:
                 cmd = '{cmd} --expect="{expected}"'.format(cmd=cmd, expected=loc_conf['nagios-expect'])
-            nrpe_setup.add_check(
-                shortname = check_name,
-                description = '{} cache check'.format(site),
-                check_cmd = cmd
-            )
+            nrpe_setup.add_check(shortname=check_name, description='{} cache check'.format(site), check_cmd=cmd)
 
             if backend_port:
                 # Backend proxy layer check; no token needs to be passed here as it's
@@ -346,9 +338,7 @@ def configure_nagios():
                     )
                 )
                 nrpe_setup.add_check(
-                    shortname = check_name,
-                    description = '{} backend proxy check'.format(site),
-                    check_cmd = cmd
+                    shortname=check_name, description='{} backend proxy check'.format(site), check_cmd=cmd
                 )
 
     nrpe_setup.write()
@@ -375,9 +365,9 @@ def check_haproxy_alerts():
     nrpe_setup = nrpe.NRPE(hostname=nrpe.get_nagios_hostname(), primary=True)
     cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate"'
     nrpe_setup.add_check(
-        shortname = 'haproxy_telegraf_metrics',
-        description = 'Verify haproxy metrics are visible via telegraf subordinate',
-        check_cmd = cmd
+        shortname='haproxy_telegraf_metrics',
+        description='Verify haproxy metrics are visible via telegraf subordinate',
+        check_cmd=cmd,
     )
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe-telegraf.configured')
