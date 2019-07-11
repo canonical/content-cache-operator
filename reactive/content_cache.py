@@ -179,6 +179,7 @@ def configure_haproxy():
             new_cached_loc_conf = {}
             new_cached_loc_conf['backends'] = ['127.0.0.1:{}'.format(cache_port)]
             new_cached_loc_conf['backend-options'] = ['forwardfor']
+            new_cached_loc_conf['backend-maxconn'] = 0  # no connection limit for local cache
 
             # No backends
             if not site_conf['locations'][location].get('backends'):

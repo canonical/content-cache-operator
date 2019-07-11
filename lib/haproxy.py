@@ -173,9 +173,10 @@ backend backend-{name}
                     count += 1
 
                     name = 'server_{}'.format(count)
+                    maxconn = loc_conf.get('backend-maxconn', 16)
                     backend_confs.append(
-                        '{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn 16{tls}'.format(
-                            name=name, backend=backend, tls=tls_config, indent=INDENT
+                        '{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn {maxconn}{tls}'.format(
+                            name=name, backend=backend, maxconn=maxconn, tls=tls_config, indent=INDENT
                         )
                     )
 
