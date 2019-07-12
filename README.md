@@ -8,12 +8,15 @@ To deploy the charm:
 
     juju deploy cs:content-cache
 
-Set juju config for the `site` option as required. For example:
+Set juju config for the `sites` option as required. For example:
 
     # Site with some public, some authenticated content, using another site
     # with two IPs for authentication. In this case, 10.1.1.2 and 10.1.1.3
     # would need to listen on 443 for auth.example1.com and process
-    # authentication requests.
+    # authentication requests. If set, cache-maxconn will set the maximum
+    # number of simultaneous connections to the nginx cache for this location,
+    # while backend-maxconn limits connections to the defined backends.
+    # If unset, both will default to 2048
     example1.com:
       tls-cert-bundle-path: /var/lib/haproxy
       locations:
@@ -27,8 +30,10 @@ Set juju config for the `site` option as required. For example:
             - 10.1.1.2:443
             - 10.1.1.3:443
           backend-check-path: /status
+          backend-maxconn: 64
           backend-path: /auth-check/
           backend-tls: True
+          cache-maxconn: 4096
           cache-validity: '200 401 1h'
           origin-headers:
             - Original-URI: $request_uri

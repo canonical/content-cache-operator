@@ -201,6 +201,9 @@ def configure_haproxy():
             if 'backend_port' in loc_conf:
                 new_loc_conf['backend_port'] = loc_conf['backend_port']
 
+            new_cached_loc_conf['backend-maxconn'] = loc_conf.get('cache-maxconn', 2048)
+            new_loc_conf['backend-maxconn'] = loc_conf.get('backend-maxconn', 2048)
+
             backend_check_method = loc_conf.get('backend-check-method')
             if backend_check_method:
                 new_cached_loc_conf['backend-check-method'] = backend_check_method

@@ -13,7 +13,7 @@ site1.local:
         - X-Some-Header-1: something one two three
         - X-Some-Header-2: something:one:two:three
 
-# Test 2: TLS/SSL as well as backends (HTTPS)
+# Test 2: TLS/SSL as well as backends (HTTPS), with custom backend-maxconn
 site2.local:
   tls-cert-bundle-path: /etc/haproxy/site2-bundle.crt
   locations:
@@ -21,6 +21,7 @@ site2.local:
       backend-tls: True
       backend-check-method: GET
       backend-check-path: /check/
+      backend-maxconn: 1024
       backends:
         - 127.0.1.10:443
         - 127.0.1.11:443
@@ -32,7 +33,7 @@ site2.local:
       extra-config:
         - root /var/www/html
 
-# Test 3: No port, just backends (HTTP)
+# Test 3: No port, just backends (HTTP), with custom cache-maxconn
 site3.local:
   locations:
     /:
@@ -43,6 +44,7 @@ site3.local:
       backend-options:
         - forwardfor except 127.0.0.1
         - forceclose
+      cache-maxconn: 4096
 
 # Test 4: No backends, a few local content
 site4.local:
