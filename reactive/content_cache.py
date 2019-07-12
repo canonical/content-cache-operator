@@ -179,7 +179,6 @@ def configure_haproxy():
             new_cached_loc_conf = {}
             new_cached_loc_conf['backends'] = ['127.0.0.1:{}'.format(cache_port)]
             new_cached_loc_conf['backend-options'] = ['forwardfor']
-            new_cached_loc_conf['backend-maxconn'] = loc_conf.get('cache-maxconn', 2048)
 
             # No backends
             if not site_conf['locations'][location].get('backends'):
@@ -201,6 +200,9 @@ def configure_haproxy():
             new_loc_conf = new_conf[site]['locations'][location] = {'backends': loc_conf['backends']}
             if 'backend_port' in loc_conf:
                 new_loc_conf['backend_port'] = loc_conf['backend_port']
+
+            new_cached_loc_conf['backend-maxconn'] = loc_conf.get('cache-maxconn', 2048)
+            new_loc_conf['backend-maxconn'] = loc_conf.get('backend-maxconn', 2048)
 
             backend_check_method = loc_conf.get('backend-check-method')
             if backend_check_method:
