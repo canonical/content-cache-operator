@@ -83,3 +83,5 @@ class TestLibUtils(unittest.TestCase):
         disk_usage.return_value = (disk_total, 0, 0)
         self.assertEqual(utils.cache_max_size('/srv'), '180g')
         self.assertEqual(utils.cache_max_size('/srv', percent=50), '120g')
+        disk_usage.return_value = (0, 0, 0)
+        self.assertEqual(utils.cache_max_size('/srv'), '1g')

@@ -271,7 +271,7 @@ site1.local:
             self.assertEqual(got, want)
 
             disk_usage.return_value = (240 * 1024 * 1024 * 1024, 0, 0)
-            self.mock_config.return_value = {'cache_max_size': None, 'cache_path': '/srv/cache', 'sites': config}
+            self.mock_config.return_value = {'cache_max_size': '', 'cache_path': '/srv/cache', 'sites': config}
             want = (
                 'proxy_cache_path /srv/cache/site1.local use_temp_path=off levels=1:2'
                 ' keys_zone=site1-cache:10m max_size=180g;'

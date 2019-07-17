@@ -76,4 +76,4 @@ def cache_max_size(path, percent=75):
     total = shutil.disk_usage(path)[0]
     percent = percent / 100
     gbytes = 1024 * 1024 * 1024
-    return '{}g'.format(int((total * percent) / gbytes))
+    return '{}g'.format(max(1, int((total * percent) / gbytes)))
