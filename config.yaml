@@ -3,7 +3,9 @@ options:
     type: string
     default: ""
     description: |
-      Maximum size of content cache storage. Defaults to auto-calculate (empty/unset).
+      Maximum size of content cache storage. If unspecified, the maximum cache
+      storage size will be set to 75% of the total disk space, using a 1GB
+      minimum size.
   cache_path:
     type: string
     default: "/var/lib/nginx/proxy"
