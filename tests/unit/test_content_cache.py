@@ -227,7 +227,9 @@ site1.local:
                     got = f.read()
                 self.assertEqual(got, want)
 
-    def test_configure_nginx_cache_config(self):
+    @mock.patch('shutil.disk_usage')
+    @mock.patch('reactive.content_cache.service_start_or_restart')
+    def test_configure_nginx_cache_config(self, service_start_or_restart, disk_usage):
         config = '''
 site1.local:
   locations:
@@ -262,6 +264,17 @@ site1.local:
             want = (
                 'proxy_cache_path /srv/cache/site1.local use_temp_path=off levels=1:2'
                 ' keys_zone=site1-cache:10m max_size=20g;'
+            )
+            content_cache.configure_nginx(self.tmpdir)
+            with open(os.path.join(self.tmpdir, 'sites-available/site1.local.conf'), 'r', encoding='utf-8') as f:
+                got = f.readline().strip()
+            self.assertEqual(got, want)
+
+            disk_usage.return_value = (240 * 1024 * 1024 * 1024, 0, 0)
+            self.mock_config.return_value = {'cache_max_size': '', 'cache_path': '/srv/cache', 'sites': config}
+            want = (
+                'proxy_cache_path /srv/cache/site1.local use_temp_path=off levels=1:2'
+                ' keys_zone=site1-cache:10m max_size=180g;'
             )
             content_cache.configure_nginx(self.tmpdir)
             with open(os.path.join(self.tmpdir, 'sites-available/site1.local.conf'), 'r', encoding='utf-8') as f:

@@ -2,6 +2,7 @@ import datetime
 import os
 import sys
 import unittest
+from unittest import mock
 
 import freezegun
 
@@ -72,3 +73,15 @@ class TestLibUtils(unittest.TestCase):
         self.assertEqual(utils.generate_uri('localhost', path='mypath'), 'http://localhost:80/mypath')
         self.assertEqual(utils.generate_uri('localhost', path='/mypath'), 'http://localhost:80/mypath')
         self.assertEqual(utils.generate_uri('10.0.0.1', path='/mypath'), 'http://10.0.0.1:80/mypath')
+
+    @mock.patch('shutil.disk_usage')
+    def test_cache_max_size(self, disk_usage):
+        mbytes = 1024 * 1024
+        gbytes = mbytes * 1024
+
+        disk_total = 240 * gbytes
+        disk_usage.return_value = (disk_total, 0, 0)
+        self.assertEqual(utils.cache_max_size('/srv'), '180g')
+        self.assertEqual(utils.cache_max_size('/srv', percent=50), '120g')
+        disk_usage.return_value = (0, 0, 0)
+        self.assertEqual(utils.cache_max_size('/srv'), '1g')
