@@ -87,7 +87,7 @@ def configure_nginx(conf_path=None):
     # to deploy to edge networks and not worry about having to firewall off
     # access.
     conf = {}
-    conf['cache_max_size'] = config['cache_max_size']
+    conf['cache_max_size'] = config['cache_max_size'] or utils.cache_max_size(config['cache_path'])
     conf['cache_path'] = config['cache_path']
     conf['listen_address'] = '127.0.0.1'
     changed = False

@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import shutil
 
 
 BASE_CACHE_PORT = 6080
@@ -69,3 +70,10 @@ def generate_uri(host, port=80, path=None, scheme='http'):
         path = '/{}'.format(path)
     uri = '{scheme}://{host}:{port}{path}'.format(scheme=scheme, host=host, port=port, path=path)
     return uri
+
+
+def cache_max_size(path, percent=75):
+    total = shutil.disk_usage(path)[0]
+    percent = percent / 100
+    gbytes = 1024 * 1024 * 1024
+    return '{}g'.format(int((total * percent) / gbytes))
