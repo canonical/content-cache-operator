@@ -5,6 +5,7 @@ server {
     listen {% if address %}{{address}}:{% endif %}{{port}};
 
     port_in_redirect off;
+    absolute_redirect off;
 
 {%- for location, conf in locations.items() %}
 
