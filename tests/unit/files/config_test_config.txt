@@ -69,7 +69,8 @@ site5:
       backends:
         - 127.0.1.11:80
       backend-path: /auth-check/
-      cache-min-uses: 3
+      cache-background-update: None
+      cache-min-uses: None
       cache-validity: '200 401 1h'
 
 # Test 6: TLS/SSL/HTTPS to backends only

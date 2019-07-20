@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 
 import jinja2
 
@@ -12,7 +13,7 @@ PROXY_CACHE_DEFAULTS = {
     'min-uses': 1,
     'revalidate': 'on',
     'use-stale': 'error timeout updating http_500 http_502 http_503 http_504',
-    'validity': '200 1d',
+    'valid': '200 1d',
 }
 
 

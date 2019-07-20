@@ -67,6 +67,8 @@ class TestLibNginx(unittest.TestCase):
                     for k in ngx_conf.proxy_cache_configs.keys():
                         cache_key = 'cache-{}'.format(k)
                         lc[cache_key] = loc_conf.get(cache_key, ngx_conf.proxy_cache_configs[k])
+                # Backwards compatibility
+                lc['cache-valid'] = loc_conf.get('cache-validity', ngx_conf.proxy_cache_configs['valid'])
 
                 lc['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
                 lc['origin-headers'] = loc_conf.get('origin-headers')

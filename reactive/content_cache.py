@@ -108,6 +108,8 @@ def configure_nginx(conf_path=None):
                 for k in ngx_conf.proxy_cache_configs.keys():
                     cache_key = 'cache-{}'.format(k)
                     lc[cache_key] = loc_conf.get(cache_key, ngx_conf.proxy_cache_configs[k])
+                # Backwards compatibility
+                lc['cache-valid'] = loc_conf.get('cache-validity', ngx_conf.proxy_cache_configs['valid'])
 
             # Per site secret HMAC key, if it exists. We pass this through to
             # the caching layer to activate the bit to restrict access.
