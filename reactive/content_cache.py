@@ -105,7 +105,9 @@ def configure_nginx(conf_path=None):
             if backend_port:
                 backend_path = loc_conf.get('backend-path')
                 lc['backend'] = utils.generate_uri('localhost', backend_port, backend_path)
-                lc['cache-validity'] = loc_conf.get('cache-validity', '200 1d')
+                for k in ngx_conf.proxy_cache_configs.keys():
+                    cache_key = 'cache-{}'.format(k)
+                    lc[cache_key] = loc_conf.get(cache_key, ngx_conf.proxy_cache_configs[k])
 
             # Per site secret HMAC key, if it exists. We pass this through to
             # the caching layer to activate the bit to restrict access.
