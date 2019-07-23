@@ -38,6 +38,8 @@ class NginxConf:
     def sites_path(self):
         return self._sites_path
 
+    # Expose sites_path as a property to allow mocking in indirect calls to
+    # this class.
     @property
     def proxy_cache_configs(self):
         return PROXY_CACHE_DEFAULTS
@@ -89,7 +91,7 @@ class NginxConf:
                 lc['backend'] = utils.generate_uri('localhost', backend_port, backend_path)
                 for k in self.proxy_cache_configs.keys():
                     cache_key = 'cache-{}'.format(k)
-                    lc[cache_key] = lc.get(cache_key, self.proxy_cache_configs[k])
+                    lc.setdefault(cache_key, self.proxy_cache_configs[k])
                 # Backwards compatibility
                 if 'cache-validity' in lc:
                     lc['cache-valid'] = lc.get('cache-validity', self.proxy_cache_configs['valid'])
