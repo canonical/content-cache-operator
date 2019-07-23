@@ -5,6 +5,15 @@ import jinja2
 
 NGINX_BASE_PATH = '/etc/nginx'
 INDENT = ' ' * 4
+# Subset of http://nginx.org/en/docs/http/ngx_http_proxy_module.html
+PROXY_CACHE_DEFAULTS = {
+    'background-update': 'on',
+    'lock': 'on',
+    'min-uses': 1,
+    'revalidate': 'on',
+    'use-stale': 'error timeout updating http_500 http_502 http_503 http_504',
+    'valid': '200 1d',
+}
 
 
 class NginxConf:
@@ -25,6 +34,10 @@ class NginxConf:
     @property
     def sites_path(self):
         return self._sites_path
+
+    @property
+    def proxy_cache_configs(self):
+        return PROXY_CACHE_DEFAULTS
 
     def write_site(self, site, new):
         fname = os.path.join(self.sites_path, '{}.conf'.format(site))

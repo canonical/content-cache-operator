@@ -14,12 +14,11 @@ server {
         proxy_pass {{conf['backend']}};
         proxy_set_header Host "{{site}}";
         proxy_cache {{name}}-cache;
-        proxy_cache_background_update on;
-        proxy_cache_lock on;
-        proxy_cache_min_uses 1;
-        proxy_cache_revalidate on;
-        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
-        proxy_cache_valid {{conf['cache-validity']}};
+{%- for key, value in conf.items() -%}
+{%- if key.startswith('cache-') and value != 'None' %}
+        proxy_{{key|replace("-", "_")}} {{value}};
+{%- endif %}
+{%- endfor -%}
 {%- endif %}
 
 {%- if conf['origin-headers'] %}
