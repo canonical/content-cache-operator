@@ -94,28 +94,7 @@ def configure_nginx(conf_path=None):
     for site, site_conf in sites.items():
         conf['site'] = site_conf.get('site-name') or site
         conf['listen_port'] = site_conf['cache_port']
-
-        conf['locations'] = {}
-        for location, loc_conf in site_conf.get('locations', {}).items():
-            conf['locations'][location] = {}
-            lc = conf['locations'][location]
-            lc['modifier'] = loc_conf.get('modifier')
-
-            backend_port = loc_conf.get('backend_port')
-            if backend_port:
-                backend_path = loc_conf.get('backend-path')
-                lc['backend'] = utils.generate_uri('localhost', backend_port, backend_path)
-                for k in ngx_conf.proxy_cache_configs.keys():
-                    cache_key = 'cache-{}'.format(k)
-                    lc[cache_key] = loc_conf.get(cache_key, ngx_conf.proxy_cache_configs[k])
-                # Backwards compatibility
-                lc['cache-valid'] = loc_conf.get('cache-validity', ngx_conf.proxy_cache_configs['valid'])
-
-            # Per site secret HMAC key, if it exists. We pass this through to
-            # the caching layer to activate the bit to restrict access.
-            lc['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
-            lc['origin-headers'] = loc_conf.get('origin-headers')
-            lc['extra-config'] = loc_conf.get('extra-config')
+        conf['locations'] = site_conf.get('locations', {})
 
         if ngx_conf.write_site(site, ngx_conf.render(conf)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))

@@ -7,7 +7,6 @@ import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import nginx  # NOQA: E402
-from lib import utils  # NOQA: E402
 
 BASE_LISTEN_PORT = 6080
 BASE_BACKEND_PORT = 8080
@@ -53,26 +52,12 @@ class TestLibNginx(unittest.TestCase):
             port += 1
             conf['site'] = site_conf.get('site-name') or site
             conf['listen_port'] = port
+            conf['locations'] = site_conf.get('locations', {})
 
-            conf['locations'] = {}
-            for location, loc_conf in site_conf.get('locations', {}).items():
-                conf['locations'][location] = {}
-                lc = conf['locations'][location]
-                lc['modifier'] = loc_conf.get('modifier')
-
+            for location, loc_conf in conf['locations'].items():
                 if loc_conf.get('backends'):
                     backend_port += 1
-                    backend_path = loc_conf.get('backend-path')
-                    lc['backend'] = utils.generate_uri('localhost', backend_port, backend_path)
-                    for k in ngx_conf.proxy_cache_configs.keys():
-                        cache_key = 'cache-{}'.format(k)
-                        lc[cache_key] = loc_conf.get(cache_key, ngx_conf.proxy_cache_configs[k])
-                # Backwards compatibility
-                lc['cache-valid'] = loc_conf.get('cache-validity', ngx_conf.proxy_cache_configs['valid'])
-
-                lc['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
-                lc['origin-headers'] = loc_conf.get('origin-headers')
-                lc['extra-config'] = loc_conf.get('extra-config')
+                    loc_conf['backend_port'] = backend_port
 
             output_file = 'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site)
             with open(output_file, 'r', encoding='utf-8') as f:

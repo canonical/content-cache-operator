@@ -1,6 +1,9 @@
 import os
+from copy import deepcopy
 
 import jinja2
+
+from lib import utils
 
 
 NGINX_BASE_PATH = '/etc/nginx'
@@ -35,6 +38,8 @@ class NginxConf:
     def sites_path(self):
         return self._sites_path
 
+    # Expose sites_path as a property to allow mocking in indirect calls to
+    # this class.
     @property
     def proxy_cache_configs(self):
         return PROXY_CACHE_DEFAULTS
@@ -75,12 +80,31 @@ class NginxConf:
     def _generate_name(self, name):
         return name.split('.')[0]
 
+    def _process_locations(self, locations):
+        conf = {}
+        for location, loc_conf in locations.items():
+            conf[location] = deepcopy(loc_conf)
+            lc = conf[location]
+            backend_port = lc.get('backend_port')
+            if backend_port:
+                backend_path = lc.get('backend-path')
+                lc['backend'] = utils.generate_uri('localhost', backend_port, backend_path)
+                for k in self.proxy_cache_configs.keys():
+                    cache_key = 'cache-{}'.format(k)
+                    lc.setdefault(cache_key, self.proxy_cache_configs[k])
+                # Backwards compatibility
+                if 'cache-validity' in lc:
+                    lc['cache-valid'] = lc.get('cache-validity', self.proxy_cache_configs['valid'])
+                    lc.pop('cache-validity')
+
+        return conf
+
     def render(self, conf):
         data = {
             'address': conf['listen_address'],
             'cache_max_size': conf['cache_max_size'],
             'cache_path': conf['cache_path'],
-            'locations': conf['locations'],
+            'locations': self._process_locations(conf['locations']),
             'name': self._generate_name(conf['site']),
             'port': conf['listen_port'],
             'site': conf['site'],
