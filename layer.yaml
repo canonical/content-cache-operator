@@ -1,6 +1,5 @@
 includes:
   - layer:basic
-  - layer:apt
   - layer:nagios
   - layer:status
 repo: lp:content-cache-charm
