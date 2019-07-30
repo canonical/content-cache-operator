@@ -89,9 +89,9 @@ class NginxConf:
             if backend_port:
                 backend_path = lc.get('backend-path')
                 lc['backend'] = utils.generate_uri('localhost', backend_port, backend_path)
-                for k in self.proxy_cache_configs.keys():
+                for k, v in self.proxy_cache_configs.items():
                     cache_key = 'cache-{}'.format(k)
-                    lc.setdefault(cache_key, self.proxy_cache_configs[k])
+                    lc.setdefault(cache_key, v)
                 # Backwards compatibility
                 if 'cache-validity' in lc:
                     lc['cache-valid'] = lc.get('cache-validity', self.proxy_cache_configs['valid'])
