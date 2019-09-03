@@ -1,0 +1,6 @@
+site_with_nginx_metrics:
+  port: 80
+  locations:
+    /:
+      backends:
+        - 127.0.1.10:80
