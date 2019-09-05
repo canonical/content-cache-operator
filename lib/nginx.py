@@ -29,7 +29,7 @@ class NginxConf:
         self._conf_path = os.path.join(self.base_path, 'conf.d')
         self._sites_path = os.path.join(self.base_path, 'sites-available')
         script_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        self.env = jinja2.Environment(loader=jinja2.FileSystemLoader(script_dir))
+        self.jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(script_dir))
 
     # Expose base_path as a property to allow mocking in indirect calls to
     # this class.
@@ -121,15 +121,15 @@ class NginxConf:
             'port': conf['listen_port'],
             'site': conf['site'],
         }
-        template = self.env.get_template('templates/nginx_cfg.tmpl')
+        template = self.jinja_env.get_template('templates/nginx_cfg.tmpl')
         return template.render(data)
 
     def _remove_metrics_site(self, available, enabled):
         """Remove the configuration exposing metrics.
 
         :param str available: Path of the "available" site exposing the metrics
-        :param str enalbed: Path of the link to the "available" path of the site exposing the metrics
-        :returns: True if any change, False otherwise
+        :param str enabled: Path of the "enabled" symlink to the "available" configuration
+        :returns: True if any change was made, False otherwise
         :rtype: bool
         """
         changed = False
@@ -147,10 +147,10 @@ class NginxConf:
         return changed
 
     def toggle_metrics_site(self, enable_prometheus_metrics):
-        """Create/Delete the metrics site configuration and links.
+        """Create/delete the metrics site configuration and links.
 
         :param bool enable_prometheus_metrics: True if metrics are exposed to prometheus
-        :returns: True if there was a change, False otherwise
+        :returns: True if any change was made, False otherwise
         :rtype: bool
         """
         changed = False
@@ -160,7 +160,7 @@ class NginxConf:
         # If no cache metrics, remove the site
         if not enable_prometheus_metrics:
             return self._remove_metrics_site(available, enabled)
-        template = self.env.get_template('templates/nginx_metrics_cfg.tmpl')
+        template = self.jinja_env.get_template('templates/nginx_metrics_cfg.tmpl')
         content = template.render({'nginx_conf_path': self.conf_path, 'port': METRICS_PORT})
         # Check if contents changed
         try:

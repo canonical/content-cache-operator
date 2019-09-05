@@ -39,7 +39,7 @@ class TestLibNginx(unittest.TestCase):
         self.assertEqual(ngx_conf.sites_path, sites_path)
 
     def test_nginx_config_render(self):
-        '''Test parsing a YAML-formatted list of sites'''
+        """Test parsing a YAML-formatted list of sites."""
         ngx_conf = nginx.NginxConf()
 
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
@@ -72,7 +72,7 @@ class TestLibNginx(unittest.TestCase):
             self.assertEqual(ngx_conf.render(conf), output)
 
     def test_nginx_config_write_sites(self):
-        '''Test writing out sites to individual Nginx site config files'''
+        """Test writing out sites to individual Nginx site config files."""
         ngx_conf = nginx.NginxConf(self.tmpdir)
         os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
         os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
@@ -121,17 +121,18 @@ class TestLibNginx(unittest.TestCase):
         self.assertFalse(ngx_conf.sync_sites(['site1.local', 'site2.local']))
 
     def test_nginx_config_render_with_metrics(self):
-        '''Test rendering with metrics exposed.'''
+        """Test rendering with metrics exposed."""
         ngx_conf = nginx.NginxConf()
 
         with open('tests/unit/files/config_test_nginx_metrics_config.txt', 'r', encoding='utf-8') as f:
             sites = yaml.safe_load(f.read())
 
-        conf = {}
-        conf['cache_max_size'] = '1g'
-        conf['cache_path'] = '/var/lib/nginx/proxy'
-        conf['listen_address'] = '127.0.0.1'
-        conf['enable_prometheus_metrics'] = True
+        conf = {
+            'cache_max_size': '1g',
+            'cache_path': '/var/lib/nginx/proxy',
+            'listen_address': '127.0.0.1',
+            'enable_prometheus_metrics': True,
+        }
         for site, site_conf in sites.items():
             conf['site'] = site_conf.get('site-name') or site
             conf['listen_port'] = BASE_LISTEN_PORT
@@ -148,20 +149,16 @@ class TestLibNginx(unittest.TestCase):
             self.assertEqual(ngx_conf.render(conf), output)
 
     def test_nginx_config_toggle_metrics_site(self):
-        ''' Test the metrics site
+        """Test the metrics site.
 
         Check that the activation fo the cache metrics activate the dedicated site for exposing prometheus metrics.
-        '''
+        """
         ngx_conf = nginx.NginxConf(self.tmpdir)
         os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
         os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
 
-        from lib.nginx import METRICS_SITE
+        metrics_site_conf = '{0}.conf'.format(nginx.METRICS_SITE)
 
-        metrics_site_conf = '{0}.conf'.format(METRICS_SITE)
-
-        # with open('tests/unit/files/nginx_config_rendered_test_output-nginx_metrics.txt', 'r', encoding='utf-8') as f:
-        #     nginx_metrics_conf = f.read()
         script_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..')
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(script_dir))
         template = env.get_template('templates/nginx_metrics_cfg.tmpl')
@@ -170,22 +167,30 @@ class TestLibNginx(unittest.TestCase):
             'port': nginx.METRICS_PORT})
         nginx_metrics_conf = content
 
+        metrics_site_available = os.path.join(self.tmpdir, 'sites-available', metrics_site_conf)
+        metrics_site_enabled = os.path.join(self.tmpdir, 'sites-enabled', metrics_site_conf)
         self.assertTrue(ngx_conf.toggle_metrics_site(enable_prometheus_metrics=True))
         # Write again with same contents, this time it should return 'False'
         # as there's no change, thus no need to restart/reload Nginx.
         self.assertFalse(ngx_conf.toggle_metrics_site(enable_prometheus_metrics=True))
-        self.assertTrue(os.path.exists(os.path.join(self.tmpdir, 'sites-available', metrics_site_conf)))
+        self.assertTrue(os.path.exists(metrics_site_available))
 
         # Compare what's been written out matches what's in tests/unit/files.
-        with open(os.path.join(self.tmpdir, 'sites-available', metrics_site_conf), 'r', encoding='utf-8') as f:
+        with open(metrics_site_available, 'r', encoding='utf-8') as f:
             output = f.read()
         self.assertEqual(nginx_metrics_conf, output)
 
-        # Chek link existence
-        self.assertTrue(os.path.islink(os.path.join(self.tmpdir, 'sites-enabled', metrics_site_conf)))
+        # Check link existence
+        self.assertTrue(os.path.islink(metrics_site_enabled))
+
+        # Mess up with the target of the link and check that a toggle fixes it
+        os.remove(metrics_site_enabled)
+        os.symlink('/dev/null', metrics_site_enabled)
+        self.assertTrue(ngx_conf.toggle_metrics_site(enable_prometheus_metrics=True))
+        self.assertTrue(os.path.realpath(metrics_site_available) == os.path.realpath(metrics_site_enabled))
 
         # Remove the site
         self.assertTrue(ngx_conf.toggle_metrics_site(enable_prometheus_metrics=False))
         self.assertFalse(ngx_conf.toggle_metrics_site(enable_prometheus_metrics=False))
-        self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-available', metrics_site_conf)))
-        self.assertFalse(os.path.exists(os.path.join(self.tmpdir, 'sites-enabled', metrics_site_conf)))
+        self.assertFalse(os.path.exists(metrics_site_available))
+        self.assertFalse(os.path.exists(metrics_site_enabled))

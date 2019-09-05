@@ -691,7 +691,7 @@ site1.local:
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_nginx_metrics_sites(self, service_start_or_restart, opened_ports, open_port):
-        '''Test configuration of Nginx sites with enable_prometheus_metrics activated.'''
+        """Test configuration of Nginx sites with enable_prometheus_metrics activated."""
         with open('tests/unit/files/config_test_nginx_metrics_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {
@@ -726,32 +726,26 @@ site1.local:
 
             # Test the site with cache HIT logging
             site = 'site_with_nginx_metrics'
-            with open(
-                'tests/unit/files/nginx_config_rendered_test_output-{0}.txt'.format(site), 'r', encoding='utf-8'
-            ) as f:
+            test_file = 'tests/unit/files/nginx_config_rendered_test_output-{0}.txt'.format(site)
+            with open(test_file, 'r', encoding='utf-8') as f:
                 want = f.read()
-            with open(
-                os.path.join(self.tmpdir, 'sites-available/{0}.conf'.format(site)), 'r', encoding='utf-8'
-            ) as f:
+
+            test_file = os.path.join(self.tmpdir, 'sites-available/{0}.conf'.format(site))
+            with open(test_file, 'r', encoding='utf-8') as f:
                 got = f.read()
             self.assertEqual(got, want)
 
             # Test the site exposing the metrics
             site = 'nginx_metrics'
             script_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..')
-            env = jinja2.Environment(loader=jinja2.FileSystemLoader(script_dir))
-            template = env.get_template('templates/nginx_metrics_cfg.tmpl')
+            jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(script_dir))
+            template = jinja_env.get_template('templates/nginx_metrics_cfg.tmpl')
             content = template.render({
                 'nginx_conf_path': os.path.join(self.tmpdir, 'conf.d'),
                 'port': nginx.METRICS_PORT})
-            # with open(
-            #     'tests/unit/files/nginx_config_rendered_test_output-{0}.txt'.format(site), 'r', encoding='utf-8'
-            # ) as f:
-            #     want = f.read()
             want = content
-            with open(
-                os.path.join(self.tmpdir, 'sites-available/{0}.conf'.format(site)), 'r', encoding='utf-8'
-            ) as f:
+            test_file = os.path.join(self.tmpdir, 'sites-available/{0}.conf'.format(nginx.METRICS_SITE))
+            with open(test_file, 'r', encoding='utf-8') as f:
                 got = f.read()
             self.assertEqual(got, want)
 

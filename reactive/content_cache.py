@@ -66,12 +66,12 @@ def service_start_or_restart(name):
 
 
 def configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
-    """Configure Nginx to expose metrics
+    """Configure nginx to expose metrics.
 
     Create the dedicated server exposing the metrics and add the logging of the cache hits for the other sites.
 
     :param bool enable_prometheus_metrics: True is the metrics should be exposed, False otherwise
-    :returns: True if something changed, False otherwise
+    :returns: True if any change was made, False otherwise
     :rtype: bool
     """
     changed = False
@@ -130,7 +130,7 @@ def configure_nginx(conf_path=None):
             changed = True
 
     if configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
-        hookenv.log('Nginx metrics exposed to prometheus.')
+        hookenv.log('nginx metrics exposed to prometheus')
         changed = True
 
     # Include the site exposing metrics if needed
