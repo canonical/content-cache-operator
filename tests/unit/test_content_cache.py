@@ -6,6 +6,7 @@ import unittest
 from unittest import mock
 
 import freezegun
+import jinja2
 
 # We also need to mock up charms.layer so we can run unit tests without having
 # to build the charm and pull in layers such as layer-status.
@@ -16,6 +17,7 @@ from charms.layer import status  # NOQA: E402
 # Add path to where our reactive layer lives and import.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from reactive import content_cache  # NOQA: E402
+from lib import nginx  # NOQA: E402
 
 
 class TestCharm(unittest.TestCase):
@@ -131,14 +133,17 @@ class TestCharm(unittest.TestCase):
         self.assertFalse(status.blocked.assert_called())
         self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
 
+    @mock.patch('charmhelpers.core.hookenv.close_port')
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('reactive.content_cache.service_start_or_restart')
-    def test_configure_nginx_sites(self, service_start_or_restart):
+    def test_configure_nginx_sites(self, service_start_or_restart, opened_ports, close_port):
         '''Test configuration of Nginx sites'''
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {
             'cache_max_size': '1g',
             'cache_path': '/var/lib/nginx/proxy',
+            'enable_prometheus_metrics': False,
             'sites': ngx_config,
         }
 
@@ -149,13 +154,18 @@ class TestCharm(unittest.TestCase):
             os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+            opened_ports.return_value = ['80/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
             content_cache.configure_nginx(self.tmpdir)
             self.assertFalse(service_start_or_restart.assert_called_once_with('nginx'))
+            close_port.assert_called_once_with(nginx.METRICS_PORT, 'TCP')
 
             # Re-run with same set of sites, no change so shouldn't need to restart Nginx
             service_start_or_restart.reset_mock()
+            close_port.reset_mock()
+            opened_ports.return_value = ['80/tcp']
             content_cache.configure_nginx(self.tmpdir)
             self.assertFalse(service_start_or_restart.assert_not_called())
+            close_port.assert_not_called()
 
             for site in [
                 'site1.local',
@@ -165,6 +175,7 @@ class TestCharm(unittest.TestCase):
                 'site5',
                 'site6.local',
                 'site7.local',
+                'site8.local',
             ]:
                 with open(
                     'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site), 'r', encoding='utf-8'
@@ -183,8 +194,10 @@ class TestCharm(unittest.TestCase):
             got = f.read()
         self.assertEqual(got, want)
 
+    @mock.patch('charmhelpers.core.hookenv.close_port')
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('reactive.content_cache.service_start_or_restart')
-    def test_configure_nginx_sites_secrets(self, service_start_or_restart):
+    def test_configure_nginx_sites_secrets(self, service_start_or_restart, opened_ports, close_port):
         with open('tests/unit/files/config_test_secrets.txt', 'r', encoding='utf-8') as f:
             secrets = f.read()
         config = '''
@@ -227,9 +240,11 @@ site1.local:
                     got = f.read()
                 self.assertEqual(got, want)
 
+    @mock.patch('charmhelpers.core.hookenv.close_port')
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('shutil.disk_usage')
     @mock.patch('reactive.content_cache.service_start_or_restart')
-    def test_configure_nginx_cache_config(self, service_start_or_restart, disk_usage):
+    def test_configure_nginx_cache_config(self, service_start_or_restart, disk_usage, opened_ports, close_port):
         config = '''
 site1.local:
   locations:
@@ -671,3 +686,72 @@ site1.local:
                 content='test content\n', group='somegroup', owner='somedude', path=dest, perms=444
             )
         )
+
+    @mock.patch('charmhelpers.core.hookenv.open_port')
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
+    @mock.patch('reactive.content_cache.service_start_or_restart')
+    def test_configure_nginx_metrics_sites(self, service_start_or_restart, opened_ports, open_port):
+        """Test configuration of Nginx sites with enable_prometheus_metrics activated."""
+        with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
+        self.mock_config.return_value = {
+            'cache_max_size': '1g',
+            'enable_prometheus_metrics': True,
+            'cache_path': '/var/lib/nginx/proxy',
+            'sites': ngx_config,
+        }
+
+        with mock.patch.multiple(
+            'lib.nginx.NginxConf',
+            sites_path=os.path.join(self.tmpdir, 'sites-available'),
+            base_path=self.tmpdir,
+        ) as nginxconf_mock:  # noqa: F841
+            # conf.d, sites-available, and sites-enabled won't exist in our
+            # temporary directory.
+            os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+            opened_ports.return_value = ['80/tcp', '443/tcp']
+            content_cache.configure_nginx(self.tmpdir)
+            self.assertFalse(service_start_or_restart.assert_called_once_with('nginx'))
+            open_port.assert_called_once_with(nginx.METRICS_PORT, 'TCP')
+
+            # Re-run with same set of sites, no change so shouldn't need to restart Nginx
+            service_start_or_restart.reset_mock()
+            open_port.reset_mock()
+            opened_ports.return_value = ['80/tcp', '443/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
+            content_cache.configure_nginx(self.tmpdir)
+            self.assertFalse(service_start_or_restart.assert_not_called())
+            open_port.assert_not_called()
+
+            # Test the site with cache HIT logging
+            site = 'basic_site'
+            test_file = 'tests/unit/files/nginx_config_rendered_test_output-{0}.txt'.format(site)
+            with open(test_file, 'r', encoding='utf-8') as f:
+                want = f.read()
+
+            test_file = os.path.join(self.tmpdir, 'sites-available/{0}.conf'.format(site))
+            with open(test_file, 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+            # Test the site exposing the metrics
+            site = 'nginx_metrics'
+            script_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..')
+            jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(script_dir))
+            template = jinja_env.get_template('templates/nginx_metrics_cfg.tmpl')
+            content = template.render({
+                'nginx_conf_path': os.path.join(self.tmpdir, 'conf.d'),
+                'port': nginx.METRICS_PORT})
+            want = content
+            test_file = os.path.join(self.tmpdir, 'sites-available/{0}.conf'.format(nginx.METRICS_SITE))
+            with open(test_file, 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+        # Prometheus.lua library
+        with open('files/prometheus.lua', 'r') as f:
+            want = f.read()
+        with open(os.path.join(self.tmpdir, 'conf.d', 'prometheus.lua'), 'r') as f:
+            got = f.read()
+        self.assertEqual(got, want)

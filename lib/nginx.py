@@ -6,8 +6,10 @@ import jinja2
 from lib import utils
 
 
-NGINX_BASE_PATH = '/etc/nginx'
 INDENT = ' ' * 4
+METRICS_PORT = 9145
+METRICS_SITE = 'nginx_metrics'
+NGINX_BASE_PATH = '/etc/nginx'
 # Subset of http://nginx.org/en/docs/http/ngx_http_proxy_module.html
 PROXY_CACHE_DEFAULTS = {
     'background-update': 'on',
@@ -23,8 +25,17 @@ class NginxConf:
     def __init__(self, conf_path=None):
         if not conf_path:
             conf_path = NGINX_BASE_PATH
-        self._conf_path = os.path.join(conf_path, 'conf.d')
-        self._sites_path = os.path.join(conf_path, 'sites-available')
+        self._base_path = conf_path
+        self._conf_path = os.path.join(self.base_path, 'conf.d')
+        self._sites_path = os.path.join(self.base_path, 'sites-available')
+        script_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        self.jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(script_dir))
+
+    # Expose base_path as a property to allow mocking in indirect calls to
+    # this class.
+    @property
+    def base_path(self):
+        return self._base_path
 
     # Expose conf_path as a property to allow mocking in indirect calls to
     # this class.
@@ -103,13 +114,71 @@ class NginxConf:
         data = {
             'address': conf['listen_address'],
             'cache_max_size': conf['cache_max_size'],
+            'enable_prometheus_metrics': conf['enable_prometheus_metrics'],
             'cache_path': conf['cache_path'],
             'locations': self._process_locations(conf['locations']),
             'name': self._generate_name(conf['site']),
             'port': conf['listen_port'],
             'site': conf['site'],
         }
-        base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
-        template = env.get_template('templates/nginx_cfg.tmpl')
+        template = self.jinja_env.get_template('templates/nginx_cfg.tmpl')
         return template.render(data)
+
+    def _remove_metrics_site(self, available, enabled):
+        """Remove the configuration exposing metrics.
+
+        :param str available: Path of the "available" site exposing the metrics
+        :param str enabled: Path of the "enabled" symlink to the "available" configuration
+        :returns: True if any change was made, False otherwise
+        :rtype: bool
+        """
+        changed = False
+        try:
+            os.remove(available)
+            changed = True
+        except FileNotFoundError:
+            pass
+        try:
+            os.remove(enabled)
+            changed = True
+        except FileNotFoundError:
+            pass
+
+        return changed
+
+    def toggle_metrics_site(self, enable_prometheus_metrics):
+        """Create/delete the metrics site configuration and links.
+
+        :param bool enable_prometheus_metrics: True if metrics are exposed to prometheus
+        :returns: True if any change was made, False otherwise
+        :rtype: bool
+        """
+        changed = False
+        metrics_site_conf = '{0}.conf'.format(METRICS_SITE)
+        available = os.path.join(self.sites_path, metrics_site_conf)
+        enabled = os.path.join(self.base_path, 'sites-enabled', metrics_site_conf)
+        # If no cache metrics, remove the site
+        if not enable_prometheus_metrics:
+            return self._remove_metrics_site(available, enabled)
+        template = self.jinja_env.get_template('templates/nginx_metrics_cfg.tmpl')
+        content = template.render({'nginx_conf_path': self.conf_path, 'port': METRICS_PORT})
+        # Check if contents changed
+        try:
+            with open(available, 'r', encoding='utf-8') as f:
+                current = f.read()
+        except FileNotFoundError:
+            current = ''
+        if content != current:
+            with open(available, 'w', encoding='utf-8') as f:
+                f.write(content)
+            changed = True
+            os.listdir(self.sites_path)
+        if not os.path.exists(enabled):
+            os.symlink(available, enabled)
+            changed = True
+        if os.path.realpath(available) != os.path.realpath(enabled):
+            os.remove(enabled)
+            os.symlink(available, enabled)
+            changed = True
+
+        return changed

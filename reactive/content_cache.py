@@ -65,6 +65,32 @@ def service_start_or_restart(name):
         host.service_start(name)
 
 
+def configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
+    """Configure nginx to expose metrics.
+
+    Create the dedicated server exposing the metrics and add the logging of the cache hits for the other sites.
+
+    :param bool enable_prometheus_metrics: True is the metrics should be exposed, False otherwise
+    :returns: True if any change was made, False otherwise
+    :rtype: bool
+    """
+    changed = False
+    if copy_file('files/prometheus.lua', os.path.join(ngx_conf.conf_path, 'prometheus.lua')):
+        changed = True
+    if ngx_conf.toggle_metrics_site(enable_prometheus_metrics):
+        changed = True
+    old_ports = [int(port.split('/')[0]) for port in hookenv.opened_ports()]
+    hookenv.log("Current opened ports: {}".format(old_ports))
+    if enable_prometheus_metrics and nginx.METRICS_PORT not in old_ports:
+        hookenv.log("Opening port {0}".format(nginx.METRICS_PORT))
+        hookenv.open_port(nginx.METRICS_PORT, 'TCP')
+    elif not enable_prometheus_metrics and nginx.METRICS_PORT in old_ports:
+        hookenv.log("Closing port {0}".format(nginx.METRICS_PORT))
+        hookenv.close_port(nginx.METRICS_PORT, 'TCP')
+
+    return changed
+
+
 @reactive.when_not('content_cache.nginx.configured')
 def configure_nginx(conf_path=None):
     status.maintenance('setting up Nginx as caching layer')
@@ -75,6 +101,8 @@ def configure_nginx(conf_path=None):
     if not config.get('sites'):
         status.blocked('requires list of sites to configure')
         return
+
+    enable_prometheus_metrics = config.get('enable_prometheus_metrics', False)
 
     ngx_conf = nginx.NginxConf(conf_path)
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
@@ -95,11 +123,19 @@ def configure_nginx(conf_path=None):
         conf['site'] = site_conf.get('site-name') or site
         conf['listen_port'] = site_conf['cache_port']
         conf['locations'] = site_conf.get('locations', {})
+        conf['enable_prometheus_metrics'] = enable_prometheus_metrics
 
         if ngx_conf.write_site(site, ngx_conf.render(conf)):
             hookenv.log('Wrote out new configs for site: {}'.format(site))
             changed = True
 
+    if configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
+        hookenv.log('nginx metrics exposed to prometheus')
+        changed = True
+
+    # Include the site exposing metrics if needed
+    if enable_prometheus_metrics:
+        sites[nginx.METRICS_SITE] = None
     if ngx_conf.sync_sites(sites.keys()):
         hookenv.log('Enabled sites: {}'.format(' '.join(sites.keys())))
         changed = True

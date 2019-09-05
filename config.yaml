@@ -40,3 +40,9 @@ options:
             origin-headers:
               X-Origin-Key: my-origin-secret-key
             signed-url-hmac-key: my-signed-url-secret-key
+  enable_prometheus_metrics:
+    default: true
+    type: boolean
+    description: |
+      Export metrics for the number of requests and the number of cache hits.
+      Prometheus metrics are exposed at /metrics on port 9145.

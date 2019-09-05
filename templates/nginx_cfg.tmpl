@@ -100,7 +100,15 @@ server {
             args["token"] = nil
             ngx.req.set_uri_args(args)
         }
+{%- endif %}
+{%- if enable_prometheus_metrics %}
 
+        log_by_lua_block {
+          http_request_total:inc(1, {ngx.var.server_name, ngx.var.status})
+          if ngx.var.upstream_cache_status == "HIT" then
+              cache_request_hit_total:inc(1, {ngx.var.server_name})
+          end
+        }
 {%- endif %}
     }
 {% endfor %}
