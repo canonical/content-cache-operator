@@ -692,7 +692,7 @@ site1.local:
     @mock.patch('reactive.content_cache.service_start_or_restart')
     def test_configure_nginx_metrics_sites(self, service_start_or_restart, opened_ports, open_port):
         """Test configuration of Nginx sites with enable_prometheus_metrics activated."""
-        with open('tests/unit/files/config_test_nginx_metrics_config.txt', 'r', encoding='utf-8') as f:
+        with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {
             'cache_max_size': '1g',
@@ -725,7 +725,7 @@ site1.local:
             open_port.assert_not_called()
 
             # Test the site with cache HIT logging
-            site = 'site_with_nginx_metrics'
+            site = 'basic_site'
             test_file = 'tests/unit/files/nginx_config_rendered_test_output-{0}.txt'.format(site)
             with open(test_file, 'r', encoding='utf-8') as f:
                 want = f.read()

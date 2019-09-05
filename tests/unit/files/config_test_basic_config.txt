@@ -1,4 +1,4 @@
-site_with_nginx_metrics:
+basic_site:
   port: 80
   locations:
     /:

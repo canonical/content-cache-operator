@@ -1,7 +1,7 @@
-proxy_cache_path /var/lib/nginx/proxy/site_with_nginx_metrics use_temp_path=off levels=1:2 keys_zone=site_with_nginx_metrics-cache:10m max_size=1g;
+proxy_cache_path /var/lib/nginx/proxy/basic_site use_temp_path=off levels=1:2 keys_zone=basic_site-cache:10m max_size=1g;
 
 server {
-    server_name site_with_nginx_metrics;
+    server_name basic_site;
     listen 127.0.0.1:6080;
 
     port_in_redirect off;
@@ -9,8 +9,8 @@ server {
 
     location / {
         proxy_pass http://localhost:8080;
-        proxy_set_header Host "site_with_nginx_metrics";
-        proxy_cache site_with_nginx_metrics-cache;
+        proxy_set_header Host "basic_site";
+        proxy_cache basic_site-cache;
         proxy_cache_background_update on;
         proxy_cache_lock on;
         proxy_cache_min_uses 1;
@@ -27,6 +27,6 @@ server {
     }
 
 
-    access_log /var/log/nginx/site_with_nginx_metrics-access.log content_cache;
-    error_log /var/log/nginx/site_with_nginx_metrics-error.log;
+    access_log /var/log/nginx/basic_site-access.log content_cache;
+    error_log /var/log/nginx/basic_site-error.log;
 }

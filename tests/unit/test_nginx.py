@@ -124,7 +124,7 @@ class TestLibNginx(unittest.TestCase):
         """Test rendering with metrics exposed."""
         ngx_conf = nginx.NginxConf()
 
-        with open('tests/unit/files/config_test_nginx_metrics_config.txt', 'r', encoding='utf-8') as f:
+        with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             sites = yaml.safe_load(f.read())
 
         conf = {
