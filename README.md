@@ -59,3 +59,19 @@ To get metrics:
 
 You can then query the telegraf endpoint to get HAProxy metrics from the
 content-cache charm.
+
+To get cache hits metrics:
+
+    juju config content-cache enable_prometheus_metrics=true
+
+This will expose the following metrics for each site configured:
+
+    # HELP nginx_cache_request_hit_total Number of cache hits per site
+    # TYPE nginx_cache_request_hit_total counter
+    nginx_cache_request_hit_total{host="myhost"} 10
+    # HELP nginx_http_request_total Number of HTTP requests per site
+    # TYPE nginx_http_request_total counter
+    nginx_http_request_total{host="myhost",status="200"} 110129
+    # HELP nginx_metric_errors_total Number of nginx-lua-prometheus errors
+    # TYPE nginx_metric_errors_total counter
+    nginx_metric_errors_total 0
