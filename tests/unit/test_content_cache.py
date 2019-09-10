@@ -702,9 +702,7 @@ site1.local:
         }
 
         with mock.patch.multiple(
-            'lib.nginx.NginxConf',
-            sites_path=os.path.join(self.tmpdir, 'sites-available'),
-            base_path=self.tmpdir,
+            'lib.nginx.NginxConf', sites_path=os.path.join(self.tmpdir, 'sites-available'), base_path=self.tmpdir
         ) as nginxconf_mock:  # noqa: F841
             # conf.d, sites-available, and sites-enabled won't exist in our
             # temporary directory.
@@ -740,9 +738,9 @@ site1.local:
             script_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..')
             jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(script_dir))
             template = jinja_env.get_template('templates/nginx_metrics_cfg.tmpl')
-            content = template.render({
-                'nginx_conf_path': os.path.join(self.tmpdir, 'conf.d'),
-                'port': nginx.METRICS_PORT})
+            content = template.render(
+                {'nginx_conf_path': os.path.join(self.tmpdir, 'conf.d'), 'port': nginx.METRICS_PORT}
+            )
             want = content
             test_file = os.path.join(self.tmpdir, 'sites-available/{0}.conf'.format(nginx.METRICS_SITE))
             with open(test_file, 'r', encoding='utf-8') as f:
