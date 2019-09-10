@@ -4,6 +4,8 @@ init_by_lua_block {
   prometheus = require("prometheus").init("prometheus_metrics")
   http_request_total = prometheus:counter(
     "nginx_http_request_total", "Number of HTTP requests per site", {"host", "status"})
+  cache_request_total = prometheus:counter(                                    
+    "nginx_cache_request_total", "Number of cache requests per site", {"host"})
   cache_request_hit_total = prometheus:counter(
     "nginx_cache_request_hit_total", "Number of cache hits per site", {"host"})
 }

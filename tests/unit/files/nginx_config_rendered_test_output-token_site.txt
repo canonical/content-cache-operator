@@ -1,44 +1,25 @@
-proxy_cache_path {{cache_path}}/{{site}} use_temp_path=off levels=1:2 keys_zone={{name}}-cache:10m max_size={{cache_max_size}};
+proxy_cache_path /var/lib/nginx/proxy/token_site use_temp_path=off levels=1:2 keys_zone=token_site-cache:10m max_size=1g;
 
 server {
-    server_name {{site}};
-    listen {% if address %}{{address}}:{% endif %}{{port}};
+    server_name token_site;
+    listen 127.0.0.1:6080;
 
     port_in_redirect off;
     absolute_redirect off;
 
-{%- for location, conf in locations.items() %}
-
-    location {% if conf['modifier'] %}{{conf['modifier']}} {% endif %}{{ location }} {
-{%- if conf['backend'] %}
-        proxy_pass {{conf['backend']}};
-        proxy_set_header Host "{{site}}";
-        proxy_cache {{name}}-cache;
-{%- for key, value in conf.items() -%}
-{%- if key.startswith('cache-') and value != 'None' %}
-        proxy_{{key|replace("-", "_")}} {{value}};
-{%- endif %}
-{%- endfor -%}
-{%- endif %}
-
-{%- if conf['origin-headers'] %}
-{%- for header_pair in conf['origin-headers'] -%}
-{% for header, value in header_pair.items() %}
-        proxy_set_header {{header}} '{{value}}';
-{%- endfor -%}
-{%- endfor -%}
-{%- endif %}
-
-{%- if conf['extra-config'] %}
-{%- for extra in conf['extra-config'] %}
-        {{extra}};
-{%- endfor -%}
-{%- endif %}
-
-{%- if conf['signed-url-hmac-key'] %}
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host "token_site";
+        proxy_cache token_site-cache;
+        proxy_cache_background_update on;
+        proxy_cache_lock on;
+        proxy_cache_min_uses 1;
+        proxy_cache_revalidate on;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_cache_valid 200 1d;
 
         access_by_lua_block {
-            local hmac_key = "{{conf['signed-url-hmac-key']}}"
+            local hmac_key = "SrRorTsImr92B6FfSKBFrSIiR5NYGS+gdjd8oGoVH44="
 
             local uri = ngx.var.uri
             local args = ngx.var.args
@@ -99,26 +80,13 @@ server {
 
             args["token"] = nil
             ngx.req.set_uri_args(args)
-            {%- if enable_prometheus_metrics %}
 
             -- Exclude healthchecks from nginx_cache_request_total metric.
             from, to = ngx.re.find(ngx.var.uri, "^/check/?")
             if not from then
                 cache_request_total:inc(1, {ngx.var.server_name})
             end
-            {%- endif %}
         }
-{%- elif enable_prometheus_metrics %}
-
-        access_by_lua_block {
-            -- Exclude healthchecks from nginx_cache_request_total metric.
-            from, to = ngx.re.find(ngx.var.uri, "^/check/?")
-            if not from then
-                cache_request_total:inc(1, {ngx.var.server_name})
-            end
-        }
-{%- endif %}
-{%- if enable_prometheus_metrics %}
 
         log_by_lua_block {
           http_request_total:inc(1, {ngx.var.server_name, ngx.var.status})
@@ -126,11 +94,9 @@ server {
               cache_request_hit_total:inc(1, {ngx.var.server_name})
           end
         }
-{%- endif %}
     }
-{% endfor %}
 
-    access_log /var/log/nginx/{{site}}-access.log content_cache;
-    error_log /var/log/nginx/{{site}}-error.log;
+
+    access_log /var/log/nginx/token_site-access.log content_cache;
+    error_log /var/log/nginx/token_site-error.log;
 }
-

@@ -69,6 +69,9 @@ This will expose the following metrics for each site configured:
     # HELP nginx_cache_request_hit_total Number of cache hits per site
     # TYPE nginx_cache_request_hit_total counter
     nginx_cache_request_hit_total{host="myhost"} 10
+    # HELP nginx_cache_request_total Number of cache requests per site 
+    # TYPE nginx_cache_request_total counter                           
+    nginx_cache_request_total{host="myhost"} 20
     # HELP nginx_http_request_total Number of HTTP requests per site
     # TYPE nginx_http_request_total counter
     nginx_http_request_total{host="myhost",status="200"} 110129
