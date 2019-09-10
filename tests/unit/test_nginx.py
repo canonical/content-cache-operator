@@ -162,9 +162,7 @@ class TestLibNginx(unittest.TestCase):
         script_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..')
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(script_dir))
         template = env.get_template('templates/nginx_metrics_cfg.tmpl')
-        content = template.render({
-            'nginx_conf_path': os.path.join(self.tmpdir, 'conf.d'),
-            'port': nginx.METRICS_PORT})
+        content = template.render({'nginx_conf_path': os.path.join(self.tmpdir, 'conf.d'), 'port': nginx.METRICS_PORT})
         nginx_metrics_conf = content
 
         metrics_site_available = os.path.join(self.tmpdir, 'sites-available', metrics_site_conf)
