@@ -18,6 +18,14 @@ server {
         proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
         proxy_cache_valid 200 1d;
 
+        access_by_lua_block {
+            -- Exclude healthchecks from nginx_cache_request_total metric.
+            from, to = ngx.re.find(ngx.var.uri, "^/check/?")
+            if not from then
+                cache_request_total:inc(1, {ngx.var.server_name})
+            end
+        }
+
         log_by_lua_block {
           http_request_total:inc(1, {ngx.var.server_name, ngx.var.status})
           if ngx.var.upstream_cache_status == "HIT" then
