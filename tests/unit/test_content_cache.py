@@ -753,3 +753,28 @@ site1.local:
         with open(os.path.join(self.tmpdir, 'conf.d', 'prometheus.lua'), 'r') as f:
             got = f.read()
         self.assertEqual(got, want)
+
+    @mock.patch('charmhelpers.core.hookenv.close_port')
+    @mock.patch('charmhelpers.core.hookenv.open_port')
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
+    @mock.patch('charmhelpers.core.host.pwgen')
+    @mock.patch('lib.haproxy.HAProxyConf')
+    @mock.patch('reactive.content_cache.service_start_or_restart')
+    def test_configure_haproxy_ports_management(
+        self, service_start_or_restart, haproxyconf, pwgen, opened_ports, open_port, close_port
+    ):
+        with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
+
+        # Test that haproxy calls close_port with the nginx.METRIC_PORT when enable_prometheus_metrics is False
+        self.mock_config.return_value = {'enable_prometheus_metrics': False, 'sites': ngx_config}
+        opened_ports.return_value = {"80/tcp", "{0}/tcp".format(nginx.METRICS_PORT)}
+        content_cache.configure_haproxy()
+        close_port.assert_called_once_with(nginx.METRICS_PORT)
+
+        # Test that haproxy calls open_port with the nginx.METRIC_PORT when enable_prometheus_metrics is True
+        close_port.reset_mock()
+        open_port.reset_mock()
+        self.mock_config.return_value = {'enable_prometheus_metrics': True, 'sites': ngx_config}
+        content_cache.configure_haproxy()
+        close_port.assert_not_called()
