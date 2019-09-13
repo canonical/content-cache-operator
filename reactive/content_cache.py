@@ -102,7 +102,7 @@ def configure_nginx(conf_path=None):
         status.blocked('requires list of sites to configure')
         return
 
-    enable_prometheus_metrics = config.get('enable_prometheus_metrics', False)
+    enable_prometheus_metrics = config.get('enable_prometheus_metrics')
 
     ngx_conf = nginx.NginxConf(conf_path)
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
@@ -248,6 +248,8 @@ def configure_haproxy():
             if not new_conf[cached_site]['locations']:
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
+    if config.get('enable_prometheus_metrics'):
+        opened_ports.add(nginx.METRICS_PORT)
     hookenv.log("Desired opened ports: {}".format(opened_ports))
     for obsolete_port in old_ports.difference(opened_ports):
         hookenv.log("Closing obsolete port: {}".format(obsolete_port))
