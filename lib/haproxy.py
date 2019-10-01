@@ -83,7 +83,7 @@ class HAProxyConf:
     def render_stanza_listen(self, config):
         listen_stanza = """
 listen {name}
-{indent}bind {address_port}{tls}
+{bind_config}
 {backend_config}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
 
@@ -120,12 +120,16 @@ listen {name}
                 backend = backend_config[0].split()[1]
                 backend_config = ['{indent}default_backend {backend}\n'.format(backend=backend, indent=INDENT)]
 
+            bind_config = '{indent}bind {address_port}{tls}'.format(
+                address_port=address_port, tls=tls_config, indent=INDENT
+            )
+            # Handle 0.0.0.0 and also listen on IPv6 interfaces
+            if address_port.split(':')[0] == '0.0.0.0':
+                bind_config += '\n{indent}bind :::{port}{tls}'.format(
+                    port=address_port.split(':')[1], tls=tls_config, indent=INDENT
+                )
             output = listen_stanza.format(
-                name=name,
-                backend_config=''.join(backend_config),
-                address_port=address_port,
-                tls=tls_config,
-                indent=INDENT,
+                name=name, backend_config=''.join(backend_config), bind_config=bind_config, indent=INDENT
             )
             rendered_output.append(output)
         return rendered_output
