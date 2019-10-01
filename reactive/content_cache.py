@@ -183,6 +183,9 @@ def configure_haproxy():
         if tls_cert_bundle_path:
             default_port = 443
             new_conf[cached_site]['tls-cert-bundle-path'] = tls_cert_bundle_path
+            http_https_redirect = site_conf.get('http-https-redirect')
+            if http_https_redirect:
+                new_conf[cached_site]['http-https-redirect'] = http_https_redirect
 
         new_conf[cached_site]['port'] = site_conf.get('port') or default_port
         try:

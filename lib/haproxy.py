@@ -128,6 +128,8 @@ listen {name}
                 bind_config += '\n{indent}bind :::{port}{tls}'.format(
                     port=address_port.split(':')[1], tls=tls_config, indent=INDENT
                 )
+            if tls_config and site_conf.get('http-https-redirect'):
+                bind_config += '\n{indent}redirect scheme https if !{{ ssl_fc }}'.format(indent=INDENT)
             output = listen_stanza.format(
                 name=name, backend_config=''.join(backend_config), bind_config=bind_config, indent=INDENT
             )
