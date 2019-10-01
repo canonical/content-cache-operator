@@ -68,7 +68,7 @@ listen site1-local
 listen cached-site2-local
     bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt
     bind :::443 ssl crt /etc/haproxy/site2-bundle.crt
-    redirect scheme https if !{ ssl_fc }
+    redirect scheme https code 301 if !{ ssl_fc }
     default_backend backend-cached-site2-local
 
 listen site2-local
