@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import re
 import shutil
 
 
@@ -77,3 +78,32 @@ def cache_max_size(path, percent=75):
     percent = percent / 100
     gbytes = 1024 * 1024 * 1024
     return '{}g'.format(max(1, int((total * percent) / gbytes)))
+
+
+def ip_addr_port_split(addr_port):
+    addr = None
+
+    # IPv4
+    regex = re.compile('((?:[12]?\\d{1,2}\\.){3}[12]?\\d{1,2}):(\\d{1,5})')
+    m = regex.match(addr_port)
+    if m:
+        addr, port = m.group(1, 2)
+        for octet in addr.split('.'):
+            if int(octet) > 255:
+                addr = None
+                break
+
+    # IPv6
+    else:
+        regex = re.compile('\\[?([:a-fA-F0-9]+)\\]?:(\\d{1,5})')
+        m = regex.match(addr_port)
+        if m:
+            addr, port = m.group(1, 2)
+        else:
+            port = addr_port.split(':')[-1]
+
+    port = int(port)
+    if port > 65535:
+        port = None
+
+    return (addr, port)

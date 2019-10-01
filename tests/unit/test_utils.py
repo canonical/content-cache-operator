@@ -85,3 +85,17 @@ class TestLibUtils(unittest.TestCase):
         self.assertEqual(utils.cache_max_size('/srv', percent=50), '120g')
         disk_usage.return_value = (0, 0, 0)
         self.assertEqual(utils.cache_max_size('/srv'), '1g')
+
+    def test_ip_addr_port_split(self):
+        self.assertEqual(utils.ip_addr_port_split(':::80'), ('::', 80))
+        self.assertEqual(utils.ip_addr_port_split('fe80::1:443'), ('fe80::1', 443))
+        self.assertEqual(utils.ip_addr_port_split('[fe80::1]:443'), ('fe80::1', 443))
+        self.assertEqual(utils.ip_addr_port_split('zz80::1:443'), (None, 443))
+        self.assertEqual(utils.ip_addr_port_split('fe80::1:65536'), ('fe80::1', None))
+
+        self.assertEqual(utils.ip_addr_port_split('0.0.0.0:80'), ('0.0.0.0', 80))
+        self.assertEqual(utils.ip_addr_port_split('10.0.0.1:443'), ('10.0.0.1', 443))
+        self.assertEqual(utils.ip_addr_port_split('10.0.0.256:443'), (None, 443))
+        self.assertEqual(utils.ip_addr_port_split('10.0.0.1:65536'), ('10.0.0.1', None))
+
+        self.assertEqual(utils.ip_addr_port_split('dsafds:80'), (None, 80))
