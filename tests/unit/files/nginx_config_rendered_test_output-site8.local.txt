@@ -1,4 +1,4 @@
-proxy_cache_path /var/lib/nginx/proxy/site8.local use_temp_path=off levels=1:2 keys_zone=site8-cache:10m max_size=1g;
+proxy_cache_path /var/lib/nginx/proxy/site8.local use_temp_path=off levels=1:2 keys_zone=dcd95df02bf2-cache:10m max_size=1g;
 
 server {
     server_name site8.local;
@@ -10,7 +10,7 @@ server {
     location / {
         proxy_pass http://localhost:8087;
         proxy_set_header Host "site8.local";
-        proxy_cache site8-cache;
+        proxy_cache dcd95df02bf2-cache;
         proxy_cache_background_update on;
         proxy_cache_lock on;
         proxy_cache_min_uses 1;
@@ -23,7 +23,7 @@ server {
     location /auth {
         proxy_pass http://localhost:8088;
         proxy_set_header Host "site8.local";
-        proxy_cache site8-cache;
+        proxy_cache dcd95df02bf2-cache;
         proxy_cache_background_update on;
         proxy_cache_lock on;
         proxy_cache_min_uses 1;
