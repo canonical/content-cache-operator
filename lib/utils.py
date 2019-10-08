@@ -111,6 +111,6 @@ def ip_addr_port_split(addr_port):
         port = None
 
     if addr is None or port is None:
-        raise InvalidAddressPortError('Invalid Internet Address or Port')
+        raise InvalidAddressPortError('Unable to split IP address and port from "{}"'.format(addr_port))
 
     return (addr, port)
