@@ -120,7 +120,8 @@ def configure_nginx(conf_path=None):
     conf['listen_address'] = '127.0.0.1'
     changed = False
     for site, site_conf in sites.items():
-        conf['site'] = site_conf.get('site-name') or site
+        conf['site'] = site
+        conf['site_name'] = site_conf.get('site-name') or site
         conf['listen_port'] = site_conf['cache_port']
         conf['locations'] = site_conf.get('locations', {})
         conf['enable_prometheus_metrics'] = enable_prometheus_metrics

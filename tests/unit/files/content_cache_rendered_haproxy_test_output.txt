@@ -92,8 +92,8 @@ listen site6-local
     default_backend backend-site6-local
 
 listen combined-444
-    bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt /etc/haproxy/site8-bundle.crt
-    bind :::444 ssl crt /etc/haproxy/site7-bundle.crt /etc/haproxy/site8-bundle.crt
+    bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt
+    bind :::444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt
     use_backend backend-cached-site7-local if { hdr(Host) -i site7.local }
     use_backend backend-cached-site8-local if { hdr(Host) -i site8.local }
 

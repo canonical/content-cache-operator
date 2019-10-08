@@ -94,6 +94,8 @@ listen {name}
         # the 'Host' header to direct to the correct backends.
         config = self._merge_listen_stanzas(config)
         for address_port in config:
+            (address, port) = utils.ip_addr_port_split(address_port)
+
             backend_config = []
             tls_cert_bundle_paths = []
             for site, site_conf in config[address_port].items():
@@ -102,7 +104,7 @@ listen {name}
                 if len(config[address_port].keys()) == 1:
                     name = self._generate_stanza_name(site, stanza_names)
                 else:
-                    name = 'combined-{}'.format(address_port.split(':')[1])
+                    name = 'combined-{}'.format(port)
                 stanza_names.append(name)
 
                 tls_path = site_conf.get('tls-cert-bundle-path')
@@ -114,7 +116,8 @@ listen {name}
 
             tls_config = ''
             if tls_cert_bundle_paths:
-                tls_config = ' ssl crt {}'.format(' '.join(tls_cert_bundle_paths))
+                paths = sorted(set(tls_cert_bundle_paths))
+                tls_config = ' ssl {}'.format(' '.join(['crt {}'.format(path) for path in paths]))
 
             if len(backend_config) == 1:
                 backend = backend_config[0].split()[1]
@@ -124,10 +127,8 @@ listen {name}
                 address_port=address_port, tls=tls_config, indent=INDENT
             )
             # Handle 0.0.0.0 and also listen on IPv6 interfaces
-            if address_port.split(':')[0] == '0.0.0.0':
-                bind_config += '\n{indent}bind :::{port}{tls}'.format(
-                    port=address_port.split(':')[1], tls=tls_config, indent=INDENT
-                )
+            if address == '0.0.0.0':
+                bind_config += '\n{indent}bind :::{port}{tls}'.format(port=port, tls=tls_config, indent=INDENT)
             if tls_config and site_conf.get('redirect-http-to-https'):
                 bind_config += '\n{indent}redirect scheme https code 301 if !{{ ssl_fc }}'.format(indent=INDENT)
             output = listen_stanza.format(

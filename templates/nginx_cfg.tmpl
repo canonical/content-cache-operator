@@ -1,7 +1,7 @@
-proxy_cache_path {{cache_path}}/{{site}} use_temp_path=off levels=1:2 keys_zone={{name}}-cache:10m max_size={{cache_max_size}};
+proxy_cache_path {{cache_path}}/{{site}} use_temp_path=off levels=1:2 keys_zone={{keys_zone}}:10m max_size={{cache_max_size}};
 
 server {
-    server_name {{site}};
+    server_name {{site_name}};
     listen {% if address %}{{address}}:{% endif %}{{port}};
 
     port_in_redirect off;
@@ -12,8 +12,8 @@ server {
     location {% if conf['modifier'] %}{{conf['modifier']}} {% endif %}{{ location }} {
 {%- if conf['backend'] %}
         proxy_pass {{conf['backend']}};
-        proxy_set_header Host "{{site}}";
-        proxy_cache {{name}}-cache;
+        proxy_set_header Host "{{site_name}}";
+        proxy_cache {{keys_zone}};
 {%- for key, value in conf.items() -%}
 {%- if key.startswith('cache-') and value != 'None' %}
         proxy_{{key|replace("-", "_")}} {{value}};
@@ -130,7 +130,7 @@ server {
     }
 {% endfor %}
 
-    access_log /var/log/nginx/{{site}}-access.log content_cache;
-    error_log /var/log/nginx/{{site}}-error.log;
+    access_log /var/log/nginx/{{site_name}}-access.log content_cache;
+    error_log /var/log/nginx/{{site_name}}-error.log;
 }
 
