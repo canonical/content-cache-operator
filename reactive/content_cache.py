@@ -318,7 +318,7 @@ def configure_nagios():
                     cmd = (
                         '/usr/lib/nagios/plugins/negate'
                         ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}'
-                        ' -p {port} --ssl={tls} --sni -j {method} -u {url}{path}{token}'.format(
+                        ' -p {port} --ssl={tls} --sni -j {method} -u {path}{token}'.format(
                             site=site, port=frontend_port, method=method, url=url, path=path, token=token, tls=tlsrev
                         )
                     )
@@ -332,7 +332,7 @@ def configure_nagios():
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'listen')
             cmd = (
                 '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}'
-                ' -p {port}{tls} -j {method} -u {url}{path}{token}'.format(
+                ' -p {port}{tls} -j {method} -u {path}{token}'.format(
                     site=site, port=frontend_port, method=method, url=url, path=path, token=token, tls=tls
                 )
             )
@@ -344,7 +344,7 @@ def configure_nagios():
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'cache')
             cmd = (
                 '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}'
-                ' -p {cache_port} -j {method} -u {url}{path}{token}'.format(
+                ' -p {cache_port} -j {method} -u {path}{token}'.format(
                     site=site, cache_port=cache_port, method=method, url=url, path=path, token=token
                 )
             )
@@ -358,7 +358,7 @@ def configure_nagios():
                 check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'backend_proxy')
                 cmd = (
                     '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port}'
-                    ' -j {method} -u {url}{path}'.format(
+                    ' -j {method} -u {path}'.format(
                         site=site, backend_port=backend_port, method=method, url=url, path=path
                     )
                 )
