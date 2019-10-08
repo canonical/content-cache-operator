@@ -361,7 +361,7 @@ site1.local:
             mock.call(
                 shortname='site_site1_local_backend_proxy',
                 description='site1.local backend proxy check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080 -j HEAD' ' -u /',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080 -j HEAD -u /',
             ),
         ]
         self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
@@ -388,12 +388,12 @@ site1.local:
             mock.call(
                 shortname='site_site2_local_cache',
                 description='site2.local cache check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 6081 -j GET' ' -u /check/',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 6081 -j GET -u /check/',
             ),
             mock.call(
                 shortname='site_site2_local_backend_proxy',
                 description='site2.local backend proxy check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 8081 -j GET' ' -u /check/',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 8081 -j GET -u /check/',
             ),
             mock.call(
                 shortname='site_site2_local_my_local_content_no_tls_1',
@@ -450,17 +450,17 @@ site1.local:
             mock.call(
                 shortname='site_site3_local_listen',
                 description='site3.local site listen check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 80 -j HEAD' ' -u /',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 80 -j HEAD -u /',
             ),
             mock.call(
                 shortname='site_site3_local_cache',
                 description='site3.local cache check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 6082 -j HEAD' ' -u /',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 6082 -j HEAD -u /',
             ),
             mock.call(
                 shortname='site_site3_local_backend_proxy',
                 description='site3.local backend proxy check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082 -j HEAD' ' -u /',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082 -j HEAD -u /',
             ),
         ]
         self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
@@ -469,12 +469,12 @@ site1.local:
             mock.call(
                 shortname='site_site4_local_listen',
                 description='site4.local site listen check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site4.local -p 80 -j HEAD' ' -u /',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site4.local -p 80 -j HEAD -u /',
             ),
             mock.call(
                 shortname='site_site4_local_cache',
                 description='site4.local cache check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site4.local -p 6083 -j HEAD' ' -u /',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site4.local -p 6083 -j HEAD -u /',
             ),
             mock.call(
                 shortname='site_site4_local_ubuntupool_listen',
@@ -495,32 +495,32 @@ site1.local:
             mock.call(
                 shortname='site_site5_listen',
                 description='site5 site listen check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 80 -j HEAD' ' -u /',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 80 -j HEAD -u /',
             ),
             mock.call(
                 shortname='site_site5_cache',
                 description='site5 cache check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 6084 -j HEAD' ' -u /',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 6084 -j HEAD -u /',
             ),
             mock.call(
                 shortname='site_site5_backend_proxy',
                 description='site5 backend proxy check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 8083 -j HEAD' ' -u /',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 8083 -j HEAD -u /',
             ),
             mock.call(
                 shortname='site_site5_auth_listen',
                 description='site5 site listen check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 80 -j HEAD' ' -u /auth',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 80 -j HEAD -u /auth',
             ),
             mock.call(
                 shortname='site_site5_auth_cache',
                 description='site5 cache check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 6084 -j HEAD' ' -u /auth',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 6084 -j HEAD -u /auth',
             ),
             mock.call(
                 shortname='site_site5_auth_backend_proxy',
                 description='site5 backend proxy check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 8084 -j HEAD' ' -u /auth',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5 -p 8084 -j HEAD -u /auth',
             ),
         ]
         self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
