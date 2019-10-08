@@ -95,8 +95,6 @@ listen {name}
         config = self._merge_listen_stanzas(config)
         for address_port in config:
             (address, port) = utils.ip_addr_port_split(address_port)
-            if address is None or port is None:
-                continue
 
             backend_config = []
             tls_cert_bundle_paths = []

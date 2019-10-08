@@ -86,16 +86,32 @@ class TestLibUtils(unittest.TestCase):
         disk_usage.return_value = (0, 0, 0)
         self.assertEqual(utils.cache_max_size('/srv'), '1g')
 
-    def test_ip_addr_port_split(self):
-        self.assertEqual(utils.ip_addr_port_split(':::80'), ('::', 80))
-        self.assertEqual(utils.ip_addr_port_split('fe80::1:443'), ('fe80::1', 443))
+    def test_ip_addr_port_split_ipv6(self):
+        self.assertEqual(utils.ip_addr_port_split('[::]:80'), ('::', 80))
         self.assertEqual(utils.ip_addr_port_split('[fe80::1]:443'), ('fe80::1', 443))
-        self.assertEqual(utils.ip_addr_port_split('zz80::1:443'), (None, 443))
-        self.assertEqual(utils.ip_addr_port_split('fe80::1:65536'), ('fe80::1', None))
 
+        # Ensure IPv6 addresses are enclosed in square brackets - '[' and ']'.
+        with self.assertRaises(utils.InvalidAddressPortError):
+            utils.ip_addr_port_split(':::80')
+        with self.assertRaises(utils.InvalidAddressPortError):
+            utils.ip_addr_port_split('fe80::1:443')
+
+        # Invalid IPv6 address.
+        with self.assertRaises(utils.InvalidAddressPortError):
+            utils.ip_addr_port_split('[zz80::1]:443')
+        # Invalid port.
+        with self.assertRaises(utils.InvalidAddressPortError):
+            utils.ip_addr_port_split('[fe80::1]:65536')
+
+    def test_ip_addr_port_split_ipv4(self):
         self.assertEqual(utils.ip_addr_port_split('0.0.0.0:80'), ('0.0.0.0', 80))
         self.assertEqual(utils.ip_addr_port_split('10.0.0.1:443'), ('10.0.0.1', 443))
-        self.assertEqual(utils.ip_addr_port_split('10.0.0.256:443'), (None, 443))
-        self.assertEqual(utils.ip_addr_port_split('10.0.0.1:65536'), ('10.0.0.1', None))
 
-        self.assertEqual(utils.ip_addr_port_split('dsafds:80'), (None, 80))
+        # Invalid IPv4 address.
+        with self.assertRaises(utils.InvalidAddressPortError):
+            utils.ip_addr_port_split('10.0.0.256:443')
+        with self.assertRaises(utils.InvalidAddressPortError):
+            utils.ip_addr_port_split('dsafds:80')
+        # Invalid port.
+        with self.assertRaises(utils.InvalidAddressPortError):
+            utils.ip_addr_port_split('10.0.0.1:65536')

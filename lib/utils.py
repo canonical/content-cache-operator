@@ -13,6 +13,10 @@ class InvalidPortError(Exception):
     pass
 
 
+class InvalidAddressPortError(Exception):
+    pass
+
+
 def next_port_pair(
     cache_port,
     backend_port,
@@ -84,18 +88,18 @@ def ip_addr_port_split(addr_port):
     addr = None
 
     # IPv4
-    regex = re.compile('((?:[12]?\\d{1,2}\\.){3}[12]?\\d{1,2}):(\\d{1,5})')
+    regex = re.compile('((\\d{1,3}).(\\d{1,3}).(\\d{1,3}).(\\d{1,3})):(\\d{1,5})')
     m = regex.match(addr_port)
     if m:
-        addr, port = m.group(1, 2)
-        for octet in addr.split('.'):
+        addr, port = m.group(1, 6)
+        for octet in m.group(2, 3, 4, 5):
             if int(octet) > 255:
                 addr = None
                 break
 
     # IPv6
     else:
-        regex = re.compile('\\[?([:a-fA-F0-9]+)\\]?:(\\d{1,5})')
+        regex = re.compile('\\[([:a-fA-F0-9]+)\\]:(\\d{1,5})')
         m = regex.match(addr_port)
         if m:
             addr, port = m.group(1, 2)
@@ -105,5 +109,8 @@ def ip_addr_port_split(addr_port):
     port = int(port)
     if port > 65535:
         port = None
+
+    if addr is None or port is None:
+        raise InvalidAddressPortError('Invalid Internet Address or Port')
 
     return (addr, port)
