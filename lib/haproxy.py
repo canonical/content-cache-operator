@@ -83,7 +83,7 @@ class HAProxyConf:
     def render_stanza_listen(self, config):
         listen_stanza = """
 listen {name}
-{indent}bind {address_port}{tls}
+{bind_config}
 {backend_config}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
 
@@ -94,6 +94,8 @@ listen {name}
         # the 'Host' header to direct to the correct backends.
         config = self._merge_listen_stanzas(config)
         for address_port in config:
+            (address, port) = utils.ip_addr_port_split(address_port)
+
             backend_config = []
             tls_cert_bundle_paths = []
             for site, site_conf in config[address_port].items():
@@ -102,7 +104,7 @@ listen {name}
                 if len(config[address_port].keys()) == 1:
                     name = self._generate_stanza_name(site, stanza_names)
                 else:
-                    name = 'combined-{}'.format(address_port.split(':')[1])
+                    name = 'combined-{}'.format(port)
                 stanza_names.append(name)
 
                 tls_path = site_conf.get('tls-cert-bundle-path')
@@ -121,12 +123,14 @@ listen {name}
                 backend = backend_config[0].split()[1]
                 backend_config = ['{indent}default_backend {backend}\n'.format(backend=backend, indent=INDENT)]
 
+            bind_config = '{indent}bind {address_port}{tls}'.format(
+                address_port=address_port, tls=tls_config, indent=INDENT
+            )
+            # Handle 0.0.0.0 and also listen on IPv6 interfaces
+            if address == '0.0.0.0':
+                bind_config += '\n{indent}bind :::{port}{tls}'.format(port=port, tls=tls_config, indent=INDENT)
             output = listen_stanza.format(
-                name=name,
-                backend_config=''.join(backend_config),
-                address_port=address_port,
-                tls=tls_config,
-                indent=INDENT,
+                name=name, backend_config=''.join(backend_config), bind_config=bind_config, indent=INDENT
             )
             rendered_output.append(output)
         return rendered_output

@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import re
 import shutil
 
 
@@ -9,6 +10,10 @@ BACKEND_PORT_LIMIT = 61000  # sysctl net.ipv4.ip_local_port_range
 
 
 class InvalidPortError(Exception):
+    pass
+
+
+class InvalidAddressPortError(Exception):
     pass
 
 
@@ -77,3 +82,35 @@ def cache_max_size(path, percent=75):
     percent = percent / 100
     gbytes = 1024 * 1024 * 1024
     return '{}g'.format(max(1, int((total * percent) / gbytes)))
+
+
+def ip_addr_port_split(addr_port):
+    addr = None
+
+    # IPv4
+    regex = re.compile('((\\d{1,3}).(\\d{1,3}).(\\d{1,3}).(\\d{1,3})):(\\d{1,5})')
+    m = regex.match(addr_port)
+    if m:
+        addr, port = m.group(1, 6)
+        for octet in m.group(2, 3, 4, 5):
+            if int(octet) > 255:
+                addr = None
+                break
+
+    # IPv6
+    else:
+        regex = re.compile('\\[([:a-fA-F0-9]+)\\]:(\\d{1,5})')
+        m = regex.match(addr_port)
+        if m:
+            addr, port = m.group(1, 2)
+        else:
+            port = addr_port.split(':')[-1]
+
+    port = int(port)
+    if port > 65535:
+        port = None
+
+    if addr is None or port is None:
+        raise InvalidAddressPortError('Unable to split IP address and port from "{}"'.format(addr_port))
+
+    return (addr, port)
