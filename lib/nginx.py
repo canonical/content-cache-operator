@@ -1,3 +1,4 @@
+import hashlib
 import os
 from copy import deepcopy
 
@@ -88,8 +89,8 @@ class NginxConf:
 
         return changed
 
-    def _generate_name(self, name):
-        return name.split('.')[0]
+    def _generate_keys_zone(self, name):
+        return '{}-cache'.format(hashlib.md5(name.encode('UTF-8')).hexdigest()[0:12])
 
     def _process_locations(self, locations):
         conf = {}
@@ -117,9 +118,10 @@ class NginxConf:
             'enable_prometheus_metrics': conf['enable_prometheus_metrics'],
             'cache_path': conf['cache_path'],
             'locations': self._process_locations(conf['locations']),
-            'name': self._generate_name(conf['site']),
+            'keys_zone': self._generate_keys_zone(conf['site']),
             'port': conf['listen_port'],
             'site': conf['site'],
+            'site_name': conf['site_name'],
         }
         template = self.jinja_env.get_template('templates/nginx_cfg.tmpl')
         return template.render(data)

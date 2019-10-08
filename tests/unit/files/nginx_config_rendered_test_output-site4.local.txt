@@ -1,4 +1,4 @@
-proxy_cache_path /var/lib/nginx/proxy/site4.local use_temp_path=off levels=1:2 keys_zone=site4-cache:10m max_size=1g;
+proxy_cache_path /var/lib/nginx/proxy/site4.local use_temp_path=off levels=1:2 keys_zone=a0bfaa048a6f-cache:10m max_size=1g;
 
 server {
     server_name site4.local;

@@ -268,7 +268,7 @@ site1.local:
             }
             want = (
                 'proxy_cache_path /var/lib/nginx/proxy/site1.local use_temp_path=off levels=1:2'
-                ' keys_zone=site1-cache:10m max_size=1g;'
+                ' keys_zone=a5586980e57a-cache:10m max_size=1g;'
             )
             content_cache.configure_nginx(self.tmpdir)
             with open(os.path.join(self.tmpdir, 'sites-available/site1.local.conf'), 'r', encoding='utf-8') as f:
@@ -278,7 +278,7 @@ site1.local:
             self.mock_config.return_value = {'cache_max_size': '20g', 'cache_path': '/srv/cache', 'sites': config}
             want = (
                 'proxy_cache_path /srv/cache/site1.local use_temp_path=off levels=1:2'
-                ' keys_zone=site1-cache:10m max_size=20g;'
+                ' keys_zone=a5586980e57a-cache:10m max_size=20g;'
             )
             content_cache.configure_nginx(self.tmpdir)
             with open(os.path.join(self.tmpdir, 'sites-available/site1.local.conf'), 'r', encoding='utf-8') as f:
@@ -289,7 +289,7 @@ site1.local:
             self.mock_config.return_value = {'cache_max_size': '', 'cache_path': '/srv/cache', 'sites': config}
             want = (
                 'proxy_cache_path /srv/cache/site1.local use_temp_path=off levels=1:2'
-                ' keys_zone=site1-cache:10m max_size=180g;'
+                ' keys_zone=a5586980e57a-cache:10m max_size=180g;'
             )
             content_cache.configure_nginx(self.tmpdir)
             with open(os.path.join(self.tmpdir, 'sites-available/site1.local.conf'), 'r', encoding='utf-8') as f:

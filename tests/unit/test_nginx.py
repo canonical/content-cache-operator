@@ -56,7 +56,8 @@ class TestLibNginx(unittest.TestCase):
         backend_port = BASE_BACKEND_PORT - 1
         for site, site_conf in sites.items():
             port += 1
-            conf['site'] = site_conf.get('site-name') or site
+            conf['site'] = site
+            conf['site_name'] = site_conf.get('site-name') or site
             conf['listen_port'] = port
             conf['locations'] = site_conf.get('locations', {})
 
@@ -134,7 +135,8 @@ class TestLibNginx(unittest.TestCase):
             'enable_prometheus_metrics': True,
         }
         for site, site_conf in sites.items():
-            conf['site'] = site_conf.get('site-name') or site
+            conf['site'] = site
+            conf['site_name'] = site_conf.get('site-name') or site
             conf['listen_port'] = BASE_LISTEN_PORT
             conf['locations'] = site_conf.get('locations', {})
 
