@@ -23,9 +23,10 @@ PROXY_CACHE_DEFAULTS = {
 
 
 class NginxConf:
-    def __init__(self, conf_path=None):
+    def __init__(self, conf_path=None, unit='content-cache'):
         if not conf_path:
             conf_path = NGINX_BASE_PATH
+        self.unit = unit
         self._base_path = conf_path
         self._conf_path = os.path.join(self.base_path, 'conf.d')
         self._sites_path = os.path.join(self.base_path, 'sites-available')
@@ -115,10 +116,11 @@ class NginxConf:
         data = {
             'address': conf['listen_address'],
             'cache_max_size': conf['cache_max_size'],
-            'enable_prometheus_metrics': conf['enable_prometheus_metrics'],
             'cache_path': conf['cache_path'],
-            'locations': self._process_locations(conf['locations']),
+            'enable_prometheus_metrics': conf['enable_prometheus_metrics'],
+            'juju_unit': self.unit,
             'keys_zone': self._generate_keys_zone(conf['site']),
+            'locations': self._process_locations(conf['locations']),
             'port': conf['listen_port'],
             'site': conf['site'],
             'site_name': conf['site_name'],

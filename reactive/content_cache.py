@@ -104,7 +104,7 @@ def configure_nginx(conf_path=None):
 
     enable_prometheus_metrics = config.get('enable_prometheus_metrics')
 
-    ngx_conf = nginx.NginxConf(conf_path)
+    ngx_conf = nginx.NginxConf(conf_path, hookenv.local_unit())
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     sites = sites_from_config(config.get('sites'), sites_secrets)
     if not sites:
