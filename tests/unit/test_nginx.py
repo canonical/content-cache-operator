@@ -40,7 +40,7 @@ class TestLibNginx(unittest.TestCase):
 
     def test_nginx_config_render(self):
         """Test parsing a YAML-formatted list of sites."""
-        ngx_conf = nginx.NginxConf()
+        ngx_conf = nginx.NginxConf(unit='mock-content-cache/0')
 
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             sites = yaml.safe_load(f.read())
@@ -123,7 +123,7 @@ class TestLibNginx(unittest.TestCase):
 
     def test_nginx_config_render_with_metrics(self):
         """Test rendering with metrics exposed."""
-        ngx_conf = nginx.NginxConf()
+        ngx_conf = nginx.NginxConf(unit='mock-content-cache/0')
 
         with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             sites = yaml.safe_load(f.read())

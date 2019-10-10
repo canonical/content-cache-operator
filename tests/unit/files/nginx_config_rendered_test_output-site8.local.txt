@@ -11,6 +11,7 @@ server {
         proxy_pass http://localhost:8087;
         proxy_set_header Host "site8.local";
         proxy_cache dcd95df02bf2-cache;
+        add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
         proxy_cache_background_update on;
         proxy_cache_lock on;
         proxy_cache_min_uses 1;
@@ -24,6 +25,7 @@ server {
         proxy_pass http://localhost:8088;
         proxy_set_header Host "site8.local";
         proxy_cache dcd95df02bf2-cache;
+        add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
         proxy_cache_background_update on;
         proxy_cache_lock on;
         proxy_cache_min_uses 1;

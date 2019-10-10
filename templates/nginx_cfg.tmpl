@@ -14,6 +14,7 @@ server {
         proxy_pass {{conf['backend']}};
         proxy_set_header Host "{{site_name}}";
         proxy_cache {{keys_zone}};
+        add_header X-Cache-Status "$upstream_cache_status from {{juju_unit}}";
 {%- for key, value in conf.items() -%}
 {%- if key.startswith('cache-') and value != 'None' %}
         proxy_{{key|replace("-", "_")}} {{value}};
