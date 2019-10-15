@@ -71,8 +71,11 @@ class TestLibHAProxy(unittest.TestCase):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
         num_procs = 4
+        tls_ciphers = 'ECDH+AESGCM:!aNULL:!MD5:!DSS'
         password = "biometricsarenotsecret"
-        self.assertTrue(haproxy.write(haproxy.render(config, num_procs, monitoring_password=password)))
+        self.assertTrue(
+            haproxy.write(haproxy.render(config, num_procs, monitoring_password=password, tls_ciphers=tls_ciphers))
+        )
         with open(haproxy.conf_file, 'r') as f:
             new_conf = f.read()
         with open('tests/unit/files/haproxy_config_rendered_test_output.txt', 'r') as f:

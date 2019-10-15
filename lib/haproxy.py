@@ -10,6 +10,7 @@ from lib import utils
 
 HAPROXY_BASE_PATH = '/etc/haproxy'
 INDENT = ' ' * 4
+TLS_CIPHERS = 'ECDH+AESGCM:ECDH+AES256:ECDH+AES128:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS'
 
 
 class HAProxyConf:
@@ -226,9 +227,11 @@ backend backend-{name}
 
         return rendered_output
 
-    def render(self, config, num_procs=None, monitoring_password=None):
+    def render(self, config, num_procs=None, monitoring_password=None, tls_ciphers=None):
         if not num_procs:
             num_procs = multiprocessing.cpu_count()
+        if not tls_ciphers:
+            tls_ciphers = TLS_CIPHERS
 
         base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
@@ -239,6 +242,7 @@ backend backend-{name}
                 'backend': self.render_stanza_backend(config),
                 'num_procs': num_procs,
                 'monitoring_password': monitoring_password or self.monitoring_password,
+                'tls_ciphers': tls_ciphers,
             }
         )
 
