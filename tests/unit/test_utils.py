@@ -115,3 +115,15 @@ class TestLibUtils(unittest.TestCase):
         # Invalid port.
         with self.assertRaises(utils.InvalidAddressPortError):
             utils.ip_addr_port_split('10.0.0.1:65536')
+
+    def test_tls_ciphers(self):
+        tls_ciphers = 'ECDH+AESGCM:ECDH+AES256:ECDH+AES128:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS'
+        self.assertEqual(utils.tls_ciphers(tls_ciphers), tls_ciphers)
+
+        tls_ciphers = 'SomeInvalidOpenSSLCipherString'
+        with self.assertRaises(utils.InvalidTLSCiphersError):
+            utils.tls_ciphers(tls_ciphers)
+
+        tls_ciphers = '--help'
+        with self.assertRaises(utils.InvalidTLSCiphersError):
+            utils.tls_ciphers(tls_ciphers)

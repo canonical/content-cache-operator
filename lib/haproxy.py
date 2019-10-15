@@ -232,6 +232,7 @@ backend backend-{name}
             num_procs = multiprocessing.cpu_count()
         if not tls_ciphers:
             tls_ciphers = TLS_CIPHERS
+        tls_ciphers = utils.tls_ciphers(tls_ciphers)
 
         base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
