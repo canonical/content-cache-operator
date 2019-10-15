@@ -40,11 +40,11 @@ options:
             origin-headers:
               X-Origin-Key: my-origin-secret-key
             signed-url-hmac-key: my-signed-url-secret-key
-  tls_ciphers:
+  tls_cipher_suites:
     default: ""
     type: string
     description: |
-      Override default ciphers used for SSL/TLS termination (OpenSSL format).
+      Override default ciphers used for TLS/SSL termination (OpenSSL format).
   enable_prometheus_metrics:
     default: true
     type: boolean

@@ -261,11 +261,11 @@ def configure_haproxy():
 
     if haproxy.monitoring_password:
         rendered_config = haproxy.render(
-            new_conf, monitoring_password=haproxy.monitoring_password, tls_ciphers=config.get('tls_ciphers')
+            new_conf, monitoring_password=haproxy.monitoring_password, tls_cipher_suites=config.get('tls_cipher_suites')
         )
     else:
         rendered_config = haproxy.render(
-            new_conf, monitoring_password=host.pwgen(length=20), tls_ciphers=config.get('tls_ciphers')
+            new_conf, monitoring_password=host.pwgen(length=20), tls_cipher_suites=config.get('tls_cipher_suites')
         )
 
     if haproxy.write(rendered_config):

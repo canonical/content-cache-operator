@@ -121,10 +121,10 @@ def ip_addr_port_split(addr_port):
     return (addr, port)
 
 
-def tls_ciphers(tls_ciphers):
-    cmd = ['openssl', 'ciphers', '--', tls_ciphers]
+def tls_cipher_suites(tls_cipher_suites):
+    cmd = ['openssl', 'ciphers', '--', tls_cipher_suites]
     try:
         subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
-        raise InvalidTLSCiphersError('Unable to parse provided OpenSSL cipher string "{}"'.format(tls_ciphers))
-    return tls_ciphers
+        raise InvalidTLSCiphersError('Unable to parse provided OpenSSL cipher string "{}"'.format(tls_cipher_suites))
+    return tls_cipher_suites
