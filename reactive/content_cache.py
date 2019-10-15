@@ -260,9 +260,13 @@ def configure_haproxy():
         hookenv.close_port(obsolete_port)
 
     if haproxy.monitoring_password:
-        rendered_config = haproxy.render(new_conf, monitoring_password=haproxy.monitoring_password)
+        rendered_config = haproxy.render(
+            new_conf, monitoring_password=haproxy.monitoring_password, tls_cipher_suites=config.get('tls_cipher_suites')
+        )
     else:
-        rendered_config = haproxy.render(new_conf, monitoring_password=host.pwgen(length=20))
+        rendered_config = haproxy.render(
+            new_conf, monitoring_password=host.pwgen(length=20), tls_cipher_suites=config.get('tls_cipher_suites')
+        )
 
     if haproxy.write(rendered_config):
         service_start_or_restart('haproxy')

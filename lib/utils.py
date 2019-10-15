@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import re
 import shutil
+import subprocess
 
 
 BASE_CACHE_PORT = 6080
@@ -14,6 +15,10 @@ class InvalidPortError(Exception):
 
 
 class InvalidAddressPortError(Exception):
+    pass
+
+
+class InvalidTLSCiphersError(Exception):
     pass
 
 
@@ -114,3 +119,12 @@ def ip_addr_port_split(addr_port):
         raise InvalidAddressPortError('Unable to split IP address and port from "{}"'.format(addr_port))
 
     return (addr, port)
+
+
+def tls_cipher_suites(tls_cipher_suites):
+    cmd = ['openssl', 'ciphers', '--', tls_cipher_suites]
+    try:
+        subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        raise InvalidTLSCiphersError('Unable to parse provided OpenSSL cipher string "{}"'.format(tls_cipher_suites))
+    return tls_cipher_suites
