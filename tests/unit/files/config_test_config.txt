@@ -16,6 +16,7 @@ site1.local:
 # Test 2: TLS/SSL as well as backends (HTTPS), with custom backend-maxconn
 site2.local:
   tls-cert-bundle-path: /etc/haproxy/site2-bundle.crt
+  redirect-http-to-https: True
   locations:
     /:
       backend-tls: True

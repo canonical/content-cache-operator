@@ -52,11 +52,17 @@ class HAProxyConf:
     def _merge_listen_stanzas(self, config):
         new = {}
         for site in config.keys():
+            site_name = config[site].get('site-name', site)
             listen_address = config[site].get('listen-address', '0.0.0.0')
             default_port = 80
             tls_cert_bundle_path = config[site].get('tls-cert-bundle-path')
             if tls_cert_bundle_path:
                 default_port = 443
+                if config[site].get('redirect-http-to-https'):
+                    new['0.0.0.0:80'][site_name] = {}
+                    # We use a different flag/config here so it's only enabled
+                    # on the HTTP, and not the HTTPS, stanza.
+                    new['0.0.0.0:80'][site_name]['enable-redirect-http-to-https'] = True
             port = config[site].get('port', default_port)
             name = '{}:{}'.format(listen_address, port)
             if name not in new:
@@ -86,6 +92,7 @@ listen {name}
 {bind_config}
 {backend_config}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
+        redirect_conf = '{indent}redirect scheme https code 301 if {{ hdr(Host) -i {site_name} }} !{{ ssl_fc }}\n'
 
         rendered_output = []
         stanza_names = []
@@ -111,8 +118,14 @@ listen {name}
                 if tls_path:
                     tls_cert_bundle_paths.append(tls_path)
 
-                backend_name = self._generate_stanza_name(site_conf.get('locations', {}).get('backend-name') or site)
-                backend_config.append(backend_conf.format(backend=backend_name, site_name=site_name, indent=INDENT))
+                # HTTP -> HTTPS redirect
+                if site_conf.get('enable-redirect-http-to-https'):
+                    backend_config.append(redirect_conf.format(site_name=site_name, indent=INDENT))
+                else:
+                    backend_name = self._generate_stanza_name(
+                        site_conf.get('locations', {}).get('backend-name') or site
+                    )
+                    backend_config.append(backend_conf.format(backend=backend_name, site_name=site_name, indent=INDENT))
 
             tls_config = ''
             if tls_cert_bundle_paths:
