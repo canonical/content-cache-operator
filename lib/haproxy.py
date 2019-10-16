@@ -60,16 +60,13 @@ class HAProxyConf:
             if tls_cert_bundle_path:
                 default_port = 443
                 if config[site].get('redirect-http-to-https'):
-                    if '0.0.0.0:80' not in new:
-                        new['0.0.0.0:80'] = {}
-                    new['0.0.0.0:80'][site_name] = {}
+                    new.setdefault('0.0.0.0:80', {})
                     # We use a different flag/config here so it's only enabled
                     # on the HTTP, and not the HTTPS, stanza.
-                    new['0.0.0.0:80'][site_name]['enable-redirect-http-to-https'] = True
+                    new['0.0.0.0:80'][site_name] = {'enable-redirect-http-to-https': True}
             port = config[site].get('port', default_port)
             name = '{}:{}'.format(listen_address, port)
-            if name not in new:
-                new[name] = {}
+            new.setdefault(name, {})
             new[name][site] = config[site]
             new[name][site]['port'] = port
 
@@ -77,8 +74,7 @@ class HAProxyConf:
                 if 'backend_port' in loc_conf:
                     port = loc_conf['backend_port']
                     name = '{}:{}'.format(listen_address, port)
-                    if name not in new:
-                        new[name] = {}
+                    new.setdefault(name, {})
                     count = 2
                     new_site = site
                     while new_site in new[name]:
