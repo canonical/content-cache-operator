@@ -34,9 +34,18 @@ class TestLibHAProxy(unittest.TestCase):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         self.assertEqual(haproxy._generate_stanza_name('site1'), 'site1')
         self.assertEqual(haproxy._generate_stanza_name('site1.local'), 'site1-local')
+
+        # Site names longer than 32 characters include a partial hash of
+        # the original name.
         self.assertEqual(
-            haproxy._generate_stanza_name('site1-canonical-com-canonical-com'), 'site1-canonical-com-canonical-co'
+            haproxy._generate_stanza_name('site1-canonical-com-canonical-com'),
+            'site1-canonical-com-cano-7ecd6aa',
         )
+        self.assertEqual(
+            haproxy._generate_stanza_name('site1-canonical-com-canonical-com-canonical-com'),
+            'site1-canonical-com-cano-de0f760',
+        )
+
         self.assertEqual(haproxy._generate_stanza_name('site1.local', ['site1-local']), 'site1-local-2')
         self.assertEqual(
             haproxy._generate_stanza_name('site1.local', ['site1-local', 'site1-local-2']), 'site1-local-3'
