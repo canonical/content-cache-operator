@@ -60,6 +60,8 @@ class HAProxyConf:
             if tls_cert_bundle_path:
                 default_port = 443
                 if config[site].get('redirect-http-to-https'):
+                    if '0.0.0.0:80' not in new:
+                        new['0.0.0.0:80'] = {}
                     new['0.0.0.0:80'][site_name] = {}
                     # We use a different flag/config here so it's only enabled
                     # on the HTTP, and not the HTTPS, stanza.
