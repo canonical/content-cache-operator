@@ -590,6 +590,25 @@ site5.local:
         }
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
+    def test_sites_from_config_blacklist_ports(self):
+        blacklist_ports = [6080, 8080]
+        config_yaml = '''
+site1.local:
+  port: 80
+  locations:
+    /:
+      backends:
+        - 91.189.88.152:80
+'''
+        want = {
+            'site1.local': {
+                'port': 80,
+                'cache_port': 6081,
+                'locations': {'/': {'backend_port': 8081, 'backends': ['91.189.88.152:80']}},
+            },
+        }
+        self.assertEqual(want, content_cache.sites_from_config(config_yaml, blacklist_ports=blacklist_ports))
+
     def test_secrets_from_config(self):
         secrets_yaml = '''
 site1.local:

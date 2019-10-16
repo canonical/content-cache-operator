@@ -28,15 +28,23 @@ def next_port_pair(
     base_cache_port=BASE_CACHE_PORT,
     base_backend_port=BASE_BACKEND_PORT,
     backend_port_limit=BACKEND_PORT_LIMIT,
+    blacklist_ports=None,
 ):
+    if blacklist_ports is None:
+        blacklist_ports = []
+
     if cache_port == 0:
         cache_port = base_cache_port
     else:
+        cache_port += 1
+    while cache_port in blacklist_ports:
         cache_port += 1
 
     if backend_port == 0:
         backend_port = base_backend_port
     else:
+        backend_port += 1
+    while backend_port in blacklist_ports:
         backend_port += 1
 
     if cache_port < base_cache_port or cache_port >= base_backend_port:

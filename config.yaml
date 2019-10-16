@@ -1,4 +1,12 @@
 options:
+  blacklist_ports:
+    type: string
+    default: ""
+    description: |
+      Comma-separated list of TCP port numbers to skip over when generating
+      internal servers used between haproxy and nginx.  Used when a large
+      number of sites may interfere with existing unit services, subordinate
+      charms, etc.
   cache_max_size:
     type: string
     default: ""

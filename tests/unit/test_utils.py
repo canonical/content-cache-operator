@@ -31,6 +31,12 @@ class TestLibUtils(unittest.TestCase):
         )
         self.assertEqual((cache_port, backend_port), (utils.BASE_BACKEND_PORT - 1, utils.BASE_BACKEND_PORT + max_ports))
 
+        # Blacklisted ports
+        self.assertEqual(
+            utils.next_port_pair(0, 0, blacklist_ports=[utils.BASE_CACHE_PORT, utils.BASE_BACKEND_PORT]),
+            (utils.BASE_CACHE_PORT + 1, utils.BASE_BACKEND_PORT + 1)
+        )
+
     def test_next_port_pair_out_of_range(self):
         with self.assertRaises(utils.InvalidPortError):
             utils.next_port_pair(1024, 0)

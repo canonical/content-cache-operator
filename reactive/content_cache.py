@@ -106,7 +106,8 @@ def configure_nginx(conf_path=None):
 
     ngx_conf = nginx.NginxConf(conf_path, hookenv.local_unit())
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
-    sites = sites_from_config(config.get('sites'), sites_secrets)
+    blacklist_ports = [int(x.strip()) for x in config.get('blacklist_ports', '').split(',') if x.strip()]
+    sites = sites_from_config(config.get('sites'), sites_secrets, blacklist_ports=blacklist_ports)
     if not sites:
         status.blocked('list of sites provided is invalid')
         return
@@ -163,7 +164,8 @@ def configure_haproxy():
 
     haproxy = HAProxy.HAProxyConf()
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
-    sites = sites_from_config(config.get('sites'), sites_secrets)
+    blacklist_ports = [int(x.strip()) for x in config.get('blacklist_ports', '').split(',') if x.strip()]
+    sites = sites_from_config(config.get('sites'), sites_secrets, blacklist_ports=blacklist_ports)
     if not sites:
         status.blocked('list of sites provided is invalid')
         return
@@ -288,7 +290,8 @@ def configure_nagios():
     nrpe_setup = nrpe.NRPE(hostname=hostname, primary=True)
 
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
-    sites = sites_from_config(config.get('sites'), sites_secrets)
+    blacklist_ports = [int(x.strip()) for x in config.get('blacklist_ports', '').split(',') if x.strip()]
+    sites = sites_from_config(config.get('sites'), sites_secrets, blacklist_ports=blacklist_ports)
 
     for site, site_conf in sites.items():
         cache_port = site_conf['cache_port']
@@ -405,17 +408,19 @@ def check_haproxy_alerts():
     reactive.set_flag('nagios-nrpe-telegraf.configured')
 
 
-def sites_from_config(sites_yaml, sites_secrets=None):
+def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     conf = yaml.safe_load(sites_yaml)
     sites = interpolate_secrets(conf, sites_secrets)
     cache_port = 0
     backend_port = 0
     for site, site_conf in sites.items():
-        (cache_port, unused_backend_port) = utils.next_port_pair(cache_port, backend_port)
+        (cache_port, unused_backend_port) = utils.next_port_pair(cache_port, backend_port,
+                                                                 blacklist_ports=blacklist_ports)
         site_conf['cache_port'] = cache_port
         for location, loc_conf in site_conf.get('locations', {}).items():
             if loc_conf and loc_conf.get('backends'):
-                (unused_cache_port, backend_port) = utils.next_port_pair(cache_port, backend_port)
+                (unused_cache_port, backend_port) = utils.next_port_pair(cache_port, backend_port,
+                                                                         blacklist_ports=blacklist_ports)
                 loc_conf['backend_port'] = backend_port
     return sites
 
