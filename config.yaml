@@ -2,7 +2,7 @@ options:
   blacklist_ports:
     type: string
     default: ""
-    description: |
+    description: >
       Comma-separated list of TCP port numbers to skip over when generating
       internal servers used between haproxy and nginx.  Used when a large
       number of sites may interfere with existing unit services, subordinate
@@ -10,37 +10,37 @@ options:
   cache_max_size:
     type: string
     default: ""
-    description: |
+    description: >
       Maximum size of content cache storage. If unspecified, the maximum cache
       storage size will be set to 75% of the total disk space, using a 1GB
       minimum size.
   cache_path:
     type: string
     default: "/var/lib/nginx/proxy"
-    description: |
+    description: >
       Path or directory to store cached objects.
   nagios_context:
     type: string
     default: "juju"
-    description: |
+    description: >
       This string is prefixed to the hostname when writing
       exported nagios config fragments.
   nagios_servicegroups:
     default: ""
     type: string
-    description: |
+    description: >
       A comma-separated list of nagios servicegroups.
       If left empty, the nagios_context will be used as the servicegroup
   sites:
     default: ""
     type: string
-    description: |
+    description: >
       YAML-formatted virtual hosts/sites. See the README.md for more details
       and examples.
   sites_secrets:
     default: ""
     type: string
-    description: |
+    description: >
       YAML-formatted dictionary of secrets/keys. e.g.
       site1.local:
         locations:
@@ -51,11 +51,11 @@ options:
   tls_cipher_suites:
     default: ""
     type: string
-    description: |
+    description: >
       Override default ciphers used for TLS/SSL termination (OpenSSL format).
   enable_prometheus_metrics:
     default: true
     type: boolean
-    description: |
+    description: >
       Export metrics for the number of requests and the number of cache hits.
       Prometheus metrics are exposed at /metrics on port 9145.
