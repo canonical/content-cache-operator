@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import multiprocessing
 import os
 import re
@@ -40,7 +41,16 @@ class HAProxyConf:
     def _generate_stanza_name(self, name, exclude=None):
         if exclude is None:
             exclude = []
-        name = name.replace('.', '-')[0:32]
+        if len(name) > 32:
+            # We want to limit the stanza name to 32 characters, but if we
+            # merely take the first 32 characters of the name, there's a
+            # chance of collision.  We can reduce (but not eliminate)
+            # this possibility by including a hash fragment of the full
+            # original name in the result.
+            name_hash = hashlib.md5(name.encode('UTF-8')).hexdigest()
+            name = name.replace('.', '-')[0:24] + '-' + name_hash[0:7]
+        else:
+            name = name.replace('.', '-')
         if name not in exclude:
             return name
         count = 2
