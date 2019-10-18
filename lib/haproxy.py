@@ -235,9 +235,9 @@ backend backend-{name}
 
         return rendered_output
 
-    def render(self, config, num_procs=None, monitoring_password=None, tls_cipher_suites=None):
-        if not num_procs:
-            num_procs = multiprocessing.cpu_count()
+    def render(self, config, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
+        if not num_threads:
+            num_threads = multiprocessing.cpu_count()
         if not tls_cipher_suites:
             tls_cipher_suites = TLS_CIPHER_SUITES
         tls_cipher_suites = utils.tls_cipher_suites(tls_cipher_suites)
@@ -249,7 +249,7 @@ backend backend-{name}
             {
                 'listen': self.render_stanza_listen(config),
                 'backend': self.render_stanza_backend(config),
-                'num_procs': num_procs,
+                'num_threads': num_threads,
                 'monitoring_password': monitoring_password or self.monitoring_password,
                 'tls_cipher_suites': tls_cipher_suites,
             }
