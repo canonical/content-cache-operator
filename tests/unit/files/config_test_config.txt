@@ -106,3 +106,12 @@ site8.local:
       backends:
         - 127.0.1.10:443
       site-name: auth.site8.local
+
+# Test 9: Custom backend-inter-time
+site9.local:
+  locations:
+    /:
+      backend-tls: False
+      backend-inter-time: '1m'
+      backends:
+        - 127.0.1.15:80

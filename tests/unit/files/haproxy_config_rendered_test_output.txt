@@ -61,6 +61,7 @@ listen combined-80
     use_backend backend-site4-local if { hdr(Host) -i site4.local }
     use_backend backend-site5 if { hdr(Host) -i site5.local }
     use_backend backend-site6-local if { hdr(Host) -i site6.local }
+    use_backend backend-site9-local if { hdr(Host) -i site9.local }
 
 listen site2-local
     bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt
@@ -134,3 +135,9 @@ backend backend-site8-local-2
     http-request set-header Host auth.site8.local
     balance leastconn
     server server_1 127.0.1.10:443 check inter 5000 rise 2 fall 5 maxconn 2048 ssl sni str(auth.site8.local) check-sni auth.site8.local verify required ca-file ca-certificates.crt
+
+backend backend-site9-local
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site9.local
+    balance leastconn
+    server server_1 127.0.1.15:80 check inter 1m rise 2 fall 5 maxconn 2048

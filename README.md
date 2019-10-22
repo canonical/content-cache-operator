@@ -30,6 +30,7 @@ Set juju config for the `sites` option as required. For example:
             - 10.1.1.2:443
             - 10.1.1.3:443
           backend-check-path: /status
+          backend-inter-time: '10s'
           backend-maxconn: 64
           backend-path: /auth-check/
           backend-tls: True
