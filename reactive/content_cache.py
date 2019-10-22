@@ -149,6 +149,7 @@ def configure_nginx(conf_path=None):
     if changed:
         service_start_or_restart('nginx')
 
+    update_logrotate('nginx', retention=config.get('log_retention'))
     reactive.set_flag('content_cache.nginx.configured')
 
 
@@ -274,6 +275,7 @@ def configure_haproxy():
     if haproxy.write(rendered_config):
         service_start_or_restart('haproxy')
 
+    update_logrotate('haproxy', retention=config.get('log_retention'))
     reactive.set_flag('content_cache.haproxy.configured')
 
 
@@ -472,16 +474,44 @@ def _interpolate_secrets_origin_headers(headers, secrets):
     return headers
 
 
-def copy_file(source_path, dest_path, perms=0o644, owner=None, group=None):
+def update_logrotate(service, retention, dateext=True):
+    conf_path = os.path.join('/etc/logrotate.d', service)
+    write_file(utils.logrotate(conf_path, retention=retention, dateext=dateext), conf_path)
+
+
+def copy_file(source_path, dest_path, **kwargs):
     """Copy a file from the charm directory onto the local filesystem.
 
-    Returns True if the file was copied, False if the file already exists and
-    is identical.
+    Reads the contents of source_path and passes through to write_file().
+    Please see the help for write_file() for argument usage.
     """
 
-    # Compare and only write out file on change.
     with open(source_path, 'r') as f:
         source = f.read()
+    return write_file(source, dest_path, **kwargs)
+
+
+def write_file(source, dest_path, perms=0o644, owner=None, group=None, write_empty=True):
+    """Write a source string to a file.
+
+    If write_empty is False and an empty source is given, the dest file
+    will not be written, and will be removed if it already exists.
+
+    Returns True if the file was modified (new file, file changed, file
+    deleted), False if the file is not modified or is intentionally not
+    created.
+    """
+
+    if not write_empty and not source:
+        if os.path.exists(dest_path):
+            os.remove(dest_path)
+            # Removed existing file; changed
+            return True
+        else:
+            # No existing file, no new file; not changed
+            return False
+
+    # Compare and only write out file on change.
     dest = ''
     if os.path.exists(dest_path):
         with open(dest_path, 'r') as f:

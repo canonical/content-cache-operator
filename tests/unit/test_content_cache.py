@@ -58,6 +58,10 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.mock_cpu_count.return_value = 4
 
+        patcher = mock.patch('reactive.content_cache.update_logrotate')
+        self.mock_update_logrotate = patcher.start()
+        self.addCleanup(patcher.stop)
+
         status.active.reset_mock()
         status.blocked.reset_mock()
         status.maintenance.reset_mock()
@@ -662,6 +666,26 @@ site1.local:
         config = {'site1.local': {'locations': {'/': {'signed-url-hmac-key': '${secret}'}}}}
         want = {'site1.local': {'locations': {'/': {'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0'}}}}
         self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)
+
+    def test_write_file(self):
+        source = '# User-provided config added here'
+        dest = os.path.join(self.tmpdir, '90-content-cache.conf')
+
+        self.assertTrue(content_cache.write_file(source, dest))
+        # Write again, should return False and not True per above.
+        self.assertFalse(content_cache.write_file(source, dest))
+
+        # Check contents
+        with open(dest, 'r') as f:
+            got = f.read()
+        self.assertEqual(got, source)
+
+        # Check removal when source set to empty and write_empty=False
+        self.assertTrue(content_cache.write_file('', dest, write_empty=False))
+        self.assertFalse(os.path.exists(dest))
+        # Try again, expecting no change, and still no file
+        self.assertFalse(content_cache.write_file('', dest, write_empty=False))
+        self.assertFalse(os.path.exists(dest))
 
     def test_copy_file(self):
         source = os.path.join(self.charm_dir, 'files/nginx-logging-format.conf')
