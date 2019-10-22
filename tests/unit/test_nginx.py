@@ -3,9 +3,9 @@ import shutil
 import sys
 import tempfile
 import unittest
-import yaml
 
 import jinja2
+import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import nginx  # NOQA: E402
