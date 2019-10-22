@@ -176,6 +176,7 @@ class TestCharm(unittest.TestCase):
                 'site6.local',
                 'site7.local',
                 'site8.local',
+                'site9.local',
             ]:
                 with open(
                     'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site), 'r', encoding='utf-8'

@@ -182,6 +182,7 @@ backend backend-{name}
                         ' ssl sni str({site_name}) check-sni {site_name} verify required'
                         ' ca-file ca-certificates.crt'.format(site_name=site_name)
                     )
+                inter_time = loc_conf.get('backend-inter-time', '5000')
                 maxconn = loc_conf.get('backend-maxconn', 2048)
                 method = loc_conf.get('backend-check-method', 'HEAD')
                 path = loc_conf.get('backend-check-path', '/')
@@ -202,8 +203,10 @@ backend backend-{name}
 
                     name = 'server_{}'.format(count)
                     backend_confs.append(
-                        '{indent}server {name} {backend} check inter 5000 rise 2 fall 5 maxconn {maxconn}{tls}'.format(
-                            name=name, backend=backend, maxconn=maxconn, tls=tls_config, indent=INDENT
+                        '{indent}server {name} {backend} check inter {inter_time} rise 2 fall 5 '
+                        'maxconn {maxconn}{tls}'.format(
+                            name=name, backend=backend, inter_time=inter_time, maxconn=maxconn, tls=tls_config,
+                            indent=INDENT,
                         )
                     )
 
