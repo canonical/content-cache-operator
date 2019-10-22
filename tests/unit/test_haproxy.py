@@ -3,9 +3,9 @@ import shutil
 import sys
 import tempfile
 import unittest
-import yaml
 
 import freezegun
+import yaml
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import haproxy as HAProxy  # NOQA: E402
@@ -38,8 +38,7 @@ class TestLibHAProxy(unittest.TestCase):
         # Site names longer than 32 characters include a partial hash of
         # the original name.
         self.assertEqual(
-            haproxy._generate_stanza_name('site1-canonical-com-canonical-com'),
-            'site1-canonical-com-cano-7ecd6aa',
+            haproxy._generate_stanza_name('site1-canonical-com-canonical-com'), 'site1-canonical-com-cano-7ecd6aa'
         )
         self.assertEqual(
             haproxy._generate_stanza_name('site1-canonical-com-canonical-com-canonical-com'),
