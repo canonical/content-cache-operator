@@ -606,7 +606,7 @@ site1.local:
                 'port': 80,
                 'cache_port': 6081,
                 'locations': {'/': {'backend_port': 8081, 'backends': ['91.189.88.152:80']}},
-            },
+            }
         }
         self.assertEqual(want, content_cache.sites_from_config(config_yaml, blacklist_ports=blacklist_ports))
 

@@ -205,7 +205,11 @@ backend backend-{name}
                     backend_confs.append(
                         '{indent}server {name} {backend} check inter {inter_time} rise 2 fall 5 '
                         'maxconn {maxconn}{tls}'.format(
-                            name=name, backend=backend, inter_time=inter_time, maxconn=maxconn, tls=tls_config,
+                            name=name,
+                            backend=backend,
+                            inter_time=inter_time,
+                            maxconn=maxconn,
+                            tls=tls_config,
                             indent=INDENT,
                         )
                     )

@@ -38,8 +38,7 @@ class TestLibHAProxy(unittest.TestCase):
         # Site names longer than 32 characters include a partial hash of
         # the original name.
         self.assertEqual(
-            haproxy._generate_stanza_name('site1-canonical-com-canonical-com'),
-            'site1-canonical-com-cano-7ecd6aa',
+            haproxy._generate_stanza_name('site1-canonical-com-canonical-com'), 'site1-canonical-com-cano-7ecd6aa'
         )
         self.assertEqual(
             haproxy._generate_stanza_name('site1-canonical-com-canonical-com-canonical-com'),

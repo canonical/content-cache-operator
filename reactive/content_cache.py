@@ -413,13 +413,15 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     cache_port = 0
     backend_port = 0
     for site, site_conf in sites.items():
-        (cache_port, unused_backend_port) = utils.next_port_pair(cache_port, backend_port,
-                                                                 blacklist_ports=blacklist_ports)
+        (cache_port, unused_backend_port) = utils.next_port_pair(
+            cache_port, backend_port, blacklist_ports=blacklist_ports
+        )
         site_conf['cache_port'] = cache_port
         for location, loc_conf in site_conf.get('locations', {}).items():
             if loc_conf and loc_conf.get('backends'):
-                (unused_cache_port, backend_port) = utils.next_port_pair(cache_port, backend_port,
-                                                                         blacklist_ports=blacklist_ports)
+                (unused_cache_port, backend_port) = utils.next_port_pair(
+                    cache_port, backend_port, blacklist_ports=blacklist_ports
+                )
                 loc_conf['backend_port'] = backend_port
     return sites
 
