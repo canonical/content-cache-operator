@@ -680,13 +680,6 @@ site1.local:
             got = f.read()
         self.assertEqual(got, source)
 
-        # Check removal when source set to empty and write_empty=False
-        self.assertTrue(content_cache.write_file('', dest, write_empty=False))
-        self.assertFalse(os.path.exists(dest))
-        # Try again, expecting no change, and still no file
-        self.assertFalse(content_cache.write_file('', dest, write_empty=False))
-        self.assertFalse(os.path.exists(dest))
-
     def test_copy_file(self):
         source = os.path.join(self.charm_dir, 'files/nginx-logging-format.conf')
         dest = os.path.join(self.tmpdir, os.path.basename(source))

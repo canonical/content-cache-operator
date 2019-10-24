@@ -147,15 +147,15 @@ def logrotate(path, retention=30, dateext=True):
         config = f.read().split('\n')
 
     new = []
-    regex = re.compile('^(\\s+)(rotate)')
+    regex = re.compile('^(\\s+)(rotate|dateext)')
     for line in config:
         m = regex.match(line)
         if m:
+            if m.group(2) == 'dateext':
+                continue
             if dateext:
                 new.append('{}dateext'.format(m.group(1)))
             new.append('{}rotate {}'.format(m.group(1), retention))
-        elif line.split() and line.split()[0] == 'dateext':
-            continue
         else:
             new.append(line)
 

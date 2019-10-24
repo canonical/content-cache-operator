@@ -491,25 +491,13 @@ def copy_file(source_path, dest_path, **kwargs):
     return write_file(source, dest_path, **kwargs)
 
 
-def write_file(source, dest_path, perms=0o644, owner=None, group=None, write_empty=True):
+def write_file(source, dest_path, perms=0o644, owner=None, group=None):
     """Write a source string to a file.
-
-    If write_empty is False and an empty source is given, the dest file
-    will not be written, and will be removed if it already exists.
 
     Returns True if the file was modified (new file, file changed, file
     deleted), False if the file is not modified or is intentionally not
     created.
     """
-
-    if not write_empty and not source:
-        if os.path.exists(dest_path):
-            os.remove(dest_path)
-            # Removed existing file; changed
-            return True
-        else:
-            # No existing file, no new file; not changed
-            return False
 
     # Compare and only write out file on change.
     dest = ''

@@ -23,7 +23,7 @@ options:
     type: int
     default: 30
     description: >
-      Number of log files for logrotate to store.
+      Number of log files to retain during rotation.
   nagios_context:
     type: string
     default: "juju"
