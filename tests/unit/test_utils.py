@@ -133,3 +133,19 @@ class TestLibUtils(unittest.TestCase):
         tls_cipher_suites = '--help'
         with self.assertRaises(utils.InvalidTLSCiphersError):
             utils.tls_cipher_suites(tls_cipher_suites)
+
+    def test_logrotate(self):
+        with open('tests/unit/files/haproxy-dateext-logrotate.conf') as f:
+            self.assertEqual(utils.logrotate(retention=52, path='tests/unit/files/haproxy-logrotate.conf'), f.read())
+        with open('tests/unit/files/nginx-dateext-logrotate.conf') as f:
+            self.assertEqual(utils.logrotate(retention=14, path='tests/unit/files/nginx-logrotate.conf'), f.read())
+
+        # Test dateext removal.
+        with open('tests/unit/files/nginx-logrotate.conf') as f:
+            self.assertEqual(
+                utils.logrotate(retention=14, dateext=False, path='tests/unit/files/nginx-dateext-logrotate.conf'),
+                f.read(),
+            )
+
+        # Test when config file doesn't exist.
+        self.assertEqual(utils.logrotate(retention=14, path='tests/unit/files/some-file-that-doesnt-exist'), None)

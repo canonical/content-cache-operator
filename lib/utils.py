@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import os
 import re
 import shutil
 import subprocess
@@ -136,3 +137,26 @@ def tls_cipher_suites(tls_cipher_suites):
     except Exception:
         raise InvalidTLSCiphersError('Unable to parse provided OpenSSL cipher string "{}"'.format(tls_cipher_suites))
     return tls_cipher_suites
+
+
+def logrotate(path, retention=30, dateext=True):
+    if not os.path.exists(path):
+        return None
+
+    with open(path, 'r', encoding='utf-8') as f:
+        config = f.read().split('\n')
+
+    new = []
+    regex = re.compile('^(\\s+)(rotate|dateext)')
+    for line in config:
+        m = regex.match(line)
+        if m:
+            if m.group(2) == 'dateext':
+                continue
+            if dateext:
+                new.append('{}dateext'.format(m.group(1)))
+            new.append('{}rotate {}'.format(m.group(1), retention))
+        else:
+            new.append(line)
+
+    return '\n'.join(new)

@@ -19,6 +19,11 @@ options:
     default: "/var/lib/nginx/proxy"
     description: >
       Path or directory to store cached objects.
+  log_retention:
+    type: int
+    default: 30
+    description: >
+      Number of log files to retain during rotation.
   nagios_context:
     type: string
     default: "juju"
