@@ -2,6 +2,7 @@ import datetime
 import grp
 import os
 import pwd
+import subprocess
 from copy import deepcopy
 
 import yaml
@@ -17,6 +18,9 @@ from lib import nginx
 from lib import haproxy as HAProxy
 
 
+SYSCTL_CONF_PATH = '/etc/sysctl.d/90-content-cache.conf'
+
+
 @reactive.hook('upgrade-charm')
 def upgrade_charm():
     status.maintenance('forcing reconfiguration on upgrade-charm')
@@ -24,6 +28,7 @@ def upgrade_charm():
     reactive.clear_flag('content_cache.installed')
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
+    reactive.clear_flag('content_cache.sysctl.configured')
     reactive.clear_flag('nagios-nrpe.configured')
 
 
@@ -39,6 +44,7 @@ def install():
 
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
+    reactive.clear_flag('content_cache.sysctl.configured')
     reactive.set_flag('content_cache.installed')
 
 
@@ -46,10 +52,11 @@ def install():
 def config_changed():
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
+    reactive.clear_flag('content_cache.sysctl.configured')
     reactive.clear_flag('nagios-nrpe.configured')
 
 
-@reactive.when('content_cache.nginx.configured', 'content_cache.haproxy.configured')
+@reactive.when('content_cache.haproxy.configured', 'content_cache.nginx.configured', 'content_cache.sysctl.configured')
 @reactive.when_not('content_cache.active')
 def set_active():
     # XXX: Add more info such as nginx and haproxy status
@@ -380,6 +387,12 @@ def configure_nagios():
 
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe.configured')
+
+
+@reactive.when_not('content_cache.sysctl.configured')
+def configure_sysctl():
+    if copy_file('files/sysctl.conf', SYSCTL_CONF_PATH):
+        subprocess.call(['sysctl', '-p', SYSCTL_CONF_PATH])
 
 
 @reactive.when('content_cache.haproxy.configured')
