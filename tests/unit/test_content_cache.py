@@ -668,6 +668,25 @@ site1.local:
         want = {'site1.local': {'locations': {'/': {'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0'}}}}
         self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)
 
+    @mock.patch('subprocess.call')
+    def test_configure_sysctl(self, call):
+        sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        with mock.patch('reactive.content_cache.SYSCTL_CONF_PATH', sysctl_conf_path):
+            content_cache.configure_sysctl()
+            call.assert_called_with(['sysctl', '-p', sysctl_conf_path])
+
+            # Test no change, so don't call sysctl to reload.
+            call.reset_mock()
+            content_cache.configure_sysctl()
+            call.assert_not_called()
+
+        # Check contents
+        with open('files/sysctl.conf', 'r') as f:
+            want = f.read()
+        with open(sysctl_conf_path, 'r') as f:
+            got = f.read()
+        self.assertEqual(got, want)
+
     def test_write_file(self):
         source = '# User-provided config added here'
         dest = os.path.join(self.tmpdir, '90-content-cache.conf')
