@@ -303,6 +303,7 @@ def configure_nagios():
     sites = sites_from_config(config.get('sites'), sites_secrets, blacklist_ports=blacklist_ports)
 
     for site, site_conf in sites.items():
+        site_name = site_conf.get('site-name', site)
         cache_port = site_conf['cache_port']
 
         default_port = 80
@@ -336,9 +337,15 @@ def configure_nagios():
                     )
                     cmd = (
                         '/usr/lib/nagios/plugins/negate'
-                        ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}'
+                        ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
                         ' -p {port} --ssl={tls} --sni -j {method} -u {path}{token}'.format(
-                            site=site, port=frontend_port, method=method, url=url, path=path, token=token, tls=tlsrev
+                            site_name=site_name,
+                            port=frontend_port,
+                            method=method,
+                            url=url,
+                            path=path,
+                            token=token,
+                            tls=tlsrev,
                         )
                     )
                     nrpe_setup.add_check(
@@ -350,9 +357,9 @@ def configure_nagios():
             # Listen / frontend check
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'listen')
             cmd = (
-                '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}'
+                '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
                 ' -p {port}{tls} -j {method} -u {path}{token}'.format(
-                    site=site, port=frontend_port, method=method, url=url, path=path, token=token, tls=tls
+                    site_name=site_name, port=frontend_port, method=method, url=url, path=path, token=token, tls=tls
                 )
             )
             if 'nagios-expect' in loc_conf:
@@ -362,9 +369,9 @@ def configure_nagios():
             # Cache layer check
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'cache')
             cmd = (
-                '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site}'
+                '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
                 ' -p {cache_port} -j {method} -u {path}{token}'.format(
-                    site=site, cache_port=cache_port, method=method, url=url, path=path, token=token
+                    site_name=site_name, cache_port=cache_port, method=method, url=url, path=path, token=token
                 )
             )
             if 'nagios-expect' in loc_conf:
@@ -376,9 +383,9 @@ def configure_nagios():
                 # stripped by the cache layer.
                 check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'backend_proxy')
                 cmd = (
-                    '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site} -p {backend_port}'
+                    '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name} -p {backend_port}'
                     ' -j {method} -u {path}'.format(
-                        site=site, backend_port=backend_port, method=method, url=url, path=path
+                        site_name=site_name, backend_port=backend_port, method=method, url=url, path=path
                     )
                 )
                 nrpe_setup.add_check(
