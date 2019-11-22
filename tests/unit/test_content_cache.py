@@ -86,21 +86,26 @@ class TestCharm(unittest.TestCase):
         '''Test correct flags are set via install charm hook'''
         content_cache.install()
         want = [mock.call('content_cache.installed')]
-        self.assertFalse(set_flag.assert_has_calls(want, any_order=True))
+        set_flag.assert_has_calls(want)
 
         want = [
             mock.call('content_cache.active'),
             mock.call('content_cache.haproxy.configured'),
             mock.call('content_cache.nginx.configured'),
+            mock.call('content_cache.sysctl.configured'),
         ]
-        self.assertFalse(clear_flag.assert_has_calls(want, any_order=True))
+        clear_flag.assert_has_calls(want)
 
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_config_changed_flags(self, clear_flag):
         '''Test correct flags are set via config-changed charm hook'''
         content_cache.config_changed()
-        want = [mock.call('content_cache.haproxy.configured'), mock.call('content_cache.nginx.configured')]
-        self.assertFalse(clear_flag.assert_has_calls(want, any_order=True))
+        want = [
+            mock.call('content_cache.haproxy.configured'),
+            mock.call('content_cache.nginx.configured'),
+            mock.call('content_cache.sysctl.configured'),
+        ]
+        clear_flag.assert_has_calls(want)
 
     @mock.patch('charms.reactive.set_flag')
     def test_hook_set_active(self, set_flag):

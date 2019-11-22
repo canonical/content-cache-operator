@@ -400,6 +400,7 @@ def configure_nagios():
 def configure_sysctl():
     if copy_file('files/sysctl.conf', SYSCTL_CONF_PATH):
         subprocess.call(['sysctl', '-p', SYSCTL_CONF_PATH])
+    reactive.set_flag('content_cache.sysctl.configured')
 
 
 @reactive.when('content_cache.haproxy.configured')
