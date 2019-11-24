@@ -70,7 +70,7 @@ class TestCharm(unittest.TestCase):
     def test_hook_upgrade_charm_flags(self, clear_flag):
         '''Test correct flags set via upgrade-charm hook'''
         content_cache.upgrade_charm()
-        self.assertFalse(status.maintenance.assert_called())
+        status.maintenance.assert_called()
         want = [
             mock.call('content_cache.active'),
             mock.call('content_cache.installed'),
@@ -116,8 +116,8 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charms.reactive.set_flag')
     def test_hook_set_active(self, set_flag):
         content_cache.set_active()
-        self.assertFalse(status.active.assert_called())
-        self.assertFalse(set_flag.assert_called_once_with('content_cache.active'))
+        status.active.assert_called()
+        set_flag.assert_called_once_with('content_cache.active')
 
     @mock.patch('charmhelpers.core.host.service_running')
     @mock.patch('charmhelpers.core.host.service_restart')
@@ -126,9 +126,9 @@ class TestCharm(unittest.TestCase):
         '''Test service restarted when already running'''
         service_running.return_value = True
         content_cache.service_start_or_restart('someservice')
-        self.assertFalse(status.maintenance.assert_called())
-        self.assertFalse(service_start.assert_not_called())
-        self.assertFalse(service_restart.assert_called_once_with('someservice'))
+        status.maintenance.assert_called()
+        service_start.assert_not_called()
+        service_restart.assert_called_once_with('someservice')
 
     @mock.patch('charmhelpers.core.host.service_running')
     @mock.patch('charmhelpers.core.host.service_restart')
@@ -137,16 +137,16 @@ class TestCharm(unittest.TestCase):
         '''Test service started up when not running/stopped'''
         service_running.return_value = False
         content_cache.service_start_or_restart('someservice')
-        self.assertFalse(status.maintenance.assert_called())
-        self.assertFalse(service_start.assert_called_once_with('someservice'))
-        self.assertFalse(service_restart.assert_not_called())
+        status.maintenance.assert_called()
+        service_start.assert_called_once_with('someservice')
+        service_restart.assert_not_called()
 
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_nginx_no_sites(self, clear_flag):
         '''Test correct flags are set when no sites defined to configure Nginx'''
         content_cache.configure_nginx(self.tmpdir)
-        self.assertFalse(status.blocked.assert_called())
-        self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
+        status.blocked.assert_called()
+        clear_flag.assert_called_once_with('content_cache.active')
 
     @mock.patch('charmhelpers.core.hookenv.close_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
@@ -171,7 +171,7 @@ class TestCharm(unittest.TestCase):
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
             opened_ports.return_value = ['80/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
             content_cache.configure_nginx(self.tmpdir)
-            self.assertFalse(service_start_or_restart.assert_called_once_with('nginx'))
+            service_start_or_restart.assert_called_once_with('nginx')
             close_port.assert_called_once_with(nginx.METRICS_PORT, 'TCP')
 
             # Re-run with same set of sites, no change so shouldn't need to restart Nginx
@@ -179,7 +179,7 @@ class TestCharm(unittest.TestCase):
             close_port.reset_mock()
             opened_ports.return_value = ['80/tcp']
             content_cache.configure_nginx(self.tmpdir)
-            self.assertFalse(service_start_or_restart.assert_not_called())
+            service_start_or_restart.assert_not_called()
             close_port.assert_not_called()
 
             for site in [
@@ -315,8 +315,8 @@ site1.local:
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_haproxy_no_sites(self, clear_flag):
         content_cache.configure_haproxy()
-        self.assertFalse(status.blocked.assert_called())
-        self.assertFalse(clear_flag.assert_called_once_with('content_cache.active'))
+        status.blocked.assert_called()
+        clear_flag.assert_called_once_with('content_cache.active')
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('reactive.content_cache.service_start_or_restart')
@@ -331,7 +331,7 @@ site1.local:
                 'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
             ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
                 content_cache.configure_haproxy()
-            self.assertFalse(service_start_or_restart.assert_called_with('haproxy'))
+            service_start_or_restart.assert_called_with('haproxy')
 
             # Again, this time should be no change so no need to restart HAProxy
             service_start_or_restart.reset_mock()
@@ -339,7 +339,7 @@ site1.local:
                 'charmhelpers.core.hookenv.open_port'
             ), mock.patch('charmhelpers.core.hookenv.close_port'):
                 content_cache.configure_haproxy()
-            self.assertFalse(service_start_or_restart.assert_not_called())
+            service_start_or_restart.assert_not_called()
 
             with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
                 want = f.read()
@@ -359,7 +359,7 @@ site1.local:
         nrpe_instance_mock = nrpe(get_nagios_hostname(), primary=True)
 
         content_cache.configure_nagios()
-        self.assertFalse(status.maintenance.assert_called())
+        status.maintenance.assert_called()
 
         want = [
             mock.call(
@@ -380,7 +380,7 @@ site1.local:
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080 -j HEAD -u /',
             ),
         ]
-        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
 
         want = [
             mock.call(
@@ -460,7 +460,7 @@ site1.local:
                 ' -u /my-local-content2/',
             ),
         ]
-        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
 
         want = [
             mock.call(
@@ -479,7 +479,7 @@ site1.local:
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site3.local -p 8082 -j HEAD -u /',
             ),
         ]
-        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
 
         want = [
             mock.call(
@@ -505,7 +505,7 @@ site1.local:
                 ' -u /ubuntu/pool/',
             ),
         ]
-        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
 
         want = [
             mock.call(
@@ -539,12 +539,12 @@ site1.local:
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 8084 -j HEAD -u /auth',
             ),
         ]
-        self.assertFalse(nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True))
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
 
-        self.assertFalse(nrpe_instance_mock.write.assert_called())
+        nrpe_instance_mock.write.assert_called()
 
         want = [mock.call('nagios-nrpe.configured')]
-        self.assertFalse(set_flag.assert_has_calls(want, any_order=True))
+        set_flag.assert_has_calls(want, any_order=True)
 
     def test_sites_from_config(self):
         config_yaml = '''
@@ -679,12 +679,14 @@ site1.local:
         want = {'site1.local': {'locations': {'/': {'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0'}}}}
         self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)
 
+    @mock.patch('charms.reactive.set_flag')
     @mock.patch('subprocess.call')
-    def test_configure_sysctl(self, call):
+    def test_configure_sysctl(self, call, set_flag):
         sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
         with mock.patch('reactive.content_cache.SYSCTL_CONF_PATH', sysctl_conf_path):
             content_cache.configure_sysctl()
             call.assert_called_with(['sysctl', '-p', sysctl_conf_path])
+            set_flag.assert_has_calls([mock.call('content_cache.sysctl.configured')])
 
             # Test no change, so don't call sysctl to reload.
             call.reset_mock()
@@ -765,7 +767,7 @@ site1.local:
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
             opened_ports.return_value = ['80/tcp', '443/tcp']
             content_cache.configure_nginx(self.tmpdir)
-            self.assertFalse(service_start_or_restart.assert_called_once_with('nginx'))
+            service_start_or_restart.assert_called_once_with('nginx')
             open_port.assert_called_once_with(nginx.METRICS_PORT, 'TCP')
 
             # Re-run with same set of sites, no change so shouldn't need to restart Nginx
@@ -773,7 +775,7 @@ site1.local:
             open_port.reset_mock()
             opened_ports.return_value = ['80/tcp', '443/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
             content_cache.configure_nginx(self.tmpdir)
-            self.assertFalse(service_start_or_restart.assert_not_called())
+            service_start_or_restart.assert_not_called()
             open_port.assert_not_called()
 
             # Test the site with cache HIT logging
