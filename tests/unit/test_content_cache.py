@@ -76,9 +76,11 @@ class TestCharm(unittest.TestCase):
             mock.call('content_cache.installed'),
             mock.call('content_cache.haproxy.configured'),
             mock.call('content_cache.nginx.configured'),
+            mock.call('content_cache.sysctl.configured'),
             mock.call('nagios-nrpe.configured'),
         ]
-        self.assertFalse(clear_flag.assert_has_calls(want, any_order=True))
+        clear_flag.assert_has_calls(want, any_order=True)
+        self.assertEqual(len(want), len(clear_flag.mock_calls))
 
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('charms.reactive.set_flag')
@@ -86,7 +88,8 @@ class TestCharm(unittest.TestCase):
         '''Test correct flags are set via install charm hook'''
         content_cache.install()
         want = [mock.call('content_cache.installed')]
-        set_flag.assert_has_calls(want)
+        set_flag.assert_has_calls(want, any_order=True)
+        self.assertEqual(len(want), len(set_flag.mock_calls))
 
         want = [
             mock.call('content_cache.active'),
@@ -94,7 +97,8 @@ class TestCharm(unittest.TestCase):
             mock.call('content_cache.nginx.configured'),
             mock.call('content_cache.sysctl.configured'),
         ]
-        clear_flag.assert_has_calls(want)
+        clear_flag.assert_has_calls(want, any_order=True)
+        self.assertEqual(len(want), len(clear_flag.mock_calls))
 
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_config_changed_flags(self, clear_flag):
@@ -105,7 +109,7 @@ class TestCharm(unittest.TestCase):
             mock.call('content_cache.nginx.configured'),
             mock.call('content_cache.sysctl.configured'),
         ]
-        clear_flag.assert_has_calls(want)
+        clear_flag.assert_has_calls(want, any_order=True)
 
     @mock.patch('charms.reactive.set_flag')
     def test_hook_set_active(self, set_flag):
