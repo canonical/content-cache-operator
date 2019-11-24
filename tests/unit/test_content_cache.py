@@ -108,8 +108,10 @@ class TestCharm(unittest.TestCase):
             mock.call('content_cache.haproxy.configured'),
             mock.call('content_cache.nginx.configured'),
             mock.call('content_cache.sysctl.configured'),
+            mock.call('nagios-nrpe.configured'),
         ]
         clear_flag.assert_has_calls(want, any_order=True)
+        self.assertEqual(len(want), len(clear_flag.mock_calls))
 
     @mock.patch('charms.reactive.set_flag')
     def test_hook_set_active(self, set_flag):
