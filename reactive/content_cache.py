@@ -181,7 +181,7 @@ def configure_haproxy():
 
     old_ports = {int(x.partition('/')[0]) for x in hookenv.opened_ports()}
     hookenv.log("Current opened ports: {}".format(old_ports))
-    opened_ports = set()
+    new_ports = set()
 
     # We need to slot in the caching layer here.
     new_conf = {}
@@ -198,14 +198,13 @@ def configure_haproxy():
             redirect_http_to_https = site_conf.get('redirect-http-to-https')
             if redirect_http_to_https:
                 new_conf[cached_site]['redirect-http-to-https'] = redirect_http_to_https
+                new_ports.add(80)
 
         new_conf[cached_site]['port'] = site_conf.get('port') or default_port
         try:
-            new_port = int(new_conf[cached_site]['port'])
+            new_ports.add(int(new_conf[cached_site]['port']))
         except ValueError as e:
             hookenv.log('Only integer ports are supported: {}'.format(e))
-        hookenv.open_port(new_port)
-        opened_ports.add(new_port)
 
         # XXX: Reduce complexity here
 
@@ -263,9 +262,13 @@ def configure_haproxy():
                 new_conf[cached_site]['locations'][location] = new_cached_loc_conf
 
     if config.get('enable_prometheus_metrics'):
-        opened_ports.add(nginx.METRICS_PORT)
-    hookenv.log("Desired opened ports: {}".format(opened_ports))
-    for obsolete_port in old_ports.difference(opened_ports):
+        new_ports.add(nginx.METRICS_PORT)
+
+    hookenv.log("Desired opened ports: {}".format(new_ports))
+    for port in new_ports.difference(old_ports):
+        hookenv.log("Opening new port: {}".format(port))
+        hookenv.open_port(port)
+    for obsolete_port in old_ports.difference(new_ports):
         hookenv.log("Closing obsolete port: {}".format(obsolete_port))
         hookenv.close_port(obsolete_port)
 
