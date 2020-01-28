@@ -46,6 +46,7 @@ class TestLibNginx(unittest.TestCase):
             sites = yaml.safe_load(f.read())
 
         conf = {}
+        conf['cache_inactive_time'] = '2h'
         conf['cache_max_size'] = '1g'
         conf['enable_prometheus_metrics'] = False
         conf['cache_path'] = '/var/lib/nginx/proxy'
@@ -129,6 +130,7 @@ class TestLibNginx(unittest.TestCase):
             sites = yaml.safe_load(f.read())
 
         conf = {
+            'cache_inactive_time': '2h',
             'cache_max_size': '1g',
             'cache_path': '/var/lib/nginx/proxy',
             'listen_address': '127.0.0.1',

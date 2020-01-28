@@ -156,6 +156,7 @@ class TestCharm(unittest.TestCase):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {
+            'cache_inactive_time': '2h',
             'cache_max_size': '1g',
             'cache_path': '/var/lib/nginx/proxy',
             'enable_prometheus_metrics': False,
@@ -229,6 +230,8 @@ site1.local:
       signed-url-hmac-key: ${secret}
 '''
         self.mock_config.return_value = {
+            # Intentionally empty to ensure inactive= isn't added.
+            'cache_inactive_time': '',
             'cache_max_size': '1g',
             'cache_path': '/var/lib/nginx/proxy',
             'sites': config,
@@ -278,23 +281,29 @@ site1.local:
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
 
             self.mock_config.return_value = {
+                'cache_inactive_time': '2h',
                 'cache_max_size': '1g',
                 'cache_path': '/var/lib/nginx/proxy',
                 'sites': config,
             }
             want = (
                 'proxy_cache_path /var/lib/nginx/proxy/site1.local use_temp_path=off levels=1:2'
-                ' keys_zone=a5586980e57a-cache:10m max_size=1g;'
+                ' keys_zone=a5586980e57a-cache:10m inactive=2h max_size=1g;'
             )
             content_cache.configure_nginx(self.tmpdir)
             with open(os.path.join(self.tmpdir, 'sites-available/site1.local.conf'), 'r', encoding='utf-8') as f:
                 got = f.readline().strip()
             self.assertEqual(got, want)
 
-            self.mock_config.return_value = {'cache_max_size': '20g', 'cache_path': '/srv/cache', 'sites': config}
+            self.mock_config.return_value = {
+                'cache_inactive_time': '2h',
+                'cache_max_size': '20g',
+                'cache_path': '/srv/cache',
+                'sites': config,
+            }
             want = (
                 'proxy_cache_path /srv/cache/site1.local use_temp_path=off levels=1:2'
-                ' keys_zone=a5586980e57a-cache:10m max_size=20g;'
+                ' keys_zone=a5586980e57a-cache:10m inactive=2h max_size=20g;'
             )
             content_cache.configure_nginx(self.tmpdir)
             with open(os.path.join(self.tmpdir, 'sites-available/site1.local.conf'), 'r', encoding='utf-8') as f:
@@ -302,10 +311,15 @@ site1.local:
             self.assertEqual(got, want)
 
             disk_usage.return_value = (240 * 1024 * 1024 * 1024, 0, 0)
-            self.mock_config.return_value = {'cache_max_size': '', 'cache_path': '/srv/cache', 'sites': config}
+            self.mock_config.return_value = {
+                'cache_inactive_time': '2h',
+                'cache_max_size': '',
+                'cache_path': '/srv/cache',
+                'sites': config,
+            }
             want = (
                 'proxy_cache_path /srv/cache/site1.local use_temp_path=off levels=1:2'
-                ' keys_zone=a5586980e57a-cache:10m max_size=180g;'
+                ' keys_zone=a5586980e57a-cache:10m inactive=2h max_size=180g;'
             )
             content_cache.configure_nginx(self.tmpdir)
             with open(os.path.join(self.tmpdir, 'sites-available/site1.local.conf'), 'r', encoding='utf-8') as f:
@@ -751,6 +765,7 @@ site1.local:
         with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {
+            'cache_inactive_time': '2h',
             'cache_max_size': '1g',
             'enable_prometheus_metrics': True,
             'cache_path': '/var/lib/nginx/proxy',

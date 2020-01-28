@@ -1,4 +1,4 @@
-proxy_cache_path /var/lib/nginx/proxy/site9.local use_temp_path=off levels=1:2 keys_zone=8facdb232d5b-cache:10m max_size=1g;
+proxy_cache_path /var/lib/nginx/proxy/site9.local use_temp_path=off levels=1:2 keys_zone=8facdb232d5b-cache:10m inactive=2h max_size=1g;
 
 server {
     server_name site9.local;
