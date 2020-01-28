@@ -1,4 +1,4 @@
-proxy_cache_path {{cache_path}}/{{site}} use_temp_path=off levels=1:2 keys_zone={{keys_zone}}:10m max_size={{cache_max_size}};
+proxy_cache_path {{cache_path}}/{{site}} use_temp_path=off levels=1:2 keys_zone={{keys_zone}}:10m {% if cache_inactive_time %}inactive={{cache_inactive_time}} {% endif %}max_size={{cache_max_size}};
 
 server {
     server_name {{site_name}};

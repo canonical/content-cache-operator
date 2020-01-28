@@ -7,6 +7,12 @@ options:
       internal servers used between haproxy and nginx.  Used when a large
       number of sites may interfere with existing unit services, subordinate
       charms, etc.
+  cache_inactive_time:
+    type: string
+    default: ""
+    description: >
+      Maximum age/time inactive objects are stored in cache. If unspecified,
+      use the upstream defaults (currently 10m).
   cache_max_size:
     type: string
     default: ""

@@ -115,6 +115,7 @@ class NginxConf:
     def render(self, conf):
         data = {
             'address': conf['listen_address'],
+            'cache_inactive_time': conf['cache_inactive_time'],
             'cache_max_size': conf['cache_max_size'],
             'cache_path': conf['cache_path'],
             'enable_prometheus_metrics': conf['enable_prometheus_metrics'],
