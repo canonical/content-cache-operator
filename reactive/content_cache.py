@@ -2,7 +2,9 @@ import datetime
 import grp
 import os
 import pwd
+import random
 import subprocess
+import time
 from copy import deepcopy
 
 import yaml
@@ -64,10 +66,13 @@ def set_active():
     reactive.set_flag('content_cache.active')
 
 
-def service_start_or_restart(name):
+def service_start_or_reload(name):
     if host.service_running(name):
-        status.maintenance('Restarting {}...'.format(name))
-        host.service_restart(name)
+        random.seed()
+        rnd = (random.random() * 100) % 20
+        status.maintenance('Reloading {} in {}s...'.format(name, int(rnd)))
+        time.sleep(rnd)
+        host.service_reload(name)
     else:
         status.maintenance('Starting {}...'.format(name))
         host.service_start(name)
@@ -155,7 +160,7 @@ def configure_nginx(conf_path=None):
         changed = True
 
     if changed:
-        service_start_or_restart('nginx')
+        service_start_or_reload('nginx')
 
     update_logrotate('nginx', retention=config.get('log_retention'))
     reactive.set_flag('content_cache.nginx.configured')
@@ -283,7 +288,7 @@ def configure_haproxy():
         )
 
     if haproxy.write(rendered_config):
-        service_start_or_restart('haproxy')
+        service_start_or_reload('haproxy')
 
     update_logrotate('haproxy', retention=config.get('log_retention'))
     reactive.set_flag('content_cache.haproxy.configured')
