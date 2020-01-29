@@ -333,7 +333,9 @@ def configure_nagios():
             token = ''
             signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')
             if signed_url_hmac_key:
-                expiry_time = datetime.datetime.now() + datetime.timedelta(days=3650)
+                dt = datetime.date(datetime.datetime.now().year, 1, 1)
+                tm = datetime.time(00, 00)
+                expiry_time = datetime.datetime.combine(dt, tm) + datetime.timedelta(days=3650)
                 token = '?token={}'.format(utils.generate_token(signed_url_hmac_key, path, expiry_time))
 
             nagios_name = '{}-{}'.format(site, location)

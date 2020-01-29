@@ -384,13 +384,13 @@ site1.local:
                 shortname='site_site1_local_listen',
                 description='site1.local site listen check',
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80 -j HEAD'
-                ' -u /?token=1868572800_4eb30fc94f247635f7ed445083a4783862ad58de',
+                ' -u /?token=1861660800_cf7c721c816ad99f512a6858996ad8f86793fd72',
             ),
             mock.call(
                 shortname='site_site1_local_cache',
                 description='site1.local cache check',
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
-                ' -u /?token=1868572800_4eb30fc94f247635f7ed445083a4783862ad58de',
+                ' -u /?token=1861660800_cf7c721c816ad99f512a6858996ad8f86793fd72',
             ),
             mock.call(
                 shortname='site_site1_local_backend_proxy',
