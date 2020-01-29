@@ -62,6 +62,10 @@ class TestCharm(unittest.TestCase):
         self.mock_update_logrotate = patcher.start()
         self.addCleanup(patcher.stop)
 
+        patcher = mock.patch('time.sleep')
+        self.mock_time_sleep = patcher.start()
+        self.addCleanup(patcher.stop)
+
         status.active.reset_mock()
         status.blocked.reset_mock()
         status.maintenance.reset_mock()
@@ -120,26 +124,26 @@ class TestCharm(unittest.TestCase):
         set_flag.assert_called_once_with('content_cache.active')
 
     @mock.patch('charmhelpers.core.host.service_running')
-    @mock.patch('charmhelpers.core.host.service_restart')
+    @mock.patch('charmhelpers.core.host.service_reload')
     @mock.patch('charmhelpers.core.host.service_start')
-    def test_service_start_or_restart_running(self, service_start, service_restart, service_running):
+    def test_service_start_or_reload_running(self, service_start, service_reload, service_running):
         '''Test service restarted when already running'''
         service_running.return_value = True
-        content_cache.service_start_or_restart('someservice')
+        content_cache.service_start_or_reload('someservice')
         status.maintenance.assert_called()
         service_start.assert_not_called()
-        service_restart.assert_called_once_with('someservice')
+        service_reload.assert_called_once_with('someservice')
 
     @mock.patch('charmhelpers.core.host.service_running')
-    @mock.patch('charmhelpers.core.host.service_restart')
+    @mock.patch('charmhelpers.core.host.service_reload')
     @mock.patch('charmhelpers.core.host.service_start')
-    def test_service_start_or_restart_stopped(self, service_start, service_restart, service_running):
+    def test_service_start_or_reload_stopped(self, service_start, service_reload, service_running):
         '''Test service started up when not running/stopped'''
         service_running.return_value = False
-        content_cache.service_start_or_restart('someservice')
+        content_cache.service_start_or_reload('someservice')
         status.maintenance.assert_called()
         service_start.assert_called_once_with('someservice')
-        service_restart.assert_not_called()
+        service_reload.assert_not_called()
 
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_nginx_no_sites(self, clear_flag):
@@ -150,8 +154,8 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('charmhelpers.core.hookenv.close_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
-    @mock.patch('reactive.content_cache.service_start_or_restart')
-    def test_configure_nginx_sites(self, service_start_or_restart, opened_ports, close_port):
+    @mock.patch('reactive.content_cache.service_start_or_reload')
+    def test_configure_nginx_sites(self, service_start_or_reload, opened_ports, close_port):
         '''Test configuration of Nginx sites'''
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
@@ -172,15 +176,15 @@ class TestCharm(unittest.TestCase):
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
             opened_ports.return_value = ['80/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
             content_cache.configure_nginx(self.tmpdir)
-            service_start_or_restart.assert_called_once_with('nginx')
+            service_start_or_reload.assert_called_once_with('nginx')
             close_port.assert_called_once_with(nginx.METRICS_PORT, 'TCP')
 
             # Re-run with same set of sites, no change so shouldn't need to restart Nginx
-            service_start_or_restart.reset_mock()
+            service_start_or_reload.reset_mock()
             close_port.reset_mock()
             opened_ports.return_value = ['80/tcp']
             content_cache.configure_nginx(self.tmpdir)
-            service_start_or_restart.assert_not_called()
+            service_start_or_reload.assert_not_called()
             close_port.assert_not_called()
 
             for site in [
@@ -213,8 +217,8 @@ class TestCharm(unittest.TestCase):
 
     @mock.patch('charmhelpers.core.hookenv.close_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
-    @mock.patch('reactive.content_cache.service_start_or_restart')
-    def test_configure_nginx_sites_secrets(self, service_start_or_restart, opened_ports, close_port):
+    @mock.patch('reactive.content_cache.service_start_or_reload')
+    def test_configure_nginx_sites_secrets(self, service_start_or_reload, opened_ports, close_port):
         with open('tests/unit/files/config_test_secrets.txt', 'r', encoding='utf-8') as f:
             secrets = f.read()
         config = '''
@@ -262,8 +266,8 @@ site1.local:
     @mock.patch('charmhelpers.core.hookenv.close_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('shutil.disk_usage')
-    @mock.patch('reactive.content_cache.service_start_or_restart')
-    def test_configure_nginx_cache_config(self, service_start_or_restart, disk_usage, opened_ports, close_port):
+    @mock.patch('reactive.content_cache.service_start_or_reload')
+    def test_configure_nginx_cache_config(self, service_start_or_reload, disk_usage, opened_ports, close_port):
         config = '''
 site1.local:
   locations:
@@ -333,8 +337,8 @@ site1.local:
         clear_flag.assert_called_once_with('content_cache.active')
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
-    @mock.patch('reactive.content_cache.service_start_or_restart')
-    def test_configure_haproxy_sites(self, service_start_or_restart):
+    @mock.patch('reactive.content_cache.service_start_or_reload')
+    def test_configure_haproxy_sites(self, service_start_or_reload):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {'sites': ngx_config}
@@ -345,15 +349,15 @@ site1.local:
                 'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
             ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
                 content_cache.configure_haproxy()
-            service_start_or_restart.assert_called_with('haproxy')
+            service_start_or_reload.assert_called_with('haproxy')
 
             # Again, this time should be no change so no need to restart HAProxy
-            service_start_or_restart.reset_mock()
+            service_start_or_reload.reset_mock()
             with mock.patch('charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]), mock.patch(
                 'charmhelpers.core.hookenv.open_port'
             ), mock.patch('charmhelpers.core.hookenv.close_port'):
                 content_cache.configure_haproxy()
-            service_start_or_restart.assert_not_called()
+            service_start_or_reload.assert_not_called()
 
             with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
                 want = f.read()
@@ -759,8 +763,8 @@ site1.local:
 
     @mock.patch('charmhelpers.core.hookenv.open_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
-    @mock.patch('reactive.content_cache.service_start_or_restart')
-    def test_configure_nginx_metrics_sites(self, service_start_or_restart, opened_ports, open_port):
+    @mock.patch('reactive.content_cache.service_start_or_reload')
+    def test_configure_nginx_metrics_sites(self, service_start_or_reload, opened_ports, open_port):
         """Test configuration of Nginx sites with enable_prometheus_metrics activated."""
         with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
@@ -782,15 +786,15 @@ site1.local:
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
             opened_ports.return_value = ['80/tcp', '443/tcp']
             content_cache.configure_nginx(self.tmpdir)
-            service_start_or_restart.assert_called_once_with('nginx')
+            service_start_or_reload.assert_called_once_with('nginx')
             open_port.assert_called_once_with(nginx.METRICS_PORT, 'TCP')
 
             # Re-run with same set of sites, no change so shouldn't need to restart Nginx
-            service_start_or_restart.reset_mock()
+            service_start_or_reload.reset_mock()
             open_port.reset_mock()
             opened_ports.return_value = ['80/tcp', '443/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
             content_cache.configure_nginx(self.tmpdir)
-            service_start_or_restart.assert_not_called()
+            service_start_or_reload.assert_not_called()
             open_port.assert_not_called()
 
             # Test the site with cache HIT logging
@@ -830,9 +834,9 @@ site1.local:
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charmhelpers.core.host.pwgen')
     @mock.patch('lib.haproxy.HAProxyConf')
-    @mock.patch('reactive.content_cache.service_start_or_restart')
+    @mock.patch('reactive.content_cache.service_start_or_reload')
     def test_configure_haproxy_ports_management(
-        self, service_start_or_restart, haproxyconf, pwgen, opened_ports, open_port, close_port
+        self, service_start_or_reload, haproxyconf, pwgen, opened_ports, open_port, close_port
     ):
         with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
