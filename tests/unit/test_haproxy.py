@@ -74,6 +74,16 @@ class TestLibHAProxy(unittest.TestCase):
             want = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
 
+    @freezegun.freeze_time("2019-10-10", tz_offset=0)
+    def test_haproxy_config_rendered_backend_stanzas_token(self):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+        config = self.site_config
+        with open(
+            'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt', 'r', encoding='utf-8'
+        ) as f:
+            want = f.read()
+        self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
+
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     def test_haproxy_config_rendered_full_config(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)

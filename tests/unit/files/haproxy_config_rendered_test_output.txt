@@ -75,7 +75,7 @@ listen combined-444
     use_backend backend-site8-local if { hdr(Host) -i site8.local }
 
 backend backend-site1-local
-    option httpchk HEAD /?token=1868572800_4eb30fc94f247635f7ed445083a4783862ad58de HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD /?token=1861660800_cf7c721c816ad99f512a6858996ad8f86793fd72 HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance leastconn
     server server_1 127.0.1.10:80 check inter 5000 rise 2 fall 5 maxconn 2048
