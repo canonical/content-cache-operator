@@ -79,7 +79,7 @@ def generate_token(signing_secret, url_path, expiry_time=None):
     if not expiry_time:
         dt = datetime.date(datetime.datetime.now().year, 1, 1)
         tm = datetime.time(00, 00)
-        expiry_time = datetime.datetime.combine(dt, tm) + datetime.timedelta(days=3650)
+        expiry_time = datetime.datetime.combine(dt, tm) + datetime.timedelta(days=3653)
     expiration = int(expiry_time.timestamp())
     string_to_sign = "{0}{1}".format(url_path, expiration)
     digest = hmac.new(signing_secret.encode(), string_to_sign.encode(), hashlib.sha1)

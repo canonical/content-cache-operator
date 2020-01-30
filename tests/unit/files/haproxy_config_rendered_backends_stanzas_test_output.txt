@@ -1,6 +1,6 @@
 
 backend backend-site1-local
-    option httpchk HEAD /?token=1861660800_cf7c721c816ad99f512a6858996ad8f86793fd72 HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance leastconn
     server server_1 127.0.1.10:80 check inter 5000 rise 2 fall 5 maxconn 2048

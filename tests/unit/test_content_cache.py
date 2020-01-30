@@ -384,13 +384,13 @@ site1.local:
                 shortname='site_site1_local_listen',
                 description='site1.local site listen check',
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80 -j HEAD'
-                ' -u /?token=1861660800_cf7c721c816ad99f512a6858996ad8f86793fd72',
+                ' -u /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a',
             ),
             mock.call(
                 shortname='site_site1_local_cache',
                 description='site1.local cache check',
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
-                ' -u /?token=1861660800_cf7c721c816ad99f512a6858996ad8f86793fd72',
+                ' -u /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a',
             ),
             mock.call(
                 shortname='site_site1_local_backend_proxy',
@@ -575,7 +575,7 @@ site1.local:
         self.mock_config.return_value = {'sites': config}
         nrpe_instance_mock = nrpe(get_nagios_hostname(), primary=True)
 
-        token = '1893196800_6e9a0e0ff4095459c9a43f914c47574b5ee1973f'
+        token = '1893456000_e7b5a7b51a6c4158a980aecf7d52e6fc7120a808'
 
         content_cache.configure_nagios()
         want = [
