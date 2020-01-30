@@ -564,6 +564,56 @@ site1.local:
         want = [mock.call('nagios-nrpe.configured')]
         set_flag.assert_has_calls(want, any_order=True)
 
+    @freezegun.freeze_time("2020-01-30", tz_offset=0)
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.NRPE')
+    def test_configure_nagios_token(self, nrpe, get_nagios_hostname, set_flag):
+        get_nagios_hostname.return_value = 'some-host.local'
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
+            config = f.read()
+        self.mock_config.return_value = {'sites': config}
+        nrpe_instance_mock = nrpe(get_nagios_hostname(), primary=True)
+
+        token = '1893196800_6e9a0e0ff4095459c9a43f914c47574b5ee1973f'
+
+        content_cache.configure_nagios()
+        want = [
+            mock.call(
+                shortname='site_site1_local_listen',
+                description='site1.local site listen check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80 -j HEAD'
+                ' -u /?token={}'.format(token),
+            ),
+            mock.call(
+                shortname='site_site1_local_cache',
+                description='site1.local cache check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
+                ' -u /?token={}'.format(token),
+            ),
+        ]
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
+        return
+
+        nrpe_instance_mock.reset_mock()
+        content_cache.configure_nagios()
+        with freezegun.freeze_time("2020-08-14"):
+            want = [
+                mock.call(
+                    shortname='site_site1_local_listen',
+                    description='site1.local site listen check',
+                    check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80 -j HEAD'
+                    ' -u /?token={}'.format(token),
+                ),
+                mock.call(
+                    shortname='site_site1_local_cache',
+                    description='site1.local cache check',
+                    check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
+                    ' -u /?token={}'.format(token),
+                ),
+            ]
+            nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
+
     def test_sites_from_config(self):
         config_yaml = '''
 site1.local:
