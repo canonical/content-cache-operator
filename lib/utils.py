@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import hmac
 import os
@@ -74,7 +75,11 @@ def generate_nagios_check_name(name, prefix='', suffix=''):
     return _nagios_check_name_strip(check_name)
 
 
-def generate_token(signing_secret, url_path, expiry_time):
+def generate_token(signing_secret, url_path, expiry_time=None):
+    if not expiry_time:
+        dt = datetime.date(datetime.datetime.now().year, 1, 1)
+        tm = datetime.time(00, 00)
+        expiry_time = datetime.datetime.combine(dt, tm) + datetime.timedelta(days=3650)
     expiration = int(expiry_time.timestamp())
     string_to_sign = "{0}{1}".format(url_path, expiration)
     digest = hmac.new(signing_secret.encode(), string_to_sign.encode(), hashlib.sha1)

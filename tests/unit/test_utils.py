@@ -73,6 +73,15 @@ class TestLibUtils(unittest.TestCase):
         want = '1553299200_d5257bb9f1e5e27065f2e7c986ca8c95f4cc3680'
         self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), want)
 
+        want = '1861660800_5a0b6c67de94e387d5393076d5366d1956345f77'
+        self.assertEqual(utils.generate_token(signing_key, '/'), want)
+        with freezegun.freeze_time("2019-11-22", tz_offset=0):
+            self.assertEqual(utils.generate_token(signing_key, '/'), want)
+
+        want = '1893196800_4892860c9d8b205d4ced7063da8cf29b3b6c4588'
+        with freezegun.freeze_time("2020-11-22", tz_offset=0):
+            self.assertEqual(utils.generate_token(signing_key, '/'), want)
+
     def test_generate_uri(self):
         self.assertEqual(utils.generate_uri('localhost'), 'http://localhost:80')
         self.assertEqual(utils.generate_uri('localhost', 8080), 'http://localhost:8080')

@@ -1,4 +1,3 @@
-import datetime
 import hashlib
 import multiprocessing
 import os
@@ -188,10 +187,7 @@ backend backend-{name}
                 path = loc_conf.get('backend-check-path', '/')
                 signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')
                 if signed_url_hmac_key:
-                    dt = datetime.date(datetime.datetime.now().year, 1, 1)
-                    tm = datetime.time(00, 00)
-                    expiry_time = datetime.datetime.combine(dt, tm) + datetime.timedelta(days=3650)
-                    path = '{}?token={}'.format(path, utils.generate_token(signed_url_hmac_key, path, expiry_time))
+                    path = '{}?token={}'.format(path, utils.generate_token(signed_url_hmac_key, path))
 
                 # There may be more than one backend for a site, we need to deal
                 # with it and ensure our name for the backend stanza is unique.

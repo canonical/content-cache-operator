@@ -597,7 +597,7 @@ site1.local:
 
         nrpe_instance_mock.reset_mock()
         content_cache.configure_nagios()
-        with freezegun.freeze_time("2020-08-14"):
+        with freezegun.freeze_time("2020-08-14", tz_offset=0):
             want = [
                 mock.call(
                     shortname='site_site1_local_listen',
