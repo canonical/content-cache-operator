@@ -53,9 +53,8 @@ class TestLibHAProxy(unittest.TestCase):
     def test_haproxy_config_rendered_listen_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
-        with open(
-            'tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output.txt', 'r', encoding='utf-8'
-        ) as f:
+        output = 'tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output.txt'
+        with open(output, 'r', encoding='utf-8') as f:
             want = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_listen(config)), want)
 
@@ -68,9 +67,8 @@ class TestLibHAProxy(unittest.TestCase):
     def test_haproxy_config_rendered_backend_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
-        with open(
-            'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt', 'r', encoding='utf-8'
-        ) as f:
+        output = 'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt'
+        with open(output, 'r', encoding='utf-8') as f:
             want = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
 
@@ -78,9 +76,8 @@ class TestLibHAProxy(unittest.TestCase):
     def test_haproxy_config_rendered_backend_stanzas_token(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
-        with open(
-            'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt', 'r', encoding='utf-8'
-        ) as f:
+        output = 'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt'
+        with open(output, 'r', encoding='utf-8') as f:
             want = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
 

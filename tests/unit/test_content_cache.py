@@ -187,7 +187,7 @@ class TestCharm(unittest.TestCase):
             service_start_or_reload.assert_not_called()
             close_port.assert_not_called()
 
-            for site in [
+            sites = [
                 'site1.local',
                 'site2.local',
                 'site3.local',
@@ -197,14 +197,13 @@ class TestCharm(unittest.TestCase):
                 'site7.local',
                 'site8.local',
                 'site9.local',
-            ]:
-                with open(
-                    'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site), 'r', encoding='utf-8'
-                ) as f:
+            ]
+            for site in sites:
+                output = 'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site)
+                with open(output, 'r', encoding='utf-8') as f:
                     want = f.read()
-                with open(
-                    os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site)), 'r', encoding='utf-8'
-                ) as f:
+                sites_available_conf = os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site))
+                with open(sites_available_conf, 'r', encoding='utf-8') as f:
                     got = f.read()
                 self.assertEqual(got, want)
 
@@ -251,15 +250,11 @@ site1.local:
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
             content_cache.configure_nginx(self.tmpdir)
             for site in ['site1.local']:
-                with open(
-                    'tests/unit/files/nginx_config_rendered_test_output-{}-secrets.txt'.format(site),
-                    'r',
-                    encoding='utf-8',
-                ) as f:
+                output = 'tests/unit/files/nginx_config_rendered_test_output-{}-secrets.txt'.format(site)
+                with open(output, 'r', encoding='utf-8') as f:
                     want = f.read()
-                with open(
-                    os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site)), 'r', encoding='utf-8'
-                ) as f:
+                sites_available_conf = os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site))
+                with open(sites_available_conf, 'r', encoding='utf-8') as f:
                     got = f.read()
                 self.assertEqual(got, want)
 
