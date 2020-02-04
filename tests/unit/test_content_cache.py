@@ -154,9 +154,7 @@ class TestCharm(unittest.TestCase):
 
         status.reset_mock()
         clear_flag.reset_mock()
-        self.mock_config.return_value = {
-            'sites': 'site1:'
-        }
+        self.mock_config.return_value = {'sites': 'site1:'}
         content_cache.configure_nginx(self.tmpdir)
         status.blocked.assert_called()
         clear_flag.assert_called_once_with('content_cache.active')
@@ -347,9 +345,7 @@ site1.local:
 
         status.reset_mock()
         clear_flag.reset_mock()
-        self.mock_config.return_value = {
-            'sites': 'site1:'
-        }
+        self.mock_config.return_value = {'sites': 'site1:'}
         content_cache.configure_haproxy()
         status.blocked.assert_called()
         clear_flag.assert_called_once_with('content_cache.active')
@@ -714,6 +710,16 @@ site1.local:
         config = {'site1.local': {'locations': {'/': {'signed-url-hmac-key': '${secret}'}}}}
         want = {'site1.local': {'locations': {'/': {'signed-url-hmac-key': 'Maiqu7ohmeiSh6ooroa0'}}}}
         self.assertEqual(content_cache.interpolate_secrets(config, secrets), want)
+
+        # Secrets exists, but none the for site we want
+        config = {
+            'site2.local': {
+                'locations': {
+                    '/': {'origin-headers': [{'X-Origin-Key': '${secret}'}], 'signed-url-hmac-key': '${secret}'}
+                }
+            }
+        }
+        self.assertEqual(content_cache.interpolate_secrets(config, secrets), config)
 
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('subprocess.call')
