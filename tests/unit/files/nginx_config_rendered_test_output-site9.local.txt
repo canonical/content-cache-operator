@@ -21,6 +21,13 @@ server {
     }
 
 
+    location /private/content {
+        root /srv/example1.com/content/;
+        autoindex on;
+        auth_request /auth;
+    }
+
+
     access_log /var/log/nginx/site9.local-access.log content_cache;
     error_log /var/log/nginx/site9.local-error.log;
 }

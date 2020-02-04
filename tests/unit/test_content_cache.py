@@ -582,6 +582,22 @@ site1.local:
         ]
         nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
 
+        want = [
+            mock.call(
+                shortname='site_site9_local_privatecontent_listen',
+                description='site9.local site listen check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site9.local -p 80 -j HEAD'
+                ' -u /private/content --expect="401 Unauthorized"',
+            ),
+            mock.call(
+                shortname='site_site9_local_privatecontent_cache',
+                description='site9.local cache check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site9.local -p 6088 -j HEAD'
+                ' -u /private/content --expect="401 Unauthorized"',
+            ),
+        ]
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
+
         nrpe_instance_mock.write.assert_called()
 
         want = [mock.call('nagios-nrpe.configured')]
