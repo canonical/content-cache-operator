@@ -152,6 +152,15 @@ class TestCharm(unittest.TestCase):
         status.blocked.assert_called()
         clear_flag.assert_called_once_with('content_cache.active')
 
+        status.reset_mock()
+        clear_flag.reset_mock()
+        self.mock_config.return_value = {
+            'sites': 'site1:'
+        }
+        content_cache.configure_nginx(self.tmpdir)
+        status.blocked.assert_called()
+        clear_flag.assert_called_once_with('content_cache.active')
+
     @mock.patch('charmhelpers.core.hookenv.close_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('reactive.content_cache.service_start_or_reload')
@@ -332,6 +341,15 @@ site1.local:
 
     @mock.patch('charms.reactive.clear_flag')
     def test_configure_haproxy_no_sites(self, clear_flag):
+        content_cache.configure_haproxy()
+        status.blocked.assert_called()
+        clear_flag.assert_called_once_with('content_cache.active')
+
+        status.reset_mock()
+        clear_flag.reset_mock()
+        self.mock_config.return_value = {
+            'sites': 'site1:'
+        }
         content_cache.configure_haproxy()
         status.blocked.assert_called()
         clear_flag.assert_called_once_with('content_cache.active')

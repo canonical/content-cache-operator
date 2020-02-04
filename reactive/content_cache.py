@@ -445,7 +445,10 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     sites = interpolate_secrets(conf, sites_secrets)
     cache_port = 0
     backend_port = 0
+    new_sites = {}
     for site, site_conf in sites.items():
+        if not site_conf:
+            continue
         (cache_port, unused_backend_port) = utils.next_port_pair(
             cache_port, backend_port, blacklist_ports=blacklist_ports
         )
@@ -456,7 +459,8 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
                     cache_port, backend_port, blacklist_ports=blacklist_ports
                 )
                 loc_conf['backend_port'] = backend_port
-    return sites
+        new_sites[site] = site_conf
+    return new_sites
 
 
 def secrets_from_config(secrets_yaml):
