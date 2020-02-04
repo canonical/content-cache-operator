@@ -30,6 +30,25 @@ class TestLibHAProxy(unittest.TestCase):
         haproxy = HAProxy.HAProxyConf()
         self.assertEqual(haproxy.conf_file, conf_file)
 
+    def test_haproxy_config_monitoring_password(self):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+
+        self.assertEqual(haproxy.monitoring_password, None)
+
+        with open('tests/unit/files/haproxy_config_rendered_test_output.txt', 'r', encoding='utf-8') as f:
+            conf = f.read()
+        haproxy.write(conf)
+        self.assertEqual(haproxy.monitoring_password, 'biometricsarenotsecret')
+
+        conf = []
+        with open('tests/unit/files/haproxy_config_rendered_test_output.txt', 'r', encoding='utf-8') as f:
+            for line in f.readlines():
+                if 'stats auth' in line:
+                    continue
+                conf.append(line)
+        haproxy.write(''.join(conf))
+        self.assertEqual(haproxy.monitoring_password, None)
+
     def test_haproxy_config_generate_stanza_names(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         self.assertEqual(haproxy._generate_stanza_name('site1'), 'site1')
