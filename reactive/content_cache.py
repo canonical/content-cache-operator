@@ -507,9 +507,9 @@ def _interpolate_secrets_origin_headers(headers, secrets):
     return headers
 
 
-def update_logrotate(service, retention, dateext=True):
+def update_logrotate(service, retention, dateext=True, **kwargs):
     conf_path = os.path.join('/etc/logrotate.d', service)
-    write_file(utils.logrotate(conf_path, retention=retention, dateext=dateext), conf_path)
+    write_file(utils.logrotate(conf_path, retention=retention, dateext=dateext), conf_path, **kwargs)
 
 
 def copy_file(source_path, dest_path, **kwargs):

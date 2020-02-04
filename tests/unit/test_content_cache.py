@@ -58,10 +58,6 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.mock_cpu_count.return_value = 4
 
-        patcher = mock.patch('reactive.content_cache.update_logrotate')
-        self.mock_update_logrotate = patcher.start()
-        self.addCleanup(patcher.stop)
-
         patcher = mock.patch('time.sleep')
         self.mock_time_sleep = patcher.start()
         self.addCleanup(patcher.stop)
@@ -146,7 +142,8 @@ class TestCharm(unittest.TestCase):
         service_reload.assert_not_called()
 
     @mock.patch('charms.reactive.clear_flag')
-    def test_configure_nginx_no_sites(self, clear_flag):
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_nginx_no_sites(self, logrotation, clear_flag):
         '''Test correct flags are set when no sites defined to configure Nginx'''
         content_cache.configure_nginx(self.tmpdir)
         status.blocked.assert_called()
@@ -162,7 +159,8 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charmhelpers.core.hookenv.close_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('reactive.content_cache.service_start_or_reload')
-    def test_configure_nginx_sites(self, service_start_or_reload, opened_ports, close_port):
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_nginx_sites(self, logrotation, service_start_or_reload, opened_ports, close_port):
         '''Test configuration of Nginx sites'''
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
@@ -225,7 +223,8 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charmhelpers.core.hookenv.close_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('reactive.content_cache.service_start_or_reload')
-    def test_configure_nginx_sites_secrets(self, service_start_or_reload, opened_ports, close_port):
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_nginx_sites_secrets(self, logrotation, service_start_or_reload, opened_ports, close_port):
         with open('tests/unit/files/config_test_secrets.txt', 'r', encoding='utf-8') as f:
             secrets = f.read()
         config = '''
@@ -274,7 +273,10 @@ site1.local:
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('shutil.disk_usage')
     @mock.patch('reactive.content_cache.service_start_or_reload')
-    def test_configure_nginx_cache_config(self, service_start_or_reload, disk_usage, opened_ports, close_port):
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_nginx_cache_config(
+        self, logrotation, service_start_or_reload, disk_usage, opened_ports, close_port
+    ):
         config = '''
 site1.local:
   locations:
@@ -338,7 +340,8 @@ site1.local:
             self.assertEqual(got, want)
 
     @mock.patch('charms.reactive.clear_flag')
-    def test_configure_haproxy_no_sites(self, clear_flag):
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_haproxy_no_sites(self, logrotation, clear_flag):
         content_cache.configure_haproxy()
         status.blocked.assert_called()
         clear_flag.assert_called_once_with('content_cache.active')
@@ -352,7 +355,8 @@ site1.local:
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('reactive.content_cache.service_start_or_reload')
-    def test_configure_haproxy_sites(self, service_start_or_reload):
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_haproxy_sites(self, logrotation, service_start_or_reload):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {'sites': ngx_config}
@@ -771,6 +775,13 @@ site1.local:
         self.assertEqual(got, want)
 
     @mock.patch('charmhelpers.core.host.write_file')
+    def test_update_logrotate(self, write_file):
+        content_cache.update_logrotate('nginx', '30', dateext=True, owner='somedude', group='somegroup', perms=444)
+        write_file.assert_called_once_with(
+            content=None, group='somegroup', owner='somedude', path='/etc/logrotate.d/nginx', perms=444
+        )
+
+    @mock.patch('charmhelpers.core.host.write_file')
     def test_copy_file_ownership(self, write_file):
         source = os.path.join(self.charm_dir, 'tests/unit/files/test_file.txt')
         dest = os.path.join(self.tmpdir, os.path.basename(source))
@@ -788,7 +799,8 @@ site1.local:
     @mock.patch('charmhelpers.core.hookenv.open_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('reactive.content_cache.service_start_or_reload')
-    def test_configure_nginx_metrics_sites(self, service_start_or_reload, opened_ports, open_port):
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_nginx_metrics_sites(self, logrotation, service_start_or_reload, opened_ports, open_port):
         """Test configuration of Nginx sites with enable_prometheus_metrics activated."""
         with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
@@ -859,8 +871,9 @@ site1.local:
     @mock.patch('charmhelpers.core.host.pwgen')
     @mock.patch('lib.haproxy.HAProxyConf')
     @mock.patch('reactive.content_cache.service_start_or_reload')
+    @mock.patch('reactive.content_cache.update_logrotate')
     def test_configure_haproxy_ports_management(
-        self, service_start_or_reload, haproxyconf, pwgen, opened_ports, open_port, close_port
+        self, logrotation, service_start_or_reload, haproxyconf, pwgen, opened_ports, open_port, close_port
     ):
         with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
