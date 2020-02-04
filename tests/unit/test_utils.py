@@ -65,13 +65,33 @@ class TestLibUtils(unittest.TestCase):
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     def test_generate_token(self):
         signing_key = '2KmMh3/rx1LQRdjZIzto07Qaz/+LghG1c2G7od7FC/I='
-        expiry_time = datetime.datetime.now() + datetime.timedelta(hours=1)
         want = '1553216400_cd3920a15f1d58b9953ef7a8e7e9c46d4522a5e9'
+        expiry_time = datetime.datetime.now() + datetime.timedelta(hours=1)
         self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), want)
 
-        expiry_time = datetime.datetime.now() + datetime.timedelta(days=1)
         want = '1553299200_d5257bb9f1e5e27065f2e7c986ca8c95f4cc3680'
+        expiry_time = datetime.datetime.now() + datetime.timedelta(days=1)
         self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), want)
+
+        want = '1574467200_7087ba9298954ff8759409f523f890e400748b30'
+        with freezegun.freeze_time("2019-11-22", tz_offset=0):
+            expiry_time = datetime.datetime.now() + datetime.timedelta(days=1)
+            self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), want)
+
+        want = '1921622400_e47bcc2a32bcf33bd510579e98102a5da12881d3'
+        with freezegun.freeze_time("2020-11-22", tz_offset=0):
+            expiry_time = datetime.datetime.now() + datetime.timedelta(days=3653)
+            self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), want)
+
+    def test_never_expires_time(self):
+        with freezegun.freeze_time("2020-02-04", tz_offset=0):
+            self.assertEqual(utils.never_expires_time(), datetime.datetime(2030, 1, 1, 0, 0))
+
+        with freezegun.freeze_time("2025-11-22", tz_offset=0):
+            self.assertEqual(utils.never_expires_time(), datetime.datetime(2035, 1, 2, 0, 0))
+
+        with freezegun.freeze_time("1990-03-22", tz_offset=0):
+            self.assertEqual(utils.never_expires_time(), datetime.datetime(2000, 1, 2, 0, 0))
 
     def test_generate_uri(self):
         self.assertEqual(utils.generate_uri('localhost'), 'http://localhost:80')

@@ -1,4 +1,3 @@
-import datetime
 import grp
 import os
 import pwd
@@ -333,7 +332,7 @@ def configure_nagios():
             token = ''
             signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')
             if signed_url_hmac_key:
-                expiry_time = datetime.datetime.now() + datetime.timedelta(days=3650)
+                expiry_time = utils.never_expires_time()
                 token = '?token={}'.format(utils.generate_token(signed_url_hmac_key, path, expiry_time))
 
             nagios_name = '{}-{}'.format(site, location)

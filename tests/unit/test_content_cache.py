@@ -192,7 +192,7 @@ class TestCharm(unittest.TestCase):
             service_start_or_reload.assert_not_called()
             close_port.assert_not_called()
 
-            for site in [
+            sites = [
                 'site1.local',
                 'site2.local',
                 'site3.local',
@@ -202,14 +202,13 @@ class TestCharm(unittest.TestCase):
                 'site7.local',
                 'site8.local',
                 'site9.local',
-            ]:
-                with open(
-                    'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site), 'r', encoding='utf-8'
-                ) as f:
+            ]
+            for site in sites:
+                output = 'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site)
+                with open(output, 'r', encoding='utf-8') as f:
                     want = f.read()
-                with open(
-                    os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site)), 'r', encoding='utf-8'
-                ) as f:
+                sites_available_conf = os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site))
+                with open(sites_available_conf, 'r', encoding='utf-8') as f:
                     got = f.read()
                 self.assertEqual(got, want)
 
@@ -257,15 +256,11 @@ site1.local:
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
             content_cache.configure_nginx(self.tmpdir)
             for site in ['site1.local']:
-                with open(
-                    'tests/unit/files/nginx_config_rendered_test_output-{}-secrets.txt'.format(site),
-                    'r',
-                    encoding='utf-8',
-                ) as f:
+                output = 'tests/unit/files/nginx_config_rendered_test_output-{}-secrets.txt'.format(site)
+                with open(output, 'r', encoding='utf-8') as f:
                     want = f.read()
-                with open(
-                    os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site)), 'r', encoding='utf-8'
-                ) as f:
+                sites_available_conf = os.path.join(self.tmpdir, 'sites-available/{}.conf'.format(site))
+                with open(sites_available_conf, 'r', encoding='utf-8') as f:
                     got = f.read()
                 self.assertEqual(got, want)
 
@@ -407,13 +402,13 @@ site1.local:
                 shortname='site_site1_local_listen',
                 description='site1.local site listen check',
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80 -j HEAD'
-                ' -u /?token=1868572800_4eb30fc94f247635f7ed445083a4783862ad58de',
+                ' -u /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a',
             ),
             mock.call(
                 shortname='site_site1_local_cache',
                 description='site1.local cache check',
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
-                ' -u /?token=1868572800_4eb30fc94f247635f7ed445083a4783862ad58de',
+                ' -u /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a',
             ),
             mock.call(
                 shortname='site_site1_local_backend_proxy',
@@ -603,6 +598,56 @@ site1.local:
         want = [mock.call('nagios-nrpe.configured')]
         set_flag.assert_has_calls(want, any_order=True)
 
+    @freezegun.freeze_time("2020-01-30", tz_offset=0)
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.NRPE')
+    def test_configure_nagios_token(self, nrpe, get_nagios_hostname, set_flag):
+        get_nagios_hostname.return_value = 'some-host.local'
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
+            config = f.read()
+        self.mock_config.return_value = {'sites': config}
+        nrpe_instance_mock = nrpe(get_nagios_hostname(), primary=True)
+
+        token = '1893456000_e7b5a7b51a6c4158a980aecf7d52e6fc7120a808'
+
+        content_cache.configure_nagios()
+        want = [
+            mock.call(
+                shortname='site_site1_local_listen',
+                description='site1.local site listen check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80 -j HEAD'
+                ' -u /?token={}'.format(token),
+            ),
+            mock.call(
+                shortname='site_site1_local_cache',
+                description='site1.local cache check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
+                ' -u /?token={}'.format(token),
+            ),
+        ]
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
+        return
+
+        nrpe_instance_mock.reset_mock()
+        content_cache.configure_nagios()
+        with freezegun.freeze_time("2020-08-14", tz_offset=0):
+            want = [
+                mock.call(
+                    shortname='site_site1_local_listen',
+                    description='site1.local site listen check',
+                    check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 80 -j HEAD'
+                    ' -u /?token={}'.format(token),
+                ),
+                mock.call(
+                    shortname='site_site1_local_cache',
+                    description='site1.local cache check',
+                    check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
+                    ' -u /?token={}'.format(token),
+                ),
+            ]
+            nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
+
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.NRPE')
@@ -616,7 +661,7 @@ site1.local:
             mock.call(
                 shortname='haproxy_telegraf_metrics',
                 description='Verify haproxy metrics are visible via telegraf subordinate',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate"'
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate"',
             )
         ]
         nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
