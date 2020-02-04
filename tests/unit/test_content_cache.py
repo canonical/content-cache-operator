@@ -603,6 +603,29 @@ site1.local:
         want = [mock.call('nagios-nrpe.configured')]
         set_flag.assert_has_calls(want, any_order=True)
 
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.NRPE')
+    def test_check_haproxy_alerts(self, nrpe, get_nagios_hostname, set_flag):
+        get_nagios_hostname.return_value = 'some-host.local'
+        nrpe_instance_mock = nrpe(get_nagios_hostname(), primary=True)
+
+        content_cache.check_haproxy_alerts()
+
+        want = [
+            mock.call(
+                shortname='haproxy_telegraf_metrics',
+                description='Verify haproxy metrics are visible via telegraf subordinate',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate"'
+            )
+        ]
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
+
+        nrpe_instance_mock.write.assert_called()
+
+        want = [mock.call('nagios-nrpe-telegraf.configured')]
+        set_flag.assert_has_calls(want, any_order=True)
+
     def test_sites_from_config(self):
         config_yaml = '''
 site1.local:
