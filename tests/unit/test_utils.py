@@ -73,14 +73,26 @@ class TestLibUtils(unittest.TestCase):
         want = '1553299200_d5257bb9f1e5e27065f2e7c986ca8c95f4cc3680'
         self.assertEqual(utils.generate_token(signing_key, '/', expiry_time), want)
 
-        want = '1861920000_a7d4c693a127e01ba2d36c490ee8adf553c45e37'
+        want = '1553299200_d5257bb9f1e5e27065f2e7c986ca8c95f4cc3680'
         self.assertEqual(utils.generate_token(signing_key, '/'), want)
+
+        want = '1574467200_7087ba9298954ff8759409f523f890e400748b30'
         with freezegun.freeze_time("2019-11-22", tz_offset=0):
             self.assertEqual(utils.generate_token(signing_key, '/'), want)
 
-        want = '1893456000_634fa833cb534211606e50508b3733ada7167e44'
+        want = '1606089600_e4f8ab5d1c9330fa80fccbab9fc124142637d09b'
         with freezegun.freeze_time("2020-11-22", tz_offset=0):
             self.assertEqual(utils.generate_token(signing_key, '/'), want)
+
+    def test_never_expires_time(self):
+        with freezegun.freeze_time("2020-02-04", tz_offset=0):
+            self.assertEqual(utils.never_expires_time(), datetime.datetime(2030, 1, 1, 0, 0))
+
+        with freezegun.freeze_time("2025-11-22", tz_offset=0):
+            self.assertEqual(utils.never_expires_time(), datetime.datetime(2035, 1, 2, 0, 0))
+
+        with freezegun.freeze_time("1990-03-22", tz_offset=0):
+            self.assertEqual(utils.never_expires_time(), datetime.datetime(2000, 1, 2, 0, 0))
 
     def test_generate_uri(self):
         self.assertEqual(utils.generate_uri('localhost'), 'http://localhost:80')
