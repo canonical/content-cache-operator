@@ -383,6 +383,11 @@ site1.local:
                 got = f.read()
             self.assertEqual(got, want)
 
+    @mock.patch('charms.reactive.set_flag')
+    def test_fire_stats_hook(self, set_flag):
+        content_cache.fire_stats_hook()
+        set_flag.assert_has_calls([mock.call('haproxy-statistics.available')])
+
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
