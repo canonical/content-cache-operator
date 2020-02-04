@@ -115,3 +115,9 @@ site9.local:
       backend-inter-time: '1m'
       backends:
         - 127.0.1.15:80
+    /private/content:
+      extra-config:
+        - root /srv/example1.com/content/
+        - autoindex on
+        - auth_request /auth
+      nagios-expect: 401 Unauthorized
