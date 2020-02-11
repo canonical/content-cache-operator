@@ -6,6 +6,7 @@ import subprocess
 import time
 from copy import deepcopy
 
+import jinja2
 import yaml
 
 from charms import reactive
@@ -404,9 +405,42 @@ def configure_nagios():
     reactive.set_flag('nagios-nrpe.configured')
 
 
+_SYSCTL_CORE_DEFAULT_QDISC = '/proc/sys/net/core/default_qdisc'
+_SYSCTL_NET_IPV4_CONGESTION_CONTROL = '/proc/sys/net/ipv4/tcp_available_congestion_control'
+
+
 @reactive.when_not('content_cache.sysctl.configured')
 def configure_sysctl():
-    if copy_file('files/sysctl.conf', SYSCTL_CONF_PATH):
+    var = {
+        'net_core_default_qdisc': None,
+        'net_ipv4_tcp_congestion_control': None,
+    }
+
+    if os.path.exists(_SYSCTL_CORE_DEFAULT_QDISC):
+        var['net_core_default_qdisc'] = 'fq'
+
+    if os.path.exists(_SYSCTL_NET_IPV4_CONGESTION_CONTROL):
+        congestion_control = None
+        with open(_SYSCTL_NET_IPV4_CONGESTION_CONTROL) as f:
+            ccs = f.read()
+        if 'bbr2' in ccs.split():
+            congestion_control = 'bbr2'
+        elif 'bbr' in ccs.split():
+            congestion_control = 'bbr'
+        var['net_ipv4_tcp_congestion_control'] = congestion_control
+
+    base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
+    template = env.get_template('templates/sysctl_conf.tmpl')
+    content = template.render(var)
+    try:
+        with open(SYSCTL_CONF_PATH, 'r', encoding='utf-8') as f:
+            current = f.read()
+    except FileNotFoundError:
+        current = ''
+    if content != current:
+        with open(SYSCTL_CONF_PATH, 'w', encoding='utf-8') as f:
+            f.write(content)
         subprocess.call(['sysctl', '-p', SYSCTL_CONF_PATH])
     reactive.set_flag('content_cache.sysctl.configured')
 
