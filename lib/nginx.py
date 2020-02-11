@@ -109,6 +109,12 @@ class NginxConf:
                 if 'cache-validity' in lc:
                     lc['cache-valid'] = lc.get('cache-validity', self.proxy_cache_configs['valid'])
                     lc.pop('cache-validity')
+            lc['force_ranges'] = 'on'
+            extra_config = lc.get('extra-config', [])
+            for ext in extra_config:
+                if ext.startswith('proxy_force_ranges'):
+                    lc['force_ranges'] = ext.split()[1]
+                    extra_config.remove(ext)
 
         return conf
 

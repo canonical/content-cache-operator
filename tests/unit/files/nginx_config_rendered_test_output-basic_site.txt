@@ -10,8 +10,9 @@ server {
     location / {
         proxy_pass http://localhost:8080;
         proxy_set_header Host "basic_site";
-        proxy_cache e176ab9d1f16-cache;
         add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
+        proxy_force_ranges on;
+        proxy_cache e176ab9d1f16-cache;
         proxy_cache_background_update on;
         proxy_cache_lock on;
         proxy_cache_min_uses 1;
