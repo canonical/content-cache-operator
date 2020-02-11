@@ -115,6 +115,8 @@ site9.local:
       backend-inter-time: '1m'
       backends:
         - 127.0.1.15:80
+      extra-config:
+        - proxy_force_ranges off
     /private/content:
       extra-config:
         - root /srv/example1.com/content/
