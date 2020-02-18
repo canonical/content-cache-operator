@@ -1,0 +1,21 @@
+{% if net_ipv4_tcp_congestion_control -%}
+# Taken from main Ubuntu Archive servers. Mostly for dealing with LFP.
+net.ipv4.tcp_congestion_control={{ net_ipv4_tcp_congestion_control }}
+{% endif -%}
+{% if net_core_default_qdisc -%}
+net.core.default_qdisc={{ net_core_default_qdisc }}
+{% endif %}
+
+# Tune the TCP stack for Fast Failure Detection
+# tcp_syn_retries set to 1, it takes ~9secs to timeout
+# tcp_syn_retries set to 2, it takes ~21secs to timeout
+# tcp_syn_retries set to 3, it takes ~45secs to timeout
+# tcp_syn_retries set to 4, it takes ~93secs to timeout
+# tcp_syn_retries set to 5, it takes ~189secs to timeout (default)
+# Reduce TCP connection timeouts to ~45 secs.
+net.ipv4.tcp_syn_retries = 3
+net.ipv4.tcp_synack_retries = 3
+
+# Reduce TCP KeepAlive timeout from 2 hrs to 30 mins.
+net.ipv4.tcp_keepalive_time = 1800
+
