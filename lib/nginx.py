@@ -194,7 +194,7 @@ class NginxConf:
         with open(nginx_conf_file, 'r', encoding='utf-8') as f:
             content = f.read().split('\n')
         res = {'worker_processes': None, 'worker_connections': None}
-        regex = re.compile('^(?:\\s+)?(worker_processes|worker_connections)(?:\\s+)(\\S+).*;')
+        regex = re.compile(r'^(?:\s+)?(worker_processes|worker_connections)(?:\s+)(\S+).*;')
         for line in content:
             m = regex.match(line)
             if m:
@@ -204,23 +204,21 @@ class NginxConf:
     def set_workers(self, connections, processes):
         nginx_conf_file = os.path.join(self._base_path, 'nginx.conf')
 
+        val = {'worker_processes': processes, 'worker_connections': connections}
         if processes == 0:
-            processes = 'auto'
+            val['worker_processes'] = 'auto'
 
         with open(nginx_conf_file, 'r', encoding='utf-8') as f:
             content = f.read().split('\n')
 
         new = []
-        regex = re.compile('^(\\s+)?(worker_processes|worker_connections)(\\s+).*;')
+        regex = re.compile(r'^(\s*(worker_processes|worker_connections))(\s+).*;')
         for line in content:
             m = regex.match(line)
-            if not m:
+            if m:
+                new.append('{}{}{};'.format(m.group(1), m.group(3), val[m.group(2)]))
+            else:
                 new.append(line)
-                continue
-            if m.group(2) == 'worker_processes':
-                new.append('worker_processes{}{};'.format(m.group(3), processes))
-            elif m.group(2) == 'worker_connections':
-                new.append('{}worker_connections{}{};'.format(m.group(1), m.group(3), connections))
 
         # Check if contents changed
         if new == content:
