@@ -152,7 +152,10 @@ def configure_nginx(conf_path=None):
     # Include the site exposing metrics if needed
     if enable_prometheus_metrics:
         sites[nginx.METRICS_SITE] = None
-    if ngx_conf.sync_sites(sites.keys()):
+
+    connections = config['worker_connections']
+    processes = config['worker_processes']
+    if ngx_conf.sync_sites(sites.keys()) or ngx_conf.set_workers(connections, processes):
         hookenv.log('Enabled sites: {}'.format(' '.join(sites.keys())))
         changed = True
 
@@ -167,7 +170,7 @@ def configure_nginx(conf_path=None):
 
 
 @reactive.when_not('content_cache.haproxy.configured')  # NOQA: C901 LP#1825084
-def configure_haproxy():
+def configure_haproxy():  # NOQA: C901 LP#1825084
     status.maintenance('setting up HAProxy for frontend and backend proxy')
     reactive.clear_flag('content_cache.active')
 

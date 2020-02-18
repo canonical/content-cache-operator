@@ -64,6 +64,18 @@ options:
     type: string
     description: >
       Override default ciphers used for TLS/SSL termination (OpenSSL format).
+  worker_connections:
+    default: 768
+    type: int
+    description: >
+      Sets the maximum number of simultaneous connections that can be
+      opened by an Nginx worker process.
+  worker_processes:
+    default: 0
+    type: int
+    description: >
+      Sets the number of Nginx worker processes. Setting to '0' (auto)
+      will set based on available CPU cores.
   enable_prometheus_metrics:
     default: true
     type: boolean

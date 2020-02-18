@@ -1,5 +1,6 @@
 import hashlib
 import os
+import re
 from copy import deepcopy
 
 import jinja2
@@ -193,3 +194,41 @@ class NginxConf:
             changed = True
 
         return changed
+
+    def get_workers(self):
+        nginx_conf_file = os.path.join(self._base_path, 'nginx.conf')
+        with open(nginx_conf_file, 'r', encoding='utf-8') as f:
+            content = f.read().split('\n')
+        res = {'worker_processes': None, 'worker_connections': None}
+        regex = re.compile(r'^(?:\s+)?(worker_processes|worker_connections)(?:\s+)(\S+).*;')
+        for line in content:
+            m = regex.match(line)
+            if m:
+                res[m.group(1)] = m.group(2)
+        return res['worker_connections'], res['worker_processes']
+
+    def set_workers(self, connections, processes):
+        nginx_conf_file = os.path.join(self._base_path, 'nginx.conf')
+
+        val = {'worker_processes': processes, 'worker_connections': connections}
+        if processes == 0:
+            val['worker_processes'] = 'auto'
+
+        with open(nginx_conf_file, 'r', encoding='utf-8') as f:
+            content = f.read().split('\n')
+
+        new = []
+        regex = re.compile(r'^(\s*(worker_processes|worker_connections))(\s+).*;')
+        for line in content:
+            m = regex.match(line)
+            if m:
+                new.append('{}{}{};'.format(m.group(1), m.group(3), val[m.group(2)]))
+            else:
+                new.append(line)
+
+        # Check if contents changed
+        if new == content:
+            return False
+        with open(nginx_conf_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(new))
+        return True
