@@ -199,19 +199,24 @@ class TestLibNginx(unittest.TestCase):
 
     def test_nginx_config_set_workers(self):
         ngx_conf = nginx.NginxConf(self.tmpdir)
-        nginx_conf_file = os.path.join(ngx_conf.base_path, 'nginx.conf')
-
-        with open('tests/unit/files/nginx.conf', 'r', encoding='utf-8') as f:
-            test_conf = f.read()
-
-        with open(nginx_conf_file, 'w', encoding='utf-8') as f:
-            f.write(test_conf)
+        shutil.copyfile('tests/unit/files/nginx.conf', os.path.join(self.tmpdir, 'nginx.conf'))
 
         # No change
         self.assertFalse(ngx_conf.set_workers(768, 0))
         self.assertEqual(ngx_conf.get_workers(), ('768', 'auto'))
 
+        # Changes
         self.assertTrue(ngx_conf.set_workers(10, 0))
         self.assertEqual(ngx_conf.get_workers(), ('10', 'auto'))
         self.assertTrue(ngx_conf.set_workers(2048, 512))
         self.assertEqual(ngx_conf.get_workers(), ('2048', '512'))
+
+        # Test a file without the worker configs.
+        shutil.copyfile('tests/unit/files/nginx-no-workers-configs.conf', os.path.join(self.tmpdir, 'nginx.conf'))
+        self.assertFalse(ngx_conf.set_workers(768, 0))
+        self.assertEqual(ngx_conf.get_workers(), (None, None))
+
+        # Test a file with just worker_connections
+        shutil.copyfile('tests/unit/files/nginx-just-worker-connections.conf', os.path.join(self.tmpdir, 'nginx.conf'))
+        self.assertFalse(ngx_conf.set_workers(768, 0))
+        self.assertEqual(ngx_conf.get_workers(), ('768', None))
