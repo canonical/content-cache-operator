@@ -152,9 +152,9 @@ def configure_nginx(conf_path=None):
     if enable_prometheus_metrics:
         sites[nginx.METRICS_SITE] = None
 
-    if ngx_conf.sync_sites(sites.keys()) or ngx_conf.set_workers(
-        config['worker_connections'], config['worker_processes']
-    ):
+    connections = config['worker_connections']
+    processes = config['worker_processes']
+    if ngx_conf.sync_sites(sites.keys()) or ngx_conf.set_workers(connections, processes):
         hookenv.log('Enabled sites: {}'.format(' '.join(sites.keys())))
         changed = True
 
