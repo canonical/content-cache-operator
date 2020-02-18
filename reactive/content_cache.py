@@ -411,13 +411,13 @@ _SYSCTL_NET_IPV4_CONGESTION_CONTROL = '/proc/sys/net/ipv4/tcp_available_congesti
 
 @reactive.when_not('content_cache.sysctl.configured')
 def configure_sysctl():
-    var = {
+    context = {
         'net_core_default_qdisc': None,
         'net_ipv4_tcp_congestion_control': None,
     }
 
     if os.path.exists(_SYSCTL_CORE_DEFAULT_QDISC):
-        var['net_core_default_qdisc'] = 'fq'
+        context['net_core_default_qdisc'] = 'fq'
 
     if os.path.exists(_SYSCTL_NET_IPV4_CONGESTION_CONTROL):
         congestion_control = None
@@ -427,12 +427,12 @@ def configure_sysctl():
             congestion_control = 'bbr2'
         elif 'bbr' in ccs.split():
             congestion_control = 'bbr'
-        var['net_ipv4_tcp_congestion_control'] = congestion_control
+        context['net_ipv4_tcp_congestion_control'] = congestion_control
 
     base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
     template = env.get_template('templates/sysctl_conf.tmpl')
-    content = template.render(var)
+    content = template.render(context)
     try:
         with open(SYSCTL_CONF_PATH, 'r', encoding='utf-8') as f:
             current = f.read()
