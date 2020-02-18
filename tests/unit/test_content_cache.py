@@ -170,6 +170,8 @@ class TestCharm(unittest.TestCase):
             'cache_path': '/var/lib/nginx/proxy',
             'enable_prometheus_metrics': False,
             'sites': ngx_config,
+            'worker_connections': 768,
+            'worker_processes': 0,
         }
 
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
@@ -179,6 +181,8 @@ class TestCharm(unittest.TestCase):
             os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+            shutil.copyfile('tests/unit/files/nginx.conf', os.path.join(self.tmpdir, 'nginx.conf'))
+
             opened_ports.return_value = ['80/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
             content_cache.configure_nginx(self.tmpdir)
             service_start_or_reload.assert_called_once_with('nginx')
@@ -245,6 +249,8 @@ site1.local:
             'cache_path': '/var/lib/nginx/proxy',
             'sites': config,
             'sites_secrets': secrets,
+            'worker_connections': 768,
+            'worker_processes': 0,
         }
 
         with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
@@ -287,12 +293,15 @@ site1.local:
             os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+            shutil.copyfile('tests/unit/files/nginx.conf', os.path.join(self.tmpdir, 'nginx.conf'))
 
             self.mock_config.return_value = {
                 'cache_inactive_time': '2h',
                 'cache_max_size': '1g',
                 'cache_path': '/var/lib/nginx/proxy',
                 'sites': config,
+                'worker_connections': 768,
+                'worker_processes': 0,
             }
             want = (
                 'proxy_cache_path /var/lib/nginx/proxy/site1.local use_temp_path=off levels=1:2'
@@ -308,6 +317,8 @@ site1.local:
                 'cache_max_size': '20g',
                 'cache_path': '/srv/cache',
                 'sites': config,
+                'worker_connections': 768,
+                'worker_processes': 0,
             }
             want = (
                 'proxy_cache_path /srv/cache/site1.local use_temp_path=off levels=1:2'
@@ -324,6 +335,8 @@ site1.local:
                 'cache_max_size': '',
                 'cache_path': '/srv/cache',
                 'sites': config,
+                'worker_connections': 768,
+                'worker_processes': 0,
             }
             want = (
                 'proxy_cache_path /srv/cache/site1.local use_temp_path=off levels=1:2'
@@ -899,6 +912,8 @@ site1.local:
             'enable_prometheus_metrics': True,
             'cache_path': '/var/lib/nginx/proxy',
             'sites': ngx_config,
+            'worker_connections': 768,
+            'worker_processes': 0,
         }
 
         with mock.patch.multiple(
@@ -909,6 +924,8 @@ site1.local:
             os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+            shutil.copyfile('tests/unit/files/nginx.conf', os.path.join(self.tmpdir, 'nginx.conf'))
+
             opened_ports.return_value = ['80/tcp', '443/tcp']
             content_cache.configure_nginx(self.tmpdir)
             service_start_or_reload.assert_called_once_with('nginx')

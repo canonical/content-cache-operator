@@ -1,5 +1,6 @@
 import hashlib
 import os
+import re
 from copy import deepcopy
 
 import jinja2
@@ -187,3 +188,32 @@ class NginxConf:
             changed = True
 
         return changed
+
+    def set_workers(self, connections, processes):
+        if processes == 0:
+            processes = 'auto'
+
+        nginx_conf_file = os.path.join(self._base_path, 'nginx.conf')
+
+        with open(nginx_conf_file, 'r', encoding='utf-8') as f:
+            content = f.read().split('\n')
+
+        new = []
+        regex = re.compile('^(\\s+)?(worker_processes|worker_connections)(\\s+).*;')
+        for line in content:
+            m = regex.match(line)
+            if m:
+                if m.group(2) == 'worker_processes':
+                    new.append('worker_processes{}{};'.format(m.group(3), processes))
+                    continue
+                elif m.group(2) == 'worker_connections':
+                    new.append('{}worker_connections{}{};'.format(m.group(1), m.group(3), connections))
+                    continue
+            new.append(line)
+
+        # Check if contents changed
+        if new == content:
+            return False
+        with open(nginx_conf_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(new))
+        return True

@@ -196,3 +196,19 @@ class TestLibNginx(unittest.TestCase):
         self.assertFalse(ngx_conf.toggle_metrics_site(enable_prometheus_metrics=False))
         self.assertFalse(os.path.exists(metrics_site_available))
         self.assertFalse(os.path.exists(metrics_site_enabled))
+
+    def test_nginx_config_set_workers(self):
+        ngx_conf = nginx.NginxConf(self.tmpdir)
+        nginx_conf_file = os.path.join(ngx_conf.base_path, 'nginx.conf')
+
+        with open('tests/unit/files/nginx.conf', 'r', encoding='utf-8') as f:
+            test_conf = f.read()
+
+        with open(nginx_conf_file, 'w', encoding='utf-8') as f:
+            f.write(test_conf)
+
+        # No change
+        self.assertFalse(ngx_conf.set_workers(768, 0))
+
+        self.assertTrue(ngx_conf.set_workers(10, 0))
+        self.assertTrue(ngx_conf.set_workers(2048, 512))
