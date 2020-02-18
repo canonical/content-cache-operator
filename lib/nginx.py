@@ -189,11 +189,23 @@ class NginxConf:
 
         return changed
 
+    def get_workers(self):
+        nginx_conf_file = os.path.join(self._base_path, 'nginx.conf')
+        with open(nginx_conf_file, 'r', encoding='utf-8') as f:
+            content = f.read().split('\n')
+        res = {'worker_processes': None, 'worker_connections': None}
+        regex = re.compile('^(?:\\s+)?(worker_processes|worker_connections)(?:\\s+)(\\S+).*;')
+        for line in content:
+            m = regex.match(line)
+            if m:
+                res[m.group(1)] = m.group(2)
+        return res['worker_connections'], res['worker_processes']
+
     def set_workers(self, connections, processes):
+        nginx_conf_file = os.path.join(self._base_path, 'nginx.conf')
+
         if processes == 0:
             processes = 'auto'
-
-        nginx_conf_file = os.path.join(self._base_path, 'nginx.conf')
 
         with open(nginx_conf_file, 'r', encoding='utf-8') as f:
             content = f.read().split('\n')
@@ -202,14 +214,13 @@ class NginxConf:
         regex = re.compile('^(\\s+)?(worker_processes|worker_connections)(\\s+).*;')
         for line in content:
             m = regex.match(line)
-            if m:
-                if m.group(2) == 'worker_processes':
-                    new.append('worker_processes{}{};'.format(m.group(3), processes))
-                    continue
-                elif m.group(2) == 'worker_connections':
-                    new.append('{}worker_connections{}{};'.format(m.group(1), m.group(3), connections))
-                    continue
-            new.append(line)
+            if not m:
+                new.append(line)
+                continue
+            if m.group(2) == 'worker_processes':
+                new.append('worker_processes{}{};'.format(m.group(3), processes))
+            elif m.group(2) == 'worker_connections':
+                new.append('{}worker_connections{}{};'.format(m.group(1), m.group(3), connections))
 
         # Check if contents changed
         if new == content:

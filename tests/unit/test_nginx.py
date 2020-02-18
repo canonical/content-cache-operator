@@ -209,6 +209,9 @@ class TestLibNginx(unittest.TestCase):
 
         # No change
         self.assertFalse(ngx_conf.set_workers(768, 0))
+        self.assertEqual(ngx_conf.get_workers(), ('768', 'auto'))
 
         self.assertTrue(ngx_conf.set_workers(10, 0))
+        self.assertEqual(ngx_conf.get_workers(), ('10', 'auto'))
         self.assertTrue(ngx_conf.set_workers(2048, 512))
+        self.assertEqual(ngx_conf.get_workers(), ('2048', '512'))
