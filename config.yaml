@@ -25,6 +25,12 @@ options:
     default: "/var/lib/nginx/proxy"
     description: >
       Path or directory to store cached objects.
+  enable_prometheus_metrics:
+    default: true
+    type: boolean
+    description: >
+      Export metrics for the number of requests and the number of cache hits.
+      Prometheus metrics are exposed at /metrics on port 9145.
   log_retention:
     type: int
     default: 30
@@ -81,9 +87,3 @@ options:
     description: >
       Sets the number of Nginx worker processes. Setting to '0' (auto)
       will set based on available CPU cores.
-  enable_prometheus_metrics:
-    default: true
-    type: boolean
-    description: >
-      Export metrics for the number of requests and the number of cache hits.
-      Prometheus metrics are exposed at /metrics on port 9145.

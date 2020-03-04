@@ -255,11 +255,11 @@ backend backend-{name}
         template = env.get_template('templates/haproxy_cfg.tmpl')
         return template.render(
             {
-                'listen': self.render_stanza_listen(config),
                 'backend': self.render_stanza_backend(config),
-                'num_threads': num_threads,
+                'listen': self.render_stanza_listen(config),
                 'max_connections': self.max_connections,
                 'monitoring_password': monitoring_password or self.monitoring_password,
+                'num_threads': num_threads,
                 'tls_cipher_suites': tls_cipher_suites,
             }
         )
