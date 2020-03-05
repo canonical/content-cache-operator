@@ -141,6 +141,13 @@ class TestCharm(unittest.TestCase):
         service_start.assert_called_with('nginx')
         service_reload.assert_not_called()
 
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('charmhelpers.core.host.service_stop')
+    def test_stop_nginx(self, service_stop, set_flag):
+        content_cache.stop_nginx()
+        service_stop.assert_called_with('nginx')
+        set_flag.assert_called_once_with('content_cache.nginx.installed')
+
     @mock.patch('charms.reactive.clear_flag')
     @mock.patch('reactive.content_cache.update_logrotate')
     def test_configure_nginx_no_sites(self, logrotation, clear_flag):
