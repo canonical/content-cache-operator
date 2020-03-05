@@ -83,7 +83,9 @@ def service_start_or_reload():
     time.sleep(rnd)
 
     for name in services:
-        if reactive.is_flag_set('content_cache.{}.restart-required'.format(name)):
+        if reactive.is_flag_set('content_cache.{}.configured'.format(name)) and reactive.is_flag_set(
+            'content_cache.{}.restart-required'.format(name)
+        ):
             status.maintenance('Reloading {}...'.format(name))
             host.service_reload(name)
             reactive.clear_flag('content_cache.{}.restart-required'.format(name))
