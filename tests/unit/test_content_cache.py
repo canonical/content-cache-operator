@@ -1052,7 +1052,11 @@ site1.local:
             ngx_config = f.read()
 
         # Test that haproxy calls close_port with the nginx.METRIC_PORT when enable_prometheus_metrics is False
-        self.mock_config.return_value = {'enable_prometheus_metrics': False, 'max_connections': 8192, 'sites': ngx_config}
+        self.mock_config.return_value = {
+            'enable_prometheus_metrics': False,
+            'max_connections': 8192,
+            'sites': ngx_config,
+        }
         opened_ports.return_value = {"80/tcp", "{0}/tcp".format(nginx.METRICS_PORT)}
         content_cache.configure_haproxy()
         close_port.assert_called_once_with(nginx.METRICS_PORT)
@@ -1060,6 +1064,10 @@ site1.local:
         # Test that haproxy calls open_port with the nginx.METRIC_PORT when enable_prometheus_metrics is True
         close_port.reset_mock()
         open_port.reset_mock()
-        self.mock_config.return_value = {'enable_prometheus_metrics': True, 'max_connections': 8192, 'sites': ngx_config}
+        self.mock_config.return_value = {
+            'enable_prometheus_metrics': True,
+            'max_connections': 8192,
+            'sites': ngx_config,
+        }
         content_cache.configure_haproxy()
         close_port.assert_not_called()

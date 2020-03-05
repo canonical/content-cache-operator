@@ -153,7 +153,11 @@ listen {name}
             if address == '0.0.0.0':
                 bind_config += '\n{indent}bind :::{port}{tls}'.format(port=port, tls=tls_config, indent=INDENT)
             output = listen_stanza.format(
-                name=name, max_connections=self.max_connections, backend_config=''.join(backend_config), bind_config=bind_config, indent=INDENT
+                name=name,
+                max_connections=self.max_connections,
+                backend_config=''.join(backend_config),
+                bind_config=bind_config,
+                indent=INDENT,
             )
             rendered_output.append(output)
         return rendered_output
