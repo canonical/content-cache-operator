@@ -14,8 +14,9 @@ TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 
 
 class HAProxyConf:
-    def __init__(self, conf_path=HAPROXY_BASE_PATH):
+    def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=2000):
         self._conf_path = conf_path
+        self.max_connections = max_connections
 
     @property
     def conf_path(self):
@@ -98,6 +99,7 @@ class HAProxyConf:
         listen_stanza = """
 listen {name}
 {bind_config}
+    maxconn {max_connections}
 {backend_config}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
         redirect_conf = '{indent}redirect scheme https code 301 if {{ hdr(Host) -i {site_name} }} !{{ ssl_fc }}\n'
@@ -151,7 +153,7 @@ listen {name}
             if address == '0.0.0.0':
                 bind_config += '\n{indent}bind :::{port}{tls}'.format(port=port, tls=tls_config, indent=INDENT)
             output = listen_stanza.format(
-                name=name, backend_config=''.join(backend_config), bind_config=bind_config, indent=INDENT
+                name=name, max_connections=self.max_connections, backend_config=''.join(backend_config), bind_config=bind_config, indent=INDENT
             )
             rendered_output.append(output)
         return rendered_output
@@ -256,6 +258,7 @@ backend backend-{name}
                 'listen': self.render_stanza_listen(config),
                 'backend': self.render_stanza_backend(config),
                 'num_threads': num_threads,
+                'max_connections': self.max_connections,
                 'monitoring_password': monitoring_password or self.monitoring_password,
                 'tls_cipher_suites': tls_cipher_suites,
             }

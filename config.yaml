@@ -30,6 +30,12 @@ options:
     default: 30
     description: >
       Number of log files to retain during rotation.
+  max_connections:
+    type: int
+    default: 8192
+    description: >
+      Configure maximum number of connections on frontend HAProxy. (8192 for now,
+      the default will automatically be calculated in the future)
   nagios_context:
     type: string
     default: "juju"
