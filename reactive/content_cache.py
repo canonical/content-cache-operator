@@ -117,6 +117,16 @@ def configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
     return changed
 
 
+@reactive.when_not('content_cache.nginx.installed')
+def stop_nginx():
+    # Just by installing the Nginx package, it has a default site configured
+    # and listens on TCP/80. This causes HAProxy to fail until such time as
+    # Nginx is configured and reloaded. We'll just stop it here.
+    host.service_stop('nginx')
+    reactive.set_flag('content_cache.nginx.installed')
+
+
+@reactive.when('content_cache.nginx.installed')
 @reactive.when_not('content_cache.nginx.configured')
 def configure_nginx(conf_path=None):
     status.maintenance('setting up Nginx as caching layer')
