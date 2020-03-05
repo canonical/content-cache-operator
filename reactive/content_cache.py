@@ -66,16 +66,27 @@ def set_active():
     reactive.set_flag('content_cache.active')
 
 
-def service_start_or_reload(name):
-    if host.service_running(name):
-        random.seed()
-        rnd = (random.random() * 100) % 20
-        status.maintenance('Reloading {} in {}s...'.format(name, int(rnd)))
-        time.sleep(rnd)
-        host.service_reload(name)
-    else:
-        status.maintenance('Starting {}...'.format(name))
-        host.service_start(name)
+@reactive.when_any('content_cache.haproxy.restart-required', 'content_cache.nginx.restart-required')
+def service_start_or_reload():
+    services = ['haproxy', 'nginx']
+
+    # Immediately start up services if they're not running.
+    for name in services:
+        if not host.service_running(name):
+            status.maintenance('Starting {}...'.format(name))
+            host.service_start(name)
+            reactive.clear_flag('content_cache.{}.restart-required'.format(name))
+
+    random.seed()
+    rnd = (random.random() * 100) % 20
+    status.maintenance('Reloading services in {}s...'.format(int(rnd)))
+    time.sleep(rnd)
+
+    for name in services:
+        if reactive.is_flag_set('content_cache.{}.restart-required'.format(name)):
+            status.maintenance('Reloading {}...'.format(name))
+            host.service_reload(name)
+            reactive.clear_flag('content_cache.{}.restart-required'.format(name))
 
 
 def configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
@@ -163,7 +174,7 @@ def configure_nginx(conf_path=None):
         changed = True
 
     if changed:
-        service_start_or_reload('nginx')
+        reactive.set_flag('content_cache.nginx.restart-required')
 
     update_logrotate('nginx', retention=config.get('log_retention'))
     reactive.set_flag('content_cache.nginx.configured')
@@ -291,7 +302,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         )
 
     if haproxy.write(rendered_config):
-        service_start_or_reload('haproxy')
+        reactive.set_flag('content_cache.haproxy.restart-required')
 
     update_logrotate('haproxy', retention=config.get('log_retention'))
     reactive.set_flag('content_cache.haproxy.configured')
