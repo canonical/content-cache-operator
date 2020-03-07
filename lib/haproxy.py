@@ -14,7 +14,7 @@ TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 
 
 class HAProxyConf:
-    def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=2000):
+    def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=0):
         self._conf_path = conf_path
         self.max_connections = max_connections
 
@@ -99,7 +99,6 @@ class HAProxyConf:
         listen_stanza = """
 listen {name}
 {bind_config}
-    maxconn {max_connections}
 {backend_config}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
         redirect_conf = '{indent}redirect scheme https code 301 if {{ hdr(Host) -i {site_name} }} !{{ ssl_fc }}\n'
@@ -153,11 +152,7 @@ listen {name}
             if address == '0.0.0.0':
                 bind_config += '\n{indent}bind :::{port}{tls}'.format(port=port, tls=tls_config, indent=INDENT)
             output = listen_stanza.format(
-                name=name,
-                max_connections=self.max_connections,
-                backend_config=''.join(backend_config),
-                bind_config=bind_config,
-                indent=INDENT,
+                name=name, backend_config=''.join(backend_config), bind_config=bind_config, indent=INDENT,
             )
             rendered_output.append(output)
         return rendered_output
@@ -250,6 +245,10 @@ backend backend-{name}
     def render(self, config, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
         if not num_threads:
             num_threads = multiprocessing.cpu_count()
+        if self.max_connections:
+            max_connections = self.max_connections
+        else:
+            max_connections = num_threads * 2000
         if not tls_cipher_suites:
             tls_cipher_suites = TLS_CIPHER_SUITES
         tls_cipher_suites = utils.tls_cipher_suites(tls_cipher_suites)
@@ -261,7 +260,7 @@ backend backend-{name}
             {
                 'backend': self.render_stanza_backend(config),
                 'listen': self.render_stanza_listen(config),
-                'max_connections': self.max_connections,
+                'max_connections': max_connections,
                 'monitoring_password': monitoring_password or self.monitoring_password,
                 'num_threads': num_threads,
                 'tls_cipher_suites': tls_cipher_suites,

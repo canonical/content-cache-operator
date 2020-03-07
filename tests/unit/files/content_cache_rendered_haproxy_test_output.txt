@@ -1,6 +1,6 @@
 global
 	nbthread 4
-	maxconn 8192
+	maxconn 8000
 	log /dev/log	local0
 	log /dev/log	local1 notice
 	chroot /var/lib/haproxy
@@ -26,6 +26,7 @@ global
 
 defaults
 	log	global
+	maxconn 8000
 	mode	http
 	option	httplog
 	option	dontlognull
@@ -56,7 +57,6 @@ listen  stats
 listen combined-80
     bind 0.0.0.0:80
     bind :::80
-    maxconn 8192
     use_backend backend-cached-site1-local if { hdr(Host) -i site1.local }
     redirect scheme https code 301 if { hdr(Host) -i site2.local } !{ ssl_fc }
     use_backend backend-cached-site3-local if { hdr(Host) -i site3.local }
@@ -67,65 +67,53 @@ listen combined-80
 
 listen site1-local
     bind 127.0.0.1:8080
-    maxconn 8192
     default_backend backend-site1-local
 
 listen cached-site2-local
     bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt
     bind :::443 ssl crt /etc/haproxy/site2-bundle.crt
-    maxconn 8192
     default_backend backend-cached-site2-local
 
 listen site2-local
     bind 127.0.0.1:8081
-    maxconn 8192
     default_backend backend-site2-local
 
 listen site3-local
     bind 127.0.0.1:8082
-    maxconn 8192
     default_backend backend-site3-local
 
 listen site5
     bind 127.0.0.1:8083
-    maxconn 8192
     default_backend backend-site5
 
 listen site5-2
     bind 127.0.0.1:8084
-    maxconn 8192
     default_backend backend-site5
 
 listen site6-local
     bind 127.0.0.1:8085
-    maxconn 8192
     default_backend backend-site6-local
 
 listen combined-444
     bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt
     bind :::444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt
-    maxconn 8192
     use_backend backend-cached-site7-local if { hdr(Host) -i site7.local }
     use_backend backend-cached-site8-local if { hdr(Host) -i site8.local }
 
 listen site7-local
     bind 127.0.0.1:8086
-    maxconn 8192
     default_backend backend-site7-local
 
 listen site8-local
     bind 127.0.0.1:8087
-    maxconn 8192
     default_backend backend-site8-local
 
 listen site8-local-2
     bind 127.0.0.1:8088
-    maxconn 8192
     default_backend backend-site8-local
 
 listen site9-local
     bind 127.0.0.1:8089
-    maxconn 8192
     default_backend backend-site9-local
 
 backend backend-cached-site1-local
