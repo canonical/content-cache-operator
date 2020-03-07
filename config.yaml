@@ -40,8 +40,8 @@ options:
     type: int
     default: 0
     description: >
-      Configure maximum number of connections on frontend HAProxy. Defaults to
-      auto-calculate (0).
+      Configure maximum number of connections per site on frontend
+      HAProxy. Defaults to auto-calculate (0).
   nagios_context:
     type: string
     default: "juju"

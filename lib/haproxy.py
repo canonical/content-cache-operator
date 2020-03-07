@@ -16,7 +16,7 @@ TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 class HAProxyConf:
     def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=0):
         self._conf_path = conf_path
-        self.max_connections = max_connections
+        self.max_connections = int(max_connections)
 
     @property
     def conf_path(self):
@@ -253,13 +253,16 @@ backend backend-{name}
             tls_cipher_suites = TLS_CIPHER_SUITES
         tls_cipher_suites = utils.tls_cipher_suites(tls_cipher_suites)
 
+        listen_stanzas = self.render_stanza_listen(config)
+
         base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
         template = env.get_template('templates/haproxy_cfg.tmpl')
         return template.render(
             {
                 'backend': self.render_stanza_backend(config),
-                'listen': self.render_stanza_listen(config),
+                'global_max_connections': max_connections * len(listen_stanzas),
+                'listen': listen_stanzas,
                 'max_connections': max_connections,
                 'monitoring_password': monitoring_password or self.monitoring_password,
                 'num_threads': num_threads,

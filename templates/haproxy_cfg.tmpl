@@ -1,6 +1,6 @@
 global
 	nbthread {{num_threads}}
-	maxconn {{max_connections}}
+	maxconn {{global_max_connections}}
 	log /dev/log	local0
 	log /dev/log	local1 notice
 	chroot /var/lib/haproxy
@@ -60,3 +60,4 @@ listen  stats
 {% for stanza in backend -%}
 {{stanza}}
 {%- endfor -%}
+

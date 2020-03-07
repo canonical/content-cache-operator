@@ -1,6 +1,6 @@
 global
 	nbthread 4
-	maxconn 8192
+	maxconn 24576
 	log /dev/log	local0
 	log /dev/log	local1 notice
 	chroot /var/lib/haproxy
