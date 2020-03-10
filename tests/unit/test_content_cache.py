@@ -176,7 +176,6 @@ class TestCharm(unittest.TestCase):
             'cache_max_size': '1g',
             'cache_path': '/var/lib/nginx/proxy',
             'enable_prometheus_metrics': False,
-            'max_connections': 8192,
             'sites': ngx_config,
             'worker_connections': 768,
             'worker_processes': 0,
@@ -255,7 +254,6 @@ site1.local:
             'cache_inactive_time': '',
             'cache_max_size': '1g',
             'cache_path': '/var/lib/nginx/proxy',
-            'max_connections': 8192,
             'sites': config,
             'sites_secrets': secrets,
             'worker_connections': 768,
@@ -308,7 +306,6 @@ site1.local:
                 'cache_inactive_time': '2h',
                 'cache_max_size': '1g',
                 'cache_path': '/var/lib/nginx/proxy',
-                'max_connections': 8192,
                 'sites': config,
                 'worker_connections': 768,
                 'worker_processes': 0,
@@ -326,7 +323,6 @@ site1.local:
                 'cache_inactive_time': '2h',
                 'cache_max_size': '20g',
                 'cache_path': '/srv/cache',
-                'max_connections': 8192,
                 'sites': config,
                 'worker_connections': 768,
                 'worker_processes': 0,
@@ -345,7 +341,6 @@ site1.local:
                 'cache_inactive_time': '2h',
                 'cache_max_size': '',
                 'cache_path': '/srv/cache',
-                'max_connections': 8192,
                 'sites': config,
                 'worker_connections': 768,
                 'worker_processes': 0,
@@ -368,7 +363,7 @@ site1.local:
 
         status.reset_mock()
         clear_flag.reset_mock()
-        self.mock_config.return_value = {'max_connections': 8192, 'sites': 'site1:'}
+        self.mock_config.return_value = {'sites': 'site1:'}
         content_cache.configure_haproxy()
         status.blocked.assert_called()
         clear_flag.assert_called_once_with('content_cache.active')
@@ -398,6 +393,29 @@ site1.local:
             self.assertFalse(mock.call('content_cache.haproxy.restart-required') in set_flag.call_args_list)
 
             with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
+                want = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_haproxy_sites_auto_maxconns(self, logrotation, set_flag):
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
+        self.mock_config.return_value = {'max_connections': 0, 'sites': ngx_config}
+
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            with mock.patch('charmhelpers.core.host.pwgen', return_value="biometricsarenotsecret"), mock.patch(
+                'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
+            ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
+                content_cache.configure_haproxy()
+
+            with open(
+                'tests/unit/files/content_cache_rendered_haproxy_test_output_auto_maxconns.txt', 'r', encoding='utf-8'
+            ) as f:
                 want = f.read()
             with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
                 got = f.read()
@@ -984,7 +1002,6 @@ site1.local:
             'cache_max_size': '1g',
             'cache_path': '/var/lib/nginx/proxy',
             'enable_prometheus_metrics': True,
-            'max_connections': 8192,
             'sites': ngx_config,
             'worker_connections': 768,
             'worker_processes': 0,
@@ -1061,7 +1078,6 @@ site1.local:
         # Test that haproxy calls close_port with the nginx.METRIC_PORT when enable_prometheus_metrics is False
         self.mock_config.return_value = {
             'enable_prometheus_metrics': False,
-            'max_connections': 8192,
             'sites': ngx_config,
         }
         opened_ports.return_value = {"80/tcp", "{0}/tcp".format(nginx.METRICS_PORT)}
@@ -1073,7 +1089,6 @@ site1.local:
         open_port.reset_mock()
         self.mock_config.return_value = {
             'enable_prometheus_metrics': True,
-            'max_connections': 8192,
             'sites': ngx_config,
         }
         content_cache.configure_haproxy()

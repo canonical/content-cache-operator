@@ -70,7 +70,7 @@ class TestLibHAProxy(unittest.TestCase):
         )
 
     def test_haproxy_config_rendered_listen_stanzas(self):
-        haproxy = HAProxy.HAProxyConf(self.tmpdir, max_connections=8192)
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
         output = 'tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output.txt'
         with open(output, 'r', encoding='utf-8') as f:
@@ -102,7 +102,7 @@ class TestLibHAProxy(unittest.TestCase):
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     def test_haproxy_config_rendered_full_config(self):
-        haproxy = HAProxy.HAProxyConf(self.tmpdir, max_connections=8192)
+        haproxy = HAProxy.HAProxyConf(self.tmpdir, max_connections=5000)
         config = self.site_config
         num_threads = 4
         tls_cipher_suites = 'ECDH+AESGCM:!aNULL:!MD5:!DSS'

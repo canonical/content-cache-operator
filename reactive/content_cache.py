@@ -204,9 +204,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         status.blocked('requires list of sites to configure')
         return
 
-    # TODO: Calculate max connections if none specified. Likely use configured
-    # nbthreads (2000 * nbthreads). Or maybe even per site.
-    haproxy = HAProxy.HAProxyConf(max_connections=config['max_connections'])
+    haproxy = HAProxy.HAProxyConf(max_connections=config.get('max_connections', 0))
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     blacklist_ports = [int(x.strip()) for x in config.get('blacklist_ports', '').split(',') if x.strip()]
     sites = sites_from_config(config.get('sites'), sites_secrets, blacklist_ports=blacklist_ports)
