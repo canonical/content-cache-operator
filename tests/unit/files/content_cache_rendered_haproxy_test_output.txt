@@ -30,7 +30,7 @@ global
 	# so on a host with say 32 CPUs, 10 sites, each with 2000 max
 	# conns will only consume around 122 Mbytes (32 * 10 * 2000 *
 	# 200), which is not much.
-	tune.ssl.cachesize 104000
+	tune.ssl.cachesize 106496
 
 defaults
 	log	global
