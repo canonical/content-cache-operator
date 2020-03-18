@@ -506,18 +506,29 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     cache_port = 0
     backend_port = 0
     new_sites = {}
+    existing_site_map = HAProxy.HAProxyConf().map_sites_ports()
+    if not blacklist_ports:
+        blacklist_ports = []
+    blacklist_ports += list(existing_site_map['cache'].values())
+    blacklist_ports += list(existing_site_map['backend'].values())
     for site, site_conf in sites.items():
         if not site_conf:
             continue
-        (cache_port, unused_backend_port) = utils.next_port_pair(
-            cache_port, backend_port, blacklist_ports=blacklist_ports
-        )
+        if site in existing_site_map['cache']:
+            cache_port = existing_site_map['cache'][site]
+        else:
+            (cache_port, unused_backend_port) = utils.next_port_pair(
+                cache_port, backend_port, blacklist_ports=blacklist_ports
+            )
         site_conf['cache_port'] = cache_port
         for location, loc_conf in site_conf.get('locations', {}).items():
             if loc_conf and loc_conf.get('backends'):
-                (unused_cache_port, backend_port) = utils.next_port_pair(
-                    cache_port, backend_port, blacklist_ports=blacklist_ports
-                )
+                if site in existing_site_map['backend']:
+                    backend_port = existing_site_map['backend'][site]
+                else:
+                    (unused_cache_port, backend_port) = utils.next_port_pair(
+                        cache_port, backend_port, blacklist_ports=blacklist_ports
+                    )
                 loc_conf['backend_port'] = backend_port
         new_sites[site] = site_conf
     return new_sites

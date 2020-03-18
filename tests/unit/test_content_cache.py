@@ -7,6 +7,7 @@ from unittest import mock
 
 import freezegun
 import jinja2
+import yaml
 
 # We also need to mock up charms.layer so we can run unit tests without having
 # to build the charm and pull in layers such as layer-status.
@@ -773,6 +774,48 @@ site5.local:
             },
         }
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
+
+    def test_sites_from_config_no_reshuffling(self):
+        haproxy_cfg = os.path.join(self.tmpdir, 'haproxy.cfg')
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = haproxy_cfg
+            shutil.copyfile('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', haproxy_cfg)
+
+            with open('tests/unit/files/config_test_sites_map.txt', 'r', encoding='utf-8') as f:
+                config_yaml = f.read()
+            want = yaml.safe_load(config_yaml)
+            self.assertEqual(want, content_cache.sites_from_config(config_yaml))
+
+            sites = yaml.safe_load(config_yaml)
+            sites_list = list(sites.keys())
+
+            # Remove all except second and last site for testing. Check to
+            # make sure it's correct and ports aren't reshuffled.
+            new = {}
+            new[sites_list[1]] = sites[sites_list[1]]
+            new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
+            want = new
+            config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
+            self.assertEqual(want, content_cache.sites_from_config(config_yaml))
+
+            # Add two sites back and make sure the existing two aren't reshuffled.
+            new = {}
+            new[sites_list[1]] = sites[sites_list[1]]
+            new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
+            new[sites_list[0]] = sites[sites_list[0]]
+            new[sites_list[2]] = sites[sites_list[2]]
+            want = new
+            config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
+            self.assertEqual(want, content_cache.sites_from_config(config_yaml))
+
+            # Add new site somewhere in the middle
+            new = {}
+            new[sites_list[1]] = sites[sites_list[1]]
+            new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
+            new[sites_list[0]] = sites[sites_list[0]]
+            new[sites_list[2]] = sites[sites_list[2]]
+            new['site11'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
+            self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
     def test_sites_from_config_blacklist_ports(self):
         blacklist_ports = [6080, 8080]
