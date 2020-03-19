@@ -819,7 +819,9 @@ site5.local:
         config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
-        # Add a new site at the start, in the middle, and at the end.
+        # Add a new site at the start, in the middle, and at the
+        # end. We also want to make sure we don't recycle and reuse a
+        # port for a site that's just been or is being removed.
         new = {}
         new[sites_list[1]] = sites[sites_list[1]]
         new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
@@ -829,10 +831,10 @@ site5.local:
         new['site666'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
         new['zzz'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
         want = new
-        want['site0']['cache_port'] = 6083
-        want['site0']['locations']['/']['backend_port'] = 8083
-        want['site666']['cache_port'] = 6084
-        want['site666']['locations']['/']['backend_port'] = 8084
+        want['site0']['cache_port'] = 6084
+        want['site0']['locations']['/']['backend_port'] = 8084
+        want['site666']['cache_port'] = 6085
+        want['site666']['locations']['/']['backend_port'] = 8085
         want['zzz']['cache_port'] = 6089
         want['zzz']['locations']['/']['backend_port'] = 8090
         config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)

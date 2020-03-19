@@ -532,12 +532,16 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     backend_port = 0
     new_sites = {}
     existing_site_map = unitdata.kv().get('existing_site_map', {})
-    # We need to clean out sites and backends that no longer exists.
-    existing_site_map = cleanout_sites(existing_site_map, sites)
     new_site_map = {}
     if not blacklist_ports:
         blacklist_ports = []
     blacklist_ports += blacklist_ports_list(existing_site_map)
+
+    # We need to clean out sites and backends that no longer
+    # exists. This should happen after we've built a list of ports to
+    # blacklist to ensure that we don't reuse one for a site that's
+    # being or been removed.
+    existing_site_map = cleanout_sites(existing_site_map, sites)
     for site, site_conf in sites.items():
         if not site_conf:
             continue
