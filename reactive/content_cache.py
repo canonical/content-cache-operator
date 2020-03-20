@@ -516,13 +516,15 @@ def cleanout_sites(sites_port_map, sites):
     return new_site_map
 
 
-def blacklist_ports_list(site_map):
-    blacklist_ports = []
+def allocated_port_list(site_map):
+    allocated_ports = []
     for site, site_conf in site_map.items():
-        blacklist_ports.append(site_conf['cache_port'])
+        allocated_ports.append(site_conf['cache_port'])
         for location, loc_conf in site_conf.get('locations', {}).items():
-            blacklist_ports.append(loc_conf['backend_port'])
-    return blacklist_ports
+            if 'backend_port' not in loc_conf:
+                continue
+            allocated_ports.append(loc_conf['backend_port'])
+    return allocated_ports
 
 
 def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
@@ -535,7 +537,7 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     new_site_map = {}
     if not blacklist_ports:
         blacklist_ports = []
-    blacklist_ports += blacklist_ports_list(existing_site_map)
+    blacklist_ports += allocated_port_list(existing_site_map)
 
     # We need to clean out sites and backends that no longer
     # exists. This should happen after we've built a list of ports to

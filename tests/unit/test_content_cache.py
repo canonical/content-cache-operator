@@ -778,22 +778,62 @@ site5.local:
         }
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
-    def test_sites_from_config_no_reshuffling(self):
+    def test_allocated_port_list(self):
         with open('tests/unit/files/config_test_sites_map.txt', 'r', encoding='utf-8') as f:
             config_yaml = f.read()
-        want = yaml.safe_load(config_yaml)
-        self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
         sites = yaml.safe_load(config_yaml)
         sites_list = list(sites.keys())
+
+        want = [
+            6080,
+            8080,
+            6081,
+            8081,
+            6082,
+            8082,
+            6083,
+            6084,
+            8083,
+            8084,
+            6085,
+            8085,
+            6086,
+            8086,
+            6087,
+            8087,
+            8088,
+            6088,
+            8089,
+        ]
+        self.assertEqual(want, content_cache.allocated_port_list(sites))
+
+        want = []
+        self.assertEqual(want, content_cache.allocated_port_list({}))
+
+        new = {}
+        new[sites_list[1]] = sites[sites_list[1]]
+        new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
+        want = [6081, 8081, 6088, 8089]
+        self.assertEqual(want, content_cache.allocated_port_list(new))
+
+    def test_sites_from_config_no_reshuffling(self):
+        with open('tests/unit/files/config_test_sites_map.txt', 'r', encoding='utf-8') as f:
+            config_yaml = f.read()
+
+        sites = yaml.safe_load(config_yaml)
+        sites_list = list(sites.keys())
+
+        want = sites
+        self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
         # Remove all except second and last site for testing. Check to
         # make sure it's correct and ports aren't reshuffled.
         new = {}
         new[sites_list[1]] = sites[sites_list[1]]
         new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
-        want = new
         config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
+        want = new
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
         # Add two sites back and make sure the existing two aren't reshuffled.
@@ -802,8 +842,8 @@ site5.local:
         new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
         new[sites_list[0]] = sites[sites_list[0]]
         new[sites_list[2]] = sites[sites_list[2]]
-        want = new
         config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
+        want = new
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
         # Add new site somewhere in the middle.
@@ -813,10 +853,10 @@ site5.local:
         new[sites_list[0]] = sites[sites_list[0]]
         new[sites_list[2]] = sites[sites_list[2]]
         new['site11'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
+        config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
         want = new
         want['site11']['cache_port'] = 6083
         want['site11']['locations']['/']['backend_port'] = 8083
-        config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
         # Add a new site at the start, in the middle, and at the
@@ -830,6 +870,7 @@ site5.local:
         new['site0'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
         new['site666'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
         new['zzz'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
+        config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
         want = new
         want['site0']['cache_port'] = 6084
         want['site0']['locations']['/']['backend_port'] = 8084
@@ -837,7 +878,6 @@ site5.local:
         want['site666']['locations']['/']['backend_port'] = 8085
         want['zzz']['cache_port'] = 6089
         want['zzz']['locations']['/']['backend_port'] = 8090
-        config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
     def test_sites_from_config_blacklist_ports(self):
