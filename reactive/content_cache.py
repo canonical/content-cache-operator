@@ -500,9 +500,9 @@ def check_haproxy_alerts():
     reactive.set_flag('nagios-nrpe-telegraf.configured')
 
 
-def cleanout_sites(sites_port_map, sites):
-    new_site_map = {}
-    for site, site_conf in sites_port_map.items():
+def cleanout_sites(site_ports_map, sites):
+    new_site_ports_map = {}
+    for site, site_conf in site_ports_map.items():
         if site not in sites:
             continue
 
@@ -511,14 +511,14 @@ def cleanout_sites(sites_port_map, sites):
         for location, loc_conf in site_conf.get('locations', {}).items():
             site_map['locations'][location] = loc_conf
 
-        new_site_map[site] = site_map
+        new_site_ports_map[site] = site_map
 
-    return new_site_map
+    return new_site_ports_map
 
 
-def allocated_port_list(site_map):
+def allocated_port_list(site_ports_map):
     allocated_ports = []
-    for site, site_conf in site_map.items():
+    for site, site_conf in site_ports_map.items():
         allocated_ports.append(site_conf['cache_port'])
         for location, loc_conf in site_conf.get('locations', {}).items():
             if 'backend_port' not in loc_conf:
@@ -533,23 +533,23 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     cache_port = 0
     backend_port = 0
     new_sites = {}
-    existing_site_map = unitdata.kv().get('existing_site_map', {})
-    new_site_map = {}
+    existing_site_ports_map = unitdata.kv().get('existing_site_ports_map', {})
+    new_site_ports_map = {}
     if not blacklist_ports:
         blacklist_ports = []
-    blacklist_ports += allocated_port_list(existing_site_map)
+    blacklist_ports += allocated_port_list(existing_site_ports_map)
 
     # We need to clean out sites and backends that no longer
     # exists. This should happen after we've built a list of ports to
     # blacklist to ensure that we don't reuse one for a site that's
     # being or been removed.
-    existing_site_map = cleanout_sites(existing_site_map, sites)
+    existing_site_ports_map = cleanout_sites(existing_site_ports_map, sites)
     for site, site_conf in sites.items():
         if not site_conf:
             continue
         site_map = {'locations': {}}
-        if site in existing_site_map and existing_site_map[site].get('cache_port'):
-            cache_port = existing_site_map[site]['cache_port']
+        if site in existing_site_ports_map and existing_site_ports_map[site].get('cache_port'):
+            cache_port = existing_site_ports_map[site]['cache_port']
         else:
             (cache_port, unused_backend_port) = utils.next_port_pair(
                 cache_port, backend_port, blacklist_ports=blacklist_ports
@@ -565,12 +565,12 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
                 continue
             location_map = {}
             if (
-                site in existing_site_map
-                and 'locations' in existing_site_map[site]
-                and location in existing_site_map[site]['locations']
-                and existing_site_map[site]['locations'][location].get('backend_port')
+                site in existing_site_ports_map
+                and 'locations' in existing_site_ports_map[site]
+                and location in existing_site_ports_map[site]['locations']
+                and existing_site_ports_map[site]['locations'][location].get('backend_port')
             ):
-                backend_port = existing_site_map[site]['locations'][location]['backend_port']
+                backend_port = existing_site_ports_map[site]['locations'][location]['backend_port']
             else:
                 (unused_cache_port, backend_port) = utils.next_port_pair(
                     cache_port, backend_port, blacklist_ports=blacklist_ports
@@ -584,9 +584,9 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
             site_map['locations'][location] = location_map
 
         new_sites[site] = site_conf
-        new_site_map[site] = site_map
+        new_site_ports_map[site] = site_map
 
-    unitdata.kv().set('existing_site_map', new_site_map)
+    unitdata.kv().set('existing_site_ports_map', new_site_ports_map)
     return new_sites
 
 

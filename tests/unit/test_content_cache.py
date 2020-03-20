@@ -68,7 +68,7 @@ class TestCharm(unittest.TestCase):
         status.blocked.reset_mock()
         status.maintenance.reset_mock()
 
-        unitdata.kv().set('existing_site_map', {})
+        unitdata.kv().set('existing_site_ports_map', {})
 
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_upgrade_charm_flags(self, clear_flag):
