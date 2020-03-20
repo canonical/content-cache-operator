@@ -527,6 +527,23 @@ def allocated_port_list(site_ports_map):
     return allocated_ports
 
 
+def ports_map_lookup(ports_map, site, base_port, blacklist_ports=None, key=None):
+    if key:
+        (unused_port, port) = utils.next_port_pair(0, base_port, blacklist_ports=blacklist_ports)
+    else:
+        (port, unused_port) = utils.next_port_pair(base_port, 0, blacklist_ports=blacklist_ports)
+
+    if site not in ports_map:
+        return port
+
+    if key:
+        if 'locations' not in ports_map[site] or key not in ports_map[site]['locations']:
+            return port
+        return ports_map[site]['locations'][key].get('backend_port', port)
+    else:
+        return ports_map[site].get('cache_port', port)
+
+
 def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     conf = yaml.safe_load(sites_yaml)
     sites = interpolate_secrets(conf, sites_secrets)
@@ -537,8 +554,8 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     new_site_ports_map = {}
     if not blacklist_ports:
         blacklist_ports = []
-    blacklist_ports += allocated_port_list(existing_site_ports_map)
 
+    blacklist_ports += allocated_port_list(existing_site_ports_map)
     # We need to clean out sites and backends that no longer
     # exists. This should happen after we've built a list of ports to
     # blacklist to ensure that we don't reuse one for a site that's
@@ -547,15 +564,10 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     for site, site_conf in sites.items():
         if not site_conf:
             continue
-        site_map = {'locations': {}}
-        if site in existing_site_ports_map and existing_site_ports_map[site].get('cache_port'):
-            cache_port = existing_site_ports_map[site]['cache_port']
-        else:
-            (cache_port, unused_backend_port) = utils.next_port_pair(
-                cache_port, backend_port, blacklist_ports=blacklist_ports
-            )
+        site_ports_map = {'locations': {}}
+        cache_port = ports_map_lookup(existing_site_ports_map, site, cache_port, blacklist_ports)
         site_conf['cache_port'] = cache_port
-        site_map['cache_port'] = cache_port
+        site_ports_map['cache_port'] = cache_port
         # With the new port allocated, make sure it's blacklisted so it doesn't
         # get reused later.
         blacklist_ports.append(cache_port)
@@ -564,27 +576,17 @@ def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
             if not loc_conf or not loc_conf.get('backends'):
                 continue
             location_map = {}
-            if (
-                site in existing_site_ports_map
-                and 'locations' in existing_site_ports_map[site]
-                and location in existing_site_ports_map[site]['locations']
-                and existing_site_ports_map[site]['locations'][location].get('backend_port')
-            ):
-                backend_port = existing_site_ports_map[site]['locations'][location]['backend_port']
-            else:
-                (unused_cache_port, backend_port) = utils.next_port_pair(
-                    cache_port, backend_port, blacklist_ports=blacklist_ports
-                )
+            backend_port = ports_map_lookup(existing_site_ports_map, site, backend_port, blacklist_ports, key=location)
             loc_conf['backend_port'] = backend_port
             location_map['backend_port'] = backend_port
 
             # With the new port allocated, make sure it's blacklisted so it doesn't
             # get reused later.
             blacklist_ports.append(backend_port)
-            site_map['locations'][location] = location_map
+            site_ports_map['locations'][location] = location_map
 
         new_sites[site] = site_conf
-        new_site_ports_map[site] = site_map
+        new_site_ports_map[site] = site_ports_map
 
     unitdata.kv().set('existing_site_ports_map', new_site_ports_map)
     return new_sites
