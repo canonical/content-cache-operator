@@ -142,8 +142,7 @@ listen {name}
                 tls_config = ' ssl {}'.format(' '.join(['crt {}'.format(path) for path in paths]))
 
             if len(backend_config) == 1:
-                backend = backend_config[0].split()[1]
-                backend_config = ['{indent}default_backend {backend}\n'.format(backend=backend, indent=INDENT)]
+                backend_config = ['{indent}default_backend backend-{backend}\n'.format(backend=name, indent=INDENT)]
 
             bind_config = '{indent}bind {address_port}{tls}'.format(
                 address_port=address_port, tls=tls_config, indent=INDENT
