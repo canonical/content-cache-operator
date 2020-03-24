@@ -169,3 +169,13 @@ class TestLibUtils(unittest.TestCase):
 
         # Test when config file doesn't exist.
         self.assertEqual(utils.logrotate(retention=14, path='tests/unit/files/some-file-that-doesnt-exist'), None)
+
+    def test_process_rlimits(self):
+        self.assertEqual('1048576', utils.process_rlimits(1, 'NOFILE'))
+        self.assertEqual('1048576', utils.process_rlimits(1, 'NOFILE', None))
+        self.assertEqual('1048576', utils.process_rlimits(1, 'NOFILE', 'tests/unit/files/limits.txt'))
+
+        self.assertEqual(None, utils.process_rlimits(1, 'NOFILE', 'tests/unit/files/test_file.txt'))
+        self.assertEqual(None, utils.process_rlimits(1, 'NOFILE', 'tests/unit/files/limits-file-does-not-exist.txt'))
+
+        self.assertEqual(None, utils.process_rlimits(1, 'NOMATCH'))
