@@ -12,7 +12,7 @@ import yaml
 from charms import reactive
 from charms.layer import status
 from charmhelpers import context
-from charmhelpers.core import hookenv, host
+from charmhelpers.core import hookenv, host, unitdata
 from charmhelpers.contrib.charmsupport import nrpe
 
 from lib import utils
@@ -500,26 +500,95 @@ def check_haproxy_alerts():
     reactive.set_flag('nagios-nrpe-telegraf.configured')
 
 
+def cleanout_sites(site_ports_map, sites):
+    new_site_ports_map = {}
+    for site, site_conf in site_ports_map.items():
+        if site not in sites:
+            continue
+
+        site_map = {'locations': {}}
+        site_map['cache_port'] = site_conf['cache_port']
+        for location, loc_conf in site_conf.get('locations', {}).items():
+            site_map['locations'][location] = loc_conf
+
+        new_site_ports_map[site] = site_map
+
+    return new_site_ports_map
+
+
+def allocated_ports(site_ports_map):
+    allocated_ports = []
+    for site, site_conf in site_ports_map.items():
+        allocated_ports.append(site_conf['cache_port'])
+        for location, loc_conf in site_conf.get('locations', {}).items():
+            if 'backend_port' not in loc_conf:
+                continue
+            allocated_ports.append(loc_conf['backend_port'])
+    return sorted(allocated_ports)
+
+
+def ports_map_lookup(ports_map, site, base_port, blacklist_ports=None, key=None):
+    if key:
+        (unused_port, port) = utils.next_port_pair(0, base_port, blacklist_ports=blacklist_ports)
+    else:
+        (port, unused_port) = utils.next_port_pair(base_port, 0, blacklist_ports=blacklist_ports)
+
+    if site not in ports_map:
+        return port
+
+    if key:
+        if 'locations' not in ports_map[site] or key not in ports_map[site]['locations']:
+            return port
+        return ports_map[site]['locations'][key].get('backend_port', port)
+    else:
+        return ports_map[site].get('cache_port', port)
+
+
 def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     conf = yaml.safe_load(sites_yaml)
     sites = interpolate_secrets(conf, sites_secrets)
     cache_port = 0
     backend_port = 0
     new_sites = {}
+    existing_site_ports_map = unitdata.kv().get('existing_site_ports_map', {})
+    new_site_ports_map = {}
+    if not blacklist_ports:
+        blacklist_ports = []
+
+    blacklist_ports += allocated_ports(existing_site_ports_map)
+    # We need to clean out sites and backends that no longer
+    # exists. This should happen after we've built a list of ports to
+    # blacklist to ensure that we don't reuse one for a site that's
+    # being or been removed.
+    existing_site_ports_map = cleanout_sites(existing_site_ports_map, sites)
     for site, site_conf in sites.items():
         if not site_conf:
             continue
-        (cache_port, unused_backend_port) = utils.next_port_pair(
-            cache_port, backend_port, blacklist_ports=blacklist_ports
-        )
+        site_ports_map = {'locations': {}}
+        cache_port = ports_map_lookup(existing_site_ports_map, site, cache_port, blacklist_ports)
         site_conf['cache_port'] = cache_port
+        site_ports_map['cache_port'] = cache_port
+        # With the new port allocated, make sure it's blacklisted so it doesn't
+        # get reused later.
+        blacklist_ports.append(cache_port)
+
         for location, loc_conf in site_conf.get('locations', {}).items():
-            if loc_conf and loc_conf.get('backends'):
-                (unused_cache_port, backend_port) = utils.next_port_pair(
-                    cache_port, backend_port, blacklist_ports=blacklist_ports
-                )
-                loc_conf['backend_port'] = backend_port
+            if not loc_conf or not loc_conf.get('backends'):
+                continue
+            location_map = {}
+            backend_port = ports_map_lookup(existing_site_ports_map, site, backend_port, blacklist_ports, key=location)
+            loc_conf['backend_port'] = backend_port
+            location_map['backend_port'] = backend_port
+
+            # With the new port allocated, make sure it's blacklisted so it doesn't
+            # get reused later.
+            blacklist_ports.append(backend_port)
+            site_ports_map['locations'][location] = location_map
+
         new_sites[site] = site_conf
+        new_site_ports_map[site] = site_ports_map
+
+    unitdata.kv().set('existing_site_ports_map', new_site_ports_map)
     return new_sites
 
 

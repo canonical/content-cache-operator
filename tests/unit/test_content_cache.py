@@ -7,12 +7,14 @@ from unittest import mock
 
 import freezegun
 import jinja2
+import yaml
 
 # We also need to mock up charms.layer so we can run unit tests without having
 # to build the charm and pull in layers such as layer-status.
 sys.modules['charms.layer'] = mock.MagicMock()
 
 from charms.layer import status  # NOQA: E402
+from charmhelpers.core import unitdata  # NOQA: E402
 
 # Add path to where our reactive layer lives and import.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
@@ -25,6 +27,8 @@ class TestCharm(unittest.TestCase):
         self.maxDiff = None
         self.tmpdir = tempfile.mkdtemp(prefix='charm-unittests-')
         self.addCleanup(shutil.rmtree, self.tmpdir)
+        os.environ['UNIT_STATE_DB'] = os.path.join(self.tmpdir, '.unit-state.db')
+        unitdata.kv().set('existing_site_ports_map', {})
 
         self.charm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
@@ -772,6 +776,108 @@ site5.local:
                 },
             },
         }
+        self.assertEqual(want, content_cache.sites_from_config(config_yaml))
+
+    def test_allocated_ports(self):
+        with open('tests/unit/files/config_test_sites_map.txt', 'r', encoding='utf-8') as f:
+            config_yaml = f.read()
+
+        sites = yaml.safe_load(config_yaml)
+        sites_list = list(sites.keys())
+
+        want = [
+            6080,
+            8080,
+            6081,
+            8081,
+            6082,
+            8082,
+            6083,
+            6084,
+            8083,
+            8084,
+            6085,
+            8085,
+            6086,
+            8086,
+            6087,
+            8087,
+            8088,
+            6088,
+            8089,
+        ]
+        self.assertEqual(sorted(want), content_cache.allocated_ports(sites))
+
+        want = []
+        self.assertEqual(want, content_cache.allocated_ports({}))
+
+        new = {}
+        new[sites_list[1]] = sites[sites_list[1]]
+        new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
+        want = [6081, 6088, 8081, 8089]
+        self.assertEqual(want, content_cache.allocated_ports(new))
+
+    def test_sites_from_config_no_reshuffling(self):
+        with open('tests/unit/files/config_test_sites_map.txt', 'r', encoding='utf-8') as f:
+            config_yaml = f.read()
+
+        sites = yaml.safe_load(config_yaml)
+        sites_list = list(sites.keys())
+
+        want = sites
+        self.assertEqual(want, content_cache.sites_from_config(config_yaml))
+
+        # Remove all except second and last site for testing. Check to
+        # make sure it's correct and ports aren't reshuffled.
+        new = {}
+        new[sites_list[1]] = sites[sites_list[1]]
+        new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
+        config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
+        want = new
+        self.assertEqual(want, content_cache.sites_from_config(config_yaml))
+
+        # Add two sites back and make sure the existing two aren't reshuffled.
+        new = {}
+        new[sites_list[1]] = sites[sites_list[1]]
+        new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
+        new[sites_list[0]] = sites[sites_list[0]]
+        new[sites_list[2]] = sites[sites_list[2]]
+        config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
+        want = new
+        self.assertEqual(want, content_cache.sites_from_config(config_yaml))
+
+        # Add new site somewhere in the middle.
+        new = {}
+        new[sites_list[1]] = sites[sites_list[1]]
+        new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
+        new[sites_list[0]] = sites[sites_list[0]]
+        new[sites_list[2]] = sites[sites_list[2]]
+        new['site11'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
+        config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
+        want = new
+        want['site11']['cache_port'] = 6083
+        want['site11']['locations']['/']['backend_port'] = 8083
+        self.assertEqual(want, content_cache.sites_from_config(config_yaml))
+
+        # Add a new site at the start, in the middle, and at the
+        # end. We also want to make sure we don't recycle and reuse a
+        # port for a site that's just been or is being removed.
+        new = {}
+        new[sites_list[1]] = sites[sites_list[1]]
+        new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
+        new[sites_list[0]] = sites[sites_list[0]]
+        new[sites_list[2]] = sites[sites_list[2]]
+        new['site0'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
+        new['site666'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
+        new['zzz'] = {'locations': {'/': {'backend-tls': True, 'backends': ['127.0.1.10:443']}}}
+        config_yaml = yaml.safe_dump(new, indent=4, default_flow_style=False)
+        want = new
+        want['site0']['cache_port'] = 6084
+        want['site0']['locations']['/']['backend_port'] = 8084
+        want['site666']['cache_port'] = 6085
+        want['site666']['locations']['/']['backend_port'] = 8085
+        want['zzz']['cache_port'] = 6089
+        want['zzz']['locations']['/']['backend_port'] = 8090
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
     def test_sites_from_config_blacklist_ports(self):

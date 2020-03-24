@@ -1,0 +1,127 @@
+site1.local:
+    cache_port: 6080
+    locations:
+        /:
+            backend_port: 8080
+            backends:
+            - 127.0.1.10:80
+            - 127.0.1.11:80
+            - 127.0.1.12:80
+            origin-headers:
+            -   X-Origin-Key: Sae6oob2aethuosh
+            -   X-Some-Header-1: something one two three
+            -   X-Some-Header-2: something:one:two:three
+            signed-url-hmac-key: SrRorTsImr92B6FfSKBFrSIiR5NYGS+gdjd8oGoVH44=
+    port: 80
+site2.local:
+    cache_port: 6081
+    locations:
+        /:
+            backend-check-method: GET
+            backend-check-path: /check/
+            backend-maxconn: 1024
+            backend-tls: true
+            backend_port: 8081
+            backends:
+            - 127.0.1.10:443
+            - 127.0.1.11:443
+            - 127.0.1.12:443
+        /my-local-content/:
+            extra-config:
+            - root /var/www/html
+        /my-local-content2/:
+            extra-config:
+            - root /var/www/html
+    redirect-http-to-https: true
+    tls-cert-bundle-path: /etc/haproxy/site2-bundle.crt
+site3.local:
+    cache_port: 6082
+    locations:
+        /:
+            backend-options:
+            - forwardfor except 127.0.0.1
+            - forceclose
+            backend_port: 8082
+            backends:
+            - 127.0.1.10:80
+            - 127.0.1.11:80
+            - 127.0.1.12:80
+            cache-maxconn: 4096
+site4.local:
+    cache_port: 6083
+    locations:
+        /:
+            extra-config:
+            - autoindex on
+        /ubuntu/pool/:
+            extra-config:
+            - autoindex on
+            - auth_request /auth
+site5:
+    cache_port: 6084
+    locations:
+        /:
+            backend_port: 8083
+            backends:
+            - 127.0.1.10:80
+        /auth:
+            backend-path: /auth-check/
+            backend_port: 8084
+            backends:
+            - 127.0.1.11:80
+            cache-background-update: None
+            cache-min-uses: None
+            cache-validity: 200 401 1h
+            modifier: '='
+    site-name: site5.local
+site6.local:
+    cache_port: 6085
+    locations:
+        /:
+            backend-tls: true
+            backend_port: 8085
+            backends:
+            - 127.0.1.10:443
+site7.local:
+    cache_port: 6086
+    locations:
+        /:
+            backend-tls: false
+            backend_port: 8086
+            backends:
+            - 127.0.1.10:80
+    port: 444
+    tls-cert-bundle-path: /etc/haproxy/site7-bundle.crt
+site8.local:
+    cache_port: 6087
+    locations:
+        /:
+            backend-tls: false
+            backend_port: 8087
+            backends:
+            - 127.0.1.10:80
+        /auth:
+            backend-tls: true
+            backend_port: 8088
+            backends:
+            - 127.0.1.10:443
+            site-name: auth.site8.local
+    port: 444
+    tls-cert-bundle-path: /etc/haproxy/site8-bundle.crt
+site9.local:
+    cache_port: 6088
+    locations:
+        /:
+            backend-inter-time: 1m
+            backend-tls: false
+            backend_port: 8089
+            backends:
+            - 127.0.1.15:80
+            extra-config:
+            - proxy_force_ranges off
+        /private/content:
+            extra-config:
+            - root /srv/example1.com/content/
+            - autoindex on
+            - auth_request /auth
+            nagios-expect: 401 Unauthorized
