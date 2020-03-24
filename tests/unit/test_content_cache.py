@@ -27,6 +27,8 @@ class TestCharm(unittest.TestCase):
         self.maxDiff = None
         self.tmpdir = tempfile.mkdtemp(prefix='charm-unittests-')
         self.addCleanup(shutil.rmtree, self.tmpdir)
+        os.environ['UNIT_STATE_DB'] = os.path.join(self.tmpdir, '.unit-state.db')
+        unitdata.kv().set('existing_site_ports_map', {})
 
         self.charm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
@@ -67,8 +69,6 @@ class TestCharm(unittest.TestCase):
         status.active.reset_mock()
         status.blocked.reset_mock()
         status.maintenance.reset_mock()
-
-        unitdata.kv().set('existing_site_ports_map', {})
 
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_upgrade_charm_flags(self, clear_flag):
@@ -778,7 +778,7 @@ site5.local:
         }
         self.assertEqual(want, content_cache.sites_from_config(config_yaml))
 
-    def test_allocated_port_list(self):
+    def test_allocated_ports(self):
         with open('tests/unit/files/config_test_sites_map.txt', 'r', encoding='utf-8') as f:
             config_yaml = f.read()
 
@@ -806,16 +806,16 @@ site5.local:
             6088,
             8089,
         ]
-        self.assertEqual(want, content_cache.allocated_port_list(sites))
+        self.assertEqual(sorted(want), content_cache.allocated_ports(sites))
 
         want = []
-        self.assertEqual(want, content_cache.allocated_port_list({}))
+        self.assertEqual(want, content_cache.allocated_ports({}))
 
         new = {}
         new[sites_list[1]] = sites[sites_list[1]]
         new[sites_list[len(sites_list) - 1]] = sites[sites_list[len(sites_list) - 1]]
-        want = [6081, 8081, 6088, 8089]
-        self.assertEqual(want, content_cache.allocated_port_list(new))
+        want = [6081, 6088, 8081, 8089]
+        self.assertEqual(want, content_cache.allocated_ports(new))
 
     def test_sites_from_config_no_reshuffling(self):
         with open('tests/unit/files/config_test_sites_map.txt', 'r', encoding='utf-8') as f:
