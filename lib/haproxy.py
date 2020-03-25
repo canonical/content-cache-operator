@@ -139,7 +139,7 @@ listen {name}
             tls_config = ''
             if tls_cert_bundle_paths:
                 paths = sorted(set(tls_cert_bundle_paths))
-                tls_config = ' ssl {}'.format(' '.join(['crt {}'.format(path) for path in paths]))
+                tls_config = ' ssl {} alpn h2,http/1.1'.format(' '.join(['crt {}'.format(path) for path in paths]))
 
             if len(backend_config) == 1:
                 backend_config = ['{indent}default_backend backend-{backend}\n'.format(backend=name, indent=INDENT)]
