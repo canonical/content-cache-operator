@@ -176,22 +176,21 @@ LIMITS_MATCH = {
 
 
 def process_rlimits(pid, res, limits_file=None):
-    if limits_file:
-        limitsf = limits_file
-    else:
-        limitsf = os.path.join('/proc', str(pid), 'limits')
+    if not limits_file:
+        limits_file = os.path.join('/proc', str(pid), 'limits')
 
-    if not os.path.exists(limitsf):
+    if not os.path.exists(limits_file):
         return None
 
-    with open(limitsf, 'r', encoding='utf-8') as f:
+    with open(limits_file, 'r', encoding='utf-8') as f:
         limits = f.read()
 
     if res not in LIMITS_MATCH:
         return None
 
+    r = re.compile(r'^{}\s+\S+\s+(\S+)'.format(LIMITS_MATCH[res]))
     for line in limits.split('\n'):
-        m = re.match(r'^{}\s+\S+\s+(\S+)'.format(LIMITS_MATCH[res]), line)
+        m = r.match(line)
         if m:
             return m.group(1)
 
