@@ -254,7 +254,7 @@ backend backend-{name}
         global_max_connections = max_connections * len(listen_stanzas)
         init_maxfds = utils.process_rlimits(1, 'NOFILE')
         if init_maxfds != 'unlimited' and (global_max_connections * 2) > int(init_maxfds):
-            global_max_connections = int(int(init_maxfds) / 2)
+            global_max_connections = int(init_maxfds) // 2
 
         if not tls_cipher_suites:
             tls_cipher_suites = TLS_CIPHER_SUITES
