@@ -168,3 +168,31 @@ def logrotate(path, retention=30, dateext=True):
             new.append(line)
 
     return '\n'.join(new)
+
+
+LIMITS_MATCH = {
+    'NOFILE': 'Max open files',
+}
+
+
+def process_rlimits(pid, res, limits_file=None):
+    if limits_file:
+        limitsf = limits_file
+    else:
+        limitsf = os.path.join('/proc', str(pid), 'limits')
+
+    if not os.path.exists(limitsf):
+        return None
+
+    with open(limitsf, 'r', encoding='utf-8') as f:
+        limits = f.read()
+
+    if res not in LIMITS_MATCH:
+        return None
+
+    for line in limits.split('\n'):
+        m = re.match(r'^{}\s+\S+\s+(\S+)'.format(LIMITS_MATCH[res]), line)
+        if m:
+            return m.group(1)
+
+    return None

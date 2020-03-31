@@ -244,15 +244,21 @@ backend backend-{name}
     def render(self, config, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
         if not num_threads:
             num_threads = multiprocessing.cpu_count()
+
+        listen_stanzas = self.render_stanza_listen(config)
+
         if self.max_connections:
             max_connections = self.max_connections
         else:
             max_connections = num_threads * 2000
+        global_max_connections = max_connections * len(listen_stanzas)
+        init_maxfds = utils.process_rlimits(1, 'NOFILE')
+        if init_maxfds != 'unlimited' and (global_max_connections * 2) > int(init_maxfds):
+            global_max_connections = int(init_maxfds) // 2
+
         if not tls_cipher_suites:
             tls_cipher_suites = TLS_CIPHER_SUITES
         tls_cipher_suites = utils.tls_cipher_suites(tls_cipher_suites)
-
-        listen_stanzas = self.render_stanza_listen(config)
 
         base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
@@ -260,7 +266,7 @@ backend backend-{name}
         return template.render(
             {
                 'backend': self.render_stanza_backend(config),
-                'global_max_connections': max_connections * len(listen_stanzas),
+                'global_max_connections': global_max_connections,
                 'listen': listen_stanzas,
                 'max_connections': max_connections,
                 'monitoring_password': monitoring_password or self.monitoring_password,

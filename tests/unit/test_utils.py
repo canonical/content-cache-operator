@@ -169,3 +169,19 @@ class TestLibUtils(unittest.TestCase):
 
         # Test when config file doesn't exist.
         self.assertEqual(utils.logrotate(retention=14, path='tests/unit/files/some-file-that-doesnt-exist'), None)
+
+    def test_process_rlimits(self):
+        # Read current Max open files from PID 1 and make sure
+        # utils.process_rlimits() returns the same.
+        with open('/proc/1/limits') as f:
+            for line in f:
+                if line.startswith('Max open files'):
+                    limit = str(line.split()[4])
+        self.assertEqual(limit, utils.process_rlimits(1, 'NOFILE'))
+        self.assertEqual(limit, utils.process_rlimits(1, 'NOFILE', None))
+        self.assertEqual(limit, utils.process_rlimits(1, 'NOFILE', 'tests/unit/files/limits.txt'))
+
+        self.assertEqual(None, utils.process_rlimits(1, 'NOFILE', 'tests/unit/files/test_file.txt'))
+        self.assertEqual(None, utils.process_rlimits(1, 'NOFILE', 'tests/unit/files/limits-file-does-not-exist.txt'))
+
+        self.assertEqual(None, utils.process_rlimits(1, 'NOMATCH'))
