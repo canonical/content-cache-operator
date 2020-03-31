@@ -196,7 +196,7 @@ class TestCharm(unittest.TestCase):
 
             opened_ports.return_value = ['80/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
             content_cache.configure_nginx(self.tmpdir)
-            set_flag.assert_has_calls([mock.call('content_cache.nginx.restart-required')])
+            set_flag.assert_has_calls([mock.call('content_cache.nginx.reload-required')])
             close_port.assert_called_once_with(nginx.METRICS_PORT, 'TCP')
 
             # Re-run with same set of sites, no change so shouldn't need to restart Nginx
@@ -204,7 +204,7 @@ class TestCharm(unittest.TestCase):
             close_port.reset_mock()
             opened_ports.return_value = ['80/tcp']
             content_cache.configure_nginx(self.tmpdir)
-            self.assertFalse(mock.call('content_cache.nginx.restart-required') in set_flag.call_args_list)
+            self.assertFalse(mock.call('content_cache.nginx.reload-required') in set_flag.call_args_list)
             close_port.assert_not_called()
 
             sites = [
@@ -386,7 +386,7 @@ site1.local:
                 'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
             ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
                 content_cache.configure_haproxy()
-            set_flag.assert_has_calls([mock.call('content_cache.haproxy.restart-required')])
+            set_flag.assert_has_calls([mock.call('content_cache.haproxy.reload-required')])
 
             # Again, this time should be no change so no need to restart HAProxy
             set_flag.reset_mock()
@@ -394,7 +394,7 @@ site1.local:
                 'charmhelpers.core.hookenv.open_port'
             ), mock.patch('charmhelpers.core.hookenv.close_port'):
                 content_cache.configure_haproxy()
-            self.assertFalse(mock.call('content_cache.haproxy.restart-required') in set_flag.call_args_list)
+            self.assertFalse(mock.call('content_cache.haproxy.reload-required') in set_flag.call_args_list)
 
             with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
                 want = f.read()
@@ -1125,7 +1125,7 @@ site1.local:
 
             opened_ports.return_value = ['80/tcp', '443/tcp']
             content_cache.configure_nginx(self.tmpdir)
-            set_flag.assert_has_calls([mock.call('content_cache.nginx.restart-required')])
+            set_flag.assert_has_calls([mock.call('content_cache.nginx.reload-required')])
             open_port.assert_called_once_with(nginx.METRICS_PORT, 'TCP')
 
             # Re-run with same set of sites, no change so shouldn't need to restart Nginx
@@ -1133,7 +1133,7 @@ site1.local:
             open_port.reset_mock()
             opened_ports.return_value = ['80/tcp', '443/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
             content_cache.configure_nginx(self.tmpdir)
-            self.assertFalse(mock.call('content_cache.nginx.restart-required') in set_flag.call_args_list)
+            self.assertFalse(mock.call('content_cache.nginx.reload-required') in set_flag.call_args_list)
             open_port.assert_not_called()
 
             # Test the site with cache HIT logging
