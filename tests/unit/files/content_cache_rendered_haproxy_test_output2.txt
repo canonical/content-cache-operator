@@ -1,0 +1,86 @@
+global
+	nbthread 4
+	maxconn 16384
+	log /dev/log	local0
+	log /dev/log	local1 notice
+	chroot /var/lib/haproxy
+	stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+	stats timeout 30s
+	user haproxy
+	group haproxy
+	daemon
+
+	# Default SSL material locations
+	ca-base /etc/ssl/certs
+	crt-base /etc/ssl/private
+
+	# Default ciphers to use on SSL-enabled listening sockets.
+	# For more information, see ciphers(1SSL). This list is from:
+	#  https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+	# An alternative list with additional directives can be obtained from
+	#  https://mozilla.github.io/server-side-tls/ssl-config-generator/?server=haproxy
+	ssl-default-bind-ciphers ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1
+	ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
+	# We'll eventually disable DHE (LP#1825321), but for now, bump DH params
+	tune.ssl.default-dh-param 2048
+
+	# Increase the SSL/TLS session cache from the default 20k. But
+	# rather than hardcode values, let's just set it to match
+	# global_max_connections (which by default is calculated using
+	# num. of CPU cores and num. of configured sites). Each entry
+	# requires ~200 bytes so on a host with say 32 CPUs, 10 sites,
+	# each with 2000 max conns will only consume around 122 Mbytes
+	# (32 * 10 * 2000 * 200), which is not much.
+	tune.ssl.cachesize 16384
+
+defaults
+	log	global
+	maxconn 8192
+	mode	http
+	option	httplog
+	option	dontlognull
+	timeout connect 5000
+	timeout client  50000
+	timeout server  50000
+	errorfile 400 /etc/haproxy/errors/400.http
+	errorfile 403 /etc/haproxy/errors/403.http
+	errorfile 408 /etc/haproxy/errors/408.http
+	errorfile 500 /etc/haproxy/errors/500.http
+	errorfile 502 /etc/haproxy/errors/502.http
+	errorfile 503 /etc/haproxy/errors/503.http
+	errorfile 504 /etc/haproxy/errors/504.http
+
+listen  stats
+	bind 127.0.0.1:10000
+	acl allowed_cidr src 127.0.0.0/8
+	http-request deny unless allowed_cidr
+
+	mode http
+	stats enable
+	stats uri /
+	stats realm Haproxy\ Statistics
+	stats auth haproxy:biometricsarenotsecret
+	stats refresh 3
+
+
+listen cached-site1-local
+    bind 0.0.0.0:443 ssl crt /var/lib/haproxy/certs
+    bind :::443 ssl crt /var/lib/haproxy/certs
+    default_backend backend-cached-site1-local
+
+listen site1-local
+    bind 127.0.0.1:8080
+    default_backend backend-site1-local
+
+backend backend-cached-site1-local
+    option forwardfor
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site1.local
+    balance leastconn
+    server server_1 127.0.0.1:6080 check inter 5000 rise 2 fall 5 maxconn 2048
+
+backend backend-site1-local
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site1.local
+    balance leastconn
+    server server_1 192.168.1.1:8080 check inter 5000 rise 2 fall 5 maxconn 2048

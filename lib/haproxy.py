@@ -114,11 +114,16 @@ listen {name}
 
             backend_config = []
             tls_cert_bundle_paths = []
+            redirect_http_to_https = False
             for site, site_conf in config[address_port].items():
                 site_name = site_conf.get('site-name', site)
+                redirect_http_to_https = site_conf.get('enable-redirect-http-to-https', False)
 
                 if len(config[address_port].keys()) == 1:
-                    name = self._generate_stanza_name(site, stanza_names)
+                    new_site = site
+                    if redirect_http_to_https:
+                        new_site = 'redirect-{}'.format(site)
+                    name = self._generate_stanza_name(new_site, stanza_names)
                 else:
                     name = 'combined-{}'.format(port)
                 stanza_names.append(name)
@@ -128,7 +133,7 @@ listen {name}
                     tls_cert_bundle_paths.append(tls_path)
 
                 # HTTP -> HTTPS redirect
-                if site_conf.get('enable-redirect-http-to-https'):
+                if redirect_http_to_https:
                     backend_config.append(redirect_conf.format(site_name=site_name, indent=INDENT))
                 else:
                     backend_name = self._generate_stanza_name(
@@ -141,7 +146,7 @@ listen {name}
                 paths = sorted(set(tls_cert_bundle_paths))
                 tls_config = ' ssl {}'.format(' '.join(['crt {}'.format(path) for path in paths]))
 
-            if len(backend_config) == 1:
+            if len(backend_config) == 1 and not redirect_http_to_https:
                 backend_config = ['{indent}default_backend backend-{backend}\n'.format(backend=name, indent=INDENT)]
 
             bind_config = '{indent}bind {address_port}{tls}'.format(
@@ -150,10 +155,12 @@ listen {name}
             # Handle 0.0.0.0 and also listen on IPv6 interfaces
             if address == '0.0.0.0':
                 bind_config += '\n{indent}bind :::{port}{tls}'.format(port=port, tls=tls_config, indent=INDENT)
+
             output = listen_stanza.format(
                 name=name, backend_config=''.join(backend_config), bind_config=bind_config, indent=INDENT,
             )
             rendered_output.append(output)
+
         return rendered_output
 
     def render_stanza_backend(self, config):
