@@ -82,6 +82,23 @@ class TestLibHAProxy(unittest.TestCase):
             config[site]['backend-name'] = site
         self.assertEqual(''.join(haproxy.render_stanza_listen(config)), want)
 
+    def test_haproxy_config_rendered_listen_stanzas_no_extra_stanzas(self):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+        config = {
+            'site1.local': {
+                'locations': {'/': {'backends': ['192.168.1.1:8080']}},
+                'port': 443,
+                'redirect-http-to-https': True,
+                'site-name': 'site1.local',
+                'tls-cert-bundle-path': '/var/lib/haproxy/certs',
+            }
+        }
+        output = 'tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output2.txt'
+        with open(output, 'r', encoding='utf-8') as f:
+            want = f.read()
+        print(haproxy.render_stanza_listen(config))
+        self.assertEqual(''.join(haproxy.render_stanza_listen(config)), want)
+
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     def test_haproxy_config_rendered_backend_stanzas(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)

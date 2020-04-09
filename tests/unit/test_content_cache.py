@@ -377,8 +377,8 @@ site1.local:
     @mock.patch('reactive.content_cache.update_logrotate')
     def test_configure_haproxy_sites(self, logrotation, set_flag):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
-            ngx_config = f.read()
-        self.mock_config.return_value = {'max_connections': 8192, 'sites': ngx_config}
+            config = f.read()
+        self.mock_config.return_value = {'max_connections': 8192, 'sites': config}
 
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
@@ -397,6 +397,55 @@ site1.local:
             self.assertFalse(mock.call('content_cache.haproxy.reload-required') in set_flag.call_args_list)
 
             with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
+                want = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+        config = '''
+site1.local:
+  locations:
+    /:
+      backend-tls: false
+      backends: ['192.168.1.1:8080']
+  tls-cert-bundle-path: /var/lib/haproxy/certs
+'''
+        self.mock_config.return_value = {'max_connections': 8192, 'sites': config}
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            with mock.patch('charmhelpers.core.host.pwgen', return_value="biometricsarenotsecret"), mock.patch(
+                'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
+            ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
+                content_cache.configure_haproxy()
+
+            with open('tests/unit/files/content_cache_rendered_haproxy_test_output2.txt', 'r', encoding='utf-8') as f:
+                want = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_haproxy_sites_no_extra_stanzas(self, logrotation, set_flag):
+        config = '''
+site1.local:
+  locations:
+    /:
+      backend-tls: false
+      backends: ['192.168.1.1:8080']
+  redirect-http-to-https: True
+  tls-cert-bundle-path: /var/lib/haproxy/certs
+'''
+        self.mock_config.return_value = {'max_connections': 8192, 'sites': config}
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            with mock.patch('charmhelpers.core.host.pwgen', return_value="biometricsarenotsecret"), mock.patch(
+                'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
+            ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
+                content_cache.configure_haproxy()
+
+            with open('tests/unit/files/content_cache_rendered_haproxy_test_output3.txt', 'r', encoding='utf-8') as f:
                 want = f.read()
             with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
                 got = f.read()
