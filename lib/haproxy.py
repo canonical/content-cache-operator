@@ -273,6 +273,7 @@ backend backend-{name}
         return template.render(
             {
                 'backend': self.render_stanza_backend(config),
+                'dns_servers': utils.dns_servers(),
                 'global_max_connections': global_max_connections,
                 'listen': listen_stanzas,
                 'max_connections': max_connections,

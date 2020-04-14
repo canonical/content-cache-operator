@@ -3,6 +3,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import freezegun
 import yaml
@@ -118,7 +119,9 @@ class TestLibHAProxy(unittest.TestCase):
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
-    def test_haproxy_config_rendered_full_config(self):
+    @mock.patch('lib.utils.dns_servers')
+    def test_haproxy_config_rendered_full_config(self, dns_servers):
+        dns_servers.return_value = ['127.0.0.53']
         haproxy = HAProxy.HAProxyConf(self.tmpdir, max_connections=5000)
         config = self.site_config
         num_threads = 4

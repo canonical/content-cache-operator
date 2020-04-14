@@ -373,9 +373,11 @@ site1.local:
         clear_flag.assert_called_once_with('content_cache.active')
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('lib.utils.dns_servers')
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_sites(self, logrotation, set_flag):
+    def test_configure_haproxy_sites(self, logrotation, set_flag, dns_servers):
+        dns_servers.return_value = ['127.0.0.53']
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             config = f.read()
         self.mock_config.return_value = {'max_connections': 8192, 'sites': config}
@@ -425,9 +427,11 @@ site1.local:
             self.assertEqual(got, want)
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('lib.utils.dns_servers')
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_sites_no_extra_stanzas(self, logrotation, set_flag):
+    def test_configure_haproxy_sites_no_extra_stanzas(self, logrotation, set_flag, dns_servers):
+        dns_servers.return_value = ['127.0.0.53']
         config = '''
 site1.local:
   locations:
@@ -452,9 +456,11 @@ site1.local:
             self.assertEqual(got, want)
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('lib.utils.dns_servers')
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_sites_auto_maxconns(self, logrotation, set_flag):
+    def test_configure_haproxy_sites_auto_maxconns(self, logrotation, set_flag, dns_servers):
+        dns_servers.return_value = ['127.0.0.53']
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {'max_connections': 0, 'sites': ngx_config}

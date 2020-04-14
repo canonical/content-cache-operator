@@ -50,6 +50,18 @@ defaults
 	errorfile 503 /etc/haproxy/errors/503.http
 	errorfile 504 /etc/haproxy/errors/504.http
 
+{%- if dns_servers %}
+
+resolvers dns
+{%- for resolver in dns_servers %}
+	nameserver dns{{loop.index}} {{resolver}}:53
+{%- endfor %}
+	resolve_retries 3
+	timeout resolve 3s
+	timeout retry   3s
+	accepted_payload_size 8192
+{%- endif %}
+
 listen  stats
 	bind 127.0.0.1:10000
 	acl allowed_cidr src 127.0.0.0/8
