@@ -496,7 +496,9 @@ def advertise_stats_endpoint():
 @reactive.when_not('nagios-nrpe-telegraf.configured')
 def check_haproxy_alerts():
     nrpe_setup = nrpe.NRPE(hostname=nrpe.get_nagios_hostname(), primary=True)
-    cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate"'
+    # Because check_http is really inefficient, the parsing of the metrics is quite slow
+    # hence increasing the timeout to 20 seconds
+    cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate" -t 20'
     nrpe_setup.add_check(
         shortname='haproxy_telegraf_metrics',
         description='Verify haproxy metrics are visible via telegraf subordinate',
