@@ -428,6 +428,12 @@ def configure_nagios():
                     shortname=check_name, description='{} backend proxy check'.format(site), check_cmd=cmd
                 )
 
+    # Ensure we only have two HAProxy processes around - LP:1828496
+    check_name = 'check_haproxy_procs'
+    description = 'HAProxy process count'
+    cmd = '/usr/lib/nagios/plugins/check_procs -c2 -w2 -C haproxy'
+    nrpe_setup.add_check(shortname=check_name, description=description, check_cmd=cmd)
+
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe.configured')
 
