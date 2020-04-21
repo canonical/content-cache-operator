@@ -19,7 +19,7 @@ PROXY_CACHE_DEFAULTS = {
     'min-uses': 1,
     'revalidate': 'on',
     'use-stale': 'error timeout updating http_500 http_502 http_503 http_504',
-    'valid': '200 1d',
+    'valid': ['200 1d'],
 }
 
 
@@ -105,11 +105,26 @@ class NginxConf:
                 lc['backend'] = utils.generate_uri('localhost', backend_port, backend_path)
                 for k, v in self.proxy_cache_configs.items():
                     cache_key = 'cache-{}'.format(k)
+                    if cache_key == 'cache-valid':
+                        # Skip and set the default later.
+                        continue
                     lc.setdefault(cache_key, v)
+
+                cache_val = self.proxy_cache_configs['valid']
                 # Backwards compatibility
                 if 'cache-validity' in lc:
-                    lc['cache-valid'] = lc.get('cache-validity', self.proxy_cache_configs['valid'])
+                    cache_val = lc['cache-validity']
                     lc.pop('cache-validity')
+                elif 'cache-valid' in lc:
+                    cache_val = lc['cache-valid']
+
+                lc['cache-valid'] = []
+                # Support multiple cache-validities per LP:1873116.
+                if isinstance(cache_val, str):
+                    lc['cache-valid'].append(cache_val)
+                else:
+                    lc['cache-valid'] += cache_val
+
             lc['force_ranges'] = 'on'
             extra_config = lc.get('extra-config', [])
             for ext in extra_config:
