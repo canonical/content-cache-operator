@@ -757,7 +757,7 @@ site1.local:
             mock.call(
                 shortname='haproxy_telegraf_metrics',
                 description='Verify haproxy metrics are visible via telegraf subordinate',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate"',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate" -t 20',
             )
         ]
         nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
