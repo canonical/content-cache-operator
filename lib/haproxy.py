@@ -144,7 +144,9 @@ listen {name}
             tls_config = ''
             if tls_cert_bundle_paths:
                 paths = sorted(set(tls_cert_bundle_paths))
-                tls_config = ' ssl {}'.format(' '.join(['crt {}'.format(path) for path in paths]))
+                certs = ' '.join(['crt {}'.format(path) for path in paths])
+                alpn_protos = 'h2,http/1.1'
+                tls_config = ' ssl {} alpn {}'.format(certs, alpn_protos)
 
             if len(backend_config) == 1 and not redirect_http_to_https:
                 backend_config = ['{indent}default_backend backend-{backend}\n'.format(backend=name, indent=INDENT)]
