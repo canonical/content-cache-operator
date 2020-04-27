@@ -94,7 +94,7 @@ class NginxConf:
     def _generate_keys_zone(self, name):
         return '{}-cache'.format(hashlib.md5(name.encode('UTF-8')).hexdigest()[0:12])
 
-    def _process_locations(self, locations):
+    def _process_locations(self, locations):  # NOQA: C901
         conf = {}
         for location, loc_conf in locations.items():
             conf[location] = deepcopy(loc_conf)
@@ -117,6 +117,11 @@ class NginxConf:
                     lc.pop('cache-validity')
                 elif 'cache-valid' in lc:
                     cache_val = lc['cache-valid']
+
+                # No such thing as proxy_cache_maxconn, this is more used by
+                # HAProxy so remove/ignore here.
+                if 'cache-maxconn' in lc:
+                    lc.pop('cache-maxconn')
 
                 lc['cache-valid'] = []
                 # Support multiple cache-validities per LP:1873116.
