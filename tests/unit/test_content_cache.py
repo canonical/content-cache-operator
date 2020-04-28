@@ -474,6 +474,36 @@ site1.local:
                 got = f.read()
             self.assertEqual(got, want)
 
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_haproxy_processes_and_threads(self, logrotation, set_flag):
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
+        self.mock_config.return_value = {
+            'haproxy_processes': 3,
+            'haproxy_threads': 10,
+            'max_connections': 0,
+            'sites': ngx_config,
+        }
+
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            with mock.patch('charmhelpers.core.host.pwgen', return_value="biometricsarenotsecret"), mock.patch(
+                'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
+            ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
+                content_cache.configure_haproxy()
+
+            with open(
+                'tests/unit/files/content_cache_rendered_haproxy_test_output_processes_and_threads.txt',
+                'r',
+                encoding='utf-8',
+            ) as f:
+                want = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
     @mock.patch('charms.reactive.set_flag')
     def test_fire_stats_hook(self, set_flag):
         content_cache.fire_stats_hook()

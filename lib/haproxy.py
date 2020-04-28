@@ -250,7 +250,7 @@ backend backend-{name}
 
         return rendered_output
 
-    def render(self, config, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
+    def render(self, config, num_procs=None, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
         if not num_threads:
             num_threads = multiprocessing.cpu_count()
 
@@ -279,6 +279,7 @@ backend backend-{name}
                 'listen': listen_stanzas,
                 'max_connections': max_connections,
                 'monitoring_password': monitoring_password or self.monitoring_password,
+                'num_procs': num_procs,
                 'num_threads': num_threads,
                 'tls_cipher_suites': tls_cipher_suites,
             }

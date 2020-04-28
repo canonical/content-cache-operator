@@ -31,6 +31,16 @@ options:
     description: >
       Export metrics for the number of requests and the number of cache hits.
       Prometheus metrics are exposed at /metrics on port 9145.
+  haproxy_processes:
+    default: 0
+    type: int
+    description: >
+      Sets the number of HAProxy processes.
+  haproxy_threads:
+    default: 0
+    type: int
+    description: >
+      Sets the number of HAProxy threads.
   log_retention:
     type: int
     default: 30
