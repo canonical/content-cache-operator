@@ -308,7 +308,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
     monitoring_password = haproxy.monitoring_password
     if not monitoring_password:
         monitoring_password = host.pwgen(length=20)
-    num_procs = config.get('haproxy_processes')
+    num_procs = config.get('haproxy_processes', 0)
     num_threads = config.get('haproxy_threads')
     tls_cipher_suites = config.get('tls_cipher_suites')
     rendered_config = haproxy.render(new_conf, num_procs, num_threads, monitoring_password, tls_cipher_suites)
@@ -426,10 +426,11 @@ def configure_nagios():
                     shortname=check_name, description='{} backend proxy check'.format(site), check_cmd=cmd
                 )
 
-    # Ensure we only have two HAProxy processes around - LP:1828496
+    # Ensure we don't have lingering HAProxy processes around - LP:1828496
+    num_procs = config.get('haproxy_processes', 0) + 2
     check_name = 'haproxy_procs'
     description = 'HAProxy process count'
-    cmd = '/usr/lib/nagios/plugins/check_procs -c2 -w2 -C haproxy'
+    cmd = '/usr/lib/nagios/plugins/check_procs -c{} -w{} -C haproxy'.format(num_procs, num_procs)
     nrpe_setup.add_check(shortname=check_name, description=description, check_cmd=cmd)
 
     nrpe_setup.write()
