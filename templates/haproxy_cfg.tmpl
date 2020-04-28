@@ -1,5 +1,10 @@
 global
+{%- if num_procs %}
+	nbproc {{num_procs}}
+{%- endif %}
+{%- if num_threads %}
 	nbthread {{num_threads}}
+{%- endif %}
 	maxconn {{global_max_connections}}
 	log /dev/log	local0
 	log /dev/log	local1 notice

@@ -305,15 +305,13 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         hookenv.log("Closing obsolete port: {}".format(obsolete_port))
         hookenv.close_port(obsolete_port)
 
-    if haproxy.monitoring_password:
-        rendered_config = haproxy.render(
-            new_conf, monitoring_password=haproxy.monitoring_password, tls_cipher_suites=config.get('tls_cipher_suites')
-        )
-    else:
-        rendered_config = haproxy.render(
-            new_conf, monitoring_password=host.pwgen(length=20), tls_cipher_suites=config.get('tls_cipher_suites')
-        )
-
+    monitoring_password = haproxy.monitoring_password
+    if not monitoring_password:
+        monitoring_password = host.pwgen(length=20)
+    num_procs = config.get('haproxy_processes')
+    num_threads = config.get('haproxy_threads')
+    tls_cipher_suites = config.get('tls_cipher_suites')
+    rendered_config = haproxy.render(new_conf, num_procs, num_threads, monitoring_password, tls_cipher_suites)
     if haproxy.write(rendered_config):
         reactive.set_flag('content_cache.haproxy.reload-required')
 
