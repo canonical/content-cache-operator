@@ -479,7 +479,7 @@ site1.local:
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
-    @mock.patch('lib.utils.package_version')
+    @mock.patch('lib.utils.get_package_version')
     @mock.patch('reactive.content_cache.update_logrotate')
     def test_configure_haproxy_processes_and_threads(self, logrotation, package_version, set_flag, opened_ports):
         package_version.return_value = '1.8.8-1ubuntu0.10'

@@ -253,7 +253,7 @@ backend backend-{name}
 
     def _calculate_num_procs_threads(self, num_procs, num_threads):
         if num_procs and num_threads:
-            ver = utils.package_version('haproxy')
+            ver = utils.get_package_version('haproxy')
             # With HAProxy 2, nbproc and nbthreads are mutually exclusive.
             if LooseVersion(ver) >= LooseVersion('2'):
                 num_threads = num_procs * num_threads

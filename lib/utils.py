@@ -196,17 +196,12 @@ def process_rlimits(pid, res, limits_file=None):
     return None
 
 
-def package_version(package):
-    cmd = ['apt-cache', 'policy', '--', package]
-    output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
-
-    version = None
-    for line in output.decode('utf-8').split('\n'):
-        ll = line.split()
-        if len(ll) and ll[0] == 'Installed:':
-            ver = ll[1]
-            if ver != '(none)':
-                version = ver
-            break
-
+def get_package_version(package):
+    cmd = ['dpkg-query', '--show', r'--showformat=${Version}\n', package]
+    try:
+        version = subprocess.check_output(cmd, universal_newlines=True).strip()
+    except subprocess.CalledProcessError:
+        return None
+    if not version:
+        return None
     return version

@@ -186,18 +186,17 @@ class TestLibUtils(unittest.TestCase):
 
         self.assertEqual(None, utils.process_rlimits(1, 'NOMATCH'))
 
-    @mock.patch('subprocess.check_output')
-    def test_package_version(self, check_output):
-        check_output.return_value = b'haproxy:\n  Installed: (none)'
-        self.assertEqual(utils.package_version('haproxy'), None)
+    def test_get_package_version(self):
+        self.assertTrue(int(utils.get_package_version('apt').split('.')[0]) > 1)
 
-        check_output.return_value = b'haproxy:\n  Installed: 1.8.8-1ubuntu0.10'
-        self.assertEqual(utils.package_version('haproxy'), '1.8.8-1ubuntu0.10')
+        with mock.patch('subprocess.check_output') as check_output:
+            check_output.return_value = '1.8.8-1ubuntu0.10'
+            self.assertEqual(utils.get_package_version('haproxy'), '1.8.8-1ubuntu0.10')
 
-        check_output.return_value = b'haproxy:\n  Installed: 2.0.13-2'
-        self.assertEqual(utils.package_version('haproxy'), '2.0.13-2')
+            check_output.return_value = '2.0.13-2'
+            self.assertEqual(utils.get_package_version('haproxy'), '2.0.13-2')
 
-        check_output.return_value = b''
-        self.assertEqual(utils.package_version('haproxy'), None)
-        check_output.return_value = b'N: Unable to locate package some-package-doesnt-exist'
-        self.assertEqual(utils.package_version('some-package-doesnt-exist'), None)
+            check_output.return_value = ''
+            self.assertEqual(utils.get_package_version('haproxy'), None)
+
+        self.assertEqual(utils.get_package_version('some-package-doesnt-exist'), None)
