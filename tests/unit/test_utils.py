@@ -6,10 +6,6 @@ from unittest import mock
 
 import freezegun
 
-# Not available in PyPI and installable with modern distutils so mock it.
-# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=932838
-sys.modules['apt'] = mock.MagicMock()
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import utils  # NOQA: E402
 
@@ -189,3 +185,19 @@ class TestLibUtils(unittest.TestCase):
         self.assertEqual(None, utils.process_rlimits(1, 'NOFILE', 'tests/unit/files/limits-file-does-not-exist.txt'))
 
         self.assertEqual(None, utils.process_rlimits(1, 'NOMATCH'))
+
+    @mock.patch('subprocess.check_output')
+    def test_package_version(self, check_output):
+        check_output.return_value = b'haproxy:\n  Installed: (none)'
+        self.assertEqual(utils.package_version('haproxy'), None)
+
+        check_output.return_value = b'haproxy:\n  Installed: 1.8.8-1ubuntu0.10'
+        self.assertEqual(utils.package_version('haproxy'), '1.8.8-1ubuntu0.10')
+
+        check_output.return_value = b'haproxy:\n  Installed: 2.0.13-2'
+        self.assertEqual(utils.package_version('haproxy'), '2.0.13-2')
+
+        check_output.return_value = b''
+        self.assertEqual(utils.package_version('haproxy'), None)
+        check_output.return_value = b'N: Unable to locate package some-package-doesnt-exist'
+        self.assertEqual(utils.package_version('some-package-doesnt-exist'), None)

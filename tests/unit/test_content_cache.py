@@ -16,10 +16,6 @@ sys.modules['charms.layer'] = mock.MagicMock()
 from charms.layer import status  # NOQA: E402
 from charmhelpers.core import unitdata  # NOQA: E402
 
-# Not available in PyPI and installable with modern distutils so mock it.
-# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=932838
-sys.modules['apt'] = mock.MagicMock()
-
 # Add path to where our reactive layer lives and import.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from reactive import content_cache  # NOQA: E402

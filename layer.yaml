@@ -9,5 +9,4 @@ options:
       - haproxy
       - libnginx-mod-http-lua
       - nginx
-      - python3-apt
       - python3-jinja2

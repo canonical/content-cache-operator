@@ -6,8 +6,6 @@ import re
 import shutil
 import subprocess
 
-import apt
-
 BASE_CACHE_PORT = 6080
 BASE_BACKEND_PORT = 8080
 BACKEND_PORT_LIMIT = 61000  # sysctl net.ipv4.ip_local_port_range
@@ -199,13 +197,16 @@ def process_rlimits(pid, res, limits_file=None):
 
 
 def package_version(package):
-    try:
-        cache = apt.apt_pkg.Cache()
-        pkg = cache[package]
-    except Exception:
-        return None
+    cmd = ['apt-cache', 'policy', '--', package]
+    output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
 
-    if not pkg.current_ver:
-        return None
+    version = None
+    for line in output.decode('utf-8').split('\n'):
+        ll = line.split()
+        if len(ll) and ll[0] == 'Installed:':
+            ver = ll[1]
+            if ver != '(none)':
+                version = ver
+            break
 
-    return pkg.current_ver.ver_str
+    return version
