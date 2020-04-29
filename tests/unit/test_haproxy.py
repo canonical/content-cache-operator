@@ -3,9 +3,14 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import freezegun
 import yaml
+
+# Not available in PyPI and installable with modern distutils so mock it.
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=932838
+sys.modules['apt'] = mock.MagicMock()
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import haproxy as HAProxy  # NOQA: E402
@@ -19,6 +24,11 @@ class TestLibHAProxy(unittest.TestCase):
         self.charm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             self.site_config = yaml.safe_load(f.read())
+
+        patcher = mock.patch('multiprocessing.cpu_count')
+        self.mock_cpu_count = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.mock_cpu_count.return_value = 4
 
     def test_haproxy_config_path(self):
         conf_path = '/etc/haproxy'
@@ -118,7 +128,9 @@ class TestLibHAProxy(unittest.TestCase):
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
-    def test_haproxy_config_rendered_full_config(self):
+    @mock.patch('lib.utils.package_version')
+    def test_haproxy_config_rendered_full_config(self, package_version):
+        package_version.return_value = '1.8.8-1ubuntu0.10'
         haproxy = HAProxy.HAProxyConf(self.tmpdir, max_connections=5000)
         config = self.site_config
         num_procs = 2
@@ -158,3 +170,45 @@ class TestLibHAProxy(unittest.TestCase):
             },
         }
         self.assertEqual(haproxy._merge_listen_stanzas(config), want)
+
+    @mock.patch('lib.utils.package_version')
+    def test_calculate_num_procs_threads(self, package_version):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+
+        package_version.return_value = '1.6.3'
+        self.assertEqual(haproxy._calculate_num_procs_threads(2, 2), (2, 2))
+        self.assertEqual(haproxy._calculate_num_procs_threads(0, 4), (0, 4))
+        self.assertEqual(haproxy._calculate_num_procs_threads(5, 0), (5, 0))
+        self.assertEqual(haproxy._calculate_num_procs_threads(0, 0), (0, 4))
+        self.assertEqual(haproxy._calculate_num_procs_threads(None, 3), (0, 3))
+        self.assertEqual(haproxy._calculate_num_procs_threads(3, None), (3, 0))
+        self.assertEqual(haproxy._calculate_num_procs_threads(None, None), (0, 4))
+
+        # HAProxy shipped with Bionic
+        package_version.return_value = '1.8.8-1ubuntu0.10'
+        self.assertEqual(haproxy._calculate_num_procs_threads(2, 2), (2, 2))
+        self.assertEqual(haproxy._calculate_num_procs_threads(0, 6), (0, 6))
+        self.assertEqual(haproxy._calculate_num_procs_threads(5, 0), (5, 0))
+        self.assertEqual(haproxy._calculate_num_procs_threads(0, 0), (0, 4))
+        self.assertEqual(haproxy._calculate_num_procs_threads(None, 3), (0, 3))
+        self.assertEqual(haproxy._calculate_num_procs_threads(3, None), (3, 0))
+        self.assertEqual(haproxy._calculate_num_procs_threads(None, None), (0, 4))
+
+        # HAProxy shipped with Focal
+        package_version.return_value = '2.0.13-2'
+        self.assertEqual(haproxy._calculate_num_procs_threads(2, 2), (0, 4))
+        self.assertEqual(haproxy._calculate_num_procs_threads(0, 6), (0, 6))
+        self.assertEqual(haproxy._calculate_num_procs_threads(5, 0), (5, 0))
+        self.assertEqual(haproxy._calculate_num_procs_threads(0, 0), (0, 4))
+        self.assertEqual(haproxy._calculate_num_procs_threads(None, 3), (0, 3))
+        self.assertEqual(haproxy._calculate_num_procs_threads(3, None), (3, 0))
+        self.assertEqual(haproxy._calculate_num_procs_threads(None, None), (0, 4))
+
+        package_version.return_value = '3.0'
+        self.assertEqual(haproxy._calculate_num_procs_threads(2, 2), (0, 4))
+        self.assertEqual(haproxy._calculate_num_procs_threads(0, 6), (0, 6))
+        self.assertEqual(haproxy._calculate_num_procs_threads(5, 0), (5, 0))
+        self.assertEqual(haproxy._calculate_num_procs_threads(0, 0), (0, 4))
+        self.assertEqual(haproxy._calculate_num_procs_threads(None, 3), (0, 3))
+        self.assertEqual(haproxy._calculate_num_procs_threads(3, None), (3, 0))
+        self.assertEqual(haproxy._calculate_num_procs_threads(None, None), (0, 4))

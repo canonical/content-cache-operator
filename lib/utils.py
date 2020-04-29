@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 
+import apt
 
 BASE_CACHE_PORT = 6080
 BASE_BACKEND_PORT = 8080
@@ -195,3 +196,16 @@ def process_rlimits(pid, res, limits_file=None):
             return m.group(1)
 
     return None
+
+
+def package_version(package):
+    try:
+        cache = apt.apt_pkg.Cache()
+        pkg = cache[package]
+    except Exception:
+        return None
+
+    if not pkg.current_ver:
+        return None
+
+    return pkg.current_ver.ver_str

@@ -6,6 +6,10 @@ from unittest import mock
 
 import freezegun
 
+# Not available in PyPI and installable with modern distutils so mock it.
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=932838
+sys.modules['apt'] = mock.MagicMock()
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from lib import utils  # NOQA: E402
 

@@ -16,6 +16,10 @@ sys.modules['charms.layer'] = mock.MagicMock()
 from charms.layer import status  # NOQA: E402
 from charmhelpers.core import unitdata  # NOQA: E402
 
+# Not available in PyPI and installable with modern distutils so mock it.
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=932838
+sys.modules['apt'] = mock.MagicMock()
+
 # Add path to where our reactive layer lives and import.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from reactive import content_cache  # NOQA: E402
@@ -479,8 +483,10 @@ site1.local:
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
+    @mock.patch('lib.utils.package_version')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_processes_and_threads(self, logrotation, set_flag, opened_ports):
+    def test_configure_haproxy_processes_and_threads(self, logrotation, package_version, set_flag, opened_ports):
+        package_version.return_value = '1.8.8-1ubuntu0.10'
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {
