@@ -124,7 +124,7 @@ class TestLibHAProxy(unittest.TestCase):
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
-    @mock.patch('lib.utils.get_package_version')
+    @mock.patch('lib.utils.package_version')
     def test_haproxy_config_rendered_full_config(self, package_version):
         package_version.return_value = '1.8.8-1ubuntu0.10'
         haproxy = HAProxy.HAProxyConf(self.tmpdir, max_connections=5000)
@@ -167,7 +167,7 @@ class TestLibHAProxy(unittest.TestCase):
         }
         self.assertEqual(haproxy._merge_listen_stanzas(config), want)
 
-    @mock.patch('lib.utils.get_package_version')
+    @mock.patch('lib.utils.package_version')
     def test_calculate_num_procs_threads(self, package_version):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
 

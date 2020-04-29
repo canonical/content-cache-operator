@@ -196,7 +196,7 @@ def process_rlimits(pid, res, limits_file=None):
     return None
 
 
-def get_package_version(package):
+def package_version(package):
     cmd = ['dpkg-query', '--show', r'--showformat=${Version}\n', package]
     try:
         version = subprocess.check_output(cmd, universal_newlines=True).strip()
