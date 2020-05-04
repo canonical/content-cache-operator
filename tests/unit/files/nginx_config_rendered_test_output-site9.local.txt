@@ -10,6 +10,12 @@ server {
     location / {
         proxy_pass http://localhost:8089;
         proxy_set_header Host "site9.local";
+        # Removed the following headers to avoid cache poisoning.
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Forwarded-Host "";
+        proxy_set_header X-Forwarded-Port "";
+        proxy_set_header X-Forwarded-Scheme "";
+
         add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
         proxy_force_ranges off;
         proxy_cache 8facdb232d5b-cache;
