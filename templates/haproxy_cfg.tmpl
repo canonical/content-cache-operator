@@ -1,5 +1,10 @@
 global
+{%- if num_procs %}
+	nbproc {{num_procs}}
+{%- endif %}
+{%- if num_threads %}
 	nbthread {{num_threads}}
+{%- endif %}
 	maxconn {{global_max_connections}}
 	log /dev/log	local0
 	log /dev/log	local1 notice
@@ -9,6 +14,10 @@ global
 	user haproxy
 	group haproxy
 	daemon
+
+	# LP#1874386: Work around lingering HAProxy processes as per LP:1874386
+	# and kill them off after 15mins.
+	hard-stop-after 15m
 
 	# Default SSL material locations
 	ca-base /etc/ssl/certs

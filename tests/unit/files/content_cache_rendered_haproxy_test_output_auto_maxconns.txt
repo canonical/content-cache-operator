@@ -10,6 +10,10 @@ global
 	group haproxy
 	daemon
 
+	# LP#1874386: Work around lingering HAProxy processes as per LP:1874386
+	# and kill them off after 15mins.
+	hard-stop-after 15m
+
 	# Default SSL material locations
 	ca-base /etc/ssl/certs
 	crt-base /etc/ssl/private
@@ -86,8 +90,8 @@ listen site1-local
     default_backend backend-site1-local
 
 listen cached-site2-local
-    bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt
-    bind :::443 ssl crt /etc/haproxy/site2-bundle.crt
+    bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
+    bind :::443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
     default_backend backend-cached-site2-local
 
 listen site2-local
@@ -111,8 +115,8 @@ listen site6-local
     default_backend backend-site6-local
 
 listen combined-444
-    bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt
-    bind :::444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt
+    bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
+    bind :::444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
     use_backend backend-cached-site7-local if { hdr(Host) -i site7.local }
     use_backend backend-cached-site8-local if { hdr(Host) -i site8.local }
 

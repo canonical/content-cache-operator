@@ -57,6 +57,24 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.mock_log.return_value = ''
 
+        patcher = mock.patch('charmhelpers.core.host.pwgen')
+        self.mock_pwgen = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.mock_pwgen.return_value = 'biometricsarenotsecret'
+
+        patcher = mock.patch('charmhelpers.core.hookenv.open_port')
+        self.mock_open_port = patcher.start()
+        self.addCleanup(patcher.stop)
+
+        patcher = mock.patch('charmhelpers.core.hookenv.close_port')
+        self.mock_close_port = patcher.start()
+        self.addCleanup(patcher.stop)
+
+        patcher = mock.patch('lib.utils.dns_servers')
+        self.mock_dns_servers = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.mock_dns_servers.return_value = ['127.0.0.53']
+
         patcher = mock.patch('multiprocessing.cpu_count')
         self.mock_cpu_count = patcher.start()
         self.addCleanup(patcher.stop)
@@ -234,11 +252,10 @@ class TestCharm(unittest.TestCase):
             got = f.read()
         self.assertEqual(got, want)
 
-    @mock.patch('charmhelpers.core.hookenv.close_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('reactive.content_cache.service_start_or_reload')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_nginx_sites_secrets(self, logrotation, service_start_or_reload, opened_ports, close_port):
+    def test_configure_nginx_sites_secrets(self, logrotation, service_start_or_reload, opened_ports):
         with open('tests/unit/files/config_test_secrets.txt', 'r', encoding='utf-8') as f:
             secrets = f.read()
         config = '''
@@ -281,14 +298,11 @@ site1.local:
                     got = f.read()
                 self.assertEqual(got, want)
 
-    @mock.patch('charmhelpers.core.hookenv.close_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('shutil.disk_usage')
     @mock.patch('reactive.content_cache.service_start_or_reload')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_nginx_cache_config(
-        self, logrotation, service_start_or_reload, disk_usage, opened_ports, close_port
-    ):
+    def test_configure_nginx_cache_config(self, logrotation, service_start_or_reload, disk_usage, opened_ports):
         config = '''
 site1.local:
   locations:
@@ -373,29 +387,24 @@ site1.local:
         clear_flag.assert_called_once_with('content_cache.active')
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
-    @mock.patch('lib.utils.dns_servers')
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_sites(self, logrotation, set_flag, dns_servers):
-        dns_servers.return_value = ['127.0.0.53']
+    def test_configure_haproxy_sites(self, logrotation, set_flag, opened_ports):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             config = f.read()
         self.mock_config.return_value = {'max_connections': 8192, 'sites': config}
 
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
-            with mock.patch('charmhelpers.core.host.pwgen', return_value="biometricsarenotsecret"), mock.patch(
-                'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
-            ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
-                content_cache.configure_haproxy()
+            opened_ports.return_value = ['443/tcp']
+            content_cache.configure_haproxy()
             set_flag.assert_has_calls([mock.call('content_cache.haproxy.reload-required')])
 
             # Again, this time should be no change so no need to restart HAProxy
             set_flag.reset_mock()
-            with mock.patch('charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]), mock.patch(
-                'charmhelpers.core.hookenv.open_port'
-            ), mock.patch('charmhelpers.core.hookenv.close_port'):
-                content_cache.configure_haproxy()
+            opened_ports.return_value = ['443/tcp']
+            content_cache.configure_haproxy()
             self.assertFalse(mock.call('content_cache.haproxy.reload-required') in set_flag.call_args_list)
 
             with open('tests/unit/files/content_cache_rendered_haproxy_test_output.txt', 'r', encoding='utf-8') as f:
@@ -415,10 +424,8 @@ site1.local:
         self.mock_config.return_value = {'max_connections': 8192, 'sites': config}
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
-            with mock.patch('charmhelpers.core.host.pwgen', return_value="biometricsarenotsecret"), mock.patch(
-                'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
-            ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
-                content_cache.configure_haproxy()
+            opened_ports.return_value = ['443/tcp']
+            content_cache.configure_haproxy()
 
             with open('tests/unit/files/content_cache_rendered_haproxy_test_output2.txt', 'r', encoding='utf-8') as f:
                 want = f.read()
@@ -427,11 +434,10 @@ site1.local:
             self.assertEqual(got, want)
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
-    @mock.patch('lib.utils.dns_servers')
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_sites_no_extra_stanzas(self, logrotation, set_flag, dns_servers):
-        dns_servers.return_value = ['127.0.0.53']
+    def test_configure_haproxy_sites_no_extra_stanzas(self, logrotation, set_flag, opened_ports):
         config = '''
 site1.local:
   locations:
@@ -444,10 +450,8 @@ site1.local:
         self.mock_config.return_value = {'max_connections': 8192, 'sites': config}
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
-            with mock.patch('charmhelpers.core.host.pwgen', return_value="biometricsarenotsecret"), mock.patch(
-                'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
-            ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
-                content_cache.configure_haproxy()
+            opened_ports.return_value = ['443/tcp']
+            content_cache.configure_haproxy()
 
             with open('tests/unit/files/content_cache_rendered_haproxy_test_output3.txt', 'r', encoding='utf-8') as f:
                 want = f.read()
@@ -456,24 +460,52 @@ site1.local:
             self.assertEqual(got, want)
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
-    @mock.patch('lib.utils.dns_servers')
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_sites_auto_maxconns(self, logrotation, set_flag, dns_servers):
-        dns_servers.return_value = ['127.0.0.53']
+    def test_configure_haproxy_sites_auto_maxconns(self, logrotation, set_flag, opened_ports):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {'max_connections': 0, 'sites': ngx_config}
 
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
-            with mock.patch('charmhelpers.core.host.pwgen', return_value="biometricsarenotsecret"), mock.patch(
-                'charmhelpers.core.hookenv.opened_ports', return_value=["443/tcp"]
-            ), mock.patch('charmhelpers.core.hookenv.open_port'), mock.patch('charmhelpers.core.hookenv.close_port'):
-                content_cache.configure_haproxy()
+            opened_ports.return_value = ['443/tcp']
+            content_cache.configure_haproxy()
 
             with open(
                 'tests/unit/files/content_cache_rendered_haproxy_test_output_auto_maxconns.txt', 'r', encoding='utf-8'
+            ) as f:
+                want = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('lib.utils.package_version')
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_haproxy_processes_and_threads(self, logrotation, package_version, set_flag, opened_ports):
+        package_version.return_value = '1.8.8-1ubuntu0.10'
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
+        self.mock_config.return_value = {
+            'haproxy_processes': 3,
+            'haproxy_threads': 10,
+            'max_connections': 0,
+            'sites': ngx_config,
+        }
+
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            opened_ports.return_value = ['443/tcp']
+            content_cache.configure_haproxy()
+
+            with open(
+                'tests/unit/files/content_cache_rendered_haproxy_test_output_processes_and_threads.txt',
+                'r',
+                encoding='utf-8',
             ) as f:
                 want = f.read()
             with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
@@ -763,7 +795,7 @@ site1.local:
             mock.call(
                 shortname='haproxy_telegraf_metrics',
                 description='Verify haproxy metrics are visible via telegraf subordinate',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate"',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate" -t 20',
             )
         ]
         nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)

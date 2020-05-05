@@ -193,3 +193,18 @@ class TestLibUtils(unittest.TestCase):
         self.assertEqual(want, utils.dns_servers('tests/unit/files/resolv.conf2'))
         want = []
         self.assertEqual(want, utils.dns_servers('tests/unit/files/resolv.conf-none'))
+
+    def test_package_version(self):
+        self.assertTrue(int(utils.package_version('apt').split('.')[0]) > 1)
+
+        with mock.patch('subprocess.check_output') as check_output:
+            check_output.return_value = '1.8.8-1ubuntu0.10'
+            self.assertEqual(utils.package_version('haproxy'), '1.8.8-1ubuntu0.10')
+
+            check_output.return_value = '2.0.13-2'
+            self.assertEqual(utils.package_version('haproxy'), '2.0.13-2')
+
+            check_output.return_value = ''
+            self.assertEqual(utils.package_version('haproxy'), None)
+
+        self.assertEqual(utils.package_version('some-package-doesnt-exist'), None)

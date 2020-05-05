@@ -305,15 +305,13 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         hookenv.log("Closing obsolete port: {}".format(obsolete_port))
         hookenv.close_port(obsolete_port)
 
-    if haproxy.monitoring_password:
-        rendered_config = haproxy.render(
-            new_conf, monitoring_password=haproxy.monitoring_password, tls_cipher_suites=config.get('tls_cipher_suites')
-        )
-    else:
-        rendered_config = haproxy.render(
-            new_conf, monitoring_password=host.pwgen(length=20), tls_cipher_suites=config.get('tls_cipher_suites')
-        )
-
+    monitoring_password = haproxy.monitoring_password
+    if not monitoring_password:
+        monitoring_password = host.pwgen(length=20)
+    num_procs = config.get('haproxy_processes')
+    num_threads = config.get('haproxy_threads')
+    tls_cipher_suites = config.get('tls_cipher_suites')
+    rendered_config = haproxy.render(new_conf, num_procs, num_threads, monitoring_password, tls_cipher_suites)
     if haproxy.write(rendered_config):
         reactive.set_flag('content_cache.haproxy.reload-required')
 
@@ -428,6 +426,13 @@ def configure_nagios():
                     shortname=check_name, description='{} backend proxy check'.format(site), check_cmd=cmd
                 )
 
+    # Ensure we don't have lingering HAProxy processes around - LP:1828496
+    num_procs = config.get('haproxy_processes', 0) + 2
+    check_name = 'haproxy_procs'
+    description = 'HAProxy process count'
+    cmd = '/usr/lib/nagios/plugins/check_procs -c{} -w{} -C haproxy'.format(num_procs, num_procs)
+    nrpe_setup.add_check(shortname=check_name, description=description, check_cmd=cmd)
+
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe.configured')
 
@@ -490,7 +495,9 @@ def advertise_stats_endpoint():
 @reactive.when_not('nagios-nrpe-telegraf.configured')
 def check_haproxy_alerts():
     nrpe_setup = nrpe.NRPE(hostname=nrpe.get_nagios_hostname(), primary=True)
-    cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate"'
+    # Because check_http is really inefficient, the parsing of the metrics is quite slow
+    # hence increasing the timeout to 20 seconds
+    cmd = '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -p 9103 -u /metrics -r "haproxy_rate" -t 20'
     nrpe_setup.add_check(
         shortname='haproxy_telegraf_metrics',
         description='Verify haproxy metrics are visible via telegraf subordinate',

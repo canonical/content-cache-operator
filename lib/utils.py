@@ -6,7 +6,6 @@ import re
 import shutil
 import subprocess
 
-
 BASE_CACHE_PORT = 6080
 BASE_BACKEND_PORT = 8080
 BACKEND_PORT_LIMIT = 61000  # sysctl net.ipv4.ip_local_port_range
@@ -208,3 +207,14 @@ def dns_servers(resolvconf_file='/etc/resolv.conf'):
         if t[0] == 'nameserver':
             servers.append(t[1])
     return servers
+
+
+def package_version(package):
+    cmd = ['dpkg-query', '--show', r'--showformat=${Version}\n', package]
+    try:
+        version = subprocess.check_output(cmd, universal_newlines=True).strip()
+    except subprocess.CalledProcessError:
+        return None
+    if not version:
+        return None
+    return version

@@ -4,6 +4,7 @@ import os
 import re
 
 import jinja2
+from distutils.version import LooseVersion
 
 from lib import utils
 
@@ -144,7 +145,9 @@ listen {name}
             tls_config = ''
             if tls_cert_bundle_paths:
                 paths = sorted(set(tls_cert_bundle_paths))
-                tls_config = ' ssl {}'.format(' '.join(['crt {}'.format(path) for path in paths]))
+                certs = ' '.join(['crt {}'.format(path) for path in paths])
+                alpn_protos = 'h2,http/1.1'
+                tls_config = ' ssl {} alpn {}'.format(certs, alpn_protos)
 
             if len(backend_config) == 1 and not redirect_http_to_https:
                 backend_config = ['{indent}default_backend backend-{backend}\n'.format(backend=name, indent=INDENT)]
@@ -254,9 +257,23 @@ backend backend-{name}
 
         return rendered_output
 
-    def render(self, config, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
-        if not num_threads:
+    def _calculate_num_procs_threads(self, num_procs, num_threads):
+        if num_procs and num_threads:
+            ver = utils.package_version('haproxy')
+            # With HAProxy 2, nbproc and nbthreads are mutually exclusive.
+            if LooseVersion(ver) >= LooseVersion('2'):
+                num_threads = num_procs * num_threads
+                num_procs = 0
+        elif not num_procs and not num_threads:
             num_threads = multiprocessing.cpu_count()
+        if not num_procs:
+            num_procs = 0
+        if not num_threads:
+            num_threads = 0
+        return (num_procs, num_threads)
+
+    def render(self, config, num_procs=None, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
+        (num_procs, num_threads) = self._calculate_num_procs_threads(num_procs, num_threads)
 
         listen_stanzas = self.render_stanza_listen(config)
 
@@ -284,6 +301,7 @@ backend backend-{name}
                 'listen': listen_stanzas,
                 'max_connections': max_connections,
                 'monitoring_password': monitoring_password or self.monitoring_password,
+                'num_procs': num_procs,
                 'num_threads': num_threads,
                 'tls_cipher_suites': tls_cipher_suites,
             }

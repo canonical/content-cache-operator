@@ -10,6 +10,10 @@ global
 	group haproxy
 	daemon
 
+	# LP#1874386: Work around lingering HAProxy processes as per LP:1874386
+	# and kill them off after 15mins.
+	hard-stop-after 15m
+
 	# Default SSL material locations
 	ca-base /etc/ssl/certs
 	crt-base /etc/ssl/private
@@ -76,8 +80,8 @@ listen redirect-site1-local
     redirect scheme https code 301 if { hdr(Host) -i site1.local } !{ ssl_fc }
 
 listen cached-site1-local
-    bind 0.0.0.0:443 ssl crt /var/lib/haproxy/certs
-    bind :::443 ssl crt /var/lib/haproxy/certs
+    bind 0.0.0.0:443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
+    bind :::443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
     default_backend backend-cached-site1-local
 
 listen site1-local

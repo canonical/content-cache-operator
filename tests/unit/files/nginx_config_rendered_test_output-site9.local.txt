@@ -10,6 +10,12 @@ server {
     location / {
         proxy_pass http://localhost:8089;
         proxy_set_header Host "site9.local";
+        # Removed the following headers to avoid cache poisoning.
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Forwarded-Host "";
+        proxy_set_header X-Forwarded-Port "";
+        proxy_set_header X-Forwarded-Scheme "";
+
         add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
         proxy_force_ranges off;
         proxy_cache 8facdb232d5b-cache;
@@ -18,7 +24,8 @@ server {
         proxy_cache_min_uses 1;
         proxy_cache_revalidate on;
         proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
-        proxy_cache_valid 200 1d;
+        proxy_cache_valid 200 1h;
+        proxy_cache_valid 401 30m;
     }
 
 

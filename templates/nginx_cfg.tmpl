@@ -13,12 +13,24 @@ server {
 {%- if conf['backend'] %}
         proxy_pass {{conf['backend']}};
         proxy_set_header Host "{{site_name}}";
+        # Removed the following headers to avoid cache poisoning.
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Forwarded-Host "";
+        proxy_set_header X-Forwarded-Port "";
+        proxy_set_header X-Forwarded-Scheme "";
+
         add_header X-Cache-Status "$upstream_cache_status from {{juju_unit}}";
         proxy_force_ranges {{conf['force_ranges']}};
         proxy_cache {{keys_zone}};
-{%- for key, value in conf.items() -%}
+{%- for key, value in conf.items()|sort(attribute='0') -%}
 {%- if key.startswith('cache-') and value != 'None' %}
+        {%- if key == 'cache-valid' %}
+            {%- for cache_valid in value %}
+        proxy_cache_valid {{cache_valid}};
+            {%- endfor -%}
+        {%- else %}
         proxy_{{key|replace("-", "_")}} {{value}};
+        {%- endif %}
 {%- endif %}
 {%- endfor -%}
 {%- endif %}
