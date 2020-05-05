@@ -97,7 +97,6 @@ class TestLibHAProxy(unittest.TestCase):
         output = 'tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output2.txt'
         with open(output, 'r', encoding='utf-8') as f:
             want = f.read()
-        print(haproxy.render_stanza_listen(config))
         self.assertEqual(''.join(haproxy.render_stanza_listen(config)), want)
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
@@ -114,6 +113,18 @@ class TestLibHAProxy(unittest.TestCase):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = self.site_config
         output = 'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output.txt'
+        with open(output, 'r', encoding='utf-8') as f:
+            want = f.read()
+        self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
+
+    def test_haproxy_config_rendered_backend_stanzas_use_dns(self):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+        config = {
+            'site1.local': {
+                'locations': {'/': {'backends': ['archive.ubuntu.com:80']}}
+            }
+        }
+        output = 'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output2.txt'
         with open(output, 'r', encoding='utf-8') as f:
             want = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)

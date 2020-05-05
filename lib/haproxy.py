@@ -163,7 +163,7 @@ listen {name}
 
         return rendered_output
 
-    def render_stanza_backend(self, config):
+    def render_stanza_backend(self, config):  # NOQA: C901
         backend_stanza = """
 backend backend-{name}
 {options}{indent}{httpchk}
@@ -208,11 +208,17 @@ backend backend-{name}
                     count += 1
 
                     name = 'server_{}'.format(count)
+                    use_resolvers = ''
+                    try:
+                        utils.ip_addr_port_split(backend)
+                    except utils.InvalidAddressPortError:
+                        use_resolvers = ' resolvers dns init-addr none'
                     backend_confs.append(
-                        '{indent}server {name} {backend} check inter {inter_time} rise 2 fall 5 '
+                        '{indent}server {name} {backend}{use_resolvers} check inter {inter_time} rise 2 fall 5 '
                         'maxconn {maxconn}{tls}'.format(
                             name=name,
                             backend=backend,
+                            use_resolvers=use_resolvers,
                             inter_time=inter_time,
                             maxconn=maxconn,
                             tls=tls_config,
