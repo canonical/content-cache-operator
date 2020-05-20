@@ -549,18 +549,6 @@ site1.local:
 
         want = [
             mock.call(
-                shortname='site_site2_local_no_tls_1',
-                description='site2.local confirm obsolete TLS v1 denied',
-                check_cmd='/usr/lib/nagios/plugins/negate /usr/lib/nagios/plugins/check_http -I 127.0.0.1'
-                ' -H site2.local -p 443 --ssl=1 --sni -j GET -u /check/',
-            ),
-            mock.call(
-                shortname='site_site2_local_no_tls_1_1',
-                description='site2.local confirm obsolete TLS v1.1 denied',
-                check_cmd='/usr/lib/nagios/plugins/negate /usr/lib/nagios/plugins/check_http -I 127.0.0.1'
-                ' -H site2.local -p 443 --ssl=1.1 --sni -j GET -u /check/',
-            ),
-            mock.call(
                 shortname='site_site2_local_listen',
                 description='site2.local site listen check',
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 --ssl=1.2 --sni'
@@ -577,18 +565,6 @@ site1.local:
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 8081 -j GET -u /check/',
             ),
             mock.call(
-                shortname='site_site2_local_my_local_content_no_tls_1',
-                description='site2.local confirm obsolete TLS v1 denied',
-                check_cmd='/usr/lib/nagios/plugins/negate /usr/lib/nagios/plugins/check_http -I 127.0.0.1'
-                ' -H site2.local -p 443 --ssl=1 --sni -j HEAD -u /my-local-content/',
-            ),
-            mock.call(
-                shortname='site_site2_local_my_local_content_no_tls_1_1',
-                description='site2.local confirm obsolete TLS v1.1 denied',
-                check_cmd='/usr/lib/nagios/plugins/negate /usr/lib/nagios/plugins/check_http -I 127.0.0.1'
-                ' -H site2.local -p 443 --ssl=1.1 --sni -j HEAD -u /my-local-content/',
-            ),
-            mock.call(
                 shortname='site_site2_local_my_local_content_listen',
                 description='site2.local site listen check',
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 --ssl=1.2'
@@ -599,18 +575,6 @@ site1.local:
                 description='site2.local cache check',
                 check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 6081 -j HEAD'
                 ' -u /my-local-content/',
-            ),
-            mock.call(
-                shortname='site_site2_local_my_local_content2_no_tls_1',
-                description='site2.local confirm obsolete TLS v1 denied',
-                check_cmd='/usr/lib/nagios/plugins/negate /usr/lib/nagios/plugins/check_http -I 127.0.0.1'
-                ' -H site2.local -p 443 --ssl=1 --sni -j HEAD -u /my-local-content2/',
-            ),
-            mock.call(
-                shortname='site_site2_local_my_local_content2_no_tls_1_1',
-                description='site2.local confirm obsolete TLS v1.1 denied',
-                check_cmd='/usr/lib/nagios/plugins/negate /usr/lib/nagios/plugins/check_http -I 127.0.0.1'
-                ' -H site2.local -p 443 --ssl=1.1 --sni -j HEAD -u /my-local-content2/',
             ),
             mock.call(
                 shortname='site_site2_local_my_local_content2_listen',
