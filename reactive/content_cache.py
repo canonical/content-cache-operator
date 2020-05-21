@@ -165,7 +165,7 @@ def configure_nginx(conf_path=None):
         conf['enable_prometheus_metrics'] = enable_prometheus_metrics
 
         if ngx_conf.write_site(site, ngx_conf.render(conf)):
-            hookenv.log('Wrote out new configs for site: {}'.format(site))
+            hookenv.log('Wrote out new configs for site: {}:{}'.format(site, conf['listen_port']))
             changed = True
 
     if configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
@@ -362,31 +362,6 @@ def configure_nagios():
                 token = '?token={}'.format(utils.generate_token(signed_url_hmac_key, path, expiry_time))
 
             nagios_name = '{}-{}'.format(site, location)
-
-            if tls:
-                # Negative Listen/frontend checks to alert on obsolete TLS versions
-                for tlsrev in ('1', '1.1'):
-                    check_name = utils.generate_nagios_check_name(
-                        nagios_name, 'site', 'no_tls_{}'.format(tlsrev.replace('.', '_'))
-                    )
-                    cmd = (
-                        '/usr/lib/nagios/plugins/negate'
-                        ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
-                        ' -p {port} --ssl={tls} --sni -j {method} -u {path}{token}'.format(
-                            site_name=site_name,
-                            port=frontend_port,
-                            method=method,
-                            url=url,
-                            path=path,
-                            token=token,
-                            tls=tlsrev,
-                        )
-                    )
-                    nrpe_setup.add_check(
-                        shortname=check_name,
-                        description='{} confirm obsolete TLS v{} denied'.format(site, tlsrev),
-                        check_cmd=cmd,
-                    )
 
             # Listen / frontend check
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'listen')
