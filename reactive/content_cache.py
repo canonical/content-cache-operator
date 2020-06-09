@@ -341,12 +341,10 @@ def configure_nagios():
         cache_port = site_conf['cache_port']
 
         default_port = 80
-        url = 'http://{}'.format(site)
         tls_cert_bundle_path = site_conf.get('tls-cert-bundle-path')
         tls = ''
         if tls_cert_bundle_path:
             default_port = 443
-            url = 'https://{}'.format(site)
             tls = ' --ssl=1.2 --sni'
 
         frontend_port = site_conf.get('port') or default_port
@@ -368,7 +366,7 @@ def configure_nagios():
             cmd = (
                 '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
                 ' -p {port}{tls} -j {method} -u {path}{token}'.format(
-                    site_name=site_name, port=frontend_port, method=method, url=url, path=path, token=token, tls=tls
+                    site_name=site_name, port=frontend_port, method=method, path=path, token=token, tls=tls
                 )
             )
             if 'nagios-expect' in loc_conf:
@@ -380,7 +378,7 @@ def configure_nagios():
             cmd = (
                 '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
                 ' -p {cache_port} -j {method} -u {path}{token}'.format(
-                    site_name=site_name, cache_port=cache_port, method=method, url=url, path=path, token=token
+                    site_name=site_name, cache_port=cache_port, method=method, path=path, token=token
                 )
             )
             if 'nagios-expect' in loc_conf:
@@ -394,7 +392,7 @@ def configure_nagios():
                 cmd = (
                     '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name} -p {backend_port}'
                     ' -j {method} -u {path}'.format(
-                        site_name=site_name, backend_port=backend_port, method=method, url=url, path=path
+                        site_name=site_name, backend_port=backend_port, method=method, path=path
                     )
                 )
                 nrpe_setup.add_check(
