@@ -1,7 +1,7 @@
 options:
   blacklist_ports:
     type: string
-    default: ""
+    default: "8094"
     description: >
       Comma-separated list of TCP port numbers to skip over when generating
       internal servers used between haproxy and nginx.  Used when a large
