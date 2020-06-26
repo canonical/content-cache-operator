@@ -2,6 +2,7 @@ import hashlib
 import multiprocessing
 import os
 import re
+import subprocess
 
 import jinja2
 from distutils.version import LooseVersion
@@ -15,9 +16,10 @@ TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 
 
 class HAProxyConf:
-    def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=0):
+    def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=0, hard_stop_after='5m'):
         self._conf_path = conf_path
         self.max_connections = int(max_connections)
+        self.hard_stop_after = hard_stop_after
 
     @property
     def conf_path(self):
@@ -264,6 +266,12 @@ backend backend-{name}
             num_procs = 0
         if not num_threads:
             num_threads = 0
+        # Assume 64-bit CPU so limit processes and threads to 64.
+        # https://discourse.haproxy.org/t/architectural-limitation-for-nbproc/5270
+        if num_procs > 64:
+            num_procs = 64
+        if num_threads > 64:
+            num_threads = 64
         return (num_procs, num_threads)
 
     def render(self, config, num_procs=None, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
@@ -291,6 +299,7 @@ backend backend-{name}
             {
                 'backend': self.render_stanza_backend(config),
                 'global_max_connections': global_max_connections,
+                'hard_stop_after': self.hard_stop_after,
                 'listen': listen_stanzas,
                 'max_connections': max_connections,
                 'monitoring_password': monitoring_password or self.monitoring_password,
@@ -312,3 +321,22 @@ backend backend-{name}
         with open(self.conf_file, 'w', encoding='utf-8') as f:
             f.write(content)
         return True
+
+    def get_parent_pid(self, pidfile='/run/haproxy.pid'):
+        if not os.path.exists(pidfile):
+            # No HAProxy process running, so return PID of init.
+            return 1
+        with open(pidfile) as f:
+            return int(f.readline().strip())
+
+    # HAProxy 2.x does this, but Bionic ships with HAProxy 1.8 so we need
+    # to still do this.
+    def increase_maxfds(self):
+        haproxy_pid = self.get_parent_pid()
+        haproxy_maxfds = utils.process_rlimits(haproxy_pid, 'NOFILE')
+
+        if haproxy_maxfds != 'unlimited' and self.max_connections > int(haproxy_maxfds):
+            subprocess.call(['prlimit', '--pid', haproxy_pid, '--nofile={}'.format(self.max_connections)])
+            return True
+
+        return False

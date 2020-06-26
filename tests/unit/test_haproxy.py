@@ -102,7 +102,6 @@ class TestLibHAProxy(unittest.TestCase):
         output = 'tests/unit/files/haproxy_config_rendered_listen_stanzas_test_output2.txt'
         with open(output, 'r', encoding='utf-8') as f:
             want = f.read()
-        print(haproxy.render_stanza_listen(config))
         self.assertEqual(''.join(haproxy.render_stanza_listen(config)), want)
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
@@ -125,7 +124,8 @@ class TestLibHAProxy(unittest.TestCase):
 
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('lib.utils.package_version')
-    def test_haproxy_config_rendered_full_config(self, package_version):
+    @mock.patch('lib.utils.process_rlimits')
+    def test_haproxy_config_rendered_full_config(self, process_rlimits, package_version):
         package_version.return_value = '1.8.8-1ubuntu0.10'
         haproxy = HAProxy.HAProxyConf(self.tmpdir, max_connections=5000)
         config = self.site_config
@@ -133,10 +133,20 @@ class TestLibHAProxy(unittest.TestCase):
         num_threads = 4
         tls_cipher_suites = 'ECDH+AESGCM:!aNULL:!MD5:!DSS'
         password = "biometricsarenotsecret"
+
+        process_rlimits.return_value = 'unlimited'
         self.assertTrue(haproxy.write(haproxy.render(config, num_procs, num_threads, password, tls_cipher_suites)))
         with open(haproxy.conf_file, 'r') as f:
             new_conf = f.read()
         with open('tests/unit/files/haproxy_config_rendered_test_output.txt', 'r') as f:
+            want = f.read()
+        self.assertEqual(new_conf, want)
+
+        process_rlimits.return_value = 16384
+        self.assertTrue(haproxy.write(haproxy.render(config, num_procs, num_threads, password, tls_cipher_suites)))
+        with open(haproxy.conf_file, 'r') as f:
+            new_conf = f.read()
+        with open('tests/unit/files/haproxy_config_rendered_test_output2.txt', 'r') as f:
             want = f.read()
         self.assertEqual(new_conf, want)
 
@@ -208,3 +218,37 @@ class TestLibHAProxy(unittest.TestCase):
         self.assertEqual(haproxy._calculate_num_procs_threads(None, 3), (0, 3))
         self.assertEqual(haproxy._calculate_num_procs_threads(3, None), (3, 0))
         self.assertEqual(haproxy._calculate_num_procs_threads(None, None), (0, 4))
+
+        # Max. threads and procs ceiling 64
+        package_version.return_value = '2.0.13-2'
+        self.assertEqual(haproxy._calculate_num_procs_threads(2, 100), (0, 64))
+        self.assertEqual(haproxy._calculate_num_procs_threads(100, 0), (64, 0))
+        self.assertEqual(haproxy._calculate_num_procs_threads(100, 100), (0, 64))
+
+    def test_get_parent_pid(self):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+        self.assertEqual(haproxy.get_parent_pid(pidfile='tests/unit/files/haproxy.pid'), 31337)
+        self.assertEqual(haproxy.get_parent_pid(pidfile='tests/unit/files/some-file-doesnt-exist.pid'), 1)
+
+    @mock.patch('lib.utils.process_rlimits')
+    @mock.patch('subprocess.call')
+    def test_increase_maxfds(self, call, process_rlimits):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+
+        call.reset_mock()
+        process_rlimits.return_value = '8192'
+        haproxy.max_connections = 16384
+        self.assertTrue(haproxy.increase_maxfds())
+        call.assert_called_with(['prlimit', '--pid', 1, '--nofile=16384'])
+
+        call.reset_mock()
+        process_rlimits.return_value = 'unlimited'
+        haproxy.max_connections = 16384
+        self.assertFalse(haproxy.increase_maxfds())
+        call.assert_not_called()
+
+        call.reset_mock()
+        process_rlimits.return_value = '1048576'
+        haproxy.max_connections = 16384
+        self.assertFalse(haproxy.increase_maxfds())
+        call.assert_not_called()

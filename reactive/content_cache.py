@@ -204,7 +204,9 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         status.blocked('requires list of sites to configure')
         return
 
-    haproxy = HAProxy.HAProxyConf(max_connections=config.get('max_connections', 0))
+    max_connections = config.get('max_connections', 0)
+    hard_stop_after = config.get('haproxy_hard_stop_after')
+    haproxy = HAProxy.HAProxyConf(max_connections=max_connections, hard_stop_after=hard_stop_after)
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     blacklist_ports = [int(x.strip()) for x in config.get('blacklist_ports', '').split(',') if x.strip()]
     sites = sites_from_config(config.get('sites'), sites_secrets, blacklist_ports=blacklist_ports)
@@ -244,7 +246,10 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         for location, loc_conf in site_conf.get('locations', {}).items():
             new_cached_loc_conf = {}
             new_cached_loc_conf['backends'] = ['127.0.0.1:{}'.format(cache_port)]
-            new_cached_loc_conf['backend-inter-time'] = loc_conf.get('backend-inter-time', '5000')
+            # For the caching layer here, we want the default, low,
+            # 2000ms no matter what. This is so it'll notice when the
+            # caching layer (nginx) is back up quicker.
+            new_cached_loc_conf['backend-inter-time'] = '2000'
             new_cached_loc_conf['backend-options'] = ['forwardfor']
 
             # No backends
@@ -313,6 +318,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
     tls_cipher_suites = config.get('tls_cipher_suites')
     rendered_config = haproxy.render(new_conf, num_procs, num_threads, monitoring_password, tls_cipher_suites)
     if haproxy.write(rendered_config):
+        haproxy.increase_maxfds()
         reactive.set_flag('content_cache.haproxy.reload-required')
 
     update_logrotate('haproxy', retention=config.get('log_retention'))
