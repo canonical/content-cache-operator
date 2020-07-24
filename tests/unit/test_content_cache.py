@@ -388,7 +388,7 @@ site1.local:
     def test_configure_haproxy_sites(self, logrotation, set_flag, opened_ports):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             config = f.read()
-        self.mock_config.return_value = {'max_connections': 8192, 'sites': config}
+        self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
 
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
@@ -416,7 +416,7 @@ site1.local:
       backends: ['192.168.1.1:8080']
   tls-cert-bundle-path: /var/lib/haproxy/certs
 '''
-        self.mock_config.return_value = {'max_connections': 8192, 'sites': config}
+        self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
             opened_ports.return_value = ['443/tcp']
@@ -442,7 +442,7 @@ site1.local:
   redirect-http-to-https: True
   tls-cert-bundle-path: /var/lib/haproxy/certs
 '''
-        self.mock_config.return_value = {'max_connections': 8192, 'sites': config}
+        self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
             opened_ports.return_value = ['443/tcp']
@@ -460,8 +460,8 @@ site1.local:
     @mock.patch('reactive.content_cache.update_logrotate')
     def test_configure_haproxy_sites_auto_maxconns(self, logrotation, set_flag, opened_ports):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
-            ngx_config = f.read()
-        self.mock_config.return_value = {'max_connections': 0, 'sites': ngx_config}
+            config = f.read()
+        self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 0, 'sites': config}
 
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
             mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
@@ -486,6 +486,7 @@ site1.local:
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {
+            'haproxy_hard_stop_after': '15m',
             'haproxy_processes': 3,
             'haproxy_threads': 10,
             'max_connections': 0,

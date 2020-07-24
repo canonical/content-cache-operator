@@ -204,7 +204,9 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         status.blocked('requires list of sites to configure')
         return
 
-    haproxy = HAProxy.HAProxyConf(max_connections=config.get('max_connections', 0))
+    max_connections = config.get('max_connections', 0)
+    hard_stop_after = config.get('haproxy_hard_stop_after')
+    haproxy = HAProxy.HAProxyConf(max_connections=max_connections, hard_stop_after=hard_stop_after)
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     blacklist_ports = [int(x.strip()) for x in config.get('blacklist_ports', '').split(',') if x.strip()]
     sites = sites_from_config(config.get('sites'), sites_secrets, blacklist_ports=blacklist_ports)
