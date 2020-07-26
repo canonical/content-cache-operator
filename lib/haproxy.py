@@ -2,6 +2,7 @@ import hashlib
 import multiprocessing
 import os
 import re
+import subprocess
 
 import jinja2
 from distutils.version import LooseVersion
@@ -314,3 +315,22 @@ backend backend-{name}
         with open(self.conf_file, 'w', encoding='utf-8') as f:
             f.write(content)
         return True
+
+    def get_parent_pid(self, pidfile='/run/haproxy.pid'):
+        if not os.path.exists(pidfile):
+            # No HAProxy process running, so return PID of init.
+            return 1
+        with open(pidfile) as f:
+            return int(f.readline().strip())
+
+    # HAProxy 2.x does this, but Bionic ships with HAProxy 1.8 so we need
+    # to still do this.
+    def increase_maxfds(self):
+        haproxy_pid = self.get_parent_pid()
+        haproxy_maxfds = utils.process_rlimits(haproxy_pid, 'NOFILE')
+
+        if haproxy_maxfds != 'unlimited' and self.max_connections > int(haproxy_maxfds):
+            subprocess.call(['prlimit', '--pid', haproxy_pid, '--nofile={}'.format(self.max_connections)])
+            return True
+
+        return False
