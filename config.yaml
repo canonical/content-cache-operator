@@ -31,6 +31,12 @@ options:
     description: >
       Export metrics for the number of requests and the number of cache hits.
       Prometheus metrics are exposed at /metrics on port 9145.
+  haproxy_hard_stop_after:
+    default: "5m"
+    type: string
+    description: >
+      Tune HAProxy's hard-stop-after to prevent lingering HAProxy processes
+      (LP:1874386).
   haproxy_processes:
     default: 0
     type: int

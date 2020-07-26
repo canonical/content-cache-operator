@@ -12,7 +12,7 @@ global
 	daemon
 
 	# LP#1874386: Work around lingering HAProxy processes as per LP:1874386
-	# and kill them off after 15mins.
+	# and kill them off.
 	hard-stop-after 15m
 
 	# Default SSL material locations

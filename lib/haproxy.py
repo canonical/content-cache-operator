@@ -15,9 +15,10 @@ TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 
 
 class HAProxyConf:
-    def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=0):
+    def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=0, hard_stop_after='5m'):
         self._conf_path = conf_path
         self.max_connections = int(max_connections)
+        self.hard_stop_after = hard_stop_after
 
     @property
     def conf_path(self):
@@ -291,6 +292,7 @@ backend backend-{name}
             {
                 'backend': self.render_stanza_backend(config),
                 'global_max_connections': global_max_connections,
+                'hard_stop_after': self.hard_stop_after,
                 'listen': listen_stanzas,
                 'max_connections': max_connections,
                 'monitoring_password': monitoring_password or self.monitoring_password,

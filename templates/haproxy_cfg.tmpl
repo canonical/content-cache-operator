@@ -16,8 +16,8 @@ global
 	daemon
 
 	# LP#1874386: Work around lingering HAProxy processes as per LP:1874386
-	# and kill them off after 15mins.
-	hard-stop-after 15m
+	# and kill them off.
+	hard-stop-after {{hard_stop_after}}
 
 	# Default SSL material locations
 	ca-base /etc/ssl/certs
