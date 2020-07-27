@@ -219,6 +219,12 @@ class TestLibHAProxy(unittest.TestCase):
         self.assertEqual(haproxy._calculate_num_procs_threads(3, None), (3, 0))
         self.assertEqual(haproxy._calculate_num_procs_threads(None, None), (0, 4))
 
+        # Max. threads and procs ceiling 64
+        package_version.return_value = '2.0.13-2'
+        self.assertEqual(haproxy._calculate_num_procs_threads(2, 100), (0, 64))
+        self.assertEqual(haproxy._calculate_num_procs_threads(100, 0), (64, 0))
+        self.assertEqual(haproxy._calculate_num_procs_threads(100, 100), (0, 64))
+
     def test_get_parent_pid(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         self.assertEqual(haproxy.get_parent_pid(pidfile='tests/unit/files/haproxy.pid'), 31337)
