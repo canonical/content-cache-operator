@@ -43,9 +43,9 @@ defaults
 	mode	http
 	option	httplog
 	option	dontlognull
-	timeout connect 5000
-	timeout client  50000
-	timeout server  50000
+	timeout connect 5s
+	timeout client  50s
+	timeout server  50s
 	errorfile 400 /etc/haproxy/errors/400.http
 	errorfile 403 /etc/haproxy/errors/403.http
 	errorfile 408 /etc/haproxy/errors/408.http
@@ -86,10 +86,10 @@ backend backend-cached-site1-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance leastconn
-    server server_1 127.0.0.1:6080 check inter 2000 rise 2 fall 5 maxconn 2048
+    server server_1 127.0.0.1:6080 check inter 2s rise 2 fall 5 maxconn 2048
 
 backend backend-site1-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance leastconn
-    server server_1 192.168.1.1:8080 check inter 5000 rise 2 fall 5 maxconn 2048
+    server server_1 192.168.1.1:8080 check inter 5s rise 2 fall 5 maxconn 2048
