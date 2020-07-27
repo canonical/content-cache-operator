@@ -268,10 +268,8 @@ backend backend-{name}
             num_threads = 0
         # Assume 64-bit CPU so limit processes and threads to 64.
         # https://discourse.haproxy.org/t/architectural-limitation-for-nbproc/5270
-        if num_procs > 64:
-            num_procs = 64
-        if num_threads > 64:
-            num_threads = 64
+        num_procs = min(64, num_procs)
+        num_threads = min(64, num_threads)
         return (num_procs, num_threads)
 
     def render(self, config, num_procs=None, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
