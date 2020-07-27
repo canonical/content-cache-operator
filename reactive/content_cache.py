@@ -246,7 +246,10 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         for location, loc_conf in site_conf.get('locations', {}).items():
             new_cached_loc_conf = {}
             new_cached_loc_conf['backends'] = ['127.0.0.1:{}'.format(cache_port)]
-            new_cached_loc_conf['backend-inter-time'] = loc_conf.get('backend-inter-time', '5000')
+            # For the caching layer here, we want the default, low,
+            # 2000ms no matter what. This is so it'll notice when the
+            # caching layer (nginx) is back up quicker.
+            new_cached_loc_conf['backend-inter-time'] = '2000'
             new_cached_loc_conf['backend-options'] = ['forwardfor']
 
             # No backends
