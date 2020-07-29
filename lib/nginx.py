@@ -24,14 +24,14 @@ PROXY_CACHE_DEFAULTS = {
 
 
 class NginxConf:
-    def __init__(self, conf_path=None, unit='content-cache', disable_cache_bg_update=False):
+    def __init__(self, conf_path=None, unit='content-cache', enable_cache_bg_update=True):
         if not conf_path:
             conf_path = NGINX_BASE_PATH
         self.unit = unit
 
         self._base_path = conf_path
         self._conf_path = os.path.join(self.base_path, 'conf.d')
-        self._disable_cache_bg_update = disable_cache_bg_update
+        self._enable_cache_bg_update = enable_cache_bg_update
         self._sites_path = os.path.join(self.base_path, 'sites-available')
 
         script_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -113,7 +113,7 @@ class NginxConf:
                         continue
                     lc.setdefault(cache_key, v)
 
-                if self._disable_cache_bg_update:
+                if not self._enable_cache_bg_update:
                     lc['cache-background-update'] = 'off'
                     lc['cache-use-stale'] = lc['cache-use-stale'].replace('updating ', '')
 

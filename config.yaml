@@ -25,14 +25,14 @@ options:
     default: "/var/lib/nginx/proxy"
     description: >
       Path or directory to store cached objects.
-  disable_cache_background_update:
-    default: false
+  enable_cache_background_update:
+    default: true
     type: boolean
     description: >
       Default is to enable serving contents from the cache with a
       background subrequest to update objects in cache. This works for
       large objects, but can cause issues with sites updated recently
-      to redirects that still have objects in the cache.
+      to redirect and still have objects in the cache.
   enable_prometheus_metrics:
     default: true
     type: boolean
