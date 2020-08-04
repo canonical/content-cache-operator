@@ -227,6 +227,10 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         cached_site = 'cached-{}'.format(site)
         new_conf[cached_site] = {'site-name': site_conf.get('site-name') or site, 'locations': {}}
 
+        default_site = site_conf.get('default')
+        if default_site:
+            new_conf[cached_site]['default'] = default_site
+
         default_port = 80
         tls_cert_bundle_path = site_conf.get('tls-cert-bundle-path')
         if tls_cert_bundle_path:

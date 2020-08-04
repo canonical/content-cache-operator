@@ -77,6 +77,9 @@ class HAProxyConf:
                     # We use a different flag/config here so it's only enabled
                     # on the HTTP, and not the HTTPS, stanza.
                     new['0.0.0.0:80'][site_name] = {'enable-redirect-http-to-https': True}
+                    if 'default' in config[site]:
+                        new['0.0.0.0:80'][site_name]['default'] = config[site]['default']
+
             port = config[site].get('port', default_port)
             name = '{}:{}'.format(listen_address, port)
             new.setdefault(name, {})
@@ -98,11 +101,11 @@ class HAProxyConf:
                         new[name][new_site]['port'] = port
         return new
 
-    def render_stanza_listen(self, config):
+    def render_stanza_listen(self, config):  # NOQA: C901
         listen_stanza = """
 listen {name}
 {bind_config}
-{backend_config}"""
+{backend_config}{default_backend}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
         redirect_conf = '{indent}redirect scheme https code 301 if {{ hdr(Host) -i {site_name} }} !{{ ssl_fc }}\n'
 
@@ -116,10 +119,12 @@ listen {name}
             (address, port) = utils.ip_addr_port_split(address_port)
 
             backend_config = []
+            default_backend = ''
             tls_cert_bundle_paths = []
             redirect_http_to_https = False
             for site, site_conf in config[address_port].items():
                 site_name = site_conf.get('site-name', site)
+                default_site = site_conf.get('default', False)
                 redirect_http_to_https = site_conf.get('enable-redirect-http-to-https', False)
 
                 if len(config[address_port].keys()) == 1:
@@ -138,11 +143,19 @@ listen {name}
                 # HTTP -> HTTPS redirect
                 if redirect_http_to_https:
                     backend_config.append(redirect_conf.format(site_name=site_name, indent=INDENT))
+                    if default_site:
+                        default_backend = "{indent}redirect prefix https://{site_name}\n".format(
+                            site_name=site_name, indent=INDENT
+                        )
                 else:
                     backend_name = self._generate_stanza_name(
                         site_conf.get('locations', {}).get('backend-name') or site
                     )
                     backend_config.append(backend_conf.format(backend=backend_name, site_name=site_name, indent=INDENT))
+                    if default_site:
+                        default_backend = "{indent}default_backend backend-{backend}\n".format(
+                            backend=backend_name, indent=INDENT
+                        )
 
             tls_config = ''
             if tls_cert_bundle_paths:
@@ -151,8 +164,15 @@ listen {name}
                 alpn_protos = 'h2,http/1.1'
                 tls_config = ' ssl {} alpn {}'.format(certs, alpn_protos)
 
-            if len(backend_config) == 1 and not redirect_http_to_https:
-                backend_config = ['{indent}default_backend backend-{backend}\n'.format(backend=name, indent=INDENT)]
+            if len(backend_config) == 1:
+                if redirect_http_to_https:
+                    backend_config = []
+                    default_backend = "{indent}redirect prefix https://{site_name}\n".format(
+                        site_name=site_name, indent=INDENT
+                    )
+                else:
+                    backend_config = []
+                    default_backend = "{indent}default_backend backend-{backend}\n".format(backend=name, indent=INDENT)
 
             bind_config = '{indent}bind {address_port}{tls}'.format(
                 address_port=address_port, tls=tls_config, indent=INDENT
@@ -162,7 +182,11 @@ listen {name}
                 bind_config += '\n{indent}bind :::{port}{tls}'.format(port=port, tls=tls_config, indent=INDENT)
 
             output = listen_stanza.format(
-                name=name, backend_config=''.join(backend_config), bind_config=bind_config, indent=INDENT,
+                name=name,
+                backend_config=''.join(backend_config),
+                bind_config=bind_config,
+                default_backend=default_backend,
+                indent=INDENT,
             )
             rendered_output.append(output)
 
