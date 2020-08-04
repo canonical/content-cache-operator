@@ -357,8 +357,9 @@ backend backend-{name}
         haproxy_pid = self.get_parent_pid()
         haproxy_maxfds = utils.process_rlimits(haproxy_pid, 'NOFILE')
 
-        if haproxy_maxfds != 'unlimited' and self.max_connections > int(haproxy_maxfds):
-            subprocess.call(['prlimit', '--pid', haproxy_pid, '--nofile={}'.format(self.max_connections)])
+        if haproxy_maxfds and haproxy_maxfds != 'unlimited' and int(self.max_connections) > int(haproxy_maxfds):
+            cmd = ['prlimit', '--pid', str(haproxy_pid), '--nofile={}'.format(str(self.max_connections))]
+            subprocess.call(cmd, stdout=subprocess.DEVNULL)
             return True
 
         return False
