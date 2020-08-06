@@ -105,7 +105,7 @@ class HAProxyConf:
         listen_stanza = """
 listen {name}
 {bind_config}
-{backend_config}{default_backend}"""
+{redirect_config}{backend_config}{default_backend}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
         redirect_conf = '{indent}redirect scheme https code 301 if {{ hdr(Host) -i {site_name} }} !{{ ssl_fc }}\n'
 
@@ -120,6 +120,7 @@ listen {name}
 
             backend_config = []
             default_backend = ''
+            redirect_config = []
             tls_cert_bundle_paths = []
             redirect_http_to_https = False
             for site, site_conf in config[address_port].items():
@@ -142,7 +143,7 @@ listen {name}
 
                 # HTTP -> HTTPS redirect
                 if redirect_http_to_https:
-                    backend_config.append(redirect_conf.format(site_name=site_name, indent=INDENT))
+                    redirect_config.append(redirect_conf.format(site_name=site_name, indent=INDENT))
                     if default_site:
                         default_backend = "{indent}redirect prefix https://{site_name}\n".format(
                             site_name=site_name, indent=INDENT
@@ -164,9 +165,9 @@ listen {name}
                 alpn_protos = 'h2,http/1.1'
                 tls_config = ' ssl {} alpn {}'.format(certs, alpn_protos)
 
-            if len(backend_config) == 1:
+            if len(backend_config) + len(redirect_config) == 1:
                 if redirect_http_to_https:
-                    backend_config = []
+                    redirect_config = []
                     default_backend = "{indent}redirect prefix https://{site_name}\n".format(
                         site_name=site_name, indent=INDENT
                     )
@@ -183,7 +184,9 @@ listen {name}
 
             # Redirects are always processed before use_backends so we
             # need to convert default redirect sites to a backend.
-            if len(backend_config) > 1 and default_backend.startswith("{indent}redirect prefix".format(indent=INDENT)):
+            if len(backend_config) + len(redirect_config) > 1 and default_backend.startswith(
+                "{indent}redirect prefix".format(indent=INDENT)
+            ):
                 backend_name = self._generate_stanza_name("default-redirect-{}".format(name), exclude=stanza_names)
                 output = "backend {}\n".format(backend_name) + default_backend
                 default_backend = "{indent}default_backend {backend_name}\n".format(
@@ -197,6 +200,7 @@ listen {name}
                 backend_config=''.join(backend_config),
                 bind_config=bind_config,
                 default_backend=default_backend,
+                redirect_config=''.join(redirect_config),
                 indent=INDENT,
             )
             rendered_output.append(output)
