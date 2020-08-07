@@ -181,6 +181,17 @@ listen {name}
             if address == '0.0.0.0':
                 bind_config += '\n{indent}bind :::{port}{tls}'.format(port=port, tls=tls_config, indent=INDENT)
 
+            # Redirects are always processed before use_backends so we
+            # need to convert default redirect sites to a backend.
+            if len(backend_config) > 1 and default_backend.startswith("{indent}redirect prefix".format(indent=INDENT)):
+                backend_name = self._generate_stanza_name("default-redirect-{}".format(name), exclude=stanza_names)
+                output = "backend {}\n".format(backend_name) + default_backend
+                default_backend = "{indent}default_backend {backend_name}\n".format(
+                    backend_name=backend_name, indent=INDENT
+                )
+                rendered_output.append(output)
+                stanza_names.append(backend_name)
+
             output = listen_stanza.format(
                 name=name,
                 backend_config=''.join(backend_config),
