@@ -186,6 +186,14 @@ class TestLibUtils(unittest.TestCase):
 
         self.assertEqual(None, utils.process_rlimits(1, 'NOMATCH'))
 
+    def test_dns_servers(self):
+        want = ['127.0.0.53']
+        self.assertEqual(want, utils.dns_servers('tests/unit/files/resolv.conf'))
+        want = ['127.0.0.53', '127.0.0.153']
+        self.assertEqual(want, utils.dns_servers('tests/unit/files/resolv.conf2'))
+        want = []
+        self.assertEqual(want, utils.dns_servers('tests/unit/files/resolv.conf-none'))
+
     def test_package_version(self):
         self.assertTrue(int(utils.package_version('apt').split('.')[0]) > 1)
 

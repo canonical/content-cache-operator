@@ -70,6 +70,11 @@ class TestCharm(unittest.TestCase):
         self.mock_close_port = patcher.start()
         self.addCleanup(patcher.stop)
 
+        patcher = mock.patch('lib.utils.dns_servers')
+        self.mock_dns_servers = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.mock_dns_servers.return_value = ['127.0.0.53']
+
         patcher = mock.patch('multiprocessing.cpu_count')
         self.mock_cpu_count = patcher.start()
         self.addCleanup(patcher.stop)

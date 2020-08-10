@@ -196,6 +196,19 @@ def process_rlimits(pid, res, limits_file=None):
     return None
 
 
+def dns_servers(resolvconf_file='/etc/resolv.conf'):
+    servers = []
+    with open(resolvconf_file, 'r', encoding='utf-8') as f:
+        resolvconf = f.read()
+    for line in resolvconf.split('\n'):
+        t = line.split()
+        if not t:
+            continue
+        if t[0] == 'nameserver':
+            servers.append(t[1])
+    return servers
+
+
 def package_version(package):
     cmd = ['dpkg-query', '--show', r'--showformat=${Version}\n', package]
     try:
