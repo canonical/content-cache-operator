@@ -2,8 +2,8 @@
 listen combined-80
     bind 0.0.0.0:80
     bind :::80
-    use_backend backend-site1-local if { hdr(Host) -i site1.local }
     redirect scheme https code 301 if { hdr(Host) -i site2.local } !{ ssl_fc }
+    use_backend backend-site1-local if { hdr(Host) -i site1.local }
     use_backend backend-site3-local if { hdr(Host) -i site3.local }
     use_backend backend-site4-local if { hdr(Host) -i site4.local }
     use_backend backend-site5 if { hdr(Host) -i site5.local }

@@ -71,8 +71,8 @@ listen  stats
 listen combined-80
     bind 0.0.0.0:80
     bind :::80
-    use_backend backend-cached-site1-local if { hdr(Host) -i site1.local }
     redirect scheme https code 301 if { hdr(Host) -i site2.local } !{ ssl_fc }
+    use_backend backend-cached-site1-local if { hdr(Host) -i site1.local }
     use_backend backend-cached-site3-local if { hdr(Host) -i site3.local }
     use_backend backend-cached-site4-local if { hdr(Host) -i site4.local }
     use_backend backend-cached-site5 if { hdr(Host) -i site5.local }
