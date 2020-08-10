@@ -16,8 +16,8 @@ global
 	daemon
 
 	# LP#1874386: Work around lingering HAProxy processes as per LP:1874386
-	# and kill them off after 15mins.
-	hard-stop-after 15m
+	# and kill them off.
+	hard-stop-after {{hard_stop_after}}
 
 	# Default SSL material locations
 	ca-base /etc/ssl/certs
@@ -48,9 +48,9 @@ defaults
 	mode	http
 	option	httplog
 	option	dontlognull
-	timeout connect 5000
-	timeout client  50000
-	timeout server  50000
+	timeout connect 5s
+	timeout client  50s
+	timeout server  50s
 	errorfile 400 /etc/haproxy/errors/400.http
 	errorfile 403 /etc/haproxy/errors/403.http
 	errorfile 408 /etc/haproxy/errors/408.http

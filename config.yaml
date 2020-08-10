@@ -1,7 +1,7 @@
 options:
   blacklist_ports:
     type: string
-    default: ""
+    default: "8094"
     description: >
       Comma-separated list of TCP port numbers to skip over when generating
       internal servers used between haproxy and nginx.  Used when a large
@@ -25,28 +25,42 @@ options:
     default: "/var/lib/nginx/proxy"
     description: >
       Path or directory to store cached objects.
+  enable_cache_background_update:
+    default: true
+    type: boolean
+    description: >
+      Default is to enable serving contents from the cache with a
+      background subrequest to update objects in cache. This works for
+      large objects, but can cause issues with sites updated recently
+      to redirect and still have objects in the cache.
   enable_prometheus_metrics:
     default: true
     type: boolean
     description: >
       Export metrics for the number of requests and the number of cache hits.
       Prometheus metrics are exposed at /metrics on port 9145.
+  haproxy_hard_stop_after:
+    default: "5m"
+    type: string
+    description: >
+      Tune HAProxy's hard-stop-after to prevent lingering HAProxy processes
+      (LP:1874386).
   haproxy_processes:
     default: 0
     type: int
     description: >
       Sets the number of HAProxy processes. If both processs and
       threads specified and using HAProxy 2.x and above, the number of
-      HAProxy threadsd will be configured using processes multiplied
-      by threads.
+      HAProxy threads will be configured using processes multiplied
+      by threads (max. 64).
   haproxy_threads:
     default: 0
     type: int
     description: >
       Sets the number of HAProxy threads. If both processs and
       threads specified and using HAProxy 2.x and above, the number of
-      HAProxy threadsd will be configured using processes multiplied
-      by threads.
+      HAProxy threads will be configured using processes multiplied
+      by threads (max. 64).
   log_retention:
     type: int
     default: 30

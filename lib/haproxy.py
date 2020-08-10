@@ -2,6 +2,7 @@ import hashlib
 import multiprocessing
 import os
 import re
+import subprocess
 
 import jinja2
 from distutils.version import LooseVersion
@@ -15,9 +16,10 @@ TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 
 
 class HAProxyConf:
-    def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=0):
+    def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=0, hard_stop_after='5m'):
         self._conf_path = conf_path
         self.max_connections = int(max_connections)
+        self.hard_stop_after = hard_stop_after
 
     @property
     def conf_path(self):
@@ -75,6 +77,9 @@ class HAProxyConf:
                     # We use a different flag/config here so it's only enabled
                     # on the HTTP, and not the HTTPS, stanza.
                     new['0.0.0.0:80'][site_name] = {'enable-redirect-http-to-https': True}
+                    if 'default' in config[site]:
+                        new['0.0.0.0:80'][site_name]['default'] = config[site]['default']
+
             port = config[site].get('port', default_port)
             name = '{}:{}'.format(listen_address, port)
             new.setdefault(name, {})
@@ -96,11 +101,11 @@ class HAProxyConf:
                         new[name][new_site]['port'] = port
         return new
 
-    def render_stanza_listen(self, config):
+    def render_stanza_listen(self, config):  # NOQA: C901
         listen_stanza = """
 listen {name}
 {bind_config}
-{backend_config}"""
+{redirect_config}{backend_config}{default_backend}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
         redirect_conf = '{indent}redirect scheme https code 301 if {{ hdr(Host) -i {site_name} }} !{{ ssl_fc }}\n'
 
@@ -114,10 +119,13 @@ listen {name}
             (address, port) = utils.ip_addr_port_split(address_port)
 
             backend_config = []
+            default_backend = ''
+            redirect_config = []
             tls_cert_bundle_paths = []
             redirect_http_to_https = False
             for site, site_conf in config[address_port].items():
                 site_name = site_conf.get('site-name', site)
+                default_site = site_conf.get('default', False)
                 redirect_http_to_https = site_conf.get('enable-redirect-http-to-https', False)
 
                 if len(config[address_port].keys()) == 1:
@@ -135,12 +143,20 @@ listen {name}
 
                 # HTTP -> HTTPS redirect
                 if redirect_http_to_https:
-                    backend_config.append(redirect_conf.format(site_name=site_name, indent=INDENT))
+                    redirect_config.append(redirect_conf.format(site_name=site_name, indent=INDENT))
+                    if default_site:
+                        default_backend = "{indent}redirect prefix https://{site_name}\n".format(
+                            site_name=site_name, indent=INDENT
+                        )
                 else:
                     backend_name = self._generate_stanza_name(
                         site_conf.get('locations', {}).get('backend-name') or site
                     )
                     backend_config.append(backend_conf.format(backend=backend_name, site_name=site_name, indent=INDENT))
+                    if default_site:
+                        default_backend = "{indent}default_backend backend-{backend}\n".format(
+                            backend=backend_name, indent=INDENT
+                        )
 
             tls_config = ''
             if tls_cert_bundle_paths:
@@ -149,8 +165,15 @@ listen {name}
                 alpn_protos = 'h2,http/1.1'
                 tls_config = ' ssl {} alpn {}'.format(certs, alpn_protos)
 
-            if len(backend_config) == 1 and not redirect_http_to_https:
-                backend_config = ['{indent}default_backend backend-{backend}\n'.format(backend=name, indent=INDENT)]
+            if len(backend_config) + len(redirect_config) == 1:
+                if redirect_http_to_https:
+                    redirect_config = []
+                    default_backend = "{indent}redirect prefix https://{site_name}\n".format(
+                        site_name=site_name, indent=INDENT
+                    )
+                else:
+                    backend_config = []
+                    default_backend = "{indent}default_backend backend-{backend}\n".format(backend=name, indent=INDENT)
 
             bind_config = '{indent}bind {address_port}{tls}'.format(
                 address_port=address_port, tls=tls_config, indent=INDENT
@@ -159,8 +182,26 @@ listen {name}
             if address == '0.0.0.0':
                 bind_config += '\n{indent}bind :::{port}{tls}'.format(port=port, tls=tls_config, indent=INDENT)
 
+            # Redirects are always processed before use_backends so we
+            # need to convert default redirect sites to a backend.
+            if len(backend_config) + len(redirect_config) > 1 and default_backend.startswith(
+                "{indent}redirect prefix".format(indent=INDENT)
+            ):
+                backend_name = self._generate_stanza_name("default-redirect-{}".format(name), exclude=stanza_names)
+                output = "backend {}\n".format(backend_name) + default_backend
+                default_backend = "{indent}default_backend {backend_name}\n".format(
+                    backend_name=backend_name, indent=INDENT
+                )
+                rendered_output.append(output)
+                stanza_names.append(backend_name)
+
             output = listen_stanza.format(
-                name=name, backend_config=''.join(backend_config), bind_config=bind_config, indent=INDENT,
+                name=name,
+                backend_config=''.join(backend_config),
+                bind_config=bind_config,
+                default_backend=default_backend,
+                redirect_config=''.join(redirect_config),
+                indent=INDENT,
             )
             rendered_output.append(output)
 
@@ -191,7 +232,7 @@ backend backend-{name}
                         ' ssl sni str({site_name}) check-sni {site_name} verify required'
                         ' ca-file ca-certificates.crt'.format(site_name=site_name)
                     )
-                inter_time = loc_conf.get('backend-inter-time', '5000')
+                inter_time = loc_conf.get('backend-inter-time', '5s')
                 maxconn = loc_conf.get('backend-maxconn', 2048)
                 method = loc_conf.get('backend-check-method', 'HEAD')
                 path = loc_conf.get('backend-check-path', '/')
@@ -270,6 +311,10 @@ backend backend-{name}
             num_procs = 0
         if not num_threads:
             num_threads = 0
+        # Assume 64-bit CPU so limit processes and threads to 64.
+        # https://discourse.haproxy.org/t/architectural-limitation-for-nbproc/5270
+        num_procs = min(64, num_procs)
+        num_threads = min(64, num_threads)
         return (num_procs, num_threads)
 
     def render(self, config, num_procs=None, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
@@ -298,6 +343,7 @@ backend backend-{name}
                 'backend': self.render_stanza_backend(config),
                 'dns_servers': utils.dns_servers(),
                 'global_max_connections': global_max_connections,
+                'hard_stop_after': self.hard_stop_after,
                 'listen': listen_stanzas,
                 'max_connections': max_connections,
                 'monitoring_password': monitoring_password or self.monitoring_password,
@@ -319,3 +365,23 @@ backend backend-{name}
         with open(self.conf_file, 'w', encoding='utf-8') as f:
             f.write(content)
         return True
+
+    def get_parent_pid(self, pidfile='/run/haproxy.pid'):
+        if not os.path.exists(pidfile):
+            # No HAProxy process running, so return PID of init.
+            return 1
+        with open(pidfile) as f:
+            return int(f.readline().strip())
+
+    # HAProxy 2.x does this, but Bionic ships with HAProxy 1.8 so we need
+    # to still do this.
+    def increase_maxfds(self):
+        haproxy_pid = self.get_parent_pid()
+        haproxy_maxfds = utils.process_rlimits(haproxy_pid, 'NOFILE')
+
+        if haproxy_maxfds and haproxy_maxfds != 'unlimited' and int(self.max_connections) > int(haproxy_maxfds):
+            cmd = ['prlimit', '--pid', str(haproxy_pid), '--nofile={}'.format(str(self.max_connections))]
+            subprocess.call(cmd, stdout=subprocess.DEVNULL)
+            return True
+
+        return False

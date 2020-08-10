@@ -138,9 +138,11 @@ def configure_nginx(conf_path=None):
         status.blocked('requires list of sites to configure')
         return
 
+    enable_cache_bg_update = config.get('enable_cache_background_update', True)
     enable_prometheus_metrics = config.get('enable_prometheus_metrics')
 
-    ngx_conf = nginx.NginxConf(conf_path, hookenv.local_unit())
+    ngx_conf = nginx.NginxConf(conf_path, hookenv.local_unit(), enable_cache_bg_update=enable_cache_bg_update)
+
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     blacklist_ports = [int(x.strip()) for x in config.get('blacklist_ports', '').split(',') if x.strip()]
     sites = sites_from_config(config.get('sites'), sites_secrets, blacklist_ports=blacklist_ports)
@@ -165,7 +167,7 @@ def configure_nginx(conf_path=None):
         conf['enable_prometheus_metrics'] = enable_prometheus_metrics
 
         if ngx_conf.write_site(site, ngx_conf.render(conf)):
-            hookenv.log('Wrote out new configs for site: {}'.format(site))
+            hookenv.log('Wrote out new configs for site: {}:{}'.format(site, conf['listen_port']))
             changed = True
 
     if configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
@@ -204,7 +206,9 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         status.blocked('requires list of sites to configure')
         return
 
-    haproxy = HAProxy.HAProxyConf(max_connections=config.get('max_connections', 0))
+    max_connections = config.get('max_connections', 0)
+    hard_stop_after = config.get('haproxy_hard_stop_after')
+    haproxy = HAProxy.HAProxyConf(max_connections=max_connections, hard_stop_after=hard_stop_after)
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     blacklist_ports = [int(x.strip()) for x in config.get('blacklist_ports', '').split(',') if x.strip()]
     sites = sites_from_config(config.get('sites'), sites_secrets, blacklist_ports=blacklist_ports)
@@ -222,6 +226,10 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         cache_port = site_conf['cache_port']
         cached_site = 'cached-{}'.format(site)
         new_conf[cached_site] = {'site-name': site_conf.get('site-name') or site, 'locations': {}}
+
+        default_site = site_conf.get('default')
+        if default_site:
+            new_conf[cached_site]['default'] = default_site
 
         default_port = 80
         tls_cert_bundle_path = site_conf.get('tls-cert-bundle-path')
@@ -244,7 +252,10 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         for location, loc_conf in site_conf.get('locations', {}).items():
             new_cached_loc_conf = {}
             new_cached_loc_conf['backends'] = ['127.0.0.1:{}'.format(cache_port)]
-            new_cached_loc_conf['backend-inter-time'] = loc_conf.get('backend-inter-time', '5000')
+            # For the caching layer here, we want the default, low,
+            # 2s no matter what. This is so it'll notice when the
+            # caching layer (nginx) is back up quicker.
+            new_cached_loc_conf['backend-inter-time'] = '2s'
             new_cached_loc_conf['backend-options'] = ['forwardfor']
 
             # No backends
@@ -313,6 +324,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
     tls_cipher_suites = config.get('tls_cipher_suites')
     rendered_config = haproxy.render(new_conf, num_procs, num_threads, monitoring_password, tls_cipher_suites)
     if haproxy.write(rendered_config):
+        haproxy.increase_maxfds()
         reactive.set_flag('content_cache.haproxy.reload-required')
 
     update_logrotate('haproxy', retention=config.get('log_retention'))
@@ -341,12 +353,10 @@ def configure_nagios():
         cache_port = site_conf['cache_port']
 
         default_port = 80
-        url = 'http://{}'.format(site)
         tls_cert_bundle_path = site_conf.get('tls-cert-bundle-path')
         tls = ''
         if tls_cert_bundle_path:
             default_port = 443
-            url = 'https://{}'.format(site)
             tls = ' --ssl=1.2 --sni'
 
         frontend_port = site_conf.get('port') or default_port
@@ -363,37 +373,12 @@ def configure_nagios():
 
             nagios_name = '{}-{}'.format(site, location)
 
-            if tls:
-                # Negative Listen/frontend checks to alert on obsolete TLS versions
-                for tlsrev in ('1', '1.1'):
-                    check_name = utils.generate_nagios_check_name(
-                        nagios_name, 'site', 'no_tls_{}'.format(tlsrev.replace('.', '_'))
-                    )
-                    cmd = (
-                        '/usr/lib/nagios/plugins/negate'
-                        ' /usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
-                        ' -p {port} --ssl={tls} --sni -j {method} -u {path}{token}'.format(
-                            site_name=site_name,
-                            port=frontend_port,
-                            method=method,
-                            url=url,
-                            path=path,
-                            token=token,
-                            tls=tlsrev,
-                        )
-                    )
-                    nrpe_setup.add_check(
-                        shortname=check_name,
-                        description='{} confirm obsolete TLS v{} denied'.format(site, tlsrev),
-                        check_cmd=cmd,
-                    )
-
             # Listen / frontend check
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'listen')
             cmd = (
                 '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
                 ' -p {port}{tls} -j {method} -u {path}{token}'.format(
-                    site_name=site_name, port=frontend_port, method=method, url=url, path=path, token=token, tls=tls
+                    site_name=site_name, port=frontend_port, method=method, path=path, token=token, tls=tls
                 )
             )
             if 'nagios-expect' in loc_conf:
@@ -405,7 +390,7 @@ def configure_nagios():
             cmd = (
                 '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
                 ' -p {cache_port} -j {method} -u {path}{token}'.format(
-                    site_name=site_name, cache_port=cache_port, method=method, url=url, path=path, token=token
+                    site_name=site_name, cache_port=cache_port, method=method, path=path, token=token
                 )
             )
             if 'nagios-expect' in loc_conf:
@@ -419,7 +404,7 @@ def configure_nagios():
                 cmd = (
                     '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name} -p {backend_port}'
                     ' -j {method} -u {path}'.format(
-                        site_name=site_name, backend_port=backend_port, method=method, url=url, path=path
+                        site_name=site_name, backend_port=backend_port, method=method, path=path
                     )
                 )
                 nrpe_setup.add_check(
