@@ -45,6 +45,12 @@ options:
     description: >
       Tune HAProxy's hard-stop-after to prevent lingering HAProxy processes
       (LP:1874386).
+  haproxy_load_balancing_algorithm:
+    default: "leastconn"
+    type: string
+    description: >
+      Change the load balancing algorithm used by HAProxy for the
+      backends.
   haproxy_processes:
     default: 0
     type: int

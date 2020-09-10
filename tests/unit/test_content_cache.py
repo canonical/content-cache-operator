@@ -485,6 +485,35 @@ site1.local:
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_haproxy_sites_load_balancing_algorithm(self, logrotation, set_flag, opened_ports):
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
+            config = f.read()
+        self.mock_config.return_value = {
+            'haproxy_hard_stop_after': '15m',
+            'haproxy_load_balancing_algorithm': 'roundrobin',
+            'max_connections': 8192,
+            'sites': config,
+        }
+
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            opened_ports.return_value = ['443/tcp']
+            content_cache.configure_haproxy()
+
+            with open(
+                'tests/unit/files/content_cache_rendered_haproxy_test_output_load_balancing_algorithm.txt',
+                'r',
+                encoding='utf-8',
+            ) as f:
+                want = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
+    @mock.patch('charms.reactive.set_flag')
     @mock.patch('lib.utils.package_version')
     @mock.patch('reactive.content_cache.update_logrotate')
     def test_configure_haproxy_processes_and_threads(self, logrotation, package_version, set_flag, opened_ports):
