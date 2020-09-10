@@ -256,6 +256,9 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
             # 2s no matter what. This is so it'll notice when the
             # caching layer (nginx) is back up quicker.
             new_cached_loc_conf['backend-inter-time'] = '2s'
+            # Also, for caching layer, we want higher fall count as it's less
+            # likely the caching layer is down, 2 mins here (inter * fall).
+            new_cached_loc_conf['backend-fall-count'] = 60
             new_cached_loc_conf['backend-options'] = ['forwardfor']
 
             # No backends
