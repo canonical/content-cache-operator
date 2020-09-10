@@ -233,6 +233,8 @@ backend backend-{name}
                         ' ca-file ca-certificates.crt'.format(site_name=site_name)
                     )
                 inter_time = loc_conf.get('backend-inter-time', '5s')
+                fall_count = loc_conf.get('backend-fall-count', 5)
+                rise_count = loc_conf.get('backend-rise-count', 2)
                 maxconn = loc_conf.get('backend-maxconn', 2048)
                 method = loc_conf.get('backend-check-method', 'HEAD')
                 path = loc_conf.get('backend-check-path', '/')
@@ -258,12 +260,14 @@ backend backend-{name}
                     except utils.InvalidAddressPortError:
                         use_resolvers = ' resolvers dns init-addr none'
                     backend_confs.append(
-                        '{indent}server {name} {backend}{use_resolvers} check inter {inter_time} rise 2 fall 5 '
-                        'maxconn {maxconn}{tls}'.format(
+                        '{indent}server {name} {backend}{use_resolvers} check inter {inter_time} '
+                        'rise {rise_count} fall {fall_count} maxconn {maxconn}{tls}'.format(
                             name=name,
                             backend=backend,
                             use_resolvers=use_resolvers,
                             inter_time=inter_time,
+                            fall_count=fall_count,
+                            rise_count=rise_count,
                             maxconn=maxconn,
                             tls=tls_config,
                             indent=INDENT,
