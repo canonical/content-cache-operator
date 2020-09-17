@@ -44,6 +44,8 @@ class TestLibNginx(unittest.TestCase):
 
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             sites = yaml.safe_load(f.read())
+            # 'configs' is special and used to host YAML anchors so let's remove it
+            sites.pop('configs', '')
 
         conf = {}
         conf['cache_inactive_time'] = '2h'
@@ -128,6 +130,8 @@ class TestLibNginx(unittest.TestCase):
 
         with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             sites = yaml.safe_load(f.read())
+            # 'configs' is special and used to host YAML anchors so let's remove it
+            sites.pop('configs', '')
 
         conf = {
             'cache_inactive_time': '2h',

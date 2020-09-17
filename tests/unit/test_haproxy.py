@@ -20,6 +20,8 @@ class TestLibHAProxy(unittest.TestCase):
         self.charm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             self.site_config = yaml.safe_load(f.read())
+            # 'configs' is special and used to host YAML anchors so let's remove it
+            self.site_config.pop('configs', '')
 
         patcher = mock.patch('multiprocessing.cpu_count')
         self.mock_cpu_count = patcher.start()
