@@ -541,6 +541,8 @@ def ports_map_lookup(ports_map, site, base_port, blacklist_ports=None, key=None)
 
 def sites_from_config(sites_yaml, sites_secrets=None, blacklist_ports=None):
     conf = yaml.safe_load(sites_yaml)
+    # 'configs' is special and used to host YAML anchors so let's remove it
+    conf.pop('configs', '')
     sites = interpolate_secrets(conf, sites_secrets)
     cache_port = 0
     backend_port = 0

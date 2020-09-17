@@ -1,13 +1,14 @@
+configs:
+  backends: &BACKENDS ['127.0.1.10:80', '127.0.1.11:80', '127.0.1.12:80']
+  hmac_key: &HMAC_KEY SrRorTsImr92B6FfSKBFrSIiR5NYGS+gdjd8oGoVH44=
+
 # Test 1: The basic port and backends (HTTP)
 site1.local:
   port: 80
   locations:
     /:
-      backends:
-        - 127.0.1.10:80
-        - 127.0.1.11:80
-        - 127.0.1.12:80
-      signed-url-hmac-key: SrRorTsImr92B6FfSKBFrSIiR5NYGS+gdjd8oGoVH44=
+      backends: *BACKENDS
+      signed-url-hmac-key: *HMAC_KEY
       origin-headers:
         - X-Origin-Key: Sae6oob2aethuosh
         - X-Some-Header-1: something one two three
@@ -43,10 +44,7 @@ site3.local:
   default: True
   locations:
     /:
-      backends:
-        - 127.0.1.10:80
-        - 127.0.1.11:80
-        - 127.0.1.12:80
+      backends: *BACKENDS
       backend-options:
         - forwardfor except 127.0.0.1
         - forceclose
