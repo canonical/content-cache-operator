@@ -208,7 +208,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
 
     max_connections = config.get('max_connections', 0)
     hard_stop_after = config.get('haproxy_hard_stop_after')
-    load_balancing_algorithm = config.get('haproxy_load_balancing_algorithm', 'leastconn')
+    load_balancing_algorithm = config.get('haproxy_load_balancing_algorithm')
     haproxy = HAProxy.HAProxyConf(
         max_connections=max_connections,
         hard_stop_after=hard_stop_after,
