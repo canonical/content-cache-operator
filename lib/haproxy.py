@@ -11,15 +11,21 @@ from lib import utils
 
 
 HAPROXY_BASE_PATH = '/etc/haproxy'
+HAPROXY_LOAD_BALANCING_ALGORITHM = 'leastconn'
 INDENT = ' ' * 4
 TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 
 
 class HAProxyConf:
-    def __init__(self, conf_path=HAPROXY_BASE_PATH, max_connections=0, hard_stop_after='5m'):
+    def __init__(
+        self, conf_path=HAPROXY_BASE_PATH, max_connections=0, hard_stop_after='5m', load_balancing_algorithm=None
+    ):
         self._conf_path = conf_path
         self.max_connections = int(max_connections)
         self.hard_stop_after = hard_stop_after
+        self.load_balancing_algorithm = HAPROXY_LOAD_BALANCING_ALGORITHM
+        if load_balancing_algorithm:
+            self.load_balancing_algorithm = load_balancing_algorithm
 
     @property
     def conf_path(self):
@@ -212,7 +218,7 @@ listen {name}
 backend backend-{name}
 {options}{indent}{httpchk}
 {indent}http-request set-header Host {site_name}
-{indent}balance leastconn
+{indent}balance {load_balancing_algorithm}
 {backends}
 """
         rendered_output = []
@@ -293,6 +299,7 @@ backend backend-{name}
                     site=site,
                     site_name=site_name,
                     httpchk=httpchk,
+                    load_balancing_algorithm=self.load_balancing_algorithm,
                     backends='\n'.join(backend_confs),
                     options=options,
                     indent=INDENT,
