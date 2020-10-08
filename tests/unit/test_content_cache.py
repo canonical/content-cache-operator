@@ -390,8 +390,9 @@ site1.local:
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
+    @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_sites(self, logrotation, set_flag, opened_ports):
+    def test_configure_haproxy_sites(self, logrotation, save_s_state, set_flag, opened_ports):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             config = f.read()
         self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
@@ -437,8 +438,9 @@ site1.local:
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
+    @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_sites_no_extra_stanzas(self, logrotation, set_flag, opened_ports):
+    def test_configure_haproxy_sites_no_extra_stanzas(self, logrotation, save_s_state, set_flag, opened_ports):
         config = '''
 site1.local:
   locations:
@@ -463,8 +465,9 @@ site1.local:
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
+    @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_sites_auto_maxconns(self, logrotation, set_flag, opened_ports):
+    def test_configure_haproxy_sites_auto_maxconns(self, logrotation, save_s_state, set_flag, opened_ports):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             config = f.read()
         self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 0, 'sites': config}
@@ -485,8 +488,9 @@ site1.local:
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
+    @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_sites_load_balancing_algorithm(self, logrotation, set_flag, opened_ports):
+    def test_configure_haproxy_sites_load_balancing_algorithm(self, logrotation, save_s_state, set_flag, opened_ports):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             config = f.read()
         self.mock_config.return_value = {
@@ -514,9 +518,12 @@ site1.local:
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
+    @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
     @mock.patch('lib.utils.package_version')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_processes_and_threads(self, logrotation, package_version, set_flag, opened_ports):
+    def test_configure_haproxy_processes_and_threads(
+        self, logrotation, package_version, save_server_state, set_flag, opened_ports
+    ):
         package_version.return_value = '1.8.8-1ubuntu0.10'
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
@@ -1255,10 +1262,11 @@ site1.local:
     @mock.patch('charmhelpers.core.hookenv.open_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charmhelpers.core.host.pwgen')
+    @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
     @mock.patch('reactive.content_cache.service_start_or_reload')
     @mock.patch('reactive.content_cache.update_logrotate')
     def test_configure_haproxy_ports_management(
-        self, logrotation, service_start_or_reload, pwgen, opened_ports, open_port, close_port
+        self, logrotation, service_start_or_reload, save_server_state, pwgen, opened_ports, open_port, close_port
     ):
         with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()

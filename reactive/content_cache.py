@@ -333,6 +333,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
     rendered_config = haproxy.render(new_conf, num_procs, num_threads, monitoring_password, tls_cipher_suites)
     if haproxy.write(rendered_config):
         haproxy.increase_maxfds()
+        haproxy.save_server_state()
         reactive.set_flag('content_cache.haproxy.reload-required')
 
     update_logrotate('haproxy', retention=config.get('log_retention'))
