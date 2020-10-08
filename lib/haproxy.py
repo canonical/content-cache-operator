@@ -12,6 +12,8 @@ from lib import utils
 
 HAPROXY_BASE_PATH = '/etc/haproxy'
 HAPROXY_LOAD_BALANCING_ALGORITHM = 'leastconn'
+HAPROXY_SAVED_SERVER_STATE_PATH = '/run/haproxy/saved-server-state'
+HAPROXY_SOCKET_PATH = '/run/haproxy/admin.sock'
 INDENT = ' ' * 4
 TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 
@@ -360,6 +362,8 @@ backend backend-{name}
                 'monitoring_password': monitoring_password or self.monitoring_password,
                 'num_procs': num_procs,
                 'num_threads': num_threads,
+                'saved_server_state_path': HAPROXY_SAVED_SERVER_STATE_PATH,
+                'socket_path': HAPROXY_SOCKET_PATH,
                 'tls_cipher_suites': tls_cipher_suites,
             }
         )
