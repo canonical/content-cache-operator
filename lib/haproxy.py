@@ -280,7 +280,11 @@ backend backend-{name}
                     try:
                         utils.ip_addr_port_split(backend)
                     except utils.InvalidAddressPortError:
-                        use_resolvers = ' resolvers dns init-addr none'
+                        # http://cbonte.github.io/haproxy-dconv/2.2/configuration.html#init-addr
+                        # "last" - pick the address which appears in the state file
+                        # "libc" - use the libc's internal resolver.
+                        # "none" - start without any valid IP address in a down state
+                        use_resolvers = ' resolvers dns init-addr last,libc,none'
                     backend_confs.append(
                         '{indent}{name} {backend}{backup}{use_resolvers} check inter {inter_time} '
                         'rise {rise_count} fall {fall_count} maxconn {maxconn}{tls}'.format(
