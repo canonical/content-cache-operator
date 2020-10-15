@@ -500,7 +500,9 @@ site1.local:
 site1.local:
   locations:
     /:
-      backends: ['_http._tcp.uk.archive.ubuntu.com:80 srv 4']
+      backends:
+        - _http._tcp.us.archive.ubuntu.com:80 srv 2
+        - _http._tcp.gb.archive.ubuntu.com:80 srv 2 backup
 '''
         self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:

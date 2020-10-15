@@ -272,7 +272,7 @@ backend backend-{name}
                     for flag in flags:
                         # https://www.haproxy.com/documentation/hapee/1-8r2/traffic-management/dns-service-discovery/dns-srv-records/
                         if flag == 'srv':
-                            name = 'server-template server_ {}'.format(flags[flags.index(flag) + 1])
+                            name = 'server-template server_{}_ {}'.format(count, flags[flags.index(flag) + 1])
                         elif flag == 'backup':
                             backup = ' backup'
 
