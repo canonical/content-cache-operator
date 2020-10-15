@@ -9,8 +9,9 @@ global
 	log /dev/log	local0
 	log /dev/log	local1 notice
 	chroot /var/lib/haproxy
-	stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+	stats socket {{socket_path}} mode 660 level admin expose-fd listeners
 	stats timeout 30s
+	server-state-file {{saved_server_state_path}}
 	user haproxy
 	group haproxy
 	daemon
@@ -58,6 +59,7 @@ defaults
 	errorfile 502 /etc/haproxy/errors/502.http
 	errorfile 503 /etc/haproxy/errors/503.http
 	errorfile 504 /etc/haproxy/errors/504.http
+	load-server-state-from-file global
 
 {%- if dns_servers %}
 

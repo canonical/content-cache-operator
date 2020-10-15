@@ -302,3 +302,24 @@ class TestLibHAProxy(unittest.TestCase):
         process_rlimits.return_value = '10'
         haproxy.max_connections = 16384
         self.assertTrue(haproxy.increase_maxfds())
+
+    @mock.patch('lib.haproxy.socket.socket.connect')
+    @mock.patch('lib.haproxy.socket.socket.recv')
+    @mock.patch('lib.haproxy.socket.socket.sendall')
+    def test_save_server_state(self, sendall, recv, connect):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+        haproxy.saved_server_state_path = os.path.join(self.tmpdir, 'saved-server-state')
+
+        with open('tests/unit/files/haproxy_show_servers_state.txt', 'rb') as f:
+            server_state = f.read()
+        recv.side_effect = [server_state, '']
+        haproxy.save_server_state()
+
+        # Call it a second time to make sure it's able to deal with when state
+        # file already exists.
+        recv.side_effect = [server_state, '']
+        haproxy.save_server_state()
+
+        with open(haproxy.saved_server_state_path, 'rb') as f:
+            saved_state = f.read()
+        self.assertEqual(server_state, saved_state)

@@ -3,6 +3,7 @@ import multiprocessing
 import os
 import re
 import subprocess
+import socket
 
 import jinja2
 from distutils.version import LooseVersion
@@ -12,6 +13,8 @@ from lib import utils
 
 HAPROXY_BASE_PATH = '/etc/haproxy'
 HAPROXY_LOAD_BALANCING_ALGORITHM = 'leastconn'
+HAPROXY_SAVED_SERVER_STATE_PATH = '/run/haproxy/saved-server-state'
+HAPROXY_SOCKET_PATH = '/run/haproxy/admin.sock'
 INDENT = ' ' * 4
 TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 
@@ -26,6 +29,8 @@ class HAProxyConf:
         self.load_balancing_algorithm = HAPROXY_LOAD_BALANCING_ALGORITHM
         if load_balancing_algorithm:
             self.load_balancing_algorithm = load_balancing_algorithm
+        self.saved_server_state_path = HAPROXY_SAVED_SERVER_STATE_PATH
+        self.socket_path = HAPROXY_SOCKET_PATH
 
     @property
     def conf_path(self):
@@ -360,6 +365,8 @@ backend backend-{name}
                 'monitoring_password': monitoring_password or self.monitoring_password,
                 'num_procs': num_procs,
                 'num_threads': num_threads,
+                'saved_server_state_path': self.saved_server_state_path,
+                'socket_path': self.socket_path,
                 'tls_cipher_suites': tls_cipher_suites,
             }
         )
@@ -396,3 +403,22 @@ backend backend-{name}
             return True
 
         return False
+
+    def save_server_state(self):
+        server_state = b""
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.connect(self.socket_path)
+            s.settimeout(5.0)
+            s.sendall(b"show servers state\n")
+            while True:
+                data = s.recv(1024)
+                if not data:
+                    break
+                server_state += data
+
+        new_state = "{}.new".format(self.saved_server_state_path)
+        with open(new_state, "wb") as f:
+            f.write(server_state)
+        if os.path.exists(self.saved_server_state_path):
+            os.unlink(self.saved_server_state_path)
+        os.rename(new_state, self.saved_server_state_path)
