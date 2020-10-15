@@ -268,10 +268,13 @@ backend backend-{name}
                     count += 1
                     name = 'server server_{}'.format(count)
 
+                    backup = ''
                     for flag in flags:
                         # https://www.haproxy.com/documentation/hapee/1-8r2/traffic-management/dns-service-discovery/dns-srv-records/
                         if flag == 'srv':
                             name = 'server-template server_ {}'.format(flags[flags.index(flag) + 1])
+                        elif flag == 'backup':
+                            backup = ' backup'
 
                     use_resolvers = ''
                     try:
@@ -279,10 +282,11 @@ backend backend-{name}
                     except utils.InvalidAddressPortError:
                         use_resolvers = ' resolvers dns init-addr none'
                     backend_confs.append(
-                        '{indent}{name} {backend}{use_resolvers} check inter {inter_time} '
+                        '{indent}{name} {backend}{backup}{use_resolvers} check inter {inter_time} '
                         'rise {rise_count} fall {fall_count} maxconn {maxconn}{tls}'.format(
                             name=name,
                             backend=backend,
+                            backup=backup,
                             use_resolvers=use_resolvers,
                             inter_time=inter_time,
                             fall_count=fall_count,
