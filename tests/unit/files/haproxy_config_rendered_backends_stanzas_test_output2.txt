@@ -3,4 +3,4 @@ backend backend-site1-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance leastconn
-    server server_1 archive.ubuntu.com:80 resolvers dns init-addr none check inter 5s rise 2 fall 5 maxconn 2048
+    server server_1 archive.ubuntu.com:80 resolvers dns init-addr last,libc,none check inter 5s rise 2 fall 5 maxconn 2048

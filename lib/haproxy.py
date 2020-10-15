@@ -280,7 +280,7 @@ backend backend-{name}
                     try:
                         utils.ip_addr_port_split(backend)
                     except utils.InvalidAddressPortError:
-                        use_resolvers = ' resolvers dns init-addr none'
+                        use_resolvers = ' resolvers dns init-addr last,libc,none'
                     backend_confs.append(
                         '{indent}{name} {backend}{backup}{use_resolvers} check inter {inter_time} '
                         'rise {rise_count} fall {fall_count} maxconn {maxconn}{tls}'.format(
