@@ -467,6 +467,29 @@ site1.local:
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
     @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_haproxy_sites_srv(self, logrotation, save_s_state, set_flag, opened_ports):
+        config = '''
+site1.local:
+  locations:
+    /:
+      backends: ['_http._tcp.uk.archive.ubuntu.com:80 srv 4']
+'''
+        self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            content_cache.configure_haproxy()
+
+            with open('tests/unit/files/content_cache_rendered_haproxy_test_output_srv_template.txt', 'r', encoding='utf-8') as f:
+                want = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
+    @mock.patch('reactive.content_cache.update_logrotate')
     def test_configure_haproxy_sites_auto_maxconns(self, logrotation, save_s_state, set_flag, opened_ports):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             config = f.read()

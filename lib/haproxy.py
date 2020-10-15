@@ -261,17 +261,24 @@ backend backend-{name}
 
                 backend_confs = []
                 count = 0
-                for backend in loc_conf.get('backends'):
-                    count += 1
+                for backend_flags in loc_conf.get('backends'):
+                    flags = backend_flags.split()
+                    backend = flags.pop(0)
 
-                    name = 'server_{}'.format(count)
+                    count += 1
+                    name = 'server server_{}'.format(count)
+
+                    for flag in flags:
+                        if flag == 'srv':
+                            name = 'server-template server_ {}'.format(flags[flags.index(flag) + 1])
+
                     use_resolvers = ''
                     try:
                         utils.ip_addr_port_split(backend)
                     except utils.InvalidAddressPortError:
                         use_resolvers = ' resolvers dns init-addr none'
                     backend_confs.append(
-                        '{indent}server {name} {backend}{use_resolvers} check inter {inter_time} '
+                        '{indent}{name} {backend}{use_resolvers} check inter {inter_time} '
                         'rise {rise_count} fall {fall_count} maxconn {maxconn}{tls}'.format(
                             name=name,
                             backend=backend,
