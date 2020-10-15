@@ -76,19 +76,18 @@ listen  stats
 	stats refresh 3
 
 
-listen redirect-site1-local
+listen cached-site1-local
     bind 0.0.0.0:80
     bind :::80
-    redirect prefix https://site1.local
-
-listen cached-site1-local
-    bind 0.0.0.0:443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
-    bind :::443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
     default_backend backend-cached-site1-local
 
 listen site1-local
     bind 127.0.0.1:8080
     default_backend backend-site1-local
+
+listen site1-local-2
+    bind 127.0.0.1:8081
+    default_backend backend-site1-local-2
 
 backend backend-cached-site1-local
     option forwardfor
@@ -98,8 +97,16 @@ backend backend-cached-site1-local
     server server_1 127.0.0.1:6080 check inter 2s rise 2 fall 60 maxconn 2048
 
 backend backend-site1-local
+    option allbackups
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance leastconn
     server server_1 192.168.1.1:8080 check inter 5s rise 2 fall 5 maxconn 2048
     server server_2 192.168.1.2:8080 backup check inter 5s rise 2 fall 5 maxconn 2048
+
+backend backend-site1-local-2
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site1.local
+    balance leastconn
+    server server_1 192.168.1.1:8080 check inter 5s rise 2 fall 5 maxconn 2048
+    server server_2 192.168.1.2:8080 check inter 5s rise 2 fall 5 maxconn 2048
