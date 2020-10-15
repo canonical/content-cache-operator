@@ -176,6 +176,8 @@ backend backend-cached-site3-local
     server server_1 127.0.0.1:6082 check inter 2s rise 2 fall 60 maxconn 4096
 
 backend backend-site3-local
+    option forwardfor except 127.0.0.1
+    option forceclose
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site3.local
     balance leastconn
