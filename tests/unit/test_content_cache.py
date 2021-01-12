@@ -421,6 +421,8 @@ site1.local:
     /:
       backend-tls: false
       backends: ['192.168.1.1:8080']
+      backend-options:
+      - retries 3
   tls-cert-bundle-path: /var/lib/haproxy/certs
 '''
         self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
