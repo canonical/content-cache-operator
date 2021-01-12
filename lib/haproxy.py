@@ -303,6 +303,11 @@ backend backend-{name}
 
                 opts = []
                 for option in loc_conf.get('backend-options', []):
+                    # retry-on only available from HAProxy 2.1.
+                    if option.split()[0] == 'retry-on' and LooseVersion(
+                        utils.package_version('haproxy')
+                    ) <= LooseVersion('2.1'):
+                        continue
                     prefix = ''
                     if option.split()[0] in ['allbackups', 'forceclose', 'forwardfor', 'redispatch']:
                         prefix = 'option '

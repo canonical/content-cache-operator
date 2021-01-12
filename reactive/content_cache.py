@@ -304,6 +304,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
                 new_loc_conf['backend-options'] = backend_options
 
             # Make it more resilient to failures and redispatch requests to different backends.
+            new_loc_conf['backend-options'].append('retry-on all-retryable-errors')
             new_loc_conf['backend-options'].append('redispatch 1')
 
             new_cached_loc_conf['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')

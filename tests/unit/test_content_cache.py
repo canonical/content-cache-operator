@@ -75,6 +75,11 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.mock_dns_servers.return_value = ['127.0.0.53']
 
+        patcher = mock.patch('lib.utils.package_version')
+        self.mock_package_version = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.mock_package_version.return_value = '1.8.8-1ubuntu0.10'
+
         patcher = mock.patch('multiprocessing.cpu_count')
         self.mock_cpu_count = patcher.start()
         self.addCleanup(patcher.stop)
@@ -576,12 +581,8 @@ site1.local:
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
-    @mock.patch('lib.utils.package_version')
     @mock.patch('reactive.content_cache.update_logrotate')
-    def test_configure_haproxy_processes_and_threads(
-        self, logrotation, package_version, save_server_state, set_flag, opened_ports
-    ):
-        package_version.return_value = '1.8.8-1ubuntu0.10'
+    def test_configure_haproxy_processes_and_threads(self, logrotation, save_server_state, set_flag, opened_ports):
         with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
         self.mock_config.return_value = {
@@ -599,6 +600,38 @@ site1.local:
 
             with open(
                 'tests/unit/files/content_cache_rendered_haproxy_test_output_processes_and_threads.txt',
+                'r',
+                encoding='utf-8',
+            ) as f:
+                want = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_haproxy_processes_and_threads_2(self, logrotation, save_server_state, set_flag, opened_ports):
+        self.mock_package_version.return_value = '2.2.3-2ppa1~bionic'
+        with open('tests/unit/files/config_test_config.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
+        self.mock_config.return_value = {
+            'haproxy_hard_stop_after': '15m',
+            'haproxy_processes': 3,
+            'haproxy_threads': 10,
+            'max_connections': 0,
+            'sites': ngx_config,
+        }
+
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            opened_ports.return_value = ['443/tcp']
+            content_cache.configure_haproxy()
+
+            with open(
+                'tests/unit/files/content_cache_rendered_haproxy_test_output_processes_and_threads_haproxy2.txt',
                 'r',
                 encoding='utf-8',
             ) as f:
