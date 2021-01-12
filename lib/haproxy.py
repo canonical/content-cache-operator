@@ -303,7 +303,11 @@ backend backend-{name}
 
                 opts = []
                 for option in loc_conf.get('backend-options', []):
-                    opts.append('{indent}option {opt}'.format(opt=option, indent=INDENT))
+                    prefix = ''
+                    if option.split()[0] in ['allbackups', 'forceclose', 'forwardfor', 'redispatch']:
+                        prefix = 'option '
+                    opts.append('{indent}{prefix}{opt}'.format(opt=option, prefix=prefix, indent=INDENT))
+
                 options = ''
                 if opts:
                     options = '\n'.join(opts + [''])

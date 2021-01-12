@@ -93,6 +93,7 @@ backend backend-cached-site1-local
     server server_1 127.0.0.1:6080 check inter 2s rise 2 fall 60 maxconn 2048
 
 backend backend-site1-local
+    option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance leastconn

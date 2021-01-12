@@ -147,6 +147,7 @@ backend backend-cached-site1-local
     server server_1 127.0.0.1:6080 check inter 2s rise 2 fall 60 maxconn 2048
 
 backend backend-site1-local
+    option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance roundrobin
@@ -162,6 +163,7 @@ backend backend-cached-site2-local
     server server_1 127.0.0.1:6081 check inter 2s rise 2 fall 60 maxconn 2048
 
 backend backend-site2-local
+    option redispatch 1
     option httpchk GET /check/ HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site2.local
     balance roundrobin
@@ -179,6 +181,7 @@ backend backend-cached-site3-local
 backend backend-site3-local
     option forwardfor except 127.0.0.1
     option forceclose
+    option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site3.local
     balance roundrobin
@@ -201,12 +204,14 @@ backend backend-cached-site5
     server server_1 127.0.0.1:6084 check inter 2s rise 2 fall 60 maxconn 2048
 
 backend backend-site5
+    option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site5.local
     balance roundrobin
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 2048
 
 backend backend-site5-2
+    option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site5.local
     balance roundrobin
@@ -220,6 +225,7 @@ backend backend-cached-site6-local
     server server_1 127.0.0.1:6085 check inter 2s rise 2 fall 60 maxconn 2048
 
 backend backend-site6-local
+    option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site6.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site6.local
     balance roundrobin
@@ -233,6 +239,7 @@ backend backend-cached-site7-local
     server server_1 127.0.0.1:6086 check inter 2s rise 2 fall 60 maxconn 2048
 
 backend backend-site7-local
+    option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site7.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site7.local
     balance roundrobin
@@ -246,12 +253,14 @@ backend backend-cached-site8-local
     server server_1 127.0.0.1:6087 check inter 2s rise 2 fall 60 maxconn 2048
 
 backend backend-site8-local
+    option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site8.local
     balance roundrobin
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 2048
 
 backend backend-site8-local-2
+    option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ auth.site8.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host auth.site8.local
     balance roundrobin
@@ -265,6 +274,7 @@ backend backend-cached-site9-local
     server server_1 127.0.0.1:6088 check inter 2s rise 2 fall 60 maxconn 2048
 
 backend backend-site9-local
+    option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site9.local
     balance roundrobin
