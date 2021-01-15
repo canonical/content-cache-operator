@@ -287,8 +287,12 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
             if 'backend_port' in loc_conf:
                 new_loc_conf['backend_port'] = loc_conf['backend_port']
 
-            new_cached_loc_conf['backend-maxconn'] = loc_conf.get('cache-maxconn', 2048)
-            new_loc_conf['backend-maxconn'] = loc_conf.get('backend-maxconn', 2048)
+            backend_maxconn = loc_conf.get('backend-maxconn', 200)
+            new_loc_conf['backend-maxconn'] = backend_maxconn
+            # Default to backend_maxconn times the no. of provided
+            # backends, so 1-to-1 mapping.
+            cache_maxconn = loc_conf.get('cache-maxconn', backend_maxconn * len(loc_conf['backends']))
+            new_cached_loc_conf['backend-maxconn'] = cache_maxconn
 
             backend_check_method = loc_conf.get('backend-check-method')
             if backend_check_method:

@@ -246,7 +246,7 @@ backend backend-{name}
                 inter_time = loc_conf.get('backend-inter-time', '5s')
                 fall_count = loc_conf.get('backend-fall-count', 5)
                 rise_count = loc_conf.get('backend-rise-count', 2)
-                maxconn = loc_conf.get('backend-maxconn', 2048)
+                maxconn = loc_conf.get('backend-maxconn', 200)
                 method = loc_conf.get('backend-check-method', 'HEAD')
                 path = loc_conf.get('backend-check-path', '/')
                 signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')
