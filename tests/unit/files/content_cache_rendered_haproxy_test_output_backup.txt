@@ -94,7 +94,7 @@ backend backend-cached-site1-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance leastconn
-    server server_1 127.0.0.1:6080 check inter 2s rise 2 fall 60 maxconn 2048
+    server server_1 127.0.0.1:6080 check inter 2s rise 2 fall 60 maxconn 400
 
 backend backend-site1-local
     option allbackups
@@ -102,13 +102,13 @@ backend backend-site1-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance leastconn
-    server server_1 192.168.1.1:8080 check inter 5s rise 2 fall 5 maxconn 2048
-    server server_2 192.168.1.2:8080 backup check inter 5s rise 2 fall 5 maxconn 2048
+    server server_1 192.168.1.1:8080 check inter 5s rise 2 fall 5 maxconn 200
+    server server_2 192.168.1.2:8080 backup check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-site1-local-2
     option redispatch 1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
     http-request set-header Host site1.local
     balance leastconn
-    server server_1 192.168.1.1:8080 check inter 5s rise 2 fall 5 maxconn 2048
-    server server_2 192.168.1.2:8080 check inter 5s rise 2 fall 5 maxconn 2048
+    server server_1 192.168.1.1:8080 check inter 5s rise 2 fall 5 maxconn 200
+    server server_2 192.168.1.2:8080 check inter 5s rise 2 fall 5 maxconn 200
