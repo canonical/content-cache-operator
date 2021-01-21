@@ -1,174 +1,174 @@
 global
-	nbproc 2
-	nbthread 4
-	maxconn 8192
-	log /dev/log	local0
-	log /dev/log	local1 notice
-	chroot /var/lib/haproxy
-	stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
-	stats timeout 30s
-	server-state-file /run/haproxy/saved-server-state
-	user haproxy
-	group haproxy
-	daemon
+    nbproc 2
+    nbthread 4
+    maxconn 8192
+    log /dev/log local0
+    log /dev/log local1 notice
+    chroot /var/lib/haproxy
+    stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+    stats timeout 30s
+    server-state-file /run/haproxy/saved-server-state
+    user haproxy
+    group haproxy
+    daemon
 
-	# LP#1874386: Work around lingering HAProxy processes as per LP:1874386
-	# and kill them off.
-	hard-stop-after 5m
+    # LP#1874386: Work around lingering HAProxy processes as per LP:1874386
+    # and kill them off.
+    hard-stop-after 5m
 
-	# Default SSL material locations
-	ca-base /etc/ssl/certs
-	crt-base /etc/ssl/private
+    # Default SSL material locations
+    ca-base /etc/ssl/certs
+    crt-base /etc/ssl/private
 
-	# Default ciphers to use on SSL-enabled listening sockets.
-	# For more information, see ciphers(1SSL). This list is from:
-	#  https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
-	# An alternative list with additional directives can be obtained from
-	#  https://mozilla.github.io/server-side-tls/ssl-config-generator/?server=haproxy
-	ssl-default-bind-ciphers ECDH+AESGCM:!aNULL:!MD5:!DSS
-	ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
-	# We'll eventually disable DHE (LP#1825321), but for now, bump DH params
-	tune.ssl.default-dh-param 2048
+    # Default ciphers to use on SSL-enabled listening sockets.
+    # For more information, see ciphers(1SSL). This list is from:
+    #  https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+    # An alternative list with additional directives can be obtained from
+    #  https://mozilla.github.io/server-side-tls/ssl-config-generator/?server=haproxy
+    ssl-default-bind-ciphers ECDH+AESGCM:!aNULL:!MD5:!DSS
+    ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
+    # We'll eventually disable DHE (LP#1825321), but for now, bump DH params
+    tune.ssl.default-dh-param 2048
 
-	# Increase the SSL/TLS session cache from the default 20k. But
-	# rather than hardcode values, let's just set it to match
-	# global_max_connections (which by default is calculated using
-	# num. of CPU cores and num. of configured sites). Each entry
-	# requires ~200 bytes so on a host with say 32 CPUs, 10 sites,
-	# each with 2000 max conns will only consume around 122 Mbytes
-	# (32 * 10 * 2000 * 200), which is not much.
-	tune.ssl.cachesize 8192
+    # Increase the SSL/TLS session cache from the default 20k. But
+    # rather than hardcode values, let's just set it to match
+    # global_max_connections (which by default is calculated using
+    # num. of CPU cores and num. of configured sites). Each entry
+    # requires ~200 bytes so on a host with say 32 CPUs, 10 sites,
+    # each with 2000 max conns will only consume around 122 Mbytes
+    # (32 * 10 * 2000 * 200), which is not much.
+    tune.ssl.cachesize 8192
 
 defaults
-	log	global
-	maxconn 5000
-	mode	http
-	option	dontlognull
-	timeout connect 5s
-	timeout client  50s
-	timeout server  50s
-	errorfile 400 /etc/haproxy/errors/400.http
-	errorfile 403 /etc/haproxy/errors/403.http
-	errorfile 408 /etc/haproxy/errors/408.http
-	errorfile 500 /etc/haproxy/errors/500.http
-	errorfile 502 /etc/haproxy/errors/502.http
-	errorfile 503 /etc/haproxy/errors/503.http
-	errorfile 504 /etc/haproxy/errors/504.http
-	load-server-state-from-file global
-	unique-id-format %{+X}o\ %ci:%cp_%fi:%fp_%Ts_%rt:%pid
-	unique-id-header X-Cache-Request-ID
-	log-format "%ci:%cp [%tr] %ft %b/%s %TR/%Tw/%Tc/%Tr/%Ta %ST %B %CC %CS %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %hr %hs %{+Q}r %ID"
+    log global
+    maxconn 5000
+    mode http
+    option dontlognull
+    timeout connect 5s
+    timeout client  50s
+    timeout server  50s
+    errorfile 400 /etc/haproxy/errors/400.http
+    errorfile 403 /etc/haproxy/errors/403.http
+    errorfile 408 /etc/haproxy/errors/408.http
+    errorfile 500 /etc/haproxy/errors/500.http
+    errorfile 502 /etc/haproxy/errors/502.http
+    errorfile 503 /etc/haproxy/errors/503.http
+    errorfile 504 /etc/haproxy/errors/504.http
+    load-server-state-from-file global
+    unique-id-format %{+X}o\ %ci:%cp_%fi:%fp_%Ts_%rt:%pid
+    unique-id-header X-Cache-Request-ID
+    log-format "%ci:%cp [%tr] %ft %b/%s %TR/%Tw/%Tc/%Tr/%Ta %ST %B %CC %CS %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %hr %hs %{+Q}r %ID"
 
 resolvers dns
-	nameserver dns1 127.0.0.53:53
-	resolve_retries 3
-	timeout resolve 3s
-	timeout retry   3s
-	accepted_payload_size 8192
+    nameserver dns1 127.0.0.53:53
+    resolve_retries 3
+    timeout resolve 3s
+    timeout retry   3s
+    accepted_payload_size 8192
 
 listen  stats
-	bind 127.0.0.1:10000
-	acl allowed_cidr src 127.0.0.0/8
-	http-request deny unless allowed_cidr
+    bind 127.0.0.1:10000
+    acl allowed_cidr src 127.0.0.0/8
+    http-request deny unless allowed_cidr
 
-	mode http
-	stats enable
-	stats uri /
-	stats realm Haproxy\ Statistics
-	stats auth haproxy:biometricsarenotsecret
-	stats refresh 3
+    mode http
+    stats enable
+    stats uri /
+    stats realm Haproxy\ Statistics
+    stats auth haproxy:biometricsarenotsecret
+    stats refresh 3
 
 
 listen combined-80
-	bind 0.0.0.0:80
-	bind :::80
-	capture request header X-Cache-Request-ID len 60
-	redirect scheme https code 301 if { hdr(Host) -i site2.local } !{ ssl_fc }
-	use_backend backend-site1-local if { hdr(Host) -i site1.local }
-	use_backend backend-site3-local if { hdr(Host) -i site3.local }
-	use_backend backend-site4-local if { hdr(Host) -i site4.local }
-	use_backend backend-site5 if { hdr(Host) -i site5.local }
-	use_backend backend-site6-local if { hdr(Host) -i site6.local }
-	use_backend backend-site9-local if { hdr(Host) -i site9.local }
-	default_backend backend-site3-local
+    bind 0.0.0.0:80
+    bind :::80
+    capture request header X-Cache-Request-ID len 60
+    redirect scheme https code 301 if { hdr(Host) -i site2.local } !{ ssl_fc }
+    use_backend backend-site1-local if { hdr(Host) -i site1.local }
+    use_backend backend-site3-local if { hdr(Host) -i site3.local }
+    use_backend backend-site4-local if { hdr(Host) -i site4.local }
+    use_backend backend-site5 if { hdr(Host) -i site5.local }
+    use_backend backend-site6-local if { hdr(Host) -i site6.local }
+    use_backend backend-site9-local if { hdr(Host) -i site9.local }
+    default_backend backend-site3-local
 
 listen site2-local
-	bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
-	bind :::443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
-	capture request header X-Cache-Request-ID len 60
-	default_backend backend-site2-local
+    bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
+    bind :::443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
+    capture request header X-Cache-Request-ID len 60
+    default_backend backend-site2-local
 
 listen combined-444
-	bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
-	bind :::444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
-	capture request header X-Cache-Request-ID len 60
-	use_backend backend-site7-local if { hdr(Host) -i site7.local }
-	use_backend backend-site8-local if { hdr(Host) -i site8.local }
+    bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
+    bind :::444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
+    capture request header X-Cache-Request-ID len 60
+    use_backend backend-site7-local if { hdr(Host) -i site7.local }
+    use_backend backend-site8-local if { hdr(Host) -i site8.local }
 
 backend backend-site1-local
-	option httpchk HEAD /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
-	http-request set-header Host site1.local
-	balance leastconn
-	server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
-	server server_2 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
-	server server_3 127.0.1.12:80 check inter 5s rise 2 fall 5 maxconn 200
+    option httpchk HEAD /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site1.local
+    balance leastconn
+    server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
+    server server_2 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
+    server server_3 127.0.1.12:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-site2-local
-	option httpchk GET /check/ HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
-	http-request set-header Host site2.local
-	balance leastconn
-	server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
-	server server_2 127.0.1.11:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
-	server server_3 127.0.1.12:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
+    option httpchk GET /check/ HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site2.local
+    balance leastconn
+    server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
+    server server_2 127.0.1.11:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
+    server server_3 127.0.1.12:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
 
 backend backend-site3-local
-	option forwardfor except 127.0.0.1
-	option forceclose
-	option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
-	http-request set-header Host site3.local
-	balance leastconn
-	server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
-	server server_2 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
-	server server_3 127.0.1.12:80 check inter 5s rise 2 fall 5 maxconn 200
+    option forwardfor except 127.0.0.1
+    option forceclose
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site3.local
+    balance leastconn
+    server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
+    server server_2 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
+    server server_3 127.0.1.12:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-site5
-	option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
-	http-request set-header Host site5.local
-	balance leastconn
-	server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site5.local
+    balance leastconn
+    server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-site5-2
-	option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
-	http-request set-header Host site5.local
-	balance leastconn
-	server server_1 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site5.local
+    balance leastconn
+    server server_1 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-site6-local
-	option httpchk HEAD / HTTP/1.0\r\nHost:\ site6.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
-	http-request set-header Host site6.local
-	balance leastconn
-	server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(site6.local) check-sni site6.local verify required ca-file ca-certificates.crt
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site6.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site6.local
+    balance leastconn
+    server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(site6.local) check-sni site6.local verify required ca-file ca-certificates.crt
 
 backend backend-site7-local
-	option httpchk HEAD / HTTP/1.0\r\nHost:\ site7.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
-	http-request set-header Host site7.local
-	balance leastconn
-	server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site7.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site7.local
+    balance leastconn
+    server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-site8-local
-	option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
-	http-request set-header Host site8.local
-	balance leastconn
-	server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site8.local
+    balance leastconn
+    server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-site8-local-2
-	option httpchk HEAD / HTTP/1.0\r\nHost:\ auth.site8.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
-	http-request set-header Host auth.site8.local
-	balance leastconn
-	server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(auth.site8.local) check-sni auth.site8.local verify required ca-file ca-certificates.crt
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ auth.site8.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host auth.site8.local
+    balance leastconn
+    server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(auth.site8.local) check-sni auth.site8.local verify required ca-file ca-certificates.crt
 
 backend backend-site9-local
-	option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
-	http-request set-header Host site9.local
-	balance leastconn
-	server server_1 127.0.1.15:80 check inter 1m rise 2 fall 5 maxconn 200
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    http-request set-header Host site9.local
+    balance leastconn
+    server server_1 127.0.1.15:80 check inter 1m rise 2 fall 5 maxconn 200

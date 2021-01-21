@@ -15,7 +15,7 @@ HAPROXY_BASE_PATH = '/etc/haproxy'
 HAPROXY_LOAD_BALANCING_ALGORITHM = 'leastconn'
 HAPROXY_SAVED_SERVER_STATE_PATH = '/run/haproxy/saved-server-state'
 HAPROXY_SOCKET_PATH = '/run/haproxy/admin.sock'
-INDENT = "\t"
+INDENT = ' ' * 4
 TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 
 
