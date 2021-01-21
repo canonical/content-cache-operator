@@ -42,7 +42,6 @@ defaults
 	log	global
 	maxconn 8192
 	mode	http
-	option	httplog
 	option	dontlognull
 	timeout connect 5s
 	timeout client  50s
@@ -57,6 +56,7 @@ defaults
 	load-server-state-from-file global
 	unique-id-format %{+X}o\ %ci:%cp_%fi:%fp_%Ts_%rt:%pid
 	unique-id-header X-Cache-Request-ID
+	log-format "%ci:%cp [%tr] %ft %b/%s %TR/%Tw/%Tc/%Tr/%Ta %ST %B %CC %CS %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %hr %hs %{+Q}r %ID"
 
 resolvers dns
 	nameserver dns1 127.0.0.53:53
@@ -81,14 +81,17 @@ listen  stats
 listen cached-site1-local
     bind 0.0.0.0:80
     bind :::80
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-cached-site1-local
 
 listen site1-local
     bind 127.0.0.1:8080
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site1-local
 
 listen site1-local-2
     bind 127.0.0.1:8081
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site1-local-2
 
 backend backend-cached-site1-local
