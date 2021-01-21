@@ -47,7 +47,6 @@ defaults
 	log	global
 	maxconn {{max_connections}}
 	mode	http
-	option	httplog
 	option	dontlognull
 	timeout connect 5s
 	timeout client  50s
@@ -62,6 +61,7 @@ defaults
 	load-server-state-from-file global
 	unique-id-format %{+X}o\ %ci:%cp_%fi:%fp_%Ts_%rt:%pid
 	unique-id-header X-Cache-Request-ID
+	log-format "%ci:%cp [%tr] %ft %b/%s %TR/%Tw/%Tc/%Tr/%Ta %ST %B %CC %CS %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %hr %hs %{+Q}r %ID"
 
 {%- if dns_servers %}
 

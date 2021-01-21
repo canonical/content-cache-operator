@@ -42,7 +42,6 @@ defaults
 	log	global
 	maxconn 8192
 	mode	http
-	option	httplog
 	option	dontlognull
 	timeout connect 5s
 	timeout client  50s
@@ -57,6 +56,7 @@ defaults
 	load-server-state-from-file global
 	unique-id-format %{+X}o\ %ci:%cp_%fi:%fp_%Ts_%rt:%pid
 	unique-id-header X-Cache-Request-ID
+	log-format "%ci:%cp [%tr] %ft %b/%s %TR/%Tw/%Tc/%Tr/%Ta %ST %B %CC %CS %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %hr %hs %{+Q}r %ID"
 
 resolvers dns
 	nameserver dns1 127.0.0.53:53
@@ -81,6 +81,7 @@ listen  stats
 listen combined-80
     bind 0.0.0.0:80
     bind :::80
+    capture request header X-Cache-Request-ID len 60
     redirect scheme https code 301 if { hdr(Host) -i site2.local } !{ ssl_fc }
     use_backend backend-cached-site1-local if { hdr(Host) -i site1.local }
     use_backend backend-cached-site3-local if { hdr(Host) -i site3.local }
@@ -92,53 +93,65 @@ listen combined-80
 
 listen site1-local
     bind 127.0.0.1:8080
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site1-local
 
 listen cached-site2-local
     bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
     bind :::443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-cached-site2-local
 
 listen site2-local
     bind 127.0.0.1:8081
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site2-local
 
 listen site3-local
     bind 127.0.0.1:8082
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site3-local
 
 listen site5
     bind 127.0.0.1:8083
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site5
 
 listen site5-2
     bind 127.0.0.1:8084
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site5-2
 
 listen site6-local
     bind 127.0.0.1:8085
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site6-local
 
 listen combined-444
     bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
     bind :::444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
+    capture request header X-Cache-Request-ID len 60
     use_backend backend-cached-site7-local if { hdr(Host) -i site7.local }
     use_backend backend-cached-site8-local if { hdr(Host) -i site8.local }
 
 listen site7-local
     bind 127.0.0.1:8086
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site7-local
 
 listen site8-local
     bind 127.0.0.1:8087
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site8-local
 
 listen site8-local-2
     bind 127.0.0.1:8088
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site8-local-2
 
 listen site9-local
     bind 127.0.0.1:8089
+    capture request header X-Cache-Request-ID len 60
     default_backend backend-site9-local
 
 backend backend-cached-site1-local
