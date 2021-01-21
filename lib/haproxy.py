@@ -116,7 +116,7 @@ class HAProxyConf:
         listen_stanza = """
 listen {name}
 {bind_config}
-    capture request header X-Cache-Request-ID len 60
+{indent}capture request header X-Cache-Request-ID len 60
 {redirect_config}{backend_config}{default_backend}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
         redirect_conf = '{indent}redirect scheme https code 301 if {{ hdr(Host) -i {site_name} }} !{{ ssl_fc }}\n'
