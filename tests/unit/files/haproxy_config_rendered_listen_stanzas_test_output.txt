@@ -1,26 +1,26 @@
 
 listen combined-80
-    bind 0.0.0.0:80
-    bind :::80
-    capture request header X-Cache-Request-ID len 60
-    redirect scheme https code 301 if { hdr(Host) -i site2.local } !{ ssl_fc }
-    use_backend backend-site1-local if { hdr(Host) -i site1.local }
-    use_backend backend-site3-local if { hdr(Host) -i site3.local }
-    use_backend backend-site4-local if { hdr(Host) -i site4.local }
-    use_backend backend-site5 if { hdr(Host) -i site5.local }
-    use_backend backend-site6-local if { hdr(Host) -i site6.local }
-    use_backend backend-site9-local if { hdr(Host) -i site9.local }
-    default_backend backend-site3-local
+	bind 0.0.0.0:80
+	bind :::80
+	capture request header X-Cache-Request-ID len 60
+	redirect scheme https code 301 if { hdr(Host) -i site2.local } !{ ssl_fc }
+	use_backend backend-site1-local if { hdr(Host) -i site1.local }
+	use_backend backend-site3-local if { hdr(Host) -i site3.local }
+	use_backend backend-site4-local if { hdr(Host) -i site4.local }
+	use_backend backend-site5 if { hdr(Host) -i site5.local }
+	use_backend backend-site6-local if { hdr(Host) -i site6.local }
+	use_backend backend-site9-local if { hdr(Host) -i site9.local }
+	default_backend backend-site3-local
 
 listen site2-local
-    bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
-    bind :::443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
-    capture request header X-Cache-Request-ID len 60
-    default_backend backend-site2-local
+	bind 0.0.0.0:443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
+	bind :::443 ssl crt /etc/haproxy/site2-bundle.crt alpn h2,http/1.1
+	capture request header X-Cache-Request-ID len 60
+	default_backend backend-site2-local
 
 listen combined-444
-    bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
-    bind :::444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
-    capture request header X-Cache-Request-ID len 60
-    use_backend backend-site7-local if { hdr(Host) -i site7.local }
-    use_backend backend-site8-local if { hdr(Host) -i site8.local }
+	bind 0.0.0.0:444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
+	bind :::444 ssl crt /etc/haproxy/site7-bundle.crt crt /etc/haproxy/site8-bundle.crt alpn h2,http/1.1
+	capture request header X-Cache-Request-ID len 60
+	use_backend backend-site7-local if { hdr(Host) -i site7.local }
+	use_backend backend-site8-local if { hdr(Host) -i site8.local }

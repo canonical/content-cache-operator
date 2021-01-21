@@ -1,18 +1,18 @@
 backend default-redirect-combined-80
-    redirect prefix https://site2.local
+	redirect prefix https://site2.local
 
 listen combined-80
-    bind 0.0.0.0:80
-    bind :::80
-    capture request header X-Cache-Request-ID len 60
-    redirect scheme https code 301 if { hdr(Host) -i site1.local } !{ ssl_fc }
-    redirect scheme https code 301 if { hdr(Host) -i site2.local } !{ ssl_fc }
-    default_backend default-redirect-combined-80
+	bind 0.0.0.0:80
+	bind :::80
+	capture request header X-Cache-Request-ID len 60
+	redirect scheme https code 301 if { hdr(Host) -i site1.local } !{ ssl_fc }
+	redirect scheme https code 301 if { hdr(Host) -i site2.local } !{ ssl_fc }
+	default_backend default-redirect-combined-80
 
 listen combined-443
-    bind 0.0.0.0:443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
-    bind :::443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
-    capture request header X-Cache-Request-ID len 60
-    use_backend backend-site1-local if { hdr(Host) -i site1.local }
-    use_backend backend-site2-local if { hdr(Host) -i site2.local }
-    default_backend backend-site2-local
+	bind 0.0.0.0:443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
+	bind :::443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
+	capture request header X-Cache-Request-ID len 60
+	use_backend backend-site1-local if { hdr(Host) -i site1.local }
+	use_backend backend-site2-local if { hdr(Host) -i site2.local }
+	default_backend backend-site2-local

@@ -15,7 +15,7 @@ HAPROXY_BASE_PATH = '/etc/haproxy'
 HAPROXY_LOAD_BALANCING_ALGORITHM = 'leastconn'
 HAPROXY_SAVED_SERVER_STATE_PATH = '/run/haproxy/saved-server-state'
 HAPROXY_SOCKET_PATH = '/run/haproxy/admin.sock'
-INDENT = ' ' * 4
+INDENT = "\t"
 TLS_CIPHER_SUITES = 'ECDHE+AESGCM:ECDHE+AES256:ECDHE+AES128:!SSLv3:!TLSv1'
 
 
@@ -116,7 +116,7 @@ class HAProxyConf:
         listen_stanza = """
 listen {name}
 {bind_config}
-    capture request header X-Cache-Request-ID len 60
+{indent}capture request header X-Cache-Request-ID len 60
 {redirect_config}{backend_config}{default_backend}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
         redirect_conf = '{indent}redirect scheme https code 301 if {{ hdr(Host) -i {site_name} }} !{{ ssl_fc }}\n'
