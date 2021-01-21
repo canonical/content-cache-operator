@@ -55,6 +55,8 @@ defaults
 	errorfile 503 /etc/haproxy/errors/503.http
 	errorfile 504 /etc/haproxy/errors/504.http
 	load-server-state-from-file global
+	unique-id-format %{+X}o\ %ci:%cp_%fi:%fp_%Ts_%rt:%pid
+	unique-id-header X-Cache-Request-ID
 
 resolvers dns
 	nameserver dns1 127.0.0.53:53
