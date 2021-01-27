@@ -33,6 +33,13 @@ options:
       background subrequest to update objects in cache. This works for
       large objects, but can cause issues with sites updated recently
       to redirect and still have objects in the cache.
+  enable_cache_lock:
+    default: true
+    type: boolean
+    description: >
+      Default is to restrict to only one request at a time to populate
+      new cache elements from the backends. See Nginx'
+      proxy_cache_lock.
   enable_prometheus_metrics:
     default: true
     type: boolean

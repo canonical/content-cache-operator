@@ -139,9 +139,15 @@ def configure_nginx(conf_path=None):
         return
 
     enable_cache_bg_update = config.get('enable_cache_background_update', True)
+    enable_cache_lock = config.get('enable_cache_lock', True)
     enable_prometheus_metrics = config.get('enable_prometheus_metrics')
 
-    ngx_conf = nginx.NginxConf(conf_path, hookenv.local_unit(), enable_cache_bg_update=enable_cache_bg_update)
+    ngx_conf = nginx.NginxConf(
+        conf_path,
+        hookenv.local_unit(),
+        enable_cache_bg_update=enable_cache_bg_update,
+        enable_cache_lock=enable_cache_lock,
+    )
 
     sites_secrets = secrets_from_config(config.get('sites_secrets'))
     blacklist_ports = [int(x.strip()) for x in config.get('blacklist_ports', '').split(',') if x.strip()]

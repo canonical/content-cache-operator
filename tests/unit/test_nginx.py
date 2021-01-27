@@ -126,7 +126,7 @@ class TestLibNginx(unittest.TestCase):
 
     def test_nginx_config_render_with_metrics(self):
         """Test rendering with metrics exposed."""
-        ngx_conf = nginx.NginxConf(unit='mock-content-cache/0', enable_cache_bg_update=False)
+        ngx_conf = nginx.NginxConf(unit='mock-content-cache/0', enable_cache_bg_update=False, enable_cache_lock=False)
 
         with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             sites = yaml.safe_load(f.read())
@@ -137,7 +137,6 @@ class TestLibNginx(unittest.TestCase):
             'cache_inactive_time': '2h',
             'cache_max_size': '1g',
             'cache_path': '/var/lib/nginx/proxy',
-            'enable_cache_background_update': False,
             'enable_prometheus_metrics': True,
             'listen_address': '127.0.0.1',
         }
