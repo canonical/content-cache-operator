@@ -321,8 +321,7 @@ backend backend-{name}
                 httpchk = (
                     r"option httpchk {method} {path} HTTP/1.0\r\n"
                     r"Host:\ {site_name}\r\n"
-                    r"User-Agent:\ haproxy/httpchk\r\n"
-                    r"Cache-Control:\ no-cache"
+                    r"User-Agent:\ haproxy/httpchk"
                 ).format(method=method, path=path, site_name=site_name)
 
                 output = backend_stanza.format(
