@@ -156,7 +156,7 @@ listen site9-local
 
 backend backend-cached-site1-local
     option forwardfor
-    option httpchk HEAD /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site1.local
     balance leastconn
     server server_1 127.0.0.1:6080 check inter 2s rise 2 fall 60 maxconn 600
@@ -164,7 +164,7 @@ backend backend-cached-site1-local
 backend backend-site1-local
     retry-on all-retryable-errors
     option redispatch 1
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site1.local
     balance leastconn
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
@@ -173,7 +173,7 @@ backend backend-site1-local
 
 backend backend-cached-site2-local
     option forwardfor
-    option httpchk GET /check/ HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk GET /check/ HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site2.local
     balance leastconn
     server server_1 127.0.0.1:6081 check inter 2s rise 2 fall 60 maxconn 3072
@@ -181,7 +181,7 @@ backend backend-cached-site2-local
 backend backend-site2-local
     retry-on all-retryable-errors
     option redispatch 1
-    option httpchk GET /check/ HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk GET /check/ HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site2.local
     balance leastconn
     server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
@@ -190,7 +190,7 @@ backend backend-site2-local
 
 backend backend-cached-site3-local
     option forwardfor
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site3.local
     balance leastconn
     server server_1 127.0.0.1:6082 check inter 2s rise 2 fall 60 maxconn 4096
@@ -200,7 +200,7 @@ backend backend-site3-local
     option forceclose
     retry-on all-retryable-errors
     option redispatch 1
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site3.local
     balance leastconn
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
@@ -209,14 +209,14 @@ backend backend-site3-local
 
 backend backend-cached-site4-local
     option forwardfor
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site4.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site4.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site4.local
     balance leastconn
     server server_1 127.0.0.1:6083 check inter 2s rise 2 fall 60 maxconn 200
 
 backend backend-cached-site5
     option forwardfor
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site5.local
     balance leastconn
     server server_1 127.0.0.1:6084 check inter 2s rise 2 fall 60 maxconn 200
@@ -224,7 +224,7 @@ backend backend-cached-site5
 backend backend-site5
     retry-on all-retryable-errors
     option redispatch 1
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site5.local
     balance leastconn
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
@@ -232,14 +232,14 @@ backend backend-site5
 backend backend-site5-2
     retry-on all-retryable-errors
     option redispatch 1
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site5.local
     balance leastconn
     server server_1 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-cached-site6-local
     option forwardfor
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site6.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site6.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site6.local
     balance leastconn
     server server_1 127.0.0.1:6085 check inter 2s rise 2 fall 60 maxconn 200
@@ -247,14 +247,14 @@ backend backend-cached-site6-local
 backend backend-site6-local
     retry-on all-retryable-errors
     option redispatch 1
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site6.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site6.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site6.local
     balance leastconn
     server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(site6.local) check-sni site6.local verify required ca-file ca-certificates.crt
 
 backend backend-cached-site7-local
     option forwardfor
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site7.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site7.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site7.local
     balance leastconn
     server server_1 127.0.0.1:6086 check inter 2s rise 2 fall 60 maxconn 200
@@ -262,14 +262,14 @@ backend backend-cached-site7-local
 backend backend-site7-local
     retry-on all-retryable-errors
     option redispatch 1
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site7.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site7.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site7.local
     balance leastconn
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-cached-site8-local
     option forwardfor
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site8.local
     balance leastconn
     server server_1 127.0.0.1:6087 check inter 2s rise 2 fall 60 maxconn 200
@@ -277,7 +277,7 @@ backend backend-cached-site8-local
 backend backend-site8-local
     retry-on all-retryable-errors
     option redispatch 1
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site8.local
     balance leastconn
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
@@ -285,14 +285,14 @@ backend backend-site8-local
 backend backend-site8-local-2
     retry-on all-retryable-errors
     option redispatch 1
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ auth.site8.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ auth.site8.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host auth.site8.local
     balance leastconn
     server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(auth.site8.local) check-sni auth.site8.local verify required ca-file ca-certificates.crt
 
 backend backend-cached-site9-local
     option forwardfor
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site9.local
     balance leastconn
     server server_1 127.0.0.1:6088 check inter 2s rise 2 fall 60 maxconn 200
@@ -300,7 +300,7 @@ backend backend-cached-site9-local
 backend backend-site9-local
     retry-on all-retryable-errors
     option redispatch 1
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk\r\nCache-Control:\ no-cache
+    option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site9.local
     balance leastconn
     server server_1 127.0.1.15:80 check inter 1m rise 2 fall 5 maxconn 200
