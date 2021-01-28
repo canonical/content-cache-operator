@@ -498,6 +498,7 @@ def advertise_stats_endpoint():
 
     for rel in rels['haproxy-statistics'].values():
         rel.local['enabled'] = "True"
+        rel.local['listener_address'] = "127.0.0.1"
         rel.local['port'] = "10000"
         rel.local['user'] = "haproxy"
         rel.local['password'] = password
