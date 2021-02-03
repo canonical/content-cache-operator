@@ -143,8 +143,30 @@ class TestCharm(unittest.TestCase):
     @mock.patch('charms.reactive.set_flag')
     def test_hook_set_active(self, set_flag):
         content_cache.set_active()
-        status.active.assert_called()
-        set_flag.assert_called_once_with('content_cache.active')
+        status.active.assert_called_once_with('Ready')
+        set_flag.assert_called_once_with('ubuntu-repository-cache.active')
+
+        status.active.reset_mock()
+        # bzr - "revision-id: haw.loeung@canonical.com-20210131223324-uax4glwgttv0wftp"
+        content_cache.set_active(os.path.join(self.charm_dir, 'tests/unit/files/version'))
+        status.active.assert_called_once_with('Ready (20210131-uax4glwg)')
+
+        status.active.reset_mock()
+        # git - "uax4glw"
+        content_cache.set_active(os.path.join(self.charm_dir, 'tests/unit/files/version2'))
+        status.active.assert_called_once_with('Ready (uax4glw)')
+
+        status.active.reset_mock()
+        # bzr - "haw.loeung@canonical.com-20210131233021-66dfilb1615jppxt"
+        content_cache.set_active(os.path.join(self.charm_dir, 'tests/unit/files/version3'))
+        status.active.assert_called_once_with('Ready (20210131-66dfilb1)')
+
+        status.active.reset_mock()
+        content_cache.set_active(os.path.join(self.charm_dir, 'tests/unit/files/version4'))
+        status.active.assert_called_once_with('Ready (somerand)')
+        status.active.reset_mock()
+        content_cache.set_active(os.path.join(self.charm_dir, 'tests/unit/files/version5'))
+        status.active.assert_called_once_with('Ready (commit-id)')
 
     @mock.patch('charmhelpers.core.host.service_running')
     @mock.patch('charmhelpers.core.host.service_reload')
