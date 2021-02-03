@@ -66,18 +66,10 @@ def set_active(version_file='version'):
     revision = ''
     if os.path.exists(version_file):
         with open(version_file) as f:
-            line = f.readline().strip().split('-')
+            line = f.readline().strip()
         # We only want the first 8 characters, that's enough to tell
         # which version of the charm we're using.
-        ver = line[-1][:8]
-        # For bzr, we want to include the date as it's harder to determine
-        # the date from the generated commit ID compared with git.
-        if len(line) > 2:
-            # Again, we only want the first 8 chars.
-            date = line[-2][:8]
-            revision = ' ({}-{})'.format(date, ver)
-        else:
-            revision = ' ({})'.format(ver)
+        revision = ' ({})'.format(line[:8])
     status.active('Ready{}'.format(revision))
     reactive.set_flag('ubuntu-repository-cache.active')
 
