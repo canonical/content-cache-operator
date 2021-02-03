@@ -71,7 +71,7 @@ def set_active(version_file='version'):
         # which version of the charm we're using.
         revision = ' ({})'.format(line[:8])
     status.active('Ready{}'.format(revision))
-    reactive.set_flag('ubuntu-repository-cache.active')
+    reactive.set_flag('content_cache.active')
 
 
 @reactive.when_any('content_cache.haproxy.reload-required', 'content_cache.nginx.reload-required')

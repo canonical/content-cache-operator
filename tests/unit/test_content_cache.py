@@ -144,7 +144,7 @@ class TestCharm(unittest.TestCase):
     def test_hook_set_active(self, set_flag):
         content_cache.set_active()
         status.active.assert_called_once_with('Ready')
-        set_flag.assert_called_once_with('ubuntu-repository-cache.active')
+        set_flag.assert_called_once_with('content_cache.active')
 
         status.active.reset_mock()
         # git - "uax4glw"
