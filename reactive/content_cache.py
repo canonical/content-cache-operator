@@ -60,9 +60,20 @@ def config_changed():
 
 @reactive.when('content_cache.haproxy.configured', 'content_cache.nginx.configured', 'content_cache.sysctl.configured')
 @reactive.when_not('content_cache.active')
-def set_active():
+def set_active(version_file='version'):
     # XXX: Add more info such as nginx and haproxy status
-    status.active('ready')
+
+    revision = ''
+    if os.path.exists(version_file):
+        with open(version_file) as f:
+            line = f.readline().strip()
+        # We only want the first 8 characters, that's enough to tell
+        # which version of the charm we're using.
+        if len(line) > 8:
+            revision = ' (source version/commit {}…)'.format(line[:8])
+        else:
+            revision = ' (source version/commit {})'.format(line)
+    status.active('Ready{}'.format(revision))
     reactive.set_flag('content_cache.active')
 
 
