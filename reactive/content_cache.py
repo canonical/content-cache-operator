@@ -70,9 +70,9 @@ def set_active(version_file='version'):
         # We only want the first 8 characters, that's enough to tell
         # which version of the charm we're using.
         if len(line) > 8:
-            revision = ' (charm source version/commit {}…)'.format(line[:8])
+            revision = ' (source version/commit {}…)'.format(line[:8])
         else:
-            revision = ' (charm source version/commit {})'.format(line)
+            revision = ' (source version/commit {})'.format(line)
     status.active('Ready{}'.format(revision))
     reactive.set_flag('content_cache.active')
 

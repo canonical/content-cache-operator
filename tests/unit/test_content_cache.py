@@ -149,11 +149,11 @@ class TestCharm(unittest.TestCase):
         status.active.reset_mock()
         # git - "uax4glw"
         content_cache.set_active(os.path.join(self.charm_dir, 'tests/unit/files/version'))
-        status.active.assert_called_once_with('Ready (charm source version/commit uax4glw)')
+        status.active.assert_called_once_with('Ready (source version/commit uax4glw)')
 
         status.active.reset_mock()
         content_cache.set_active(os.path.join(self.charm_dir, 'tests/unit/files/version2'))
-        status.active.assert_called_once_with('Ready (charm source version/commit somerand…)')
+        status.active.assert_called_once_with('Ready (source version/commit somerand…)')
 
     @mock.patch('charmhelpers.core.host.service_running')
     @mock.patch('charmhelpers.core.host.service_reload')
