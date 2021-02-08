@@ -222,8 +222,8 @@ listen {name}
     def render_stanza_backend(self, config):  # NOQA: C901
         backend_stanza = """
 backend backend-{name}
-{options}{indent}{httpchk}
-{indent}http-request set-header Host {site_name}
+{indent}{httpchk}
+{options}{indent}http-request set-header Host {site_name}
 {indent}balance {load_balancing_algorithm}
 {backends}
 """

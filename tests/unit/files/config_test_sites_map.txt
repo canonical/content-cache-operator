@@ -39,7 +39,7 @@ site3.local:
     locations:
         /:
             backend-options:
-            - forwardfor except 127.0.0.1
+            - forwardfor except 127.0.0.1 192.168.1.1
             - forceclose
             backend_port: 8082
             backends:
