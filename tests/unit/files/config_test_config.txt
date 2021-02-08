@@ -46,7 +46,7 @@ site3.local:
     /:
       backends: *BACKENDS
       backend-options:
-        - forwardfor except 127.0.0.1
+        - forwardfor except 127.0.0.1 192.168.1.1
         - forceclose
       cache-maxconn: 4096
 

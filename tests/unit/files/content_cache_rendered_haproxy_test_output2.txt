@@ -90,7 +90,7 @@ listen site1-local
     default_backend backend-site1-local
 
 backend backend-cached-site1-local
-    option forwardfor
+    option forwardfor except 127.0.0.1
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site1.local
     balance leastconn
