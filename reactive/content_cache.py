@@ -281,6 +281,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
             # Also, for caching layer, we want higher fall count as it's less
             # likely the caching layer is down, 2 mins here (inter * fall).
             new_cached_loc_conf['backend-fall-count'] = 60
+            new_cached_loc_conf['backend-options'] = ['http-request set-header X-Cache-Request-IP %[src]']
 
             # No backends
             if not site_conf['locations'][location].get('backends'):
