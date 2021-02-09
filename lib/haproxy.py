@@ -222,8 +222,8 @@ listen {name}
     def render_stanza_backend(self, config):  # NOQA: C901
         backend_stanza = """
 backend backend-{name}
+{indent}{httpchk}
 {indent}http-request set-header Host {site_name}
-{httpchk}
 {options}{indent}balance {load_balancing_algorithm}
 {backends}
 """
@@ -318,23 +318,17 @@ backend backend-{name}
                 if opts:
                     options = '\n'.join(opts + [''])
 
-                httpchk = []
-                # Add X-Cache-Request-IP for caching layer to log real client IP.
-                if backend_name.startswith('cached-'):
-                    httpchk.append('{indent}http-request set-header X-Cache-Request-IP %[src]'.format(indent=INDENT))
-                httpchk.append(
-                    '{indent}http-check send hdr Host {site_name}'.format(site_name=site_name, indent=INDENT)
-                )
-                httpchk.append('{indent}http-check send hdr User-Agent haproxy/httpchk'.format(indent=INDENT))
-                httpchk.append(
-                    '{indent}option httpchk {method} {path} HTTP/1.0'.format(method=method, path=path, indent=INDENT)
-                )
+                httpchk = (
+                    r"option httpchk {method} {path} HTTP/1.0\r\n"
+                    r"Host:\ {site_name}\r\n"
+                    r"User-Agent:\ haproxy/httpchk"
+                ).format(method=method, path=path, site_name=site_name)
 
                 output = backend_stanza.format(
                     name=backend_name,
                     site=site,
                     site_name=site_name,
-                    httpchk='\n'.join(httpchk),
+                    httpchk=httpchk,
                     load_balancing_algorithm=self.load_balancing_algorithm,
                     backends='\n'.join(backend_confs),
                     options=options,
