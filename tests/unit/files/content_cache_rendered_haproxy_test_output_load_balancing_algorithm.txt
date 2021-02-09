@@ -155,142 +155,180 @@ listen site9-local
     default_backend backend-site9-local
 
 backend backend-cached-site1-local
-    option httpchk HEAD /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header X-Cache-Request-IP %[src]
     http-request set-header Host site1.local
+    http-request set-header X-Cache-Request-IP %[src]
+    http-check send hdr Host site1.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a HTTP/1.0
     balance roundrobin
     server server_1 127.0.0.1:6080 check inter 2s rise 2 fall 60 maxconn 600
 
 backend backend-site1-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
-    option redispatch 1
     http-request set-header Host site1.local
+    http-check send hdr Host site1.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
+    option redispatch 1
     balance roundrobin
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
     server server_2 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
     server server_3 127.0.1.12:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-cached-site2-local
-    option httpchk GET /check/ HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header X-Cache-Request-IP %[src]
     http-request set-header Host site2.local
+    http-request set-header X-Cache-Request-IP %[src]
+    http-check send hdr Host site2.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk GET /check/ HTTP/1.0
     balance roundrobin
     server server_1 127.0.0.1:6081 check inter 2s rise 2 fall 60 maxconn 3072
 
 backend backend-site2-local
-    option httpchk GET /check/ HTTP/1.0\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk
-    option redispatch 1
     http-request set-header Host site2.local
+    http-check send hdr Host site2.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk GET /check/ HTTP/1.0
+    option redispatch 1
     balance roundrobin
     server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
     server server_2 127.0.1.11:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
     server server_3 127.0.1.12:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
 
 backend backend-cached-site3-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header X-Cache-Request-IP %[src]
     http-request set-header Host site3.local
+    http-request set-header X-Cache-Request-IP %[src]
+    http-check send hdr Host site3.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
     balance roundrobin
     server server_1 127.0.0.1:6082 check inter 2s rise 2 fall 60 maxconn 4096
 
 backend backend-site3-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site3.local
+    http-check send hdr Host site3.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
     option forwardfor except 127.0.0.1 192.168.1.1
     option forceclose
     option redispatch 1
-    http-request set-header Host site3.local
     balance roundrobin
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
     server server_2 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
     server server_3 127.0.1.12:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-cached-site4-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site4.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header X-Cache-Request-IP %[src]
     http-request set-header Host site4.local
+    http-request set-header X-Cache-Request-IP %[src]
+    http-check send hdr Host site4.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
     balance roundrobin
     server server_1 127.0.0.1:6083 check inter 2s rise 2 fall 60 maxconn 200
 
 backend backend-cached-site5
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header X-Cache-Request-IP %[src]
     http-request set-header Host site5.local
+    http-request set-header X-Cache-Request-IP %[src]
+    http-check send hdr Host site5.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
     balance roundrobin
     server server_1 127.0.0.1:6084 check inter 2s rise 2 fall 60 maxconn 200
 
 backend backend-site5
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk
-    option redispatch 1
     http-request set-header Host site5.local
+    http-check send hdr Host site5.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
+    option redispatch 1
     balance roundrobin
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-site5-2
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk
-    option redispatch 1
     http-request set-header Host site5.local
+    http-check send hdr Host site5.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
+    option redispatch 1
     balance roundrobin
     server server_1 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-cached-site6-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site6.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header X-Cache-Request-IP %[src]
     http-request set-header Host site6.local
+    http-request set-header X-Cache-Request-IP %[src]
+    http-check send hdr Host site6.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
     balance roundrobin
     server server_1 127.0.0.1:6085 check inter 2s rise 2 fall 60 maxconn 200
 
 backend backend-site6-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site6.local\r\nUser-Agent:\ haproxy/httpchk
-    option redispatch 1
     http-request set-header Host site6.local
+    http-check send hdr Host site6.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
+    option redispatch 1
     balance roundrobin
     server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(site6.local) check-sni site6.local verify required ca-file ca-certificates.crt
 
 backend backend-cached-site7-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site7.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header X-Cache-Request-IP %[src]
     http-request set-header Host site7.local
+    http-request set-header X-Cache-Request-IP %[src]
+    http-check send hdr Host site7.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
     balance roundrobin
     server server_1 127.0.0.1:6086 check inter 2s rise 2 fall 60 maxconn 200
 
 backend backend-site7-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site7.local\r\nUser-Agent:\ haproxy/httpchk
-    option redispatch 1
     http-request set-header Host site7.local
+    http-check send hdr Host site7.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
+    option redispatch 1
     balance roundrobin
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-cached-site8-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header X-Cache-Request-IP %[src]
     http-request set-header Host site8.local
+    http-request set-header X-Cache-Request-IP %[src]
+    http-check send hdr Host site8.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
     balance roundrobin
     server server_1 127.0.0.1:6087 check inter 2s rise 2 fall 60 maxconn 200
 
 backend backend-site8-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site8.local\r\nUser-Agent:\ haproxy/httpchk
-    option redispatch 1
     http-request set-header Host site8.local
+    http-check send hdr Host site8.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
+    option redispatch 1
     balance roundrobin
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-site8-local-2
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ auth.site8.local\r\nUser-Agent:\ haproxy/httpchk
-    option redispatch 1
     http-request set-header Host auth.site8.local
+    http-check send hdr Host auth.site8.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
+    option redispatch 1
     balance roundrobin
     server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(auth.site8.local) check-sni auth.site8.local verify required ca-file ca-certificates.crt
 
 backend backend-cached-site9-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header X-Cache-Request-IP %[src]
     http-request set-header Host site9.local
+    http-request set-header X-Cache-Request-IP %[src]
+    http-check send hdr Host site9.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
     balance roundrobin
     server server_1 127.0.0.1:6088 check inter 2s rise 2 fall 60 maxconn 200
 
 backend backend-site9-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk
-    option redispatch 1
     http-request set-header Host site9.local
+    http-check send hdr Host site9.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
+    option redispatch 1
     balance roundrobin
     server server_1 127.0.1.15:80 check inter 1m rise 2 fall 5 maxconn 200
