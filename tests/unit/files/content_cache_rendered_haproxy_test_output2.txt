@@ -90,16 +90,20 @@ listen site1-local
     default_backend backend-site1-local
 
 backend backend-cached-site1-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
-    http-request set-header X-Cache-Request-IP %[src]
     http-request set-header Host site1.local
+    http-request set-header X-Cache-Request-IP %[src]
+    http-check send hdr Host site1.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
     balance leastconn
     server server_1 127.0.0.1:6080 check inter 2s rise 2 fall 60 maxconn 200
 
 backend backend-site1-local
-    option httpchk HEAD / HTTP/1.0\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site1.local
+    http-check send hdr Host site1.local
+    http-check send hdr User-Agent haproxy/httpchk
+    option httpchk HEAD / HTTP/1.0
     retries 3
     option redispatch 1
-    http-request set-header Host site1.local
     balance leastconn
     server server_1 192.168.1.1:8080 check inter 5s rise 2 fall 5 maxconn 200
