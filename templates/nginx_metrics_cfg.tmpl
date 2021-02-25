@@ -11,7 +11,7 @@ init_by_lua_block {
 }
 
 server {
-  listen {{ listen }}:{{ port }};
+  listen {% if address %}{{address}}:{% endif %}{{port}};
   allow all;
   location /metrics {
     content_by_lua_block {

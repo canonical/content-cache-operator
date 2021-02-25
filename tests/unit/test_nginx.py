@@ -172,8 +172,8 @@ class TestLibNginx(unittest.TestCase):
         template = env.get_template('templates/nginx_metrics_cfg.tmpl')
         content = template.render(
             {
+                'address': '',
                 'nginx_conf_path': os.path.join(self.tmpdir, 'conf.d'),
-                'listen': nginx.METRICS_LISTEN,
                 'port': nginx.METRICS_PORT,
             }
         )
@@ -181,10 +181,10 @@ class TestLibNginx(unittest.TestCase):
 
         metrics_site_available = os.path.join(self.tmpdir, 'sites-available', metrics_site_conf)
         metrics_site_enabled = os.path.join(self.tmpdir, 'sites-enabled', metrics_site_conf)
-        self.assertTrue(ngx_conf.toggle_metrics_site(enable_prometheus_metrics=True))
+        self.assertTrue(ngx_conf.toggle_metrics_site(enable_prometheus_metrics=True, listen_address=''))
         # Write again with same contents, this time it should return 'False'
         # as there's no change, thus no need to restart/reload Nginx.
-        self.assertFalse(ngx_conf.toggle_metrics_site(enable_prometheus_metrics=True))
+        self.assertFalse(ngx_conf.toggle_metrics_site(enable_prometheus_metrics=True, listen_address=''))
         self.assertTrue(os.path.exists(metrics_site_available))
 
         # Compare what's been written out matches what's in tests/unit/files.

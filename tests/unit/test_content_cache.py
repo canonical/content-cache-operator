@@ -1299,6 +1299,7 @@ site1.local:
             'enable_cache_background_update': False,
             'enable_cache_lock': False,
             'enable_prometheus_metrics': True,
+            'metrics_listen_address': '127.0.0.2',
             'sites': ngx_config,
             'worker_connections': 768,
             'worker_processes': 0,
@@ -1345,8 +1346,8 @@ site1.local:
             template = jinja_env.get_template('templates/nginx_metrics_cfg.tmpl')
             content = template.render(
                 {
+                    'address': '127.0.0.2',
                     'nginx_conf_path': os.path.join(self.tmpdir, 'conf.d'),
-                    'listen': nginx.METRICS_LISTEN,
                     'port': nginx.METRICS_PORT,
                 }
             )
