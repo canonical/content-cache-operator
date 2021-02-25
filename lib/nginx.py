@@ -9,6 +9,7 @@ from lib import utils
 
 
 INDENT = ' ' * 4
+METRICS_LISTEN = 'localhost'
 METRICS_PORT = 9145
 METRICS_SITE = 'nginx_metrics'
 NGINX_BASE_PATH = '/etc/nginx'
@@ -204,7 +205,7 @@ class NginxConf:
         if not enable_prometheus_metrics:
             return self._remove_metrics_site(available, enabled)
         template = self.jinja_env.get_template('templates/nginx_metrics_cfg.tmpl')
-        content = template.render({'nginx_conf_path': self.conf_path, 'port': METRICS_PORT})
+        content = template.render({'nginx_conf_path': self.conf_path, 'listen': METRICS_LISTEN, 'port': METRICS_PORT})
         # Check if contents changed
         try:
             with open(available, 'r', encoding='utf-8') as f:

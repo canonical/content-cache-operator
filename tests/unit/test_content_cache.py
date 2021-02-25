@@ -1344,7 +1344,11 @@ site1.local:
             jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(script_dir))
             template = jinja_env.get_template('templates/nginx_metrics_cfg.tmpl')
             content = template.render(
-                {'nginx_conf_path': os.path.join(self.tmpdir, 'conf.d'), 'port': nginx.METRICS_PORT}
+                {
+                    'nginx_conf_path': os.path.join(self.tmpdir, 'conf.d'),
+                    'listen': nginx.METRICS_LISTEN,
+                    'port': nginx.METRICS_PORT,
+                }
             )
             want = content
             test_file = os.path.join(self.tmpdir, 'sites-available/{0}.conf'.format(nginx.METRICS_SITE))
