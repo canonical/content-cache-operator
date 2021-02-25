@@ -53,7 +53,7 @@ clean:
 	@rm -rf ./.tox
 	@rm -rf ./.pytest_cache
 	@rm -rf ./tests/unit/__pycache__ ./reactive/__pycache__ ./lib/__pycache__
-	@rm -rf ./.coverage ./.unit-state.db
+	@rm -rf ./.coverage ./.juju-persistent-config ./.unit-state.db
 
 # The targets below don't depend on a file
 .PHONY: lint test unittest functionaltest build clean help
