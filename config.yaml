@@ -45,7 +45,7 @@ options:
     type: boolean
     description: >
       Export metrics for the number of requests and the number of cache hits.
-      Prometheus metrics are exposed at /metrics on port 9145.
+      Prometheus metrics are exposed at /metrics on localhost:9145.
   haproxy_hard_stop_after:
     default: "5m"
     type: string
@@ -85,6 +85,11 @@ options:
     description: >
       Configure maximum number of connections per site on frontend
       HAProxy. Defaults to auto-calculate (0).
+  metrics_listen_address:
+    type: string
+    default: "localhost"
+    description: >
+      Restrict exposed metrics to listen on certain addresses.
   nagios_context:
     type: string
     default: "juju"

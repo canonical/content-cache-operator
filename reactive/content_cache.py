@@ -102,7 +102,7 @@ def service_start_or_reload():
             reactive.clear_flag('content_cache.{}.reload-required'.format(name))
 
 
-def configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
+def configure_nginx_metrics(ngx_conf, enable_prometheus_metrics, listen_address):
     """Configure nginx to expose metrics.
 
     Create the dedicated server exposing the metrics and add the logging of the cache hits for the other sites.
@@ -114,7 +114,7 @@ def configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
     changed = False
     if copy_file('files/prometheus.lua', os.path.join(ngx_conf.conf_path, 'prometheus.lua')):
         changed = True
-    if ngx_conf.toggle_metrics_site(enable_prometheus_metrics):
+    if ngx_conf.toggle_metrics_site(enable_prometheus_metrics, listen_address):
         changed = True
     old_ports = [int(port.split('/')[0]) for port in hookenv.opened_ports()]
     hookenv.log("Current opened ports: {}".format(old_ports))
@@ -187,7 +187,8 @@ def configure_nginx(conf_path=None):
             hookenv.log('Wrote out new configs for site: {}:{}'.format(site, conf['listen_port']))
             changed = True
 
-    if configure_nginx_metrics(ngx_conf, enable_prometheus_metrics):
+    metrics_listen = config.get('metrics_listen_address', None)
+    if configure_nginx_metrics(ngx_conf, enable_prometheus_metrics, listen_address=metrics_listen):
         hookenv.log('nginx metrics exposed to prometheus')
         changed = True
 
