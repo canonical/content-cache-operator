@@ -2,7 +2,7 @@ proxy_cache_path {{cache_path}}/{{site}} use_temp_path=off levels=1:2 keys_zone=
 
 server {
     server_name {{site_name}};
-    listen {% if address %}{{address}}:{% endif %}{{port}};
+    listen {% if address %}{{address}}:{% endif %}{{port}}{% if reuseport %} reuseport{% endif %};
 
     port_in_redirect off;
     absolute_redirect off;

@@ -53,6 +53,7 @@ class TestLibNginx(unittest.TestCase):
         conf['enable_prometheus_metrics'] = False
         conf['cache_path'] = '/var/lib/nginx/proxy'
         conf['listen_address'] = '127.0.0.1'
+        conf['reuseport'] = False
         # From the given YAML-formatted list of sites, check that each individual
         # Nginx config rendered matches what's in tests/unit/files.
         port = BASE_LISTEN_PORT - 1
@@ -139,6 +140,7 @@ class TestLibNginx(unittest.TestCase):
             'cache_path': '/var/lib/nginx/proxy',
             'enable_prometheus_metrics': True,
             'listen_address': '127.0.0.1',
+            'reuseport': False,
         }
         for site, site_conf in sites.items():
             conf['site'] = site
