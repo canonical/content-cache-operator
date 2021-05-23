@@ -487,6 +487,10 @@ def configure_sysctl():
             congestion_control = 'bbr'
         context['net_ipv4_tcp_congestion_control'] = congestion_control
 
+    # Set or lower tcp_notsent_lowat to optimise HTTP/2 prioritisation.
+    # https://blog.cloudflare.com/http-2-prioritization-with-nginx/
+    context['net_ipv4_tcp_notsent_lowat'] = '16384'
+
     base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
     template = env.get_template('templates/sysctl_conf.tmpl')
