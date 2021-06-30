@@ -8,5 +8,6 @@
 __pycache__/
 builds/
 deps/
+htmlcov/
 repo-info
 revision
