@@ -464,7 +464,6 @@ def configure_nagios():
 
 
 _SYSCTL_CORE_DEFAULT_QDISC = '/proc/sys/net/core/default_qdisc'
-_SYSCTL_NET_IPV4_CONGESTION_CONTROL = '/proc/sys/net/ipv4/tcp_available_congestion_control'
 
 
 @reactive.when_not('content_cache.sysctl.configured')
@@ -477,15 +476,8 @@ def configure_sysctl():
     if os.path.exists(_SYSCTL_CORE_DEFAULT_QDISC):
         context['net_core_default_qdisc'] = 'fq'
 
-    if os.path.exists(_SYSCTL_NET_IPV4_CONGESTION_CONTROL):
-        congestion_control = None
-        with open(_SYSCTL_NET_IPV4_CONGESTION_CONTROL) as f:
-            ccs = f.read()
-        if 'bbr2' in ccs.split():
-            congestion_control = 'bbr2'
-        elif 'bbr' in ccs.split():
-            congestion_control = 'bbr'
-        context['net_ipv4_tcp_congestion_control'] = congestion_control
+    preferred_tcp_cc = ['bbr2', 'bbr']
+    context['net_ipv4_tcp_congestion_control'] = utils.select_available_tcp_congestion_control(preferred_tcp_cc)
 
     # Set or lower tcp_notsent_lowat to optimise HTTP/2 prioritisation.
     # https://blog.cloudflare.com/http-2-prioritization-with-nginx/

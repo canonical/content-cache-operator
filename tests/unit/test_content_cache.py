@@ -1154,7 +1154,8 @@ site1.local:
 
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('subprocess.call')
-    def test_configure_sysctl(self, call, set_flag):
+    @mock.patch('lib.utils.select_available_tcp_congestion_control')
+    def test_configure_sysctl(self, tcp_cc, call, set_flag):
         sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
 
         with mock.patch('reactive.content_cache.SYSCTL_CONF_PATH', sysctl_conf_path):
@@ -1172,8 +1173,8 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=sysctl_conf_path,
-            _SYSCTL_NET_IPV4_CONGESTION_CONTROL='some-file-does-not-exist',
         ):
+            tcp_cc.return_value = None
             content_cache.configure_sysctl()
             # Check contents
             with open('tests/unit/files/sysctl_core_default_qdisc.conf', 'r') as f:
@@ -1185,7 +1186,6 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
-            _SYSCTL_NET_IPV4_CONGESTION_CONTROL='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
             # Check contents
@@ -1199,8 +1199,8 @@ site1.local:
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
-            _SYSCTL_NET_IPV4_CONGESTION_CONTROL='tests/unit/files/sysctl_net_tcp_available_congestion_control.txt',
         ):
+            tcp_cc.return_value = 'bbr'
             content_cache.configure_sysctl()
             # Check contents
             with open('tests/unit/files/sysctl_net_tcp_congestion_control.conf', 'r') as f:
@@ -1211,8 +1211,8 @@ site1.local:
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
-            _SYSCTL_NET_IPV4_CONGESTION_CONTROL='tests/unit/files/sysctl_net_tcp_available_congestion_control_bbr2.txt',
         ):
+            tcp_cc.return_value = 'bbr2'
             content_cache.configure_sysctl()
             # Check contents
             with open('tests/unit/files/sysctl_net_tcp_congestion_control_bbr2.conf', 'r') as f:
@@ -1220,12 +1220,11 @@ site1.local:
             with open(sysctl_conf_path, 'r') as f:
                 got = f.read()
             self.assertEqual(got, want)
-        sysctl_file = 'tests/unit/files/sysctl_net_tcp_available_congestion_control_no_bbr.txt'
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
-            _SYSCTL_NET_IPV4_CONGESTION_CONTROL=sysctl_file,
         ):
+            tcp_cc.return_value = None
             content_cache.configure_sysctl()
             # Check contents
             with open('tests/unit/files/sysctl_net_tcp_congestion_control_no_bbr.conf', 'r') as f:
