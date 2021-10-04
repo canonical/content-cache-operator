@@ -1154,7 +1154,7 @@ site1.local:
 
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('subprocess.call')
-    @mock.patch('lib.utils.select_available_tcp_congestion_control')
+    @mock.patch('lib.utils.select_tcp_congestion_control')
     def test_configure_sysctl(self, tcp_cc, call, set_flag):
         sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
 
