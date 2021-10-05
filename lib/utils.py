@@ -266,6 +266,6 @@ def tune_tcp_mem(tcp_mem_path=_SYSCTL_NET_IPV4_TCP_MEM):
     mem_pressure = total * 0.0156
     mem_max = total * 0.0234
 
-    # Now double it!
-    multiplier = 2
+    # Now triple it!
+    multiplier = 3
     return "{} {} {}".format(int(mem_min * multiplier), int(mem_pressure * multiplier), int(mem_max * multiplier))
