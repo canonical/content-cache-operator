@@ -444,6 +444,4 @@ backend backend-{name}
         new_state = "{}.new".format(self.saved_server_state_path)
         with open(new_state, "wb") as f:
             f.write(server_state)
-        if os.path.exists(self.saved_server_state_path):
-            os.unlink(self.saved_server_state_path)
         os.rename(new_state, self.saved_server_state_path)
