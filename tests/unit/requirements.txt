@@ -2,5 +2,6 @@ charmhelpers
 charms.reactive
 freezegun
 mock
+psutil
 pytest
 pytest-cov

@@ -1155,11 +1155,24 @@ site1.local:
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('subprocess.call')
     @mock.patch('lib.utils.select_tcp_congestion_control')
-    def test_configure_sysctl(self, tcp_cc, call, set_flag):
+    @mock.patch('lib.utils.tune_tcp_mem')
+    def test_configure_sysctl(self, tune_tcp_mem, tcp_cc, call, set_flag):
         sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        tune_tcp_mem.return_value = None
+        tcp_cc.return_value = None
 
-        with mock.patch('reactive.content_cache.SYSCTL_CONF_PATH', sysctl_conf_path):
+        with mock.patch.multiple(
+            'reactive.content_cache',
+            SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+        ):
             content_cache.configure_sysctl()
+            # Check contents
+            with open('tests/unit/files/sysctl_core.conf', 'r') as f:
+                want = f.read()
+            with open(sysctl_conf_path, 'r') as f:
+                got = f.read()
+            self.assertEqual(got, want)
             call.assert_called_with(['sysctl', '-p', sysctl_conf_path])
             set_flag.assert_has_calls([mock.call('content_cache.sysctl.configured')])
 
@@ -1168,66 +1181,146 @@ site1.local:
             content_cache.configure_sysctl()
             call.assert_not_called()
 
-        # Test net.core.default_qdisc
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('subprocess.call')
+    @mock.patch('lib.utils.select_tcp_congestion_control')
+    @mock.patch('lib.utils.tune_tcp_mem')
+    def test_configure_sysctl_all(self, tune_tcp_mem, tcp_cc, call, set_flag):
+        sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+
+        # Test with all 3, qdisc, tcp_congestion_control, and tcp_mem
+        tune_tcp_mem.return_value = '92430 123242 184860'
+        tcp_cc.return_value = 'bbr'
+        # Use '/proc/uptime' for unit test as that will always exist.
+        qdisc_path = '/proc/uptime'
+
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
-            _SYSCTL_CORE_DEFAULT_QDISC=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
         ):
-            tcp_cc.return_value = None
             content_cache.configure_sysctl()
-            # Check contents
+            with open('tests/unit/files/sysctl.conf', 'r') as f:
+                want = f.read()
+            with open(sysctl_conf_path, 'r') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('subprocess.call')
+    @mock.patch('lib.utils.select_tcp_congestion_control')
+    @mock.patch('lib.utils.tune_tcp_mem')
+    def test_configure_sysctl_default_qdisc(self, tune_tcp_mem, tcp_cc, call, set_flag):
+        sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        tune_tcp_mem.return_value = None
+        tcp_cc.return_value = None
+
+        # Use '/proc/uptime' for unit test as that will always exist.
+        qdisc_path = '/proc/uptime'
+        with mock.patch.multiple(
+            'reactive.content_cache',
+            SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+        ):
+            content_cache.configure_sysctl()
             with open('tests/unit/files/sysctl_core_default_qdisc.conf', 'r') as f:
                 want = f.read()
             with open(sysctl_conf_path, 'r') as f:
                 got = f.read()
             self.assertEqual(got, want)
+
+        qdisc_path = 'some-file-does-not-exist'
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
-            _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
         ):
             content_cache.configure_sysctl()
-            # Check contents
             with open('tests/unit/files/sysctl_core_default_qdisc_none.conf', 'r') as f:
                 want = f.read()
             with open(sysctl_conf_path, 'r') as f:
                 got = f.read()
             self.assertEqual(got, want)
 
-        # Test net.ipv4.tcp_congestion_control
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('subprocess.call')
+    @mock.patch('lib.utils.select_tcp_congestion_control')
+    @mock.patch('lib.utils.tune_tcp_mem')
+    def test_configure_sysctl_tcp_congestion_control(self, tune_tcp_mem, tcp_cc, call, set_flag):
+        sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        tune_tcp_mem.return_value = None
+        qdisc_path = 'some-file-does-not-exist'
+
+        tcp_cc.return_value = 'bbr'
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
         ):
-            tcp_cc.return_value = 'bbr'
             content_cache.configure_sysctl()
-            # Check contents
             with open('tests/unit/files/sysctl_net_tcp_congestion_control.conf', 'r') as f:
                 want = f.read()
             with open(sysctl_conf_path, 'r') as f:
                 got = f.read()
             self.assertEqual(got, want)
+
+        tcp_cc.return_value = 'bbr2'
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
         ):
-            tcp_cc.return_value = 'bbr2'
             content_cache.configure_sysctl()
-            # Check contents
             with open('tests/unit/files/sysctl_net_tcp_congestion_control_bbr2.conf', 'r') as f:
                 want = f.read()
             with open(sysctl_conf_path, 'r') as f:
                 got = f.read()
             self.assertEqual(got, want)
+
+        tcp_cc.return_value = None
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
         ):
-            tcp_cc.return_value = None
             content_cache.configure_sysctl()
-            # Check contents
             with open('tests/unit/files/sysctl_net_tcp_congestion_control_no_bbr.conf', 'r') as f:
+                want = f.read()
+            with open(sysctl_conf_path, 'r') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('subprocess.call')
+    @mock.patch('lib.utils.select_tcp_congestion_control')
+    @mock.patch('lib.utils.tune_tcp_mem')
+    def test_configure_sysctl_tcp_mem(self, tune_tcp_mem, tcp_cc, call, set_flag):
+        sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        tcp_cc.return_value = None
+        qdisc_path = 'some-file-does-not-exist'
+
+        tune_tcp_mem.return_value = '188081 250774 376162'
+        with mock.patch.multiple(
+            'reactive.content_cache',
+            SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+        ):
+            content_cache.configure_sysctl()
+            with open('tests/unit/files/sysctl_net_tcp_mem.conf', 'r') as f:
+                want = f.read()
+            with open(sysctl_conf_path, 'r') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+        tune_tcp_mem.return_value = None
+        qdisc_path = 'some-file-does-not-exist'
+        with mock.patch.multiple(
+            'reactive.content_cache',
+            SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+        ):
+            content_cache.configure_sysctl()
+            with open('tests/unit/files/sysctl_net_tcp_mem_none.conf', 'r') as f:
                 want = f.read()
             with open(sysctl_conf_path, 'r') as f:
                 got = f.read()

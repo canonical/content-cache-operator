@@ -6,6 +6,9 @@ import re
 import shutil
 import subprocess
 
+import psutil
+
+
 BASE_CACHE_PORT = 6080
 BASE_BACKEND_PORT = 8080
 BACKEND_PORT_LIMIT = 61000  # sysctl net.ipv4.ip_local_port_range
@@ -241,3 +244,28 @@ def select_tcp_congestion_control(preferred_tcp_cc, tcp_avail_path=_SYSCTL_NET_I
                 return pref_cc
 
     return None
+
+
+_SYSCTL_NET_IPV4_TCP_MEM = '/proc/sys/net/ipv4/tcp_mem'
+
+
+def tune_tcp_mem(tcp_mem_path=_SYSCTL_NET_IPV4_TCP_MEM):
+
+    # For LXC/LXD containers, we can't tune tcp_mem.
+    if not os.path.exists(tcp_mem_path):
+        return None
+
+    svmem = psutil.virtual_memory()
+    total = svmem.total / 1024
+
+    # System defaults are usually min ~0.0117%, pressure ~0.0156%, and
+    # max ~0.0234% of available memory on boot. We can't use currently
+    # available memory though as that will constantly change as the
+    # system is running.
+    mem_min = total * 0.0117
+    mem_pressure = total * 0.0156
+    mem_max = total * 0.0234
+
+    # Now double it!
+    multiplier = 2
+    return "{} {} {}".format(int(mem_min * multiplier), int(mem_pressure * multiplier), int(mem_max * multiplier))
