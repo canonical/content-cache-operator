@@ -208,3 +208,24 @@ class TestLibUtils(unittest.TestCase):
             self.assertEqual(utils.package_version('haproxy'), None)
 
         self.assertEqual(utils.package_version('some-package-doesnt-exist'), None)
+
+    def test_select_tcp_congestion_control(self):
+        sysctl_tcp_cc_path = 'some-file-does-not-exist'
+        preferred = ['bbr']
+        want = None
+        self.assertEqual(utils.select_tcp_congestion_control(preferred, sysctl_tcp_cc_path), want)
+
+        sysctl_tcp_cc_path = 'tests/unit/files/sysctl_net_tcp_congestion_control.txt'
+        preferred = ['bbr2', 'bbr']
+        want = 'bbr'
+        self.assertEqual(utils.select_tcp_congestion_control(preferred, sysctl_tcp_cc_path), want)
+
+        sysctl_tcp_cc_path = 'tests/unit/files/sysctl_net_tcp_congestion_control_bbr2.txt'
+        preferred = ['bbr2', 'bbr']
+        want = 'bbr2'
+        self.assertEqual(utils.select_tcp_congestion_control(preferred, sysctl_tcp_cc_path), want)
+
+        sysctl_tcp_cc_path = 'tests/unit/files/sysctl_net_tcp_congestion_control_no_bbr.txt'
+        preferred = ['bbr2', 'bbr']
+        want = None
+        self.assertEqual(utils.select_tcp_congestion_control(preferred, sysctl_tcp_cc_path), want)

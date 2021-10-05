@@ -218,3 +218,26 @@ def package_version(package):
     if not version:
         return None
     return version
+
+
+_SYSCTL_NET_IPV4_CONGESTION_CONTROL = '/proc/sys/net/ipv4/tcp_congestion_control'
+
+
+def select_tcp_congestion_control(preferred_tcp_cc, tcp_avail_path=_SYSCTL_NET_IPV4_CONGESTION_CONTROL):
+    if not os.path.exists(tcp_avail_path):
+        return None
+
+    for pref_cc in preferred_tcp_cc:
+        # We need to try set the TCP congestion control algorithm and
+        # see if it's successfully set.
+        cmd = ['sysctl', 'net.ipv4.tcp_congestion_control={}'.format(pref_cc)]
+        subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # Now check to see if it's set in '/proc/sys/net/ipv4/tcp_congestion_control'
+        # and use if so.
+        with open(tcp_avail_path) as f:
+            ccs = f.read()
+            if pref_cc in ccs.split():
+                return pref_cc
+
+    return None
