@@ -1,6 +1,7 @@
 import datetime
 import hashlib
 import hmac
+import mmap
 import os
 import re
 import shutil
@@ -249,22 +250,26 @@ def select_tcp_congestion_control(preferred_tcp_cc, tcp_avail_path=_SYSCTL_NET_I
 _SYSCTL_NET_IPV4_TCP_MEM = '/proc/sys/net/ipv4/tcp_mem'
 
 
-def tune_tcp_mem(tcp_mem_path=_SYSCTL_NET_IPV4_TCP_MEM):
+def tune_tcp_mem(tcp_mem_path=_SYSCTL_NET_IPV4_TCP_MEM, mmap_pagesize=mmap.PAGESIZE):
 
     # For LXC/LXD containers, we can't tune tcp_mem.
     if not os.path.exists(tcp_mem_path):
         return None
 
     svmem = psutil.virtual_memory()
-    total = svmem.total / 1024
+    total_mem = svmem.total
 
-    # System defaults are usually min ~0.0117%, pressure ~0.0156%, and
-    # max ~0.0234% of available memory on boot. We can't use currently
-    # available memory though as that will constantly change as the
-    # system is running.
-    mem_min = total * 0.0117
-    mem_pressure = total * 0.0156
-    mem_max = total * 0.0234
+    # Try to calculate the system defaults for tcp_mem based on code
+    # from the kernel:
+    #   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/net/ipv4/tcp.c#n4487
+    # We can't use the available memory unlike what the kernel uses as
+    # that differs for an already running system vs. on initial system
+    # boot. Let's go with 98.8%
+    total_pages = (total_mem * 0.988) / mmap_pagesize
+    limit = total_pages / 16
+    mem_min = limit / 4 * 3
+    mem_pressure = limit
+    mem_max = mem_min * 2
 
     # Now triple it!
     multiplier = 3
