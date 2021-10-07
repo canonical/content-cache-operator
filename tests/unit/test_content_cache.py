@@ -7,7 +7,6 @@ from unittest import mock
 
 import freezegun
 import jinja2
-import pytest
 import yaml
 
 # We also need to mock up charms.layer so we can run unit tests without having
