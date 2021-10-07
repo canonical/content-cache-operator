@@ -124,6 +124,11 @@ options:
     type: string
     description: >
       Override default ciphers used for TLS/SSL termination (OpenSSL format).
+  tune_tcp_mem_multiplier:
+    type: float
+    default: 1.5
+    description: >
+      Tune net.ipv4.tcp_mem, apply multiplier.
   worker_connections:
     default: 768
     type: int

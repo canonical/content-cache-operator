@@ -238,18 +238,18 @@ class TestLibUtils(unittest.TestCase):
         svmem.total = 541071241216
         virtual_memory.return_value = svmem
         want = '18353292 24471056 36706584'
-        self.assertEqual(utils.tune_tcp_mem(mmap_pagesize=4096), want)
+        self.assertEqual(utils.tune_tcp_mem(3, mmap_pagesize=4096), want)
 
         svmem.total = 8230563840
         virtual_memory.return_value = svmem
         want = '279183 372244 558366'
-        self.assertEqual(utils.tune_tcp_mem(mmap_pagesize=4096), want)
+        self.assertEqual(utils.tune_tcp_mem(3, mmap_pagesize=4096), want)
 
         svmem.total = 541071241216
         virtual_memory.return_value = svmem
         want = '9176646 12235528 18353292'
-        self.assertEqual(utils.tune_tcp_mem(mmap_pagesize=8192), want)
+        self.assertEqual(utils.tune_tcp_mem(3, mmap_pagesize=8192), want)
 
         sysctl_tcp_mem_path = 'some-file-does-not-exist'
         want = None
-        self.assertEqual(utils.tune_tcp_mem(sysctl_tcp_mem_path), want)
+        self.assertEqual(utils.tune_tcp_mem(tcp_mem_path=sysctl_tcp_mem_path), want)
