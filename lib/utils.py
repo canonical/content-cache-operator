@@ -261,7 +261,7 @@ def tune_tcp_mem(tcp_mem_path=_SYSCTL_NET_IPV4_TCP_MEM, mmap_pagesize=mmap.PAGES
 
     # Try to calculate the system defaults for tcp_mem based on code
     # from the kernel:
-    #   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/net/ipv4/tcp.c#n4487
+    #   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/net/ipv4/tcp.c?id=3aa7857fe1d7ac7f600f5b7e1530396fb06822bf#n4487
     # We can't use the available memory unlike what the kernel uses as
     # that differs for an already running system vs. on initial system
     # boot. Let's go with 98.8%
