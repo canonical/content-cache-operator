@@ -468,6 +468,8 @@ _SYSCTL_CORE_DEFAULT_QDISC = '/proc/sys/net/core/default_qdisc'
 
 @reactive.when_not('content_cache.sysctl.configured')
 def configure_sysctl():
+    config = hookenv.config()
+
     context = {
         'net_core_default_qdisc': None,
         'net_ipv4_tcp_congestion_control': None,
@@ -478,7 +480,7 @@ def configure_sysctl():
 
     preferred_tcp_cc = ['bbr2', 'bbr']
     context['net_ipv4_tcp_congestion_control'] = utils.select_tcp_congestion_control(preferred_tcp_cc)
-    context['net_ipv4_tcp_mem'] = utils.tune_tcp_mem()
+    context['net_ipv4_tcp_mem'] = utils.tune_tcp_mem(config['tune_tcp_mem_multiplier'])
 
     # Set or lower tcp_notsent_lowat to optimise HTTP/2 prioritisation.
     # https://blog.cloudflare.com/http-2-prioritization-with-nginx/

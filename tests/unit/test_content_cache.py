@@ -1158,6 +1158,7 @@ site1.local:
     @mock.patch('lib.utils.tune_tcp_mem')
     def test_configure_sysctl(self, tune_tcp_mem, tcp_cc, call, set_flag):
         sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        self.mock_config.return_value = {'tune_tcp_mem_multiplier': 1.5}
         tune_tcp_mem.return_value = None
         tcp_cc.return_value = None
 
@@ -1187,6 +1188,7 @@ site1.local:
     @mock.patch('lib.utils.tune_tcp_mem')
     def test_configure_sysctl_all(self, tune_tcp_mem, tcp_cc, call, set_flag):
         sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        self.mock_config.return_value = {'tune_tcp_mem_multiplier': 1.5}
 
         # Test with all 3, qdisc, tcp_congestion_control, and tcp_mem
         tune_tcp_mem.return_value = '92430 123242 184860'
@@ -1212,6 +1214,7 @@ site1.local:
     @mock.patch('lib.utils.tune_tcp_mem')
     def test_configure_sysctl_default_qdisc(self, tune_tcp_mem, tcp_cc, call, set_flag):
         sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        self.mock_config.return_value = {'tune_tcp_mem_multiplier': 1.5}
         tune_tcp_mem.return_value = None
         tcp_cc.return_value = None
 
@@ -1248,6 +1251,7 @@ site1.local:
     @mock.patch('lib.utils.tune_tcp_mem')
     def test_configure_sysctl_tcp_congestion_control(self, tune_tcp_mem, tcp_cc, call, set_flag):
         sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        self.mock_config.return_value = {'tune_tcp_mem_multiplier': 1.5}
         tune_tcp_mem.return_value = None
         qdisc_path = 'some-file-does-not-exist'
 
@@ -1296,6 +1300,7 @@ site1.local:
     @mock.patch('lib.utils.tune_tcp_mem')
     def test_configure_sysctl_tcp_mem(self, tune_tcp_mem, tcp_cc, call, set_flag):
         sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        self.mock_config.return_value = {'tune_tcp_mem_multiplier': 1.5}
         tcp_cc.return_value = None
         qdisc_path = 'some-file-does-not-exist'
 
