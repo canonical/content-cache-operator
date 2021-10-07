@@ -102,6 +102,13 @@ options:
     description: >
       A comma-separated list of nagios servicegroups.
       If left empty, the nagios_context will be used as the servicegroup
+  reuseport:
+    default: false
+    type: boolean
+    description: >
+      Use the SO_REUSEPORT socket option, allowing a better load balance on the nginx workers.
+      Can result in performance drop due to increased latency on heavy workload.
+      See https://www.nginx.com/blog/socket-sharding-nginx-release-1-9-1/.
   sites:
     default: ""
     type: string

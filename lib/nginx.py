@@ -162,6 +162,7 @@ class NginxConf:
             'keys_zone': self._generate_keys_zone(conf['site']),
             'locations': self._process_locations(conf['locations']),
             'port': conf['listen_port'],
+            'reuseport': conf['reuseport'],
             'site': conf['site'],
             'site_name': conf['site_name'],
         }

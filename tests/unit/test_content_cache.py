@@ -7,6 +7,7 @@ from unittest import mock
 
 import freezegun
 import jinja2
+import pytest
 import yaml
 
 # We also need to mock up charms.layer so we can run unit tests without having
@@ -214,6 +215,7 @@ class TestCharm(unittest.TestCase):
             'enable_cache_background_update': True,
             'enable_cache_lock': True,
             'enable_prometheus_metrics': False,
+            'reuseport': False,
             'sites': ngx_config,
             'worker_connections': 768,
             'worker_processes': 0,
@@ -291,6 +293,7 @@ site1.local:
             'cache_inactive_time': '',
             'cache_max_size': '1g',
             'cache_path': '/var/lib/nginx/proxy',
+            'reuseport': False,
             'sites': config,
             'sites_secrets': secrets,
             'worker_connections': 768,
@@ -340,6 +343,7 @@ site1.local:
                 'cache_inactive_time': '2h',
                 'cache_max_size': '1g',
                 'cache_path': '/var/lib/nginx/proxy',
+                'reuseport': False,
                 'sites': config,
                 'worker_connections': 768,
                 'worker_processes': 0,
@@ -357,6 +361,7 @@ site1.local:
                 'cache_inactive_time': '2h',
                 'cache_max_size': '20g',
                 'cache_path': '/srv/cache',
+                'reuseport': False,
                 'sites': config,
                 'worker_connections': 768,
                 'worker_processes': 0,
@@ -375,6 +380,7 @@ site1.local:
                 'cache_inactive_time': '2h',
                 'cache_max_size': '',
                 'cache_path': '/srv/cache',
+                'reuseport': False,
                 'sites': config,
                 'worker_connections': 768,
                 'worker_processes': 0,
@@ -1397,6 +1403,7 @@ site1.local:
             'enable_cache_lock': False,
             'enable_prometheus_metrics': True,
             'metrics_listen_address': '127.0.0.2',
+            'reuseport': False,
             'sites': ngx_config,
             'worker_connections': 768,
             'worker_processes': 0,
@@ -1497,3 +1504,47 @@ site1.local:
             }
             content_cache.configure_haproxy()
             close_port.assert_not_called()
+
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('charmhelpers.core.hookenv.close_port')
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_nginx_reuseport(self, logrotation, opened_ports, close_port, set_flag):
+        '''Test configuration of Nginx sites.'''
+        with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
+        self.mock_config.return_value = {
+            'cache_inactive_time': '2h',
+            'cache_max_size': '1g',
+            'cache_path': '/var/lib/nginx/proxy',
+            'enable_cache_background_update': False,
+            'enable_cache_lock': False,
+            'enable_prometheus_metrics': True,
+            'metrics_listen_address': '127.0.0.2',
+            'reuseport': True,
+            'sites': ngx_config,
+            'worker_connections': 768,
+            'worker_processes': 0,
+        }
+
+        with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
+            mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
+            # conf.d, sites-available, and sites-enabled won't exist in our
+            # temporary directory.
+            os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+            shutil.copyfile('tests/unit/files/nginx.conf', os.path.join(self.tmpdir, 'nginx.conf'))
+
+            opened_ports.return_value = ['80/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
+            content_cache.configure_nginx(self.tmpdir)
+
+            site = 'basic_site'
+            test_file = 'tests/unit/files/nginx_config_rendered_test_output-reuseport.txt'
+            with open(test_file, 'r', encoding='utf-8') as f:
+                want = f.read()
+
+            test_file = os.path.join(self.tmpdir, 'sites-available/{0}.conf'.format(site))
+            with open(test_file, 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
