@@ -479,6 +479,7 @@ def configure_sysctl():
 
     preferred_tcp_cc = ['bbr2', 'bbr']
     context['net_ipv4_tcp_congestion_control'] = utils.select_tcp_congestion_control(preferred_tcp_cc)
+    context['net_ipv4_tcp_mem'] = utils.tune_tcp_mem()
 
     # Set or lower tcp_notsent_lowat to optimise HTTP/2 prioritisation.
     # https://blog.cloudflare.com/http-2-prioritization-with-nginx/

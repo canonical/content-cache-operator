@@ -1,12 +1,16 @@
 {% if net_ipv4_tcp_congestion_control -%}
 # Taken from main Ubuntu Archive servers. Mostly for dealing with LFP.
-net.ipv4.tcp_congestion_control={{ net_ipv4_tcp_congestion_control }}
+net.ipv4.tcp_congestion_control = {{ net_ipv4_tcp_congestion_control }}
 {% endif -%}
 {% if net_ipv4_tcp_notsent_lowat -%}
 net.ipv4.tcp_notsent_lowat = {{ net_ipv4_tcp_notsent_lowat }}
 {% endif -%}
 {% if net_core_default_qdisc -%}
-net.core.default_qdisc={{ net_core_default_qdisc }}
+net.core.default_qdisc = {{ net_core_default_qdisc }}
+{% endif -%}
+{% if net_ipv4_tcp_mem %}
+# Tune TCP memory
+net.ipv4.tcp_mem = {{ net_ipv4_tcp_mem }}
 {% endif %}
 
 # Tune the TCP stack for Fast Failure Detection
