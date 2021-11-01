@@ -368,6 +368,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
     if haproxy.write(rendered_config):
         haproxy.save_server_state()
         reactive.set_flag('content_cache.haproxy.reload-required')
+        reactive.clear_flag('content_cache.sysctl.configured')
 
     update_logrotate('haproxy', retention=config.get('log_retention'))
     reactive.set_flag('content_cache.haproxy.configured')
@@ -486,6 +487,8 @@ def configure_sysctl():
     # Set or lower tcp_notsent_lowat to optimise HTTP/2 prioritisation.
     # https://blog.cloudflare.com/http-2-prioritization-with-nginx/
     context['net_ipv4_tcp_notsent_lowat'] = '16384'
+
+    context['fs_nr_open'] = utils.process_rlimits(1, 'NOFILE')
 
     base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
