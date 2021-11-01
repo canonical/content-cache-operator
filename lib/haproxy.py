@@ -371,16 +371,16 @@ backend backend-{name}
 
         # Little buffer for non-connection related file descriptors
         # such as logging.
-        max_fds = global_max_connections + (len(listen_stanzas) * 13) + 1000
+        max_fds = (global_max_connections * 2) + (len(listen_stanzas) * 13) + 1000
         # We need to ensure that max. fds for PID 1 / init is large
         # enough otherwise HAProxy will fail to increase the max. fds
         # for the HAProxy processes.
         self.increase_maxfds(1, max_fds)
         # Now increase max. fds for the HAProxy process, if it needs to.
         self.increase_maxfds(self.get_parent_pid(), max_fds)
-        init_maxfds = utils.process_rlimits(1, 'NOFILE')
         # Check and deal with cases where we can't increase max. fds
         # for whatever reason such as value too large.
+        init_maxfds = utils.process_rlimits(1, 'NOFILE')
         if init_maxfds != 'unlimited' and (global_max_connections * 2) > int(init_maxfds):
             global_max_connections = int(init_maxfds) // 2
 
