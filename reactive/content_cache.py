@@ -488,8 +488,6 @@ def configure_sysctl():
     # https://blog.cloudflare.com/http-2-prioritization-with-nginx/
     context['net_ipv4_tcp_notsent_lowat'] = '16384'
 
-    context['fs_nr_open'] = utils.process_rlimits(1, 'NOFILE')
-
     base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
     template = env.get_template('templates/sysctl_conf.tmpl')

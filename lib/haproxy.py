@@ -372,18 +372,14 @@ backend backend-{name}
         # Little buffer for non-connection related file descriptors
         # such as logging.
         fds_buffer = (len(listen_stanzas) * 13) + 1000
-        max_fds = (global_max_connections * 2) + fds_buffer
-        # We need to ensure that max. fds for PID 1 / init is large
-        # enough otherwise HAProxy will fail to increase the max. fds
-        # for the HAProxy processes.
-        self.increase_maxfds(1, max_fds)
-        # Now increase max. fds for the HAProxy process, if it needs to.
-        self.increase_maxfds(self.get_parent_pid(), max_fds)
-        # Check and deal with cases where we can't increase max. fds
-        # for whatever reason such as value too large.
+        maxfds = (global_max_connections * 2) + fds_buffer
         init_maxfds = utils.process_rlimits(1, 'NOFILE')
-        if init_maxfds != 'unlimited' and ((global_max_connections * 2) + fds_buffer) > int(init_maxfds):
+        # Calculated max. fds larger than init / PID 1's so let's reduce it.
+        if init_maxfds != 'unlimited' and maxfds > int(init_maxfds):
             global_max_connections = (int(init_maxfds) // 2) - fds_buffer
+            maxfds = init_maxfds
+        # Increase max. fds for the HAProxy process, if it needs to.
+        self.increase_maxfds(self.get_parent_pid(), maxfds)
 
         if not tls_cipher_suites:
             tls_cipher_suites = TLS_CIPHER_SUITES
@@ -435,8 +431,6 @@ backend backend-{name}
         haproxy_maxfds = utils.process_rlimits(haproxy_pid, 'NOFILE')
 
         if haproxy_maxfds and haproxy_maxfds != 'unlimited' and int(maxfds) > int(haproxy_maxfds):
-            cmd = ['sysctl', 'fs.nr_open={}'.format(str(maxfds))]
-            subprocess.call(cmd, stdout=subprocess.DEVNULL)
             cmd = ['prlimit', '--pid', str(haproxy_pid), '--nofile={}'.format(str(maxfds))]
             subprocess.call(cmd, stdout=subprocess.DEVNULL)
             return True
