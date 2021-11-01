@@ -368,7 +368,19 @@ backend backend-{name}
         else:
             max_connections = num_threads * 2000
         global_max_connections = max_connections * len(listen_stanzas)
+
+        # Little buffer for non-connection related file descriptors
+        # such as logging.
+        max_fds = global_max_connections + (len(listen_stanzas) * 13) + 1000
+        # We need to ensure that max. fds for PID 1 / init is large
+        # enough otherwise HAProxy will fail to increase the max. fds
+        # for the HAProxy processes.
+        self.increase_maxfds(1, max_fds)
+        # Now increase max. fds for the HAProxy process, if it needs to.
+        self.increase_maxfds(self.get_parent_pid(), max_fds)
         init_maxfds = utils.process_rlimits(1, 'NOFILE')
+        # Check and deal with cases where we can't increase max. fds
+        # for whatever reason such as value too large.
         if init_maxfds != 'unlimited' and (global_max_connections * 2) > int(init_maxfds):
             global_max_connections = int(init_maxfds) // 2
 
@@ -418,12 +430,11 @@ backend backend-{name}
 
     # HAProxy 2.x does this, but Bionic ships with HAProxy 1.8 so we need
     # to still do this.
-    def increase_maxfds(self):
-        haproxy_pid = self.get_parent_pid()
+    def increase_maxfds(self, haproxy_pid, maxfds):
         haproxy_maxfds = utils.process_rlimits(haproxy_pid, 'NOFILE')
 
-        if haproxy_maxfds and haproxy_maxfds != 'unlimited' and int(self.max_connections) > int(haproxy_maxfds):
-            cmd = ['prlimit', '--pid', str(haproxy_pid), '--nofile={}'.format(str(self.max_connections))]
+        if haproxy_maxfds and haproxy_maxfds != 'unlimited' and int(maxfds) > int(haproxy_maxfds):
+            cmd = ['prlimit', '--pid', str(haproxy_pid), '--nofile={}'.format(str(maxfds))]
             subprocess.call(cmd, stdout=subprocess.DEVNULL)
             return True
 
