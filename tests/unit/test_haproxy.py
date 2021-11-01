@@ -274,25 +274,25 @@ class TestLibHAProxy(unittest.TestCase):
         call.reset_mock()
         process_rlimits.return_value = '8192'
         haproxy.max_connections = 16384
-        self.assertTrue(haproxy.increase_maxfds())
+        self.assertTrue(haproxy.increase_maxfds(1, haproxy.max_connections))
         call.assert_called_with(['prlimit', '--pid', '1', '--nofile=16384'], stdout=-3)
 
         call.reset_mock()
         process_rlimits.return_value = 8192
         haproxy.max_connections = '16384'
-        self.assertTrue(haproxy.increase_maxfds())
+        self.assertTrue(haproxy.increase_maxfds(1, haproxy.max_connections))
         call.assert_called_with(['prlimit', '--pid', '1', '--nofile=16384'], stdout=-3)
 
         call.reset_mock()
         process_rlimits.return_value = 'unlimited'
         haproxy.max_connections = 16384
-        self.assertFalse(haproxy.increase_maxfds())
+        self.assertFalse(haproxy.increase_maxfds(1, haproxy.max_connections))
         call.assert_not_called()
 
         call.reset_mock()
         process_rlimits.return_value = '1048576'
         haproxy.max_connections = 16384
-        self.assertFalse(haproxy.increase_maxfds())
+        self.assertFalse(haproxy.increase_maxfds(1, haproxy.max_connections))
         call.assert_not_called()
 
     @mock.patch('lib.utils.process_rlimits')
@@ -301,7 +301,7 @@ class TestLibHAProxy(unittest.TestCase):
 
         process_rlimits.return_value = '10'
         haproxy.max_connections = 16384
-        self.assertTrue(haproxy.increase_maxfds())
+        self.assertTrue(haproxy.increase_maxfds(1, haproxy.max_connections))
 
     @mock.patch('lib.haproxy.socket.socket.connect')
     @mock.patch('lib.haproxy.socket.socket.recv')
