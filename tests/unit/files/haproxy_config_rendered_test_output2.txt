@@ -1,7 +1,7 @@
 global
     nbproc 2
     nbthread 4
-    maxconn 8192
+    maxconn 7153
     log /dev/log local0
     log /dev/log local1 notice
     chroot /var/lib/haproxy
@@ -37,7 +37,7 @@ global
     # requires ~200 bytes so on a host with say 32 CPUs, 10 sites,
     # each with 2000 max conns will only consume around 122 Mbytes
     # (32 * 10 * 2000 * 200), which is not much.
-    tune.ssl.cachesize 8192
+    tune.ssl.cachesize 7153
 
 defaults
     log global
