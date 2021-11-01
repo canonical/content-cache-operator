@@ -434,6 +434,8 @@ backend backend-{name}
         haproxy_maxfds = utils.process_rlimits(haproxy_pid, 'NOFILE')
 
         if haproxy_maxfds and haproxy_maxfds != 'unlimited' and int(maxfds) > int(haproxy_maxfds):
+            cmd = ['sysctl', 'fs.nr_open={}'.format(str(maxfds))]
+            subprocess.call(cmd, stdout=subprocess.DEVNULL)
             cmd = ['prlimit', '--pid', str(haproxy_pid), '--nofile={}'.format(str(maxfds))]
             subprocess.call(cmd, stdout=subprocess.DEVNULL)
             return True
