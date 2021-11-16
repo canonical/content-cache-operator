@@ -283,6 +283,7 @@ site1.local:
         - 127.0.1.10:80
         - 127.0.1.11:80
         - 127.0.1.12:80
+      backend-path: ${secret}
       origin-headers:
         - X-Origin-Key: ${secret}
       signed-url-hmac-key: ${secret}

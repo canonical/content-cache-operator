@@ -650,16 +650,20 @@ def interpolate_secrets(sites, secrets):
             continue
         for location, loc_conf in site_conf.get('locations', {}).items():
             location_secrets = secrets.get(site).get('locations').get(location)
-
-            signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')
-            if signed_url_hmac_key == '${secret}':
-                loc_conf['signed-url-hmac-key'] = location_secrets.get('signed-url-hmac-key')
-
+            if not location_secrets:
+                continue
+            # Handle origin-headers secrets.
             origin_headers = loc_conf.get('origin-headers')
             if origin_headers:
                 origin_header_secrets = location_secrets.get('origin-headers')
                 loc_conf['origin-headers'] = _interpolate_secrets_origin_headers(origin_headers, origin_header_secrets)
-
+            # Handle other location config keys.
+            for k, v in loc_conf.items():
+                if type(v) == str and v.strip() == '${secret}':
+                    if k not in location_secrets:
+                        # This will leave the secret marker in place.
+                        continue
+                    loc_conf[k] = location_secrets.get(k)
     return sites
 
 
