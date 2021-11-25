@@ -319,7 +319,7 @@ backend backend-{name}
                     options = '\n'.join(opts + [''])
 
                 httpchk = (
-                    r"option httpchk {method} {path} HTTP/1.0\r\n"
+                    r"option httpchk {method} {path} HTTP/1.1\r\n"
                     r"Host:\ {site_name}\r\n"
                     r"User-Agent:\ haproxy/httpchk"
                 ).format(method=method, path=path, site_name=site_name)
