@@ -242,8 +242,12 @@ backend backend-{name}
                 if loc_conf.get('backend-tls'):
                     tls_config = (
                         ' ssl sni str({site_name}) check-sni {site_name} verify required'
-                        ' ca-file ca-certificates.crt'.format(site_name=site_name)
+                        ' ca-file ca-certificates.crt alpn h2,http/1.1'.format(site_name=site_name)
                     )
+                    ver = utils.package_version('haproxy')
+                    # With HAProxy 2, we also need check-alpn
+                    if LooseVersion(ver) >= LooseVersion('2'):
+                        tls_config += ' check-alpn h2,http/1.1'
                 inter_time = loc_conf.get('backend-inter-time', '5s')
                 fall_count = loc_conf.get('backend-fall-count', 5)
                 rise_count = loc_conf.get('backend-rise-count', 2)
@@ -319,7 +323,7 @@ backend backend-{name}
                     options = '\n'.join(opts + [''])
 
                 httpchk = (
-                    r"option httpchk {method} {path} HTTP/1.0\r\n"
+                    r"option httpchk {method} {path} HTTP/1.1\r\n"
                     r"Host:\ {site_name}\r\n"
                     r"User-Agent:\ haproxy/httpchk"
                 ).format(method=method, path=path, site_name=site_name)
