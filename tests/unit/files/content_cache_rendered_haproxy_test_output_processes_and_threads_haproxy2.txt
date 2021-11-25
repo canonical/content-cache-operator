@@ -184,9 +184,9 @@ backend backend-site2-local
     retry-on all-retryable-errors
     option redispatch 1
     balance leastconn
-    server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
-    server server_2 127.0.1.11:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
-    server server_3 127.0.1.12:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt
+    server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt alpn h2,http/1.1
+    server server_2 127.0.1.11:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt alpn h2,http/1.1
+    server server_3 127.0.1.12:443 check inter 5s rise 2 fall 5 maxconn 1024 ssl sni str(site2.local) check-sni site2.local verify required ca-file ca-certificates.crt alpn h2,http/1.1
 
 backend backend-cached-site3-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site3.local\r\nUser-Agent:\ haproxy/httpchk
@@ -250,7 +250,7 @@ backend backend-site6-local
     retry-on all-retryable-errors
     option redispatch 1
     balance leastconn
-    server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(site6.local) check-sni site6.local verify required ca-file ca-certificates.crt
+    server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(site6.local) check-sni site6.local verify required ca-file ca-certificates.crt alpn h2,http/1.1
 
 backend backend-cached-site7-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site7.local\r\nUser-Agent:\ haproxy/httpchk
@@ -288,7 +288,7 @@ backend backend-site8-local-2
     retry-on all-retryable-errors
     option redispatch 1
     balance leastconn
-    server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(auth.site8.local) check-sni auth.site8.local verify required ca-file ca-certificates.crt
+    server server_1 127.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(auth.site8.local) check-sni auth.site8.local verify required ca-file ca-certificates.crt alpn h2,http/1.1
 
 backend backend-cached-site9-local
     option httpchk HEAD / HTTP/1.0\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk

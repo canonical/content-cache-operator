@@ -242,7 +242,7 @@ backend backend-{name}
                 if loc_conf.get('backend-tls'):
                     tls_config = (
                         ' ssl sni str({site_name}) check-sni {site_name} verify required'
-                        ' ca-file ca-certificates.crt'.format(site_name=site_name)
+                        ' ca-file ca-certificates.crt alpn h2,http/1.1'.format(site_name=site_name)
                     )
                 inter_time = loc_conf.get('backend-inter-time', '5s')
                 fall_count = loc_conf.get('backend-fall-count', 5)
