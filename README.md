@@ -6,7 +6,7 @@ Deploy your own content distribution network (CDN).
 
 To deploy the charm:
 
-    juju deploy cs:content-cache
+    juju deploy content-cache
 
 Set juju config for the `sites` option as required. For example:
 
@@ -55,7 +55,7 @@ Set juju config for the `sites` option as required. For example:
 
 To get metrics:
 
-    juju deploy cs:telegraf
+    juju deploy telegraf
     juju add-relation telegraf:haproxy content-cache:haproxy-statistics
 
 You can then query the telegraf endpoint to get HAProxy metrics from the
@@ -79,3 +79,5 @@ This will expose the following metrics for each site configured:
     # HELP nginx_metric_errors_total Number of nginx-lua-prometheus errors
     # TYPE nginx_metric_errors_total counter
     nginx_metric_errors_total 0
+
+For further details, [see here](https://charmhub.io/content-cache/docs).

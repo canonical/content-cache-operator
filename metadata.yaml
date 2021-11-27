@@ -1,5 +1,6 @@
 name: content-cache
 summary: Content / Frontend Cache
+docs: https://discourse.charmhub.io/t/content-cache-docs-index/5389
 maintainer: Content Cache Charmers <content-cache-charmers@lists.launchpad.net>
 description: >
   Installs Nginx and HAProxy as a highly available web accelerator
