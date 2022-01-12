@@ -149,6 +149,11 @@ class NginxConf:
                     lc['force_ranges'] = ext.split()[1]
                     extra_config.remove(ext)
 
+            if len(extra_config) > 0:
+                for idx, line in enumerate(extra_config):
+                    if not line.endswith(';') and not line.strip(' \n').endswith('}'):
+                        line = line + ';'
+                    extra_config[idx] = line
         return conf
 
     def render(self, conf):
