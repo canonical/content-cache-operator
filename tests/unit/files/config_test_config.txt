@@ -129,3 +129,15 @@ site9.local:
         - autoindex on
         - auth_request /auth
       nagios-expect: 401 Unauthorized
+
+# Test 10: if statement within extra-config
+site10.local:
+  locations:
+    /:
+      extra-config:
+        - root /var/www/html
+        - if ($args ~* ".*call_user.*") { rewrite ^ /? permanent; }
+        - if ($args ~* ".*call_user2.*") {
+                rewrite ^ /? permanent;
+          } else { rewrite ^ /somewherelse? permanent; }
+        - autoindex on
