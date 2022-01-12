@@ -10,6 +10,7 @@ listen combined-80
     use_backend backend-site5 if { hdr(Host) -i site5.local }
     use_backend backend-site6-local if { hdr(Host) -i site6.local }
     use_backend backend-site9-local if { hdr(Host) -i site9.local }
+    use_backend backend-site10-local if { hdr(Host) -i site10.local }
     default_backend backend-site3-local
 
 listen site2-local
