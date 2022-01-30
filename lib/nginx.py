@@ -157,12 +157,19 @@ class NginxConf:
         return conf
 
     def render(self, conf):
+        extra_config = conf['extra_config']
+        if len(extra_config) > 0:
+            for idx, line in enumerate(extra_config):
+                if not line.endswith(';') and not line.strip(' \n').endswith('}'):
+                    line = line + ';'
+                extra_config[idx] = line
         data = {
             'address': conf['listen_address'],
             'cache_inactive_time': conf['cache_inactive_time'],
             'cache_max_size': conf['cache_max_size'],
             'cache_path': conf['cache_path'],
             'enable_prometheus_metrics': conf['enable_prometheus_metrics'],
+            'extra_config': extra_config,
             'juju_unit': self.unit,
             'keys_zone': self._generate_keys_zone(conf['site']),
             'locations': self._process_locations(conf['locations']),

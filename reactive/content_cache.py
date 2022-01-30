@@ -183,6 +183,7 @@ def configure_nginx(conf_path=None):
         conf['listen_port'] = site_conf['cache_port']
         conf['locations'] = site_conf.get('locations', {})
         conf['enable_prometheus_metrics'] = enable_prometheus_metrics
+        conf['extra_config'] = site_conf.get('extra-config', [])
 
         if ngx_conf.write_site(site, ngx_conf.render(conf)):
             hookenv.log('Wrote out new configs for site: {}:{}'.format(site, conf['listen_port']))
