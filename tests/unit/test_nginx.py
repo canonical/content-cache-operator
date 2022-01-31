@@ -234,3 +234,22 @@ class TestLibNginx(unittest.TestCase):
         shutil.copyfile('tests/unit/files/nginx-just-worker-connections.conf', os.path.join(self.tmpdir, 'nginx.conf'))
         self.assertFalse(ngx_conf.set_workers(768, 0))
         self.assertEqual(ngx_conf.get_workers(), ('768', None))
+
+    def test_nginx__process_extra_configs(self):
+        ngx_conf = nginx.NginxConf(self.tmpdir)
+
+        extra_configs = ['proxy_request_buffering off', 'proxy_buffering off', 'client_max_body_size 0']
+        want = ['proxy_request_buffering off;', 'proxy_buffering off;', 'client_max_body_size 0;']
+        self.assertEqual(ngx_conf._process_extra_configs(extra_configs), want)
+
+        extra_configs = [
+            'root /var/www/html',
+            'if ($args ~* ".*call_user.*") { rewrite ^ /? permanent; }',
+            'autoindex on',
+        ]
+        want = ['root /var/www/html;', 'if ($args ~* ".*call_user.*") { rewrite ^ /? permanent; }', 'autoindex on;']
+        self.assertEqual(ngx_conf._process_extra_configs(extra_configs), want)
+
+        extra_configs = []
+        want = []
+        self.assertEqual(ngx_conf._process_extra_configs(extra_configs), want)

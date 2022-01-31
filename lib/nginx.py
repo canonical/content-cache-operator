@@ -148,28 +148,26 @@ class NginxConf:
                 if ext.startswith('proxy_force_ranges'):
                     lc['force_ranges'] = ext.split()[1]
                     extra_config.remove(ext)
+            extra_config = self._process_extra_configs(extra_config)
 
-            if len(extra_config) > 0:
-                for idx, line in enumerate(extra_config):
-                    if not line.endswith(';') and not line.strip(' \n').endswith('}'):
-                        line = line + ';'
-                    extra_config[idx] = line
         return conf
 
-    def render(self, conf):
-        extra_config = conf['extra_config']
+    def _process_extra_configs(self, extra_config):
         if len(extra_config) > 0:
             for idx, line in enumerate(extra_config):
                 if not line.endswith(';') and not line.strip(' \n').endswith('}'):
                     line = line + ';'
                 extra_config[idx] = line
+        return extra_config
+
+    def render(self, conf):
         data = {
             'address': conf['listen_address'],
             'cache_inactive_time': conf['cache_inactive_time'],
             'cache_max_size': conf['cache_max_size'],
             'cache_path': conf['cache_path'],
             'enable_prometheus_metrics': conf['enable_prometheus_metrics'],
-            'extra_config': extra_config,
+            'extra_config': self._process_extra_configs(conf['extra_config']),
             'juju_unit': self.unit,
             'keys_zone': self._generate_keys_zone(conf['site']),
             'locations': self._process_locations(conf['locations']),
