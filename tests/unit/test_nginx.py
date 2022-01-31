@@ -48,7 +48,6 @@ class TestLibNginx(unittest.TestCase):
             sites.pop('configs', '')
 
         conf = {}
-        conf['cache_max_size'] = '1g'
         conf['cache_path'] = '/var/lib/nginx/proxy'
         conf['enable_prometheus_metrics'] = False
         conf['listen_address'] = '127.0.0.1'
@@ -64,6 +63,7 @@ class TestLibNginx(unittest.TestCase):
             conf['listen_port'] = port
 
             conf['cache_inactive_time'] = site_conf.get('cache-inactive-time', '2h')
+            conf['cache_max_size'] = site_conf.get('cache-max-size', '1g')
             conf['extra_config'] = site_conf.get('extra-config', [])
             conf['locations'] = site_conf.get('locations', {})
 
@@ -137,7 +137,6 @@ class TestLibNginx(unittest.TestCase):
             sites.pop('configs', '')
 
         conf = {
-            'cache_max_size': '1g',
             'cache_path': '/var/lib/nginx/proxy',
             'enable_prometheus_metrics': True,
             'listen_address': '127.0.0.1',
@@ -149,6 +148,7 @@ class TestLibNginx(unittest.TestCase):
             conf['listen_port'] = BASE_LISTEN_PORT
 
             conf['cache_inactive_time'] = site_conf.get('cache-inactive-time', '2h')
+            conf['cache_max_size'] = site_conf.get('cache-max-size', '1g')
             conf['extra_config'] = site_conf.get('extra-config', [])
             conf['locations'] = site_conf.get('locations', {})
 
