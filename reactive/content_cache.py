@@ -185,7 +185,7 @@ def configure_nginx(conf_path=None):
         conf['cache_inactive_time'] = site_conf.get('cache-inactive-time', config['cache_inactive_time'])
         conf['cache_max_size'] = site_conf.get('cache-max-size', cache_max_size)
         conf['enable_prometheus_metrics'] = enable_prometheus_metrics
-        conf['extra_config'] = site_conf.get('extra-config', [])
+        conf['extra_configs'] = site_conf.get('extra-configs', [])
         conf['locations'] = site_conf.get('locations', {})
 
         if ngx_conf.write_site(site, ngx_conf.render(conf)):

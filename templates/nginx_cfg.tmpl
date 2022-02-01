@@ -7,10 +7,10 @@ server {
     port_in_redirect off;
     absolute_redirect off;
 
-{%- if extra_config %}
+{%- if extra_configs %}
 
     # Extra server configs
-{%- for extra in extra_config %}
+{%- for extra in extra_configs %}
     {{extra}}
 {%- endfor -%}
 
@@ -53,8 +53,8 @@ server {
 {%- endfor -%}
 {%- endif %}
 
-{%- if conf['extra-config'] %}
-{%- for extra in conf['extra-config'] %}
+{%- if conf['extra-configs'] %}
+{%- for extra in conf['extra-configs'] %}
         {{extra}}
 {%- endfor -%}
 {%- endif %}

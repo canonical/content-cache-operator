@@ -34,7 +34,7 @@ site2.local:
       extra-config:
         - root /var/www/html
     /my-local-content2/:
-      extra-config:
+      extra-configs:
         - root /var/www/html
   # Test default site with only a single backend.
   default: True
@@ -54,10 +54,10 @@ site3.local:
 site4.local:
   locations:
     /:
-      extra-config:
+      extra-configs:
         - autoindex on
     /ubuntu/pool/:
-      extra-config:
+      extra-configs:
         - autoindex on
         - auth_request /auth
 
@@ -121,20 +121,20 @@ site9.local:
       backends:
         - 127.0.1.15:80
       cache-validity: ['200 1h', '401 30m']
-      extra-config:
+      extra-configs:
         - proxy_force_ranges off
     /private/content:
-      extra-config:
+      extra-configs:
         - root /srv/example1.com/content/
         - autoindex on
         - auth_request /auth
       nagios-expect: 401 Unauthorized
 
-# Test 10: if statement within extra-config
+# Test 10: if statement within extra-configs
 site10.local:
   locations:
     /:
-      extra-config:
+      extra-configs:
         - root /var/www/html
         - if ($args ~* ".*call_user.*") { rewrite ^ /? permanent; }
         - if ($args ~* ".*call_user2.*") {
@@ -146,7 +146,7 @@ site10.local:
 site11.local:
   cache-inactive-time: 12h
   cache-max-size: 5g
-  extra-config:
+  extra-configs:
     - proxy_request_buffering off
     - client_max_body_size 0
   locations:

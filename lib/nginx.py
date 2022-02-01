@@ -143,22 +143,23 @@ class NginxConf:
                     lc['cache-valid'] += cache_val
 
             lc['force_ranges'] = 'on'
-            extra_config = lc.get('extra-config', [])
-            for ext in extra_config:
+            # Also check 'extra-config' (without the 's') for backwards compatibility.
+            extra_configs = lc.get('extra-configs', lc.get('extra-config', []))
+            for ext in extra_configs:
                 if ext.startswith('proxy_force_ranges'):
                     lc['force_ranges'] = ext.split()[1]
-                    extra_config.remove(ext)
-            extra_config = self._process_extra_configs(extra_config)
+                    extra_configs.remove(ext)
+            lc['extra-configs'] = self._process_extra_configs(extra_configs)
 
         return conf
 
-    def _process_extra_configs(self, extra_config):
-        if len(extra_config) > 0:
-            for idx, line in enumerate(extra_config):
+    def _process_extra_configs(self, extra_configs):
+        if len(extra_configs) > 0:
+            for idx, line in enumerate(extra_configs):
                 if not line.endswith(';') and not line.strip(' \n').endswith('}'):
                     line = line + ';'
-                extra_config[idx] = line
-        return extra_config
+                extra_configs[idx] = line
+        return extra_configs
 
     def render(self, conf):
         data = {
@@ -167,7 +168,7 @@ class NginxConf:
             'cache_max_size': conf['cache_max_size'],
             'cache_path': conf['cache_path'],
             'enable_prometheus_metrics': conf['enable_prometheus_metrics'],
-            'extra_config': self._process_extra_configs(conf['extra_config']),
+            'extra_configs': self._process_extra_configs(conf['extra_configs']),
             'juju_unit': self.unit,
             'keys_zone': self._generate_keys_zone(conf['site']),
             'locations': self._process_locations(conf['locations']),
