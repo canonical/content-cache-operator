@@ -1,6 +1,6 @@
 global
     nbthread 4
-    maxconn 104000
+    maxconn 112000
     log /dev/log local0
     log /dev/log local1 notice
     chroot /var/lib/haproxy
@@ -36,7 +36,7 @@ global
     # requires ~200 bytes so on a host with say 32 CPUs, 10 sites,
     # each with 2000 max conns will only consume around 122 Mbytes
     # (32 * 10 * 2000 * 200), which is not much.
-    tune.ssl.cachesize 104000
+    tune.ssl.cachesize 112000
 
 defaults
     log global
@@ -90,6 +90,7 @@ listen combined-80
     use_backend backend-cached-site6-local if { hdr(Host) -i site6.local }
     use_backend backend-cached-site9-local if { hdr(Host) -i site9.local }
     use_backend backend-cached-site10-local if { hdr(Host) -i site10.local }
+    use_backend backend-cached-site11-local if { hdr(Host) -i site11.local }
     default_backend backend-cached-site3-local
 
 listen site1-local
@@ -154,6 +155,11 @@ listen site9-local
     bind 127.0.0.1:8089
     capture request header X-Cache-Request-ID len 60
     default_backend backend-site9-local
+
+listen site11-local
+    bind 127.0.0.1:8090
+    capture request header X-Cache-Request-ID len 60
+    default_backend backend-site11-local
 
 backend backend-cached-site1-local
     option httpchk HEAD /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a HTTP/1.1\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
@@ -302,3 +308,21 @@ backend backend-cached-site10-local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
     server server_1 127.0.0.1:6089 check inter 2s rise 2 fall 60 maxconn 200
+
+backend backend-cached-site11-local
+    option httpchk HEAD / HTTP/1.1\r\nHost:\ site11.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site11.local
+    http-request set-header X-Forwarded-For %[src]
+    balance leastconn
+    server server_1 127.0.0.1:6090 check inter 2s rise 2 fall 60 maxconn 600
+
+backend backend-site11-local
+    option httpchk HEAD / HTTP/1.1\r\nHost:\ site11.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site11.local
+    option forwardfor except 127.0.0.1 192.168.1.1
+    option forceclose
+    option redispatch 1
+    balance leastconn
+    server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
+    server server_2 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
+    server server_3 127.0.1.12:80 check inter 5s rise 2 fall 5 maxconn 200
