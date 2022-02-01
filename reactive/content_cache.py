@@ -171,7 +171,6 @@ def configure_nginx(conf_path=None):
     # to deploy to edge networks and not worry about having to firewall off
     # access.
     conf = {}
-    conf['cache_inactive_time'] = config['cache_inactive_time']
     conf['cache_max_size'] = config['cache_max_size'] or utils.cache_max_size(config['cache_path'])
     conf['cache_path'] = config['cache_path']
     conf['listen_address'] = '127.0.0.1'
@@ -181,9 +180,11 @@ def configure_nginx(conf_path=None):
         conf['site'] = site
         conf['site_name'] = site_conf.get('site-name') or site
         conf['listen_port'] = site_conf['cache_port']
-        conf['locations'] = site_conf.get('locations', {})
+
+        conf['cache_inactive_time'] = site_conf.get('cache-inactive-time', config['cache_inactive_time'])
         conf['enable_prometheus_metrics'] = enable_prometheus_metrics
         conf['extra_config'] = site_conf.get('extra-config', [])
+        conf['locations'] = site_conf.get('locations', {})
 
         if ngx_conf.write_site(site, ngx_conf.render(conf)):
             hookenv.log('Wrote out new configs for site: {}:{}'.format(site, conf['listen_port']))
