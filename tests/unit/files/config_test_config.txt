@@ -146,7 +146,6 @@ site10.local:
 site11.local:
   extra-config:
     - proxy_request_buffering off
-    - proxy_buffering off
     - client_max_body_size 0
   locations:
     /:

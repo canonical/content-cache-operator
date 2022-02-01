@@ -238,8 +238,8 @@ class TestLibNginx(unittest.TestCase):
     def test_nginx__process_extra_configs(self):
         ngx_conf = nginx.NginxConf(self.tmpdir)
 
-        extra_configs = ['proxy_request_buffering off', 'proxy_buffering off', 'client_max_body_size 0']
-        want = ['proxy_request_buffering off;', 'proxy_buffering off;', 'client_max_body_size 0;']
+        extra_configs = ['proxy_request_buffering off', 'client_max_body_size 0']
+        want = ['proxy_request_buffering off;', 'client_max_body_size 0;']
         self.assertEqual(ngx_conf._process_extra_configs(extra_configs), want)
 
         extra_configs = [
