@@ -145,6 +145,7 @@ site10.local:
 # Test 11: Extra server configs, rather than location
 site11.local:
   cache-inactive-time: 12h
+  cache-max-size: 5g
   extra-config:
     - proxy_request_buffering off
     - client_max_body_size 0
