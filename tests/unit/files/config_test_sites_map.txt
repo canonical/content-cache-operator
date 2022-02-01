@@ -27,10 +27,10 @@ site2.local:
             - 127.0.1.11:443
             - 127.0.1.12:443
         /my-local-content/:
-            extra-config:
+            extra-configs:
             - root /var/www/html
         /my-local-content2/:
-            extra-config:
+            extra-configs:
             - root /var/www/html
     redirect-http-to-https: true
     tls-cert-bundle-path: /etc/haproxy/site2-bundle.crt
@@ -51,10 +51,10 @@ site4.local:
     cache_port: 6083
     locations:
         /:
-            extra-config:
+            extra-configs:
             - autoindex on
         /ubuntu/pool/:
-            extra-config:
+            extra-configs:
             - autoindex on
             - auth_request /auth
 site5:
@@ -117,10 +117,10 @@ site9.local:
             backend_port: 8089
             backends:
             - 127.0.1.15:80
-            extra-config:
+            extra-configs:
             - proxy_force_ranges off
         /private/content:
-            extra-config:
+            extra-configs:
             - root /srv/example1.com/content/
             - autoindex on
             - auth_request /auth

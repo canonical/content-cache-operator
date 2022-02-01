@@ -64,7 +64,7 @@ class TestLibNginx(unittest.TestCase):
 
             conf['cache_inactive_time'] = site_conf.get('cache-inactive-time', '2h')
             conf['cache_max_size'] = site_conf.get('cache-max-size', '1g')
-            conf['extra_config'] = site_conf.get('extra-config', [])
+            conf['extra_configs'] = site_conf.get('extra-configs', [])
             conf['locations'] = site_conf.get('locations', {})
 
             for location, loc_conf in conf['locations'].items():
@@ -149,7 +149,7 @@ class TestLibNginx(unittest.TestCase):
 
             conf['cache_inactive_time'] = site_conf.get('cache-inactive-time', '2h')
             conf['cache_max_size'] = site_conf.get('cache-max-size', '1g')
-            conf['extra_config'] = site_conf.get('extra-config', [])
+            conf['extra_configs'] = site_conf.get('extra-configs', [])
             conf['locations'] = site_conf.get('locations', {})
 
             for location, loc_conf in conf['locations'].items():
