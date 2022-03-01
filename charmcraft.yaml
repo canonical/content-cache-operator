@@ -1,0 +1,21 @@
+type: "charm"
+bases:
+    - build-on:
+      - name: "ubuntu"
+        channel: "20.04"
+      - name: "ubuntu"
+        channel: "18.04"
+      - name: "ubuntu"
+        channel: "21.10"
+      run-on:
+      - name: "ubuntu"
+        channel: "20.04"
+      - name: "ubuntu"
+        channel: "18.04"
+      - name: "ubuntu"
+        channel: "21.10"
+parts:
+  charm:
+    source: .
+    plugin: reactive
+    build-snaps: [charm]

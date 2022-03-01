@@ -1,3 +1,4 @@
+*.charm
 *.pyc
 *.swp
 *~
@@ -6,6 +7,7 @@
 .tox/
 .unit-state.db
 __pycache__/
+build/
 builds/
 deps/
 htmlcov/
