@@ -89,6 +89,11 @@ class TestCharm(unittest.TestCase):
         self.mock_time_sleep = patcher.start()
         self.addCleanup(patcher.stop)
 
+        patcher = mock.patch("charmhelpers.contrib.network.ufw.is_enabled")
+        self.mock_ufw_is_enabled = patcher.start()
+        self.mock_ufw_is_enabled.return_value = True
+        self.addCleanup(patcher.stop)
+
         status.active.reset_mock()
         status.blocked.reset_mock()
         status.maintenance.reset_mock()
@@ -104,6 +109,7 @@ class TestCharm(unittest.TestCase):
             mock.call('content_cache.haproxy.configured'),
             mock.call('content_cache.nginx.configured'),
             mock.call('content_cache.sysctl.configured'),
+            mock.call('content_cache.firewall.configured'),
             mock.call('nagios-nrpe.configured'),
         ]
         clear_flag.assert_has_calls(want, any_order=True)
@@ -123,6 +129,7 @@ class TestCharm(unittest.TestCase):
             mock.call('content_cache.haproxy.configured'),
             mock.call('content_cache.nginx.configured'),
             mock.call('content_cache.sysctl.configured'),
+            mock.call('content_cache.firewall.configured'),
         ]
         clear_flag.assert_has_calls(want, any_order=True)
         self.assertEqual(len(want), len(clear_flag.mock_calls))
@@ -135,6 +142,7 @@ class TestCharm(unittest.TestCase):
             mock.call('content_cache.haproxy.configured'),
             mock.call('content_cache.nginx.configured'),
             mock.call('content_cache.sysctl.configured'),
+            mock.call('content_cache.firewall.configured'),
             mock.call('nagios-nrpe.configured'),
         ]
         clear_flag.assert_has_calls(want, any_order=True)

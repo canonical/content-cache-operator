@@ -151,3 +151,12 @@ options:
     description: >
       Sets the number of Nginx worker processes. Setting to '0' (auto)
       will set based on available CPU cores.
+  blocked_ips:
+    type: string
+    default: ""
+    description: >
+      A list of IPs or IP ranges to be denied from the service. Accept plain 
+      and CIDR ipv4 and ipv6 addresses. Ip addresses can have any number of 
+      leading and trailing whitespace and are separated by comma or new line.
+      Use "#" to add comments to the IP blocklist.
+      

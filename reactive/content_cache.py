@@ -1,9 +1,11 @@
 import grp
 import os
+import re
 import pwd
 import random
 import subprocess
 import time
+import ipaddress
 from copy import deepcopy
 
 import jinja2
@@ -14,6 +16,7 @@ from charms.layer import status
 from charmhelpers import context
 from charmhelpers.core import hookenv, host, unitdata
 from charmhelpers.contrib.charmsupport import nrpe
+from charmhelpers.contrib.network import ufw
 
 from lib import utils
 from lib import nginx
@@ -21,7 +24,7 @@ from lib import haproxy as HAProxy
 
 
 SYSCTL_CONF_PATH = '/etc/sysctl.d/90-content-cache.conf'
-
+UFW_RULE_TAG = 'CONTENT_CACHE_CHARM_RULE'
 
 @reactive.hook('upgrade-charm')
 def upgrade_charm():
@@ -31,6 +34,7 @@ def upgrade_charm():
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
+    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('nagios-nrpe.configured')
 
 
@@ -47,6 +51,7 @@ def install():
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
+    reactive.clear_flag('content_cache.firewall.configured')
     reactive.set_flag('content_cache.installed')
 
 
@@ -55,10 +60,16 @@ def config_changed():
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
+    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('nagios-nrpe.configured')
 
 
-@reactive.when('content_cache.haproxy.configured', 'content_cache.nginx.configured', 'content_cache.sysctl.configured')
+@reactive.when(
+    'content_cache.haproxy.configured',
+    'content_cache.nginx.configured',
+    'content_cache.sysctl.configured',
+    'content_cache.firewall.configured'
+)
 @reactive.when_not('content_cache.active')
 def set_active(version_file='version'):
     # XXX: Add more info such as nginx and haproxy status
@@ -537,6 +548,57 @@ def check_haproxy_alerts():
     )
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe-telegraf.configured')
+
+
+@reactive.when_not('content_cache.firewall.configured')
+def config_firewall():
+    status.maintenance("updating ip blocklist")
+    if not ufw.is_enabled():
+        ufw.default_policy("allow", "incoming")
+        ufw.default_policy("allow", "outgoing")
+        ufw.enable()
+    config = hookenv.config()
+    current_blocklist = get_current_blocklist()
+    try:
+        desired_blocklist = set(parse_ip_blocklist_config(config.get("blocked_ips")))
+    except ValueError:
+        status.blocked("invalid ip address {} in blocked_ips".format(repr(ip)))
+        return
+    current_blocklist = set(current_blocklist)
+    block_ips = desired_blocklist - current_blocklist
+    unblock_ips = current_blocklist - desired_blocklist
+    for ip in block_ips:
+        ufw.modify_access(src=str(ip), dst="any", action="deny", comment=UFW_RULE_TAG)
+    for ip in unblock_ips:
+        ufw.modify_access(src=str(ip), dst="any", action="delete", comment=UFW_RULE_TAG)
+    set_active('content_cache.firewall.configured')
+
+
+def parse_ip_blocklist_config(blocklist_config):
+    comment_pattern = re.compile("#.*$", re.MULTILINE)
+    blocklist_config = comment_pattern.sub("", blocklist_config)
+    blocklist = []
+    for line in blocklist_config.splitlines():
+        for ip in line.split(","):
+            ip = ip.strip()
+            if ip:
+                blocklist.append(normalize_ip(ip))
+    return blocklist
+
+
+def get_current_blocklist():
+    ufw_rules = [r[1] for r in ufw.status() if r[1]["comment"] == UFW_RULE_TAG]
+    return [normalize_ip(rule['from']) for rule in ufw_rules]
+
+
+def normalize_ip(ip):
+    ip_types = [ipaddress.IPv4Network, ipaddress.IPv6Network]
+    for ip_type in ip_types:
+        try:
+            return ip_type(ip)
+        except ValueError:
+            pass
+    raise ValueError("{} is not a valid ip address".format(ip))
 
 
 def cleanout_sites(site_ports_map, sites):
