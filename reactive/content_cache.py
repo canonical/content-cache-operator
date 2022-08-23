@@ -561,8 +561,8 @@ def config_firewall():
     current_blocklist = get_current_blocklist()
     try:
         desired_blocklist = set(parse_ip_blocklist_config(config.get("blocked_ips")))
-    except ValueError:
-        status.blocked("invalid ip address {} in blocked_ips".format(repr(ip)))
+    except ValueError as e:
+        status.blocked("failed to update firewall: {}".format(str(e)))
         return
     current_blocklist = set(current_blocklist)
     block_ips = desired_blocklist - current_blocklist
@@ -570,7 +570,7 @@ def config_firewall():
     for ip in block_ips:
         ufw.modify_access(src=str(ip), dst="any", action="deny", comment=UFW_RULE_TAG)
     for ip in unblock_ips:
-        ufw.modify_access(src=str(ip), dst="any", action="delete", comment=UFW_RULE_TAG)
+        ufw_delete_rule(str(ip))
     set_active('content_cache.firewall.configured')
 
 
@@ -598,8 +598,23 @@ def normalize_ip(ip):
             return ip_type(ip)
         except ValueError:
             pass
-    raise ValueError("{} is not a valid ip address".format(ip))
+    raise ValueError("{} is not a valid ip address".format(repr(ip)))
 
+
+def ufw_delete_rule(ip):
+    cmd = ["ufw", "delete", "deny", "from", ip]
+    hookenv.log('ufw {}: {}'.format("delete", ' '.join(cmd)), level='DEBUG')
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    (stdout, stderr) = p.communicate()
+
+    hookenv.log(stdout, level='INFO')
+
+    if p.returncode != 0:
+        hookenv.log(stderr, level='ERROR')
+        hookenv.log(
+            'Error running: {}, exit code: {}'.format(' '.join(cmd), p.returncode),
+            level='ERROR'
+        )
 
 def cleanout_sites(site_ports_map, sites):
     new_site_ports_map = {}
