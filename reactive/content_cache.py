@@ -26,6 +26,7 @@ from lib import haproxy as HAProxy
 SYSCTL_CONF_PATH = '/etc/sysctl.d/90-content-cache.conf'
 UFW_RULE_TAG = 'CONTENT_CACHE_CHARM_RULE'
 
+
 @reactive.hook('upgrade-charm')
 def upgrade_charm():
     status.maintenance('forcing reconfiguration on upgrade-charm')
@@ -615,6 +616,7 @@ def ufw_delete_rule(ip):
             'Error running: {}, exit code: {}'.format(' '.join(cmd), p.returncode),
             level='ERROR'
         )
+
 
 def cleanout_sites(site_ports_map, sites):
     new_site_ports_map = {}

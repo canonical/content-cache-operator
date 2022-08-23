@@ -105,7 +105,8 @@ async def test_firewall_misconfiguration(application, update_config):
 
     await update_config({"blocked_ips": "203.0.113.3"})
     ufw_status = await unit.ssh("sudo ufw status")
-    assert application.status == "active" and \
-           "203.0.113.3" in ufw_status and \
-           all(ip not in ufw_status for ip in ("203.0.113.1", "203.0.113.2")), \
-        "application should return to normal after receiving an valid firewall config"
+    assert (
+            application.status == "active" and
+            "203.0.113.3" in ufw_status and
+            all(ip not in ufw_status for ip in ("203.0.113.1", "203.0.113.2"))
+    ), "application should return to normal after receiving an valid firewall config"
