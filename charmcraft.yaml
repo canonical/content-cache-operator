@@ -6,14 +6,14 @@ bases:
       - name: "ubuntu"
         channel: "18.04"
       - name: "ubuntu"
-        channel: "21.10"
+        channel: "22.04"
       run-on:
       - name: "ubuntu"
         channel: "20.04"
       - name: "ubuntu"
         channel: "18.04"
       - name: "ubuntu"
-        channel: "21.10"
+        channel: "22.04"
 parts:
   charm:
     source: .
