@@ -1,6 +1,5 @@
 import grp
 import os
-import re
 import pwd
 import random
 import subprocess
@@ -576,8 +575,6 @@ def config_firewall():
 
 
 def parse_ip_blocklist_config(blocklist_config):
-    comment_pattern = re.compile("#.*$", re.MULTILINE)
-    blocklist_config = comment_pattern.sub("", blocklist_config)
     blocklist = []
     for line in blocklist_config.splitlines():
         for ip in line.split(","):

@@ -18,11 +18,10 @@ class TestFireWallConfig(unittest.TestCase):
 
     def test_parse_firewall_config(self):
         config = textwrap.dedent("""\
-        10.0.1.1,10.0.1.2 # comments 10.0.3.4,,
+        10.0.1.1,10.0.1.2,
 
         10.0.2.1/32,
         10.0.2.0/24,10.0.2.128/25,
-        # comments
 
         ::ffff:0:0/96,::ffff:255.255.255.255
         """)

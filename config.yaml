@@ -158,5 +158,3 @@ options:
       A list of IPs or IP ranges to be denied from the service. Accept plain 
       and CIDR ipv4 and ipv6 addresses. Ip addresses can have any number of 
       leading and trailing whitespace and are separated by comma or new line.
-      Use "#" to add comments to the IP blocklist.
-      
