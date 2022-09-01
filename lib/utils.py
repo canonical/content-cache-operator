@@ -277,11 +277,10 @@ def tune_tcp_mem(multiplier=1.5, tcp_mem_path=_SYSCTL_NET_IPV4_TCP_MEM, mmap_pag
 
 def parse_ip_blocklist_config(blocklist_config):
     blocklist = []
-    for line in blocklist_config.splitlines():
-        for ip in line.split(","):
-            ip = ip.strip()
-            if ip:
-                blocklist.append(normalize_ip(ip))
+    for ip in blocklist_config.split(","):
+        ip = ip.strip()
+        if ip:
+            blocklist.append(normalize_ip(ip))
     return blocklist
 
 

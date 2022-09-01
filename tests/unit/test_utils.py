@@ -260,15 +260,20 @@ class TestLibUtils(unittest.TestCase):
         self.assertEqual(utils.parse_ip_blocklist_config(""), [], "default config should be an empty blocklist")
 
     def test_parse_firewall_config(self):
+        self.assertEqual(
+            set(utils.parse_ip_blocklist_config("1.1.1.1,2.2.2.2")),
+            {IPv4Network("1.1.1.1"), IPv4Network("2.2.2.2")},
+            "basic config should be parsed correctly",
+        )
         config = textwrap.dedent(
             """\
-        10.0.1.1,10.0.1.2,
-
-        10.0.2.1/32,
-        10.0.2.0/24,10.0.2.128/25,
-
-        ::ffff:0:0/96,::ffff:255.255.255.255
-        """
+            10.0.1.1,10.0.1.2,
+    
+            10.0.2.1/32,
+            10.0.2.0/24,10.0.2.128/25,
+    
+            ::ffff:0:0/96,::ffff:255.255.255.255,
+            """
         )
         parsed_result = utils.parse_ip_blocklist_config(config)
         self.assertSetEqual(
@@ -296,7 +301,7 @@ class TestLibUtils(unittest.TestCase):
             lambda _: utils.parse_ip_blocklist_config("1.2.3.4#1.2.3.4"),
             "firewall config containing comments should be invalid",
         )
-        for incorrect_config in ["1.2.3.4;1.2.3.4", "1.2.3.4 1.2.3.4"]:
+        for incorrect_config in ["1.2.3.4;1.2.3.4", "1.2.3.4 1.2.3.4", "1.1.1.1\n2.2.2.2"]:
             self.assertRaises(
                 ValueError,
                 lambda _: utils.parse_ip_blocklist_config(incorrect_config),
