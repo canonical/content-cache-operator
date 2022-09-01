@@ -67,7 +67,7 @@ def config_changed():
     'content_cache.firewall.configured',
     'content_cache.haproxy.configured',
     'content_cache.nginx.configured',
-    'content_cache.sysctl.configured'
+    'content_cache.sysctl.configured',
 )
 @reactive.when_not('content_cache.active')
 def set_active(version_file='version'):
@@ -595,10 +595,7 @@ def ufw_delete_rule(ip):
 
     if p.returncode != 0:
         hookenv.log(stderr, level='ERROR')
-        hookenv.log(
-            'Error running: {}, exit code: {}'.format(' '.join(cmd), p.returncode),
-            level='ERROR'
-        )
+        hookenv.log('Error running: {}, exit code: {}'.format(' '.join(cmd), p.returncode), level='ERROR')
 
 
 def cleanout_sites(site_ports_map, sites):

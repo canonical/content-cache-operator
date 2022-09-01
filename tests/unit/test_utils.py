@@ -257,21 +257,19 @@ class TestLibUtils(unittest.TestCase):
         self.assertEqual(utils.tune_tcp_mem(tcp_mem_path=sysctl_tcp_mem_path), want)
 
     def test_parse_default_firewall_config(self):
-        self.assertEqual(
-            utils.parse_ip_blocklist_config(""),
-            [],
-            "default config should be an empty blocklist"
-        )
+        self.assertEqual(utils.parse_ip_blocklist_config(""), [], "default config should be an empty blocklist")
 
     def test_parse_firewall_config(self):
-        config = textwrap.dedent("""\
+        config = textwrap.dedent(
+            """\
         10.0.1.1,10.0.1.2,
 
         10.0.2.1/32,
         10.0.2.0/24,10.0.2.128/25,
 
         ::ffff:0:0/96,::ffff:255.255.255.255
-        """)
+        """
+        )
         parsed_result = utils.parse_ip_blocklist_config(config)
         self.assertSetEqual(
             set(parsed_result),
@@ -282,25 +280,25 @@ class TestLibUtils(unittest.TestCase):
                 IPv4Network("10.0.2.0/24"),
                 IPv4Network("10.0.2.128/25"),
                 IPv6Network("::ffff:0:0/96"),
-                IPv6Network("::ffff:255.255.255.255")
+                IPv6Network("::ffff:255.255.255.255"),
             },
-            "complicated config should be parsed correctly"
+            "complicated config should be parsed correctly",
         )
 
     def test_invalid_firewall_config(self):
         self.assertRaises(
             ValueError,
             lambda _: utils.parse_ip_blocklist_config("1.2.3"),
-            "firewall_config containing non IP address should be invalid"
+            "firewall_config containing non IP address should be invalid",
         )
         self.assertRaises(
             ValueError,
             lambda _: utils.parse_ip_blocklist_config("1.2.3.4#1.2.3.4"),
-            "firewall config containing comments should be invalid"
+            "firewall config containing comments should be invalid",
         )
         for incorrect_config in ["1.2.3.4;1.2.3.4", "1.2.3.4 1.2.3.4"]:
             self.assertRaises(
                 ValueError,
                 lambda _: utils.parse_ip_blocklist_config(incorrect_config),
-                "firewall config containing incorrect seperator should be invalid"
+                "firewall config containing incorrect seperator should be invalid",
             )
