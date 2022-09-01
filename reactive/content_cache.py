@@ -4,7 +4,6 @@ import pwd
 import random
 import subprocess
 import time
-import ipaddress
 from copy import deepcopy
 
 import jinja2
@@ -65,10 +64,10 @@ def config_changed():
 
 
 @reactive.when(
+    'content_cache.firewall.configured',
     'content_cache.haproxy.configured',
     'content_cache.nginx.configured',
-    'content_cache.sysctl.configured',
-    'content_cache.firewall.configured'
+    'content_cache.sysctl.configured'
 )
 @reactive.when_not('content_cache.active')
 def set_active(version_file='version'):
@@ -553,50 +552,37 @@ def check_haproxy_alerts():
 @reactive.when_not('content_cache.firewall.configured')
 def config_firewall():
     status.maintenance("updating ip blocklist")
-    if not ufw.is_enabled():
-        ufw.default_policy("allow", "incoming")
-        ufw.default_policy("allow", "outgoing")
-        ufw.enable()
+    reactive.clear_flag('content_cache.active')
     config = hookenv.config()
-    current_blocklist = get_current_blocklist()
     try:
-        desired_blocklist = set(parse_ip_blocklist_config(config.get("blocked_ips")))
+        desired_blocklist = set(utils.parse_ip_blocklist_config(config.get("blocked_ips")))
     except ValueError as e:
         status.blocked("failed to update firewall: {}".format(str(e)))
         return
-    current_blocklist = set(current_blocklist)
-    block_ips = desired_blocklist - current_blocklist
-    unblock_ips = current_blocklist - desired_blocklist
-    for ip in block_ips:
-        ufw.modify_access(src=str(ip), dst="any", action="deny", comment=UFW_RULE_TAG)
-    for ip in unblock_ips:
-        ufw_delete_rule(str(ip))
-    set_active('content_cache.firewall.configured')
-
-
-def parse_ip_blocklist_config(blocklist_config):
-    blocklist = []
-    for line in blocklist_config.splitlines():
-        for ip in line.split(","):
-            ip = ip.strip()
-            if ip:
-                blocklist.append(normalize_ip(ip))
-    return blocklist
+    # If the blocked_ips config is emtpy and ufw is disabled, then we don't need to do anything
+    # Skip configurate ufw in this condition, ufw will not be enabled if blocked_ips was never set
+    if desired_blocklist or ufw.is_enabled():
+        if not ufw.is_enabled():
+            ufw.default_policy("allow", "incoming")
+            ufw.default_policy("allow", "outgoing")
+            ufw.enable()
+        current_blocklist = get_current_blocklist()
+        current_blocklist = set(current_blocklist)
+        block_ips = desired_blocklist - current_blocklist
+        unblock_ips = current_blocklist - desired_blocklist
+        for ip in block_ips:
+            ufw.modify_access(src=str(ip), dst="any", action="deny", comment=UFW_RULE_TAG)
+        for ip in unblock_ips:
+            ufw_delete_rule(str(ip))
+        # If the blocked_ips is empty, disable ufw after all rules are removed
+        if not desired_blocklist:
+            ufw.disable()
+    reactive.set_flag('content_cache.firewall.configured')
 
 
 def get_current_blocklist():
     ufw_rules = [r[1] for r in ufw.status() if r[1]["comment"] == UFW_RULE_TAG]
-    return [normalize_ip(rule['from']) for rule in ufw_rules]
-
-
-def normalize_ip(ip):
-    ip_types = [ipaddress.IPv4Network, ipaddress.IPv6Network]
-    for ip_type in ip_types:
-        try:
-            return ip_type(ip)
-        except ValueError:
-            pass
-    raise ValueError("{} is not a valid ip address".format(repr(ip)))
+    return [utils.normalize_ip(rule['from']) for rule in ufw_rules]
 
 
 def ufw_delete_rule(ip):

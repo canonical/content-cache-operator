@@ -47,9 +47,12 @@ async def fixture_application(ops_test, series):
 
 @pytest.fixture(scope="module", name="update_config")
 def fixture_update_config(ops_test, application):
-    async def _update_config(config):
+    async def _update_config(config, assert_status="active"):
         await application.set_config(config)
         await ops_test.model.wait_for_idle()
+        assert application.status == assert_status, \
+            ("application status should be {} after applying {} configuration"
+             .format(assert_status, config))
 
     return _update_config
 
@@ -64,14 +67,18 @@ async def test_basic_functionality(application):
     assert response.status_code == 200 and "ubuntu" in response.text, \
         "content cache server should response with correct content"
     ufw_status = await unit.ssh("sudo ufw status")
-    assert "Status: active" in ufw_status and "DENY" not in ufw_status, \
-        "ufw should be ready and empty"
+    assert "Status: inactive" in ufw_status, \
+        "ufw should be inactive with the default setting"
 
 
 async def test_firewall_update(application, update_config):
     addresses = ["203.0.113.222", "203.0.113.0/25", "2001:db8::/32"]
+    combinations = 2 ** len(addresses)
     # iterate through every subset of the test IP set
-    for i in range(2 ** len(addresses)):
+    for i in range(combinations):
+        # Since the default blocked_ips is empty, first tested blocked_ips should not be empty,
+        # so we can test the non-empty -> empty situation
+        i = (i + combinations // 2) % combinations
         blacklist = []
         for idx, address in enumerate(addresses):
             if (i >> idx) & 1:
@@ -79,6 +86,12 @@ async def test_firewall_update(application, update_config):
         await update_config({"blocked_ips": ",".join(blacklist)})
         unit = application.units[0]
         ufw_status = await unit.ssh("sudo ufw status")
+        if not blacklist:
+            assert "Status: inactive" in ufw_status, \
+                "ufw should be inactive when ip blacklist is empty"
+        else:
+            assert "Status: active" in ufw_status, \
+                "ufw should be active after blocked_ips being set to {}".format(blacklist)
         for address in addresses:
             if address in blacklist:
                 assert re.search("DENY\\s+{}".format(address), ufw_status) is not None, \
@@ -92,7 +105,7 @@ async def test_firewall_misconfiguration(application, update_config):
     unit = application.units[0]
     await update_config({"blocked_ips": "203.0.113.1"})
 
-    await update_config({"blocked_ips": "203.0.113.2,random"})
+    await update_config({"blocked_ips": "203.0.113.2,random"}, assert_status="blocked")
     ufw_status = await unit.ssh("sudo ufw status")
     assert application.status == "blocked", \
         "application should enter blocked state after receiving an illegal firewall config"
