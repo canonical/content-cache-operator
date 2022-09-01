@@ -65,7 +65,7 @@ async def test_basic_functionality(application):
     address = await unit.get_public_address()
     response = requests.get("http://{}".format(address), timeout=5)
     assert response.status_code == 200 and "ubuntu" in response.text, \
-        "content cache server should response with correct content"
+        "content-cache server should respond with status code 200 and 'ubuntu' in content"
     ufw_status = await unit.ssh("sudo ufw status")
     assert "Status: inactive" in ufw_status, \
         "ufw should be inactive with the default setting"
@@ -74,7 +74,7 @@ async def test_basic_functionality(application):
 async def test_firewall_update(application, update_config):
     addresses = ["203.0.113.222", "203.0.113.0/25", "2001:db8::/32"]
     combinations = 2 ** len(addresses)
-    # iterate through every subset of the test IP set
+    # Iterate through every subset of the test IP set
     for i in range(combinations):
         # Since the default blocked_ips is empty, first tested blocked_ips should not be empty,
         # so we can test the non-empty -> empty situation
