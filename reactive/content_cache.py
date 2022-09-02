@@ -14,6 +14,7 @@ from charms.layer import status
 from charmhelpers import context
 from charmhelpers.core import hookenv, host, unitdata
 from charmhelpers.contrib.charmsupport import nrpe
+from charmhelpers.contrib.network import ufw
 
 from lib import utils
 from lib import nginx
@@ -21,6 +22,7 @@ from lib import haproxy as HAProxy
 
 
 SYSCTL_CONF_PATH = '/etc/sysctl.d/90-content-cache.conf'
+UFW_RULE_TAG = 'CONTENT_CACHE_CHARM_RULE'
 
 
 @reactive.hook('upgrade-charm')
@@ -28,6 +30,7 @@ def upgrade_charm():
     status.maintenance('forcing reconfiguration on upgrade-charm')
     reactive.clear_flag('content_cache.active')
     reactive.clear_flag('content_cache.installed')
+    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
@@ -44,6 +47,7 @@ def fire_stats_hook():
 def install():
     reactive.clear_flag('content_cache.active')
 
+    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
@@ -52,13 +56,19 @@ def install():
 
 @reactive.when('config.changed')
 def config_changed():
+    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
     reactive.clear_flag('nagios-nrpe.configured')
 
 
-@reactive.when('content_cache.haproxy.configured', 'content_cache.nginx.configured', 'content_cache.sysctl.configured')
+@reactive.when(
+    'content_cache.firewall.configured',
+    'content_cache.haproxy.configured',
+    'content_cache.nginx.configured',
+    'content_cache.sysctl.configured',
+)
 @reactive.when_not('content_cache.active')
 def set_active(version_file='version'):
     # XXX: Add more info such as nginx and haproxy status
@@ -537,6 +547,61 @@ def check_haproxy_alerts():
     )
     nrpe_setup.write()
     reactive.set_flag('nagios-nrpe-telegraf.configured')
+
+
+@reactive.when_not('content_cache.firewall.configured')
+def config_firewall():
+    status.maintenance("updating ip blocklist")
+    reactive.clear_flag('content_cache.active')
+    config = hookenv.config()
+    try:
+        desired_blocklist = set(utils.parse_ip_blocklist_config(config.get("blocked_ips")))
+    except ValueError as e:
+        status.blocked("failed to update firewall: {}".format(str(e)))
+        return
+    # If the blocked_ips config is emtpy and ufw is disabled, then we don't need to do anything
+    # Skip configurate ufw in this condition, ufw will not be enabled if blocked_ips was never set
+    if not desired_blocklist and not ufw.is_enabled():
+        reactive.set_flag('content_cache.firewall.configured')
+        return
+    if not ufw.is_enabled():
+        status.maintenance("Enabling ufw...")
+        ufw.default_policy("allow", "incoming")
+        ufw.default_policy("allow", "outgoing")
+        ufw.enable()
+    current_blocklist = get_current_blocklist()
+    current_blocklist = set(current_blocklist)
+    block_ips = desired_blocklist - current_blocklist
+    unblock_ips = current_blocklist - desired_blocklist
+    for ip in block_ips:
+        hookenv.log("Blocking IP {}".format(ip), level='DEBUG')
+        ufw.modify_access(src=str(ip), dst="any", action="deny", comment=UFW_RULE_TAG)
+    for ip in unblock_ips:
+        hookenv.log("Unblocking IP {}".format(ip), level='DEBUG')
+        ufw_delete_rule(str(ip))
+    # If the blocked_ips is empty, disable ufw after all rules are removed
+    if not desired_blocklist:
+        status.maintenance("Disabling ufw...")
+        ufw.disable()
+    reactive.set_flag('content_cache.firewall.configured')
+
+
+def get_current_blocklist():
+    ufw_rules = [r[1] for r in ufw.status() if r[1]["comment"] == UFW_RULE_TAG]
+    return [utils.normalize_ip(rule['from']) for rule in ufw_rules]
+
+
+def ufw_delete_rule(ip):
+    cmd = ["ufw", "delete", "deny", "from", ip]
+    hookenv.log('ufw {}: {}'.format("delete", ' '.join(cmd)), level='DEBUG')
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    (stdout, stderr) = p.communicate()
+
+    hookenv.log(stdout, level='INFO')
+
+    if p.returncode != 0:
+        hookenv.log(stderr, level='ERROR')
+        hookenv.log('Error running: {}, exit code: {}'.format(' '.join(cmd), p.returncode), level='ERROR')
 
 
 def cleanout_sites(site_ports_map, sites):

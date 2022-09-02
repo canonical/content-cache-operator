@@ -6,6 +6,7 @@ help:
 	@echo " make test - run the functional test and unittests"
 	@echo " make unittest - run the the unittest"
 	@echo " make functional - run the functional tests"
+	@echo " make integration - run the integration tests"
 	@echo " make clean - remove unneeded files"
 	@echo ""
 
@@ -24,6 +25,9 @@ unittest:
 
 functional: build
 	@tox -e functional
+
+integration:
+    @tox -e integration
 
 clean:
 	@echo "Cleaning files"
