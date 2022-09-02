@@ -30,10 +30,10 @@ def upgrade_charm():
     status.maintenance('forcing reconfiguration on upgrade-charm')
     reactive.clear_flag('content_cache.active')
     reactive.clear_flag('content_cache.installed')
+    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
-    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('nagios-nrpe.configured')
 
 
@@ -47,19 +47,19 @@ def fire_stats_hook():
 def install():
     reactive.clear_flag('content_cache.active')
 
+    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
-    reactive.clear_flag('content_cache.firewall.configured')
     reactive.set_flag('content_cache.installed')
 
 
 @reactive.when('config.changed')
 def config_changed():
+    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
-    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('nagios-nrpe.configured')
 
 
@@ -561,22 +561,28 @@ def config_firewall():
         return
     # If the blocked_ips config is emtpy and ufw is disabled, then we don't need to do anything
     # Skip configurate ufw in this condition, ufw will not be enabled if blocked_ips was never set
-    if desired_blocklist or ufw.is_enabled():
-        if not ufw.is_enabled():
-            ufw.default_policy("allow", "incoming")
-            ufw.default_policy("allow", "outgoing")
-            ufw.enable()
-        current_blocklist = get_current_blocklist()
-        current_blocklist = set(current_blocklist)
-        block_ips = desired_blocklist - current_blocklist
-        unblock_ips = current_blocklist - desired_blocklist
-        for ip in block_ips:
-            ufw.modify_access(src=str(ip), dst="any", action="deny", comment=UFW_RULE_TAG)
-        for ip in unblock_ips:
-            ufw_delete_rule(str(ip))
-        # If the blocked_ips is empty, disable ufw after all rules are removed
-        if not desired_blocklist:
-            ufw.disable()
+    if not desired_blocklist and not ufw.is_enabled():
+        reactive.set_flag('content_cache.firewall.configured')
+        return
+    if not ufw.is_enabled():
+        status.maintenance("Enabling ufw...")
+        ufw.default_policy("allow", "incoming")
+        ufw.default_policy("allow", "outgoing")
+        ufw.enable()
+    current_blocklist = get_current_blocklist()
+    current_blocklist = set(current_blocklist)
+    block_ips = desired_blocklist - current_blocklist
+    unblock_ips = current_blocklist - desired_blocklist
+    for ip in block_ips:
+        hookenv.log("Blocking IP {}".format(ip), level='DEBUG')
+        ufw.modify_access(src=str(ip), dst="any", action="deny", comment=UFW_RULE_TAG)
+    for ip in unblock_ips:
+        hookenv.log("Unblocking IP {}".format(ip), level='DEBUG')
+        ufw_delete_rule(str(ip))
+    # If the blocked_ips is empty, disable ufw after all rules are removed
+    if not desired_blocklist:
+        status.maintenance("Disabling ufw...")
+        ufw.disable()
     reactive.set_flag('content_cache.firewall.configured')
 
 

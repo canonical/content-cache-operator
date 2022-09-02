@@ -1,10 +1,11 @@
 import re
 import socket
 import textwrap
-import yaml
+
 import pytest
-import requests
 import pytest_asyncio
+import requests
+import yaml
 
 
 def supported_series():

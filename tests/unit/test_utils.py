@@ -2,10 +2,10 @@ import collections
 import datetime
 import os
 import sys
-import unittest
 import textwrap
-from unittest import mock
+import unittest
 from ipaddress import IPv4Network, IPv6Network
+from unittest import mock
 
 import freezegun
 
@@ -268,10 +268,10 @@ class TestLibUtils(unittest.TestCase):
         config = textwrap.dedent(
             """\
             10.0.1.1,10.0.1.2,
-    
+
             10.0.2.1/32,
             10.0.2.0/24,10.0.2.128/25,
-    
+
             ::ffff:0:0/96,::ffff:255.255.255.255,
             """
         )

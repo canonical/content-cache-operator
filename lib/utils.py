@@ -1,12 +1,12 @@
 import datetime
 import hashlib
 import hmac
+import ipaddress
 import mmap
 import os
 import re
 import shutil
 import subprocess
-import ipaddress
 
 import psutil
 
