@@ -27,7 +27,7 @@ functional: build
 	@tox -e functional
 
 integration:
-    @tox -e integration
+	@tox -e integration
 
 clean:
 	@echo "Cleaning files"
