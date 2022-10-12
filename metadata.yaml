@@ -1,11 +1,13 @@
 name: content-cache
 summary: Deploy your own content distribution network (CDN).
-docs: https://discourse.charmhub.io/t/content-cache-docs-index/5389
-maintainer: Content Cache Charmers <content-cache-charmers@lists.launchpad.net>
 description: >
   Installs Nginx and HAProxy as a highly available web accelerator
   with TLS support. Useful for providing local mirrors of HTTP servers
   and building content delivery networks (CDN).
+docs: https://discourse.charmhub.io/t/content-cache-docs-index/5389
+maintainers:
+  - launchpad.net/~content-cache-charmers
+issues: https://bugs.launchpad.net/content-cache-charm
 tags:
   - cache-proxy
   - content-cache
