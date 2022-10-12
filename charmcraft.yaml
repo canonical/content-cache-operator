@@ -1,8 +1,11 @@
 type: "charm"
 bases:
     - build-on:
-      - name: "ubuntu"
-        channel: "20.04"
+      # Can't build using Focal, although, probably best to default to build
+      # with Jammy from now on. See:
+      #     https://github.com/canonical/charmcraft/issues/904
+      # - name: "ubuntu"
+      #   channel: "20.04"
       - name: "ubuntu"
         channel: "22.04"
       - name: "ubuntu"
