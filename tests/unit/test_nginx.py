@@ -64,6 +64,7 @@ class TestLibNginx(unittest.TestCase):
 
             conf['cache_inactive_time'] = site_conf.get('cache-inactive-time', '2h')
             conf['cache_max_size'] = site_conf.get('cache-max-size', '1g')
+            conf['disable_logging'] = site_conf.get('disable-logging')
             conf['extra_configs'] = site_conf.get('extra-configs', [])
             conf['locations'] = site_conf.get('locations', {})
 
@@ -138,6 +139,7 @@ class TestLibNginx(unittest.TestCase):
 
         conf = {
             'cache_path': '/var/lib/nginx/proxy',
+            'disable_logging': False,
             'enable_prometheus_metrics': True,
             'listen_address': '127.0.0.1',
             'reuseport': False,

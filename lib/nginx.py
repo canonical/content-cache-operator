@@ -167,6 +167,7 @@ class NginxConf:
             'cache_inactive_time': conf['cache_inactive_time'],
             'cache_max_size': conf['cache_max_size'],
             'cache_path': conf['cache_path'],
+            'disable_logging': conf['disable_logging'],
             'enable_prometheus_metrics': conf['enable_prometheus_metrics'],
             'extra_configs': self._process_extra_configs(conf['extra_configs']),
             'juju_unit': self.unit,
