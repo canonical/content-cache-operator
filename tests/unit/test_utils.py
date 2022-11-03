@@ -1,7 +1,10 @@
 import collections
 import datetime
 import os
+import pathlib
+import shutil
 import sys
+import tempfile
 import textwrap
 import unittest
 from ipaddress import IPv4Network, IPv6Network
@@ -16,6 +19,8 @@ from lib import utils  # NOQA: E402
 class TestLibUtils(unittest.TestCase):
     def setUp(self):
         self.maxDiff = None
+        self.tmpdir = tempfile.mkdtemp(prefix='charm-unittests-')
+        self.addCleanup(shutil.rmtree, self.tmpdir)
 
     def test_next_port_pair(self):
         self.assertEqual(utils.next_port_pair(0, 0), (utils.BASE_CACHE_PORT, utils.BASE_BACKEND_PORT))
@@ -237,20 +242,23 @@ class TestLibUtils(unittest.TestCase):
     def test_tune_tcp_mem(self, virtual_memory):
         svmem = collections.namedtuple('svmem', ['total'])
 
+        tcp_mem_path = os.path.join(self.tmpdir, 'tcp_mem')
+        pathlib.Path(tcp_mem_path).touch()
+
         svmem.total = 541071241216
         virtual_memory.return_value = svmem
         want = '18353292 24471056 36706584'
-        self.assertEqual(utils.tune_tcp_mem(3, mmap_pagesize=4096), want)
+        self.assertEqual(utils.tune_tcp_mem(3, tcp_mem_path=tcp_mem_path, mmap_pagesize=4096), want)
 
         svmem.total = 8230563840
         virtual_memory.return_value = svmem
         want = '279183 372244 558366'
-        self.assertEqual(utils.tune_tcp_mem(3, mmap_pagesize=4096), want)
+        self.assertEqual(utils.tune_tcp_mem(3, tcp_mem_path=tcp_mem_path, mmap_pagesize=4096), want)
 
         svmem.total = 541071241216
         virtual_memory.return_value = svmem
         want = '9176646 12235528 18353292'
-        self.assertEqual(utils.tune_tcp_mem(3, mmap_pagesize=8192), want)
+        self.assertEqual(utils.tune_tcp_mem(3, tcp_mem_path=tcp_mem_path, mmap_pagesize=8192), want)
 
         sysctl_tcp_mem_path = 'some-file-does-not-exist'
         want = None
