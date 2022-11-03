@@ -9,5 +9,4 @@ options:
       - haproxy
       - libnginx-mod-http-lua
       - nginx
-      - python3-jinja2
       - socat
