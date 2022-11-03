@@ -146,6 +146,7 @@ site10.local:
 site11.local:
   cache-inactive-time: 12h
   cache-max-size: 5g
+  disable-logging: True
   extra-configs:
     - proxy_request_buffering off
     - client_max_body_size 0
