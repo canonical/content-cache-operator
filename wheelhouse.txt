@@ -1,5 +1,7 @@
 # Include python requirements here
-psutil
+psutil<5.9.3;python_version < '3.8'
+psutil;python_version >= '3.8'
+
 # Focal build failures - https://github.com/juju-solutions/layer-basic/issues/210
 Jinja2==2.11;python_version >= '3.6' and python_version <= '3.8' # py36 bionic, py38 focal
 Jinja2;python_version > '3.8'
