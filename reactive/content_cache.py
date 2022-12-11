@@ -286,6 +286,8 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         except ValueError as e:
             hookenv.log('Only integer ports are supported: {}'.format(e))
 
+        new_conf[cached_site]['disable_logging'] = site_conf.get('disable-logging')
+
         # XXX: Reduce complexity here
 
         for location, loc_conf in site_conf.get('locations', {}).items():

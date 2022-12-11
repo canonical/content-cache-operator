@@ -119,6 +119,7 @@ listen {name}
 {indent}capture request header X-Cache-Request-ID len 60
 {redirect_config}{backend_config}{default_backend}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
+        backend_conf_no_logging = '{indent}http-request set-log-level silent if {{ hdr(Host) -i {site_name} }}\n'
         redirect_conf = '{indent}redirect scheme https code 301 if {{ hdr(Host) -i {site_name} }} !{{ ssl_fc }}\n'
 
         rendered_output = []
@@ -152,6 +153,9 @@ listen {name}
                 tls_path = site_conf.get('tls-cert-bundle-path')
                 if tls_path:
                     tls_cert_bundle_paths.append(tls_path)
+
+                if site_conf.get('disable_logging'):
+                    backend_config.append(backend_conf_no_logging.format(site_name=site_name, indent=INDENT))
 
                 # HTTP -> HTTPS redirect
                 if redirect_http_to_https:
