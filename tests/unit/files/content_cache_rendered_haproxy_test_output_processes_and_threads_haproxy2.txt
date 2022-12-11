@@ -90,6 +90,7 @@ listen combined-80
     use_backend backend-cached-site6-local if { hdr(Host) -i site6.local }
     use_backend backend-cached-site9-local if { hdr(Host) -i site9.local }
     use_backend backend-cached-site10-local if { hdr(Host) -i site10.local }
+    http-request set-log-level silent if { hdr(Host) -i site11.local }
     use_backend backend-cached-site11-local if { hdr(Host) -i site11.local }
     default_backend backend-cached-site3-local
 
