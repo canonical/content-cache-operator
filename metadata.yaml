@@ -6,7 +6,7 @@ description: >
   and building content delivery networks (CDN).
 docs: https://discourse.charmhub.io/t/content-cache-docs-index/5389
 maintainers:
-  - launchpad.net/~content-cache-charmers
+  - Content Cache Charmers <content-cache-charmers@lists.launchpad.net>
 issues: https://bugs.launchpad.net/content-cache-charm
 tags:
   - cache-proxy
