@@ -10,6 +10,8 @@ import pytest_asyncio
 import requests
 import yaml
 
+from pytest_operator.plugin import check_deps
+
 logger = logging.getLogger()
 
 
@@ -42,6 +44,7 @@ async def charm_file_fixture(ops_test, series, tmp_path_factory):
         if base["run-on"][0]["channel"] == base_version:
             base_index = idx
     logger.info(f"build charm {charm_name}")
+    check_deps("charmcraft")
     cmd = ("charmcraft", "pack", "-p", pathlib.Path(".").absolute(), "--bases-index", str(base_index))
     logger.info(f"run command: {cmd}")
     return_code, stdout, stderr = await ops_test.run(*cmd, cwd=tmp_path)
