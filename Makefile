@@ -3,9 +3,8 @@ help:
 	@echo ""
 	@echo " make help - show this text"
 	@echo " make lint - run flake8"
-	@echo " make test - run the functional test and unittests"
-	@echo " make unittest - run the the unittest"
-	@echo " make functional - run the functional tests"
+	@echo " make test - run the unit and integration tests"
+	@echo " make unittest - run the unit tests"
 	@echo " make integration - run the integration tests"
 	@echo " make clean - remove unneeded files"
 	@echo ""
@@ -18,13 +17,10 @@ lint: blacken
 	@echo "Running flake8"
 	@tox -e lint
 
-test: lint unittest functional
+test: lint unittest
 
 unittest:
 	@tox -e unit
-
-functional: build
-	@tox -e functional
 
 integration:
 	@tox -e integration
@@ -34,4 +30,4 @@ clean:
 	@git clean -ffXd
 
 # The targets below don't depend on a file
-.PHONY: lint test unittest functionaltest build clean help
+.PHONY: lint test unittest integration build clean help
