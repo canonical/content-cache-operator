@@ -1,3 +1,6 @@
+import csv
+import logging
+import pathlib
 import re
 import socket
 import textwrap
@@ -7,6 +10,8 @@ import pytest_asyncio
 import requests
 import yaml
 
+logger = logging.getLogger()
+
 
 def supported_series():
     with open("metadata.yaml", encoding="utf-8") as f:
@@ -14,13 +19,47 @@ def supported_series():
     return metadata['series']
 
 
+def series_version_mapping():
+    reader = csv.DictReader(pathlib.Path("/usr/share/distro-info/ubuntu.csv").open())
+    return {row["series"]: row["version"].split(" ")[0] for row in reader}
+
+
 @pytest.fixture(params=supported_series(), scope="module", name="series")
 def fixture_series(request):
     return request.param
 
 
+@pytest_asyncio.fixture(scope="module", name="charm_file")
+async def charm_file_fixture(ops_test, series, tmp_path_factory):
+    tmp_path = tmp_path_factory.mktemp(f"charm-{series}")
+    charmcraft_file = pathlib.Path(".") / "charmcraft.yaml"
+    charmcraft = yaml.safe_load(charmcraft_file.read_text())
+    metadata_file = pathlib.Path(".") / "metadata.yaml"
+    charm_name = yaml.safe_load(metadata_file.read_text())["name"]
+    base_version = series_version_mapping()[series]
+    base_index = None
+    for idx, base in enumerate(charmcraft["bases"]):
+        if base["run-on"][0]["channel"] == base_version:
+            base_index = idx
+    logger.info(f"build charm {charm_name}")
+    cmd = ("charmcraft", "pack", "-p", pathlib.Path(".").absolute(), "--bases-index", str(base_index))
+    logger.info(f"run command: {cmd}")
+    return_code, stdout, stderr = await ops_test.run(*cmd, cwd=tmp_path)
+    if return_code != 0:
+        m = re.search(r"Failed to build charm.*full execution logs in '([^']+)'", stderr)
+        if m:
+            try:
+                stderr = pathlib.Path(m.group(1)).read_text()
+            except FileNotFoundError:
+                logger.error(f"Failed to read full build log from {m.group(1)}")
+        raise RuntimeError(f"Failed to build charm:\n{stderr}\n{stdout}")
+    charm_file = next(tmp_path.glob(f"{charm_name}*.charm"))
+    logger.info(f"built charm file: {charm_file}")
+    return charm_file
+
+
 @pytest_asyncio.fixture(scope="module", name="application")
-async def fixture_application(ops_test, series):
+async def fixture_application(ops_test, series, charm_file):
     def dns_lookup_ipv4(hostname):
         records = socket.getaddrinfo(hostname, 0)
         for record in records:
@@ -28,9 +67,8 @@ async def fixture_application(ops_test, series):
                 return record[4][0]
         raise RuntimeError("No IPv4 DNS record for host: {}".format(hostname))
 
-    my_charm = await ops_test.build_charm(".")
     application_name = "content-cache-{}".format(series)
-    await ops_test.model.deploy(my_charm, series=series, application_name=application_name)
+    await ops_test.model.deploy(charm_file, series=series, application_name=application_name)
     # Get the IPv4 address for site to prevent some test environment IPv6 connectivity issues
     website_ip = dns_lookup_ipv4("archive.ubuntu.com")
     application = ops_test.model.applications[application_name]
