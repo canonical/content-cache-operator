@@ -41,11 +41,11 @@ async def charm_file_fixture(ops_test, series, tmp_path_factory):
     base_version = series_version_mapping()[series]
     base_index = None
     for idx, base in enumerate(charmcraft["bases"]):
-        if base["run-on"][0]["channel"] == base_version:
+        if base["channel"] == base_version:
             base_index = idx
     logger.info(f"build charm {charm_name}")
     check_deps("charmcraft")
-    cmd = ("charmcraft", "pack", "-p", pathlib.Path(".").absolute(), "--bases-index", str(base_index))
+    cmd = ("charmcraft", "pack", "-p", pathlib.Path.cwd(), "--bases-index", str(base_index))
     logger.info(f"run command: {cmd}")
     return_code, stdout, stderr = await ops_test.run(*cmd, cwd=tmp_path)
     if return_code != 0:
