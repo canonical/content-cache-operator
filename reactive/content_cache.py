@@ -9,6 +9,7 @@ from copy import deepcopy
 import jinja2
 import yaml
 
+from charms import apt
 from charms import reactive
 from charms.layer import status
 from charmhelpers import context
@@ -51,6 +52,13 @@ def install():
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
+
+    config = hookenv.config()
+    if config.get('enable_prometheus_metrics'):
+        apt.queue_install(["libnginx-mod-http-lua"])
+    if config.get('blocked_ips'):
+        apt.queue_install(["ufw"])
+
     reactive.set_flag('content_cache.installed')
 
 

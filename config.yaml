@@ -7,6 +7,13 @@ options:
       internal servers used between haproxy and nginx.  Used when a large
       number of sites may interfere with existing unit services, subordinate
       charms, etc.
+  blocked_ips:
+    type: string
+    default: ""
+    description: >
+      A list of IPs or IP ranges to be denied from the service. Accept plain
+      and CIDR ipv4 and ipv6 addresses. Ip addresses can have any number of
+      leading and trailing whitespace characters and are separated by comma.
   cache_inactive_time:
     type: string
     default: ""
@@ -41,11 +48,13 @@ options:
       new cache elements from the backends. See Nginx'
       proxy_cache_lock.
   enable_prometheus_metrics:
-    default: true
+    default: false
     type: boolean
     description: >
       Export metrics for the number of requests and the number of cache hits.
       Prometheus metrics are exposed at /metrics on localhost:9145.
+
+      NOTE: This breaks on Jammy and above due to LUA no longer supported - LP:1262710
   haproxy_hard_stop_after:
     default: "5m"
     type: string
@@ -151,10 +160,3 @@ options:
     description: >
       Sets the number of Nginx worker processes. Setting to '0' (auto)
       will set based on available CPU cores.
-  blocked_ips:
-    type: string
-    default: ""
-    description: >
-      A list of IPs or IP ranges to be denied from the service. Accept plain 
-      and CIDR ipv4 and ipv6 addresses. Ip addresses can have any number of 
-      leading and trailing whitespace characters and are separated by comma.

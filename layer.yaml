@@ -1,4 +1,5 @@
 includes:
+  - layer:apt
   - layer:basic
   - layer:nagios
   - layer:status
@@ -7,6 +8,5 @@ options:
   basic:
     packages:
       - haproxy
-      - libnginx-mod-http-lua
       - nginx
       - socat
