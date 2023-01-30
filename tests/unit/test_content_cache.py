@@ -11,8 +11,10 @@ import yaml
 
 # We also need to mock up charms.layer so we can run unit tests without having
 # to build the charm and pull in layers such as layer-status.
+sys.modules['charms.apt'] = mock.MagicMock()
 sys.modules['charms.layer'] = mock.MagicMock()
 
+from charms import apt  # NOQA: E402
 from charms.layer import status  # NOQA: E402
 from charmhelpers.core import unitdata  # NOQA: E402
 
@@ -133,6 +135,19 @@ class TestCharm(unittest.TestCase):
         ]
         clear_flag.assert_has_calls(want, any_order=True)
         self.assertEqual(len(want), len(clear_flag.mock_calls))
+
+    @mock.patch('charms.reactive.clear_flag')
+    @mock.patch('charms.reactive.set_flag')
+    def test_hook_install_packages(self, set_flag, clear_flag):
+        '''Test packages are set for install via the install charm hook'''
+        self.mock_config.return_value = {'enable_prometheus_metrics': True}
+        content_cache.install()
+        apt.queue_install.assert_called_once_with(['libnginx-mod-http-lua'])
+
+        apt.queue_install.reset_mock()
+        self.mock_config.return_value = {'blocked_ips': '1.1.1.1,2.2.2.2'}
+        content_cache.install()
+        apt.queue_install.assert_called_once_with(['ufw'])
 
     @mock.patch('charms.reactive.clear_flag')
     def test_hook_config_changed_flags(self, clear_flag):
