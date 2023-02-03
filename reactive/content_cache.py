@@ -308,9 +308,10 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
             # Also, for caching layer, we want higher fall count as it's less
             # likely the caching layer is down, 2 mins here (inter * fall).
             new_cached_loc_conf['backend-fall-count'] = 60
+            new_cached_loc_conf['backend-options'] = site_conf.get('haproxy-extra-configs', [])
             # Rather than enable haproxy's 'option forwardfor' we want to replace
             # the X-F-F header in case it's spoofed.
-            new_cached_loc_conf['backend-options'] = ['http-request set-header X-Forwarded-For %[src]']
+            new_cached_loc_conf['backend-options'].insert(0, 'http-request set-header X-Forwarded-For %[src]')
 
             # No backends
             if not site_conf['locations'][location].get('backends'):
@@ -348,10 +349,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
             if backend_check_path:
                 new_cached_loc_conf['backend-check-path'] = backend_check_path
                 new_loc_conf['backend-check-path'] = backend_check_path
-            new_loc_conf['backend-options'] = []
-            backend_options = loc_conf.get('backend-options')
-            if backend_options:
-                new_loc_conf['backend-options'] = backend_options
+            new_loc_conf['backend-options'] = loc_conf.get('backend-options', [])
 
             # Make it more resilient to failures and redispatch requests to different backends.
             new_loc_conf['backend-options'].append('retry-on all-retryable-errors')
