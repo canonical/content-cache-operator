@@ -37,6 +37,9 @@ server {
         auth_request /auth;
     }
 
+    location /_status/content-cache-check {
+        stub_status;
+    }
 
     access_log /var/log/nginx/site9.local-access.log content_cache;
     error_log /var/log/nginx/site9.local-error.log;

@@ -39,6 +39,9 @@ server {
         root /var/www/html;
     }
 
+    location /_status/content-cache-check {
+        stub_status;
+    }
 
     access_log /var/log/nginx/site2.local-access.log content_cache;
     error_log /var/log/nginx/site2.local-error.log;

@@ -44,6 +44,9 @@ server {
         }
     }
 
+    location /_status/content-cache-check {
+        stub_status;
+    }
 
     access_log /var/log/nginx/basic_site-access.log content_cache;
     error_log /var/log/nginx/basic_site-error.log;
