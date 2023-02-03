@@ -142,7 +142,7 @@ site10.local:
           } else { rewrite ^ /somewherelse? permanent; }
         - autoindex on
 
-# Test 11: Extra server configs, rather than location
+# Test 11: Extra server configs, rather than location; override proxy_cache
 site11.local:
   cache-inactive-time: 12h
   cache-max-size: 5g
@@ -156,3 +156,4 @@ site11.local:
       backend-options:
         - forwardfor except 127.0.0.1 192.168.1.1
         - forceclose
+      cache: 009171e23968-cache
