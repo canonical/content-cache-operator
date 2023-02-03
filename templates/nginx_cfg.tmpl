@@ -157,6 +157,9 @@ server {
 {%- endif %}
     }
 {% endfor %}
+    location /_status/content-cache-check {
+        stub_status;
+    }
 
     access_log {% if disable_logging %}off{% else %}/var/log/nginx/{{site_name}}-access.log content_cache{% endif %};
     error_log /var/log/nginx/{{site_name}}-error.log;

@@ -53,6 +53,9 @@ server {
         proxy_force_ranges on;
     }
 
+    location /_status/content-cache-check {
+        stub_status;
+    }
 
     access_log /var/log/nginx/site8.local-access.log content_cache;
     error_log /var/log/nginx/site8.local-error.log;

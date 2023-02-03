@@ -96,6 +96,9 @@ server {
         }
     }
 
+    location /_status/content-cache-check {
+        stub_status;
+    }
 
     access_log /var/log/nginx/site1.local-access.log content_cache;
     error_log /var/log/nginx/site1.local-error.log;

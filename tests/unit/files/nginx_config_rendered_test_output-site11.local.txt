@@ -33,6 +33,9 @@ server {
         proxy_force_ranges on;
     }
 
+    location /_status/content-cache-check {
+        stub_status;
+    }
 
     access_log off;
     error_log /var/log/nginx/site11.local-error.log;

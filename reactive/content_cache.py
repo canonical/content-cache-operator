@@ -313,6 +313,9 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
             # the X-F-F header in case it's spoofed.
             new_cached_loc_conf['backend-options'].insert(0, 'http-request set-header X-Forwarded-For %[src]')
 
+            new_cached_loc_conf['backend-check-method'] = 'GET'
+            new_cached_loc_conf['backend-check-path'] = '/_status/content-cache-check'
+
             # No backends
             if not site_conf['locations'][location].get('backends'):
                 if not new_conf[cached_site]['locations']:
@@ -341,14 +344,12 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
             cache_maxconn = loc_conf.get('cache-maxconn', backend_maxconn * len(loc_conf['backends']))
             new_cached_loc_conf['backend-maxconn'] = cache_maxconn
 
-            backend_check_method = loc_conf.get('backend-check-method')
-            if backend_check_method:
-                new_cached_loc_conf['backend-check-method'] = backend_check_method
-                new_loc_conf['backend-check-method'] = backend_check_method
-            backend_check_path = loc_conf.get('backend-check-path')
-            if backend_check_path:
-                new_cached_loc_conf['backend-check-path'] = backend_check_path
-                new_loc_conf['backend-check-path'] = backend_check_path
+            new_loc_conf['backend-check-method'] = loc_conf.get('backend-check-method', 'HEAD')
+            new_loc_conf['backend-check-path'] = loc_conf.get('backend-check-path', '/')
+            if loc_conf.get('signed-url-hmac-key'):
+                # For signed-url, we need the health checks to check using the tokened path.
+                new_cached_loc_conf['backend-check-method'] = loc_conf.get('backend-check-method', 'HEAD')
+                new_cached_loc_conf['backend-check-path'] = loc_conf.get('backend-check-path', '/')
             new_loc_conf['backend-options'] = loc_conf.get('backend-options', [])
 
             # Make it more resilient to failures and redispatch requests to different backends.
