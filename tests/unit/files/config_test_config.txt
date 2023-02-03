@@ -150,6 +150,9 @@ site11.local:
   extra-configs:
     - proxy_request_buffering off
     - client_max_body_size 0
+  haproxy-extra-configs:
+    - acl restricted_page query -m reg ^q=............$
+    - http-request deny if restricted_page
   locations:
     /:
       backends: *BACKENDS

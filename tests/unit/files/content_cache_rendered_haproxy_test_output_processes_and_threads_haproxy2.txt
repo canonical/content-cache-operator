@@ -324,6 +324,8 @@ backend backend-cached-site11-local
     option httpchk HEAD / HTTP/1.1\r\nHost:\ site11.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site11.local
     http-request set-header X-Forwarded-For %[src]
+    acl restricted_page query -m reg ^q=............$
+    http-request deny if restricted_page
     balance leastconn
     server server_1 127.0.0.1:6090 check inter 2s rise 2 fall 60 maxconn 600
 
