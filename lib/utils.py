@@ -252,7 +252,6 @@ _SYSCTL_NET_IPV4_TCP_MEM = '/proc/sys/net/ipv4/tcp_mem'
 
 
 def tune_tcp_mem(multiplier=1.5, tcp_mem_path=_SYSCTL_NET_IPV4_TCP_MEM, mmap_pagesize=mmap.PAGESIZE):
-
     # For LXC/LXD containers, we can't tune tcp_mem.
     if not os.path.exists(tcp_mem_path):
         return None

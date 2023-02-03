@@ -30,7 +30,11 @@ server {
         proxy_set_header X-Forwarded-Scheme "";
 
         add_header X-Cache-Status "$upstream_cache_status from {{juju_unit}}";
+{%- if 'cache' in conf %}
+        proxy_cache {{conf['cache']}};
+{%- else %}
         proxy_cache {{keys_zone}};
+{%- endif %}
 {%- for key, value in conf.items()|sort(attribute='0') -%}
 {%- if key.startswith('cache-') and value != 'None' %}
         {%- if key == 'cache-valid' %}
