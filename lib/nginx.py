@@ -173,6 +173,7 @@ class NginxConf:
             'juju_unit': self.unit,
             'keys_zone': self._generate_keys_zone(conf['site']),
             'locations': self._process_locations(conf['locations']),
+            'maps': conf.get('maps'),
             'port': conf['listen_port'],
             'reuseport': conf['reuseport'],
             'site': conf['site'],
