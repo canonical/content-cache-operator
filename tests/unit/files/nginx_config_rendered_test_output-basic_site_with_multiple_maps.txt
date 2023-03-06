@@ -1,11 +1,15 @@
-proxy_cache_path /var/lib/nginx/proxy/basic_site_with_maps use_temp_path=off levels=1:2 keys_zone=2fe6e6303546-cache:10m inactive=2h max_size=1g;
+proxy_cache_path /var/lib/nginx/proxy/basic_site_with_multiple_maps use_temp_path=off levels=1:2 keys_zone=98a246763c65-cache:10m inactive=2h max_size=1g;
 
 map $original_redirect_location $new_redirect_path {
     "~^(http|https):\/\/(.*?)(\/.*)$" $3;
 }
 
+map $original_redirect_location $new_redirect_path2 {
+    "~^(http|https):\/\/(.*?)(\/.*)$" $3;
+}
+
 server {
-    server_name basic_site_with_maps;
+    server_name basic_site_with_multiple_maps;
     listen 127.0.0.1:6080;
 
     port_in_redirect off;
@@ -14,7 +18,7 @@ server {
     location / {
         proxy_http_version 1.1;
         proxy_pass http://localhost:8080;
-        proxy_set_header Host "basic_site_with_maps";
+        proxy_set_header Host "basic_site_with_multiple_maps";
         # Removed the following headers to avoid cache poisoning.
         proxy_set_header Forwarded "";
         proxy_set_header X-Forwarded-Host "";
@@ -23,7 +27,7 @@ server {
         proxy_set_header X-Forwarded-Scheme "";
 
         add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
-        proxy_cache 2fe6e6303546-cache;
+        proxy_cache 98a246763c65-cache;
         proxy_cache_background_update off;
         proxy_cache_lock off;
         proxy_cache_min_uses 1;
@@ -52,6 +56,6 @@ server {
         stub_status;
     }
 
-    access_log /var/log/nginx/basic_site_with_maps-access.log content_cache;
-    error_log /var/log/nginx/basic_site_with_maps-error.log;
+    access_log /var/log/nginx/basic_site_with_multiple_maps-access.log content_cache;
+    error_log /var/log/nginx/basic_site_with_multiple_maps-error.log;
 }
