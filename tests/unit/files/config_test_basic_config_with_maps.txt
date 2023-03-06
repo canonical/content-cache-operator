@@ -7,3 +7,14 @@ basic_site_with_maps:
     /:
       backends:
         - 127.0.1.10:80
+basic_site_with_multiple_maps:
+  port: 80
+  maps:
+    "$original_redirect_location $new_redirect_path":
+      - '"~^(http|https):\/\/(.*?)(\/.*)$" $3'
+    "$original_redirect_location $new_redirect_path2":
+      - '"~^(http|https):\/\/(.*?)(\/.*)$" $3'
+  locations:
+    /:
+      backends:
+        - 127.0.1.10:80
