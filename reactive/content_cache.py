@@ -206,6 +206,7 @@ def configure_nginx(conf_path=None):
         conf['enable_prometheus_metrics'] = enable_prometheus_metrics
         conf['extra_configs'] = site_conf.get('extra-configs', [])
         conf['locations'] = site_conf.get('locations', {})
+        conf['maps'] = site_conf.get('maps', {})
 
         if ngx_conf.write_site(site, ngx_conf.render(conf)):
             hookenv.log('Wrote out new configs for site: {}:{}'.format(site, conf['listen_port']))

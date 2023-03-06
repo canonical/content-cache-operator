@@ -1,0 +1,9 @@
+basic_site_with_maps:
+  port: 80
+  maps:
+    "$original_redirect_location $new_redirect_path":
+      - '"~^(http|https):\/\/(.*?)(\/.*)$" $3'
+  locations:
+    /:
+      backends:
+        - 127.0.1.10:80

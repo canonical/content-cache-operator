@@ -164,6 +164,43 @@ class TestLibNginx(unittest.TestCase):
 
             self.assertEqual(ngx_conf.render(conf), output)
 
+    def test_nginx_config_render_with_maps(self):
+        """Test rendering with a map defined."""
+        ngx_conf = nginx.NginxConf(unit='mock-content-cache/0', enable_cache_bg_update=False, enable_cache_lock=False)
+
+        with open('tests/unit/files/config_test_basic_config_with_maps.txt', 'r', encoding='utf-8') as f:
+            sites = yaml.safe_load(f.read())
+            # 'configs' is specialized and used to host YAML anchors so let's remove it
+            sites.pop('configs', '')
+
+        conf = {
+            'cache_path': '/var/lib/nginx/proxy',
+            'disable_logging': False,
+            'enable_prometheus_metrics': True,
+            'listen_address': '127.0.0.1',
+            'reuseport': False,
+        }
+        for site, site_conf in sites.items():
+            conf['site'] = site
+            conf['site_name'] = site_conf.get('site-name') or site
+            conf['listen_port'] = BASE_LISTEN_PORT
+
+            conf['cache_inactive_time'] = site_conf.get('cache-inactive-time', '2h')
+            conf['cache_max_size'] = site_conf.get('cache-max-size', '1g')
+            conf['extra_configs'] = site_conf.get('extra-configs', [])
+            conf['locations'] = site_conf.get('locations', {})
+            conf['maps'] = site_conf.get('maps', {})
+
+            for location, loc_conf in conf['locations'].items():
+                if loc_conf.get('backends'):
+                    loc_conf['backend_port'] = BASE_BACKEND_PORT
+
+            output_file = 'tests/unit/files/nginx_config_rendered_test_output-{}.txt'.format(site)
+            with open(output_file, 'r', encoding='utf-8') as f:
+                output = f.read()
+
+            self.assertEqual(ngx_conf.render(conf), output)
+
     def test_nginx_config_toggle_metrics_site(self):
         """Test the metrics site.
 
