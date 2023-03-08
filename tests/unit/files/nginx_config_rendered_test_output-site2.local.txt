@@ -8,6 +8,7 @@ server {
     absolute_redirect off;
 
     location / {
+        proxy_cache 9813f9fe7826-cache;
         proxy_http_version 1.1;
         proxy_pass http://localhost:8081;
         proxy_set_header Host "site2.local";
@@ -19,7 +20,6 @@ server {
         proxy_set_header X-Forwarded-Scheme "";
 
         add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
-        proxy_cache 9813f9fe7826-cache;
         proxy_cache_background_update on;
         proxy_cache_lock on;
         proxy_cache_min_uses 1;
@@ -31,11 +31,13 @@ server {
 
 
     location /my-local-content/ {
+        proxy_cache 9813f9fe7826-cache;
         root /var/www/html;
     }
 
 
     location /my-local-content2/ {
+        proxy_cache 9813f9fe7826-cache;
         root /var/www/html;
     }
 

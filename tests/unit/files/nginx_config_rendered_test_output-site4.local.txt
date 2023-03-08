@@ -8,11 +8,13 @@ server {
     absolute_redirect off;
 
     location / {
+        proxy_cache a0bfaa048a6f-cache;
         autoindex on;
     }
 
 
     location /ubuntu/pool/ {
+        proxy_cache a0bfaa048a6f-cache;
         autoindex on;
         auth_request /auth;
     }

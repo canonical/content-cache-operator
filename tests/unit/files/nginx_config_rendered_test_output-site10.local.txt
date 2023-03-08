@@ -8,6 +8,7 @@ server {
     absolute_redirect off;
 
     location / {
+        proxy_cache 009171e23968-cache;
         root /var/www/html;
         if ($args ~* ".*call_user.*") { rewrite ^ /? permanent; }
         if ($args ~* ".*call_user2.*") { rewrite ^ /? permanent; } else { rewrite ^ /somewherelse? permanent; }
