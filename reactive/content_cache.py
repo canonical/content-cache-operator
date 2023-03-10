@@ -430,6 +430,12 @@ def configure_nagios():
         frontend_port = site_conf.get('port') or default_port
 
         for location, loc_conf in site_conf.get('locations', {}).items():
+            if location.startswith('@'):
+                # Named locations are not used for normal request
+                # processing, only for internal request redirection.  Don't
+                # check them.
+                continue
+
             backend_port = loc_conf.get('backend_port')
             method = loc_conf.get('backend-check-method', 'HEAD')
             path = loc_conf.get('backend-check-path', location)

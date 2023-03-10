@@ -92,6 +92,7 @@ listen combined-80
     use_backend backend-site9-local if { hdr(Host) -i site9.local }
     use_backend backend-site10-local if { hdr(Host) -i site10.local }
     use_backend backend-site11-local if { hdr(Host) -i site11.local }
+    use_backend backend-site12-local if { hdr(Host) -i site12.local }
     default_backend backend-site3-local
 
 listen site2-local
@@ -180,6 +181,14 @@ backend backend-site11-local
     http-request set-header Host site11.local
     option forwardfor except 127.0.0.1 192.168.1.1
     option forceclose
+    balance leastconn
+    server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
+    server server_2 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200
+    server server_3 127.0.1.12:80 check inter 5s rise 2 fall 5 maxconn 200
+
+backend backend-site12-local
+    option httpchk HEAD / HTTP/1.1\r\nHost:\ site12.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host site12.local
     balance leastconn
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
     server server_2 127.0.1.11:80 check inter 5s rise 2 fall 5 maxconn 200

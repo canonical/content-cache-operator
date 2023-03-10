@@ -160,3 +160,16 @@ site11.local:
         - forwardfor except 127.0.0.1 192.168.1.1
         - forceclose
       cache: 009171e23968-cache
+
+# Test 12: Backend with internal redirects
+site12.local:
+  locations:
+    /:
+      backends: *BACKENDS
+      extra-configs:
+        - proxy_intercept_errors on
+        - error_page 307 = @follow-redirects
+    '@follow-redirects':
+      extra-configs:
+        - set $original_redirect_location $upstream_http_location
+        - proxy_pass $original_redirect_location
