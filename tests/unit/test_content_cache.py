@@ -858,6 +858,41 @@ site1.local:
         ]
         nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
 
+        want = [
+            mock.call(
+                shortname='site_site12_local_listen',
+                description='site12.local site listen check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site12.local -p 80 -j HEAD -u /',
+            ),
+            mock.call(
+                shortname='site_site12_local_cache',
+                description='site12.local cache check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site12.local -p 6091 -j HEAD -u /',
+            ),
+            mock.call(
+                shortname='site_site12_local_backend_proxy',
+                description='site12.local backend proxy check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site12.local -p 8091 -j HEAD -u /',
+            ),
+        ]
+        do_not_want = [
+            mock.call(
+                shortname='site_site12_local_@follow_redirects_listen',
+                description='site12.local site listen check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site12.local -p 80 -j HEAD'
+                ' -u @follow-redirects',
+            ),
+            mock.call(
+                shortname='site_site12_local_@follow_redirects_cache',
+                description='site12.local cache check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site12.local -p 6091 -j HEAD'
+                ' -u @follow-redirects',
+            ),
+        ]
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
+        for call in do_not_want:
+            self.assertNotIn(call, nrpe_instance_mock.add_check.call_args_list)
+
         nrpe_instance_mock.write.assert_called()
 
         want = [mock.call('nagios-nrpe.configured')]
