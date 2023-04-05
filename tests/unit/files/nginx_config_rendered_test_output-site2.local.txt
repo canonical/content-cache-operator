@@ -32,12 +32,14 @@ server {
 
     location /my-local-content/ {
         proxy_cache 9813f9fe7826-cache;
+        add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
         root /var/www/html;
     }
 
 
     location /my-local-content2/ {
         proxy_cache 9813f9fe7826-cache;
+        add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
         root /var/www/html;
     }
 
