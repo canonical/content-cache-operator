@@ -9,12 +9,14 @@ server {
 
     location / {
         proxy_cache a0bfaa048a6f-cache;
+        add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
         autoindex on;
     }
 
 
     location /ubuntu/pool/ {
         proxy_cache a0bfaa048a6f-cache;
+        add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
         autoindex on;
         auth_request /auth;
     }

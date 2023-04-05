@@ -9,6 +9,7 @@ server {
 
     location / {
         proxy_cache 009171e23968-cache;
+        add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
         root /var/www/html;
         if ($args ~* ".*call_user.*") { rewrite ^ /? permanent; }
         if ($args ~* ".*call_user2.*") { rewrite ^ /? permanent; } else { rewrite ^ /somewherelse? permanent; }

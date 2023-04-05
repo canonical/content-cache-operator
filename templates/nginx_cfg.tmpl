@@ -45,8 +45,10 @@ server {
         proxy_set_header X-Forwarded-Port "";
         proxy_set_header X-Forwarded-Proto "";
         proxy_set_header X-Forwarded-Scheme "";
-
+{% endif %}
         add_header X-Cache-Status "$upstream_cache_status from {{juju_unit}}";
+{%- if conf['backend'] %}
+
 {%- for key, value in conf.items()|sort(attribute='0') -%}
 {%- if key.startswith('cache-') and value != 'None' %}
         {%- if key == 'cache-valid' %}
