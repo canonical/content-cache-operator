@@ -72,6 +72,7 @@ site5:
       modifier: '='
       backends:
         - 127.0.1.11:80
+      backend-check-path: /status
       backend-path: /auth-check/
       cache-background-update: None
       cache-min-uses: None

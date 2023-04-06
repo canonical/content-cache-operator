@@ -863,17 +863,17 @@ site1.local:
             mock.call(
                 shortname='site_site5_auth_listen',
                 description='site5 site listen check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 80 -j HEAD -u /auth',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 80 -j HEAD -u /status',
             ),
             mock.call(
                 shortname='site_site5_auth_cache',
                 description='site5 cache check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 6084 -j HEAD -u /auth',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 6084 -j HEAD -u /status',
             ),
             mock.call(
                 shortname='site_site5_auth_backend_proxy',
                 description='site5 backend proxy check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 8084 -j HEAD -u /auth-check/auth',  # NOQA: E501
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 8084 -j HEAD -u /status',
             ),
         ]
         nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)

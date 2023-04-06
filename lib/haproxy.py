@@ -261,9 +261,11 @@ backend backend-{name}
                 maxconn = loc_conf.get('backend-maxconn', 200)
                 method = loc_conf.get('backend-check-method', 'HEAD')
                 path = loc_conf.get('backend-check-path', '/')
-                if path.startswith('/'):
-                    path = path[1:]
-                path = os.path.join(loc_conf.get('backend-path', '/'), path)
+                # XXX: Backwards compatibility.
+                if path != '/status':
+                    if path.startswith('/'):
+                        path = path[1:]
+                    path = os.path.join(loc_conf.get('backend-path', '/'), path)
                 signed_url_hmac_key = loc_conf.get('signed-url-hmac-key')
                 if signed_url_hmac_key:
                     expiry_time = utils.never_expires_time()

@@ -402,7 +402,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
 @reactive.when('content_cache.nginx.configured', 'content_cache.haproxy.configured')
 @reactive.when('nrpe-external-master.available')
 @reactive.when_not('nagios-nrpe.configured')
-def configure_nagios():
+def configure_nagios():  # NOQA: C901
     status.maintenance('setting up NRPE checks')
     reactive.clear_flag('content_cache.active')
 
@@ -475,10 +475,12 @@ def configure_nagios():
                 # Backend proxy layer check; no token needs to be passed here as it's
                 # stripped by the cache layer.
                 check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'backend_proxy')
-                # We also need to use the backend-path if present.
-                if path.startswith('/'):
-                    path = path[1:]
-                path = os.path.join(loc_conf.get('backend-path', '/'), path)
+                # XXX: Backwards compatibility.
+                if path != '/status':
+                    # We also need to use the backend-path if present.
+                    if path.startswith('/'):
+                        path = path[1:]
+                    path = os.path.join(loc_conf.get('backend-path', '/'), path)
                 cmd = (
                     '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name} -p {backend_port}'
                     ' -j {method} -u {path}'.format(
