@@ -240,7 +240,9 @@ backend backend-{name}
                 if not loc_conf.get('backends'):
                     continue
 
-                site_name = loc_conf.get('site-name', site_conf.get('site-name', site))
+                site_name = loc_conf.get(
+                    'backend-site-name', loc_conf.get('site-name', site_conf.get('site-name', site))
+                )
 
                 tls_config = ''
                 if loc_conf.get('backend-tls'):

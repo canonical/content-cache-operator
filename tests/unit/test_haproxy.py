@@ -160,6 +160,27 @@ class TestLibHAProxy(unittest.TestCase):
             want = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
 
+    @mock.patch('lib.utils.package_version')
+    def test_haproxy_config_rendered_backend_stanzas_override_backend_site(self, package_version):
+        package_version.return_value = '2.5.13-1ppa1~bionic'
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+        config = {
+            'site1.local': {
+                'locations': {
+                    '/': {
+                        'backend-check-path': '/swift/v1/AUTH_aabbccdd001122/mybucket/index.html',
+                        'backend-site-name': 'objectstorage.ps5.internal',
+                        'backend-tls': True,
+                        'backends': ['10.0.1.10:443'],
+                    }
+                }
+            }
+        }
+        output = 'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output3.txt'
+        with open(output, 'r', encoding='utf-8') as f:
+            want = f.read()
+        self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
+
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('lib.utils.dns_servers')
     @mock.patch('lib.utils.package_version')

@@ -481,6 +481,33 @@ site1.local:
                 got = f.read()
             self.assertEqual(got, want)
 
+        # Overriding backend-site-name
+        config = '''
+site1.local:
+  locations:
+    /:
+      backend-check-path: '/swift/v1/AUTH_aabbccdd001122/mybucket/index.html'
+      backend-site-name: 'objectstorage.ps5.internal'
+      backend-tls: true
+      backends: ['10.0.1.10:443']
+  tls-cert-bundle-path: /var/lib/haproxy/certs
+'''
+        self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
+        with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
+            mock_conf_file.return_value = os.path.join(self.tmpdir, 'haproxy.cfg')
+            opened_ports.return_value = ['443/tcp']
+            content_cache.configure_haproxy()
+
+            with open(
+                'tests/unit/files/content_cache_rendered_haproxy_test_output_override_backend_site.txt',
+                'r',
+                encoding='utf-8',
+            ) as f:
+                want = f.read()
+            with open(os.path.join(self.tmpdir, 'haproxy.cfg'), 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
     @freezegun.freeze_time("2019-03-22", tz_offset=0)
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charms.reactive.set_flag')
