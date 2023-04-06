@@ -475,6 +475,10 @@ def configure_nagios():
                 # Backend proxy layer check; no token needs to be passed here as it's
                 # stripped by the cache layer.
                 check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'backend_proxy')
+                # We also need to use the backend-path if present.
+                if path.startswith('/'):
+                    path = path[1:]
+                path = os.path.join(loc_conf.get('backend-path', '/'), path)
                 cmd = (
                     '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name} -p {backend_port}'
                     ' -j {method} -u {path}'.format(
