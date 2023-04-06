@@ -359,7 +359,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
 
             new_cached_loc_conf['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
             # Pass through selected backend location configs, if defined.
-            for key in ('site-name', 'backend-inter-time', 'backend-site-name', 'backend-tls'):
+            for key in ('site-name', 'backend-inter-time', 'backend-path', 'backend-site-name', 'backend-tls'):
                 if key in loc_conf:
                     new_loc_conf[key] = loc_conf[key]
             # No 'backend-tls' provided so let's try work out automatically.
@@ -475,6 +475,10 @@ def configure_nagios():
                 # Backend proxy layer check; no token needs to be passed here as it's
                 # stripped by the cache layer.
                 check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'backend_proxy')
+                # We also need to use the backend-path if present.
+                if path.startswith('/'):
+                    path = path[1:]
+                path = os.path.join(loc_conf.get('backend-path', '/'), path)
                 cmd = (
                     '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name} -p {backend_port}'
                     ' -j {method} -u {path}'.format(

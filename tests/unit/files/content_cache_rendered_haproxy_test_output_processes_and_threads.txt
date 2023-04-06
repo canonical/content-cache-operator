@@ -241,7 +241,7 @@ backend backend-site5
     server server_1 127.0.1.10:80 check inter 5s rise 2 fall 5 maxconn 200
 
 backend backend-site5-2
-    option httpchk HEAD / HTTP/1.1\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk
+    option httpchk HEAD /auth-check/ HTTP/1.1\r\nHost:\ site5.local\r\nUser-Agent:\ haproxy/httpchk
     http-request set-header Host site5.local
     option redispatch 1
     balance leastconn
