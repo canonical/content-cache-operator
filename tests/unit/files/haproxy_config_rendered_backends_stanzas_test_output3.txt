@@ -4,3 +4,9 @@ backend backend-site1-local
     http-request set-header Host objectstorage.ps5.internal
     balance leastconn
     server server_1 10.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(objectstorage.ps5.internal) check-sni objectstorage.ps5.internal verify required ca-file ca-certificates.crt alpn h2,http/1.1 check-alpn http/1.1
+
+backend backend-site2-local
+    option httpchk HEAD /swift/v1/AUTH_aabbccdd001122/mybucket/index.html HTTP/1.1\r\nHost:\ objectstorage.ps5.internal\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header Host objectstorage.ps5.internal
+    balance leastconn
+    server server_1 10.0.1.10:443 check inter 5s rise 2 fall 5 maxconn 200 ssl sni str(objectstorage.ps5.internal) check-sni objectstorage.ps5.internal verify required ca-file ca-certificates.crt alpn h2,http/1.1 check-alpn http/1.1

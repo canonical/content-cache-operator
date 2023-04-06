@@ -174,7 +174,18 @@ class TestLibHAProxy(unittest.TestCase):
                         'backends': ['10.0.1.10:443'],
                     }
                 }
-            }
+            },
+            'site2.local': {
+                'locations': {
+                    '/': {
+                        'backend-check-path': '/index.html',
+                        'backend-path': '/swift/v1/AUTH_aabbccdd001122/mybucket/',
+                        'backend-site-name': 'objectstorage.ps5.internal',
+                        'backend-tls': True,
+                        'backends': ['10.0.1.10:443'],
+                    }
+                }
+            },
         }
         output = 'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output3.txt'
         with open(output, 'r', encoding='utf-8') as f:

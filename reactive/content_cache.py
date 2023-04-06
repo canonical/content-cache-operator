@@ -359,7 +359,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
 
             new_cached_loc_conf['signed-url-hmac-key'] = loc_conf.get('signed-url-hmac-key')
             # Pass through selected backend location configs, if defined.
-            for key in ('site-name', 'backend-inter-time', 'backend-site-name', 'backend-tls'):
+            for key in ('site-name', 'backend-inter-time', 'backend-path', 'backend-site-name', 'backend-tls'):
                 if key in loc_conf:
                     new_loc_conf[key] = loc_conf[key]
             # No 'backend-tls' provided so let's try work out automatically.

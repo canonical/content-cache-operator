@@ -491,6 +491,15 @@ site1.local:
       backend-tls: true
       backends: ['10.0.1.10:443']
   tls-cert-bundle-path: /var/lib/haproxy/certs
+site2.local:
+  locations:
+    /:
+      backend-check-path: '/index.html'
+      backend-path: '/swift/v1/AUTH_aabbccdd001122/mybucket/'
+      backend-site-name: 'objectstorage.ps5.internal'
+      backend-tls: true
+      backends: ['10.0.1.10:443']
+  tls-cert-bundle-path: /var/lib/haproxy/certs
 '''
         self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
