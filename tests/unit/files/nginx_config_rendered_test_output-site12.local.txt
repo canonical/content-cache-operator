@@ -34,6 +34,7 @@ server {
 
     location @follow-redirects {
         proxy_cache f0053e3623f6-cache;
+        add_header X-Cache-Status "$upstream_cache_status from mock-content-cache/0";
         set $original_redirect_location $upstream_http_location;
         proxy_pass $original_redirect_location;
     }
