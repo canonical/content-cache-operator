@@ -302,6 +302,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         for location, loc_conf in site_conf.get('locations', {}).items():
             new_cached_loc_conf = {}
             new_cached_loc_conf['backends'] = ['127.0.0.1:{}'.format(cache_port)]
+
             # For the caching layer here, we want the default, low,
             # 2s no matter what. This is so it'll notice when the
             # caching layer (nginx) is back up quicker.
@@ -309,13 +310,17 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
             # Also, for caching layer, we want higher fall count as it's less
             # likely the caching layer is down, 2 mins here (inter * fall).
             new_cached_loc_conf['backend-fall-count'] = 60
+
+            new_cached_loc_conf['backend-check-method'] = 'GET'
+            new_cached_loc_conf['backend-check-path'] = '/_status/content-cache-check'
+
+            backend_maxconn = loc_conf.get('backend-maxconn', 200)
+            new_cached_loc_conf['backend-maxconn'] = backend_maxconn
+
             new_cached_loc_conf['backend-options'] = site_conf.get('haproxy-extra-configs', [])
             # Rather than enable haproxy's 'option forwardfor' we want to replace
             # the X-F-F header in case it's spoofed.
             new_cached_loc_conf['backend-options'].insert(0, 'http-request set-header X-Forwarded-For %[src]')
-
-            new_cached_loc_conf['backend-check-method'] = 'GET'
-            new_cached_loc_conf['backend-check-path'] = '/_status/content-cache-check'
 
             # No backends
             if not site_conf['locations'][location].get('backends'):
@@ -338,7 +343,6 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
             if 'backend_port' in loc_conf:
                 new_loc_conf['backend_port'] = loc_conf['backend_port']
 
-            backend_maxconn = loc_conf.get('backend-maxconn', 200)
             new_loc_conf['backend-maxconn'] = backend_maxconn
             # Default to backend_maxconn times the no. of provided
             # backends, so 1-to-1 mapping.
