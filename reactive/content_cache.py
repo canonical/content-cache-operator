@@ -402,7 +402,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
 @reactive.when('content_cache.nginx.configured', 'content_cache.haproxy.configured')
 @reactive.when('nrpe-external-master.available')
 @reactive.when_not('nagios-nrpe.configured')
-def configure_nagios():  # NOQA: C901
+def configure_nagios():
     status.maintenance('setting up NRPE checks')
     reactive.clear_flag('content_cache.active')
 
@@ -449,10 +449,11 @@ def configure_nagios():  # NOQA: C901
 
             # Listen / frontend check
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'listen')
+            check_path = path.format(backend_path='')
             cmd = (
                 '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
                 ' -p {port}{tls} -j {method} -u {path}{token}'.format(
-                    site_name=site_name, port=frontend_port, method=method, path=path, token=token, tls=tls
+                    site_name=site_name, port=frontend_port, method=method, path=check_path, token=token, tls=tls
                 )
             )
             if 'nagios-expect' in loc_conf:
@@ -461,10 +462,11 @@ def configure_nagios():  # NOQA: C901
 
             # Cache layer check
             check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'cache')
+            check_path = path.format(backend_path='')
             cmd = (
                 '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name}'
                 ' -p {cache_port} -j {method} -u {path}{token}'.format(
-                    site_name=site_name, cache_port=cache_port, method=method, path=path, token=token
+                    site_name=site_name, cache_port=cache_port, method=method, path=check_path, token=token
                 )
             )
             if 'nagios-expect' in loc_conf:
@@ -475,16 +477,11 @@ def configure_nagios():  # NOQA: C901
                 # Backend proxy layer check; no token needs to be passed here as it's
                 # stripped by the cache layer.
                 check_name = utils.generate_nagios_check_name(nagios_name, 'site', 'backend_proxy')
-                # XXX: Backwards compatibility.
-                if path != '/status':
-                    # We also need to use the backend-path if present.
-                    if path.startswith('/'):
-                        path = path[1:]
-                    path = os.path.join(loc_conf.get('backend-path', '/'), path)
+                check_path = path.format(backend_path=loc_conf.get('backend-path', '')).replace('//', '/')
                 cmd = (
                     '/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H {site_name} -p {backend_port}'
                     ' -j {method} -u {path}'.format(
-                        site_name=site_name, backend_port=backend_port, method=method, path=path
+                        site_name=site_name, backend_port=backend_port, method=method, path=check_path
                     )
                 )
                 nrpe_setup.add_check(
