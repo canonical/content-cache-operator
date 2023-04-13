@@ -486,7 +486,7 @@ site1.local:
 site1.local:
   locations:
     /:
-      backend-check-path: '/swift/v1/AUTH_aabbccdd001122/mybucket/index.html'
+      backend-check-path: '/{backend_path}/swift/v1/AUTH_aabbccdd001122/mybucket/index.html'
       backend-site-name: 'objectstorage.ps5.internal'
       backend-tls: true
       backends: ['10.0.1.10:443']
@@ -494,7 +494,7 @@ site1.local:
 site2.local:
   locations:
     /:
-      backend-check-path: '/index.html'
+      backend-check-path: '{backend_path}/index.html'
       backend-path: '/swift/v1/AUTH_aabbccdd001122/mybucket/'
       backend-site-name: 'objectstorage.ps5.internal'
       backend-tls: true
@@ -891,17 +891,17 @@ site1.local:
             mock.call(
                 shortname='site_site5_auth_listen',
                 description='site5 site listen check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 80 -j HEAD -u /auth',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 80 -j HEAD -u /status',
             ),
             mock.call(
                 shortname='site_site5_auth_cache',
                 description='site5 cache check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 6084 -j HEAD -u /auth',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 6084 -j HEAD -u /status',
             ),
             mock.call(
                 shortname='site_site5_auth_backend_proxy',
                 description='site5 backend proxy check',
-                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 8084 -j HEAD -u /auth-check/auth',  # NOQA: E501
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site5.local -p 8084 -j HEAD -u /status',
             ),
         ]
         nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
@@ -962,6 +962,77 @@ site1.local:
         want = [mock.call('nagios-nrpe.configured')]
         set_flag.assert_has_calls(want, any_order=True)
 
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
+    @mock.patch('charmhelpers.contrib.charmsupport.nrpe.NRPE')
+    def test_configure_nagios_backend_check_path(self, nrpe, get_nagios_hostname, set_flag):
+        get_nagios_hostname.return_value = 'some-host.local'
+
+        config = '''
+site1.local:
+  locations:
+    /:
+      backend-check-path: '/swift/v1/AUTH_aabbccdd001122/mybucket/index.html'
+      backend-site-name: 'objectstorage.ps5.internal'
+      backend-tls: true
+      backends: ['10.0.1.10:443']
+  tls-cert-bundle-path: /var/lib/haproxy/certs
+site2.local:
+  locations:
+    /:
+      backend-check-path: '{backend_path}/index.html'
+      backend-path: '/swift/v1/AUTH_aabbccdd001122/mybucket/'
+      backend-site-name: 'objectstorage.ps5.internal'
+      backend-tls: true
+      backends: ['10.0.1.10:443']
+  tls-cert-bundle-path: /var/lib/haproxy/certs
+'''
+        self.mock_config.return_value = {'sites': config}
+        nrpe_instance_mock = nrpe(get_nagios_hostname(), primary=True)
+
+        content_cache.configure_nagios()
+
+        want = [
+            mock.call(
+                shortname='site_site1_local_listen',
+                description='site1.local site listen check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 443 --ssl=1.2 --sni -j HEAD'  # NOQA: E501
+                ' -u /swift/v1/AUTH_aabbccdd001122/mybucket/index.html',
+            ),
+            mock.call(
+                shortname='site_site1_local_cache',
+                description='site1.local cache check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 6080 -j HEAD'
+                ' -u /swift/v1/AUTH_aabbccdd001122/mybucket/index.html',
+            ),
+            mock.call(
+                shortname='site_site1_local_backend_proxy',
+                description='site1.local backend proxy check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site1.local -p 8080 -j HEAD'
+                ' -u /swift/v1/AUTH_aabbccdd001122/mybucket/index.html',
+            ),
+            mock.call(
+                shortname='site_site2_local_listen',
+                description='site2.local site listen check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 443 --ssl=1.2 --sni -j HEAD'  # NOQA: E501
+                ' -u /index.html',
+            ),
+            mock.call(
+                shortname='site_site2_local_cache',
+                description='site2.local cache check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 6081 -j HEAD'
+                ' -u /index.html',
+            ),
+            mock.call(
+                shortname='site_site2_local_backend_proxy',
+                description='site2.local backend proxy check',
+                check_cmd='/usr/lib/nagios/plugins/check_http -I 127.0.0.1 -H site2.local -p 8081 -j HEAD'
+                ' -u /swift/v1/AUTH_aabbccdd001122/mybucket/index.html',
+            ),
+        ]
+        nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
+
     @freezegun.freeze_time("2020-01-30", tz_offset=0)
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('charmhelpers.contrib.charmsupport.nrpe.get_nagios_hostname')
@@ -991,7 +1062,6 @@ site1.local:
             ),
         ]
         nrpe_instance_mock.add_check.assert_has_calls(want, any_order=True)
-        return
 
         nrpe_instance_mock.reset_mock()
         content_cache.configure_nagios()

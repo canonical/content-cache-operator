@@ -178,7 +178,7 @@ class TestLibHAProxy(unittest.TestCase):
             'site2.local': {
                 'locations': {
                     '/': {
-                        'backend-check-path': '/index.html',
+                        'backend-check-path': '/{backend_path}/index.html',
                         'backend-path': '/swift/v1/AUTH_aabbccdd001122/mybucket/',
                         'backend-site-name': 'objectstorage.ps5.internal',
                         'backend-tls': True,

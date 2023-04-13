@@ -65,6 +65,7 @@ site5:
             backends:
             - 127.0.1.10:80
         /auth:
+            backend-check-path: /status
             backend-path: /auth-check/
             backend_port: 8084
             backends:
