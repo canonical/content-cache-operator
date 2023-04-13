@@ -10,4 +10,5 @@ parts:
   charm:
     source: .
     plugin: reactive
-    build-snaps: [charm]
+    build-snaps:
+      - charm/2.x/stable
