@@ -319,12 +319,13 @@ backend backend-{name}
                     loc_rl = loc_conf.get('rate-limit')
                     condition = loc_rl.get('condition')
                     sticky = loc_rl.get('sticky-table')
+                    track = loc_rl.get('track')
 
-                    if condition and sticky:
+                    if condition and sticky and track:
                         rlconf = []
                         # https://www.haproxy.com/blog/four-examples-of-haproxy-rate-limiting/
                         rlconf.append('{indent}stick-table {sticky}'.format(sticky=sticky, indent=INDENT))
-                        rlconf.append('{indent}http-request track-sc0 src'.format(indent=INDENT))
+                        rlconf.append('{indent}http-request track-sc0 {track}'.format(track=track, indent=INDENT))
                         rlconf.append(
                             '{indent}http-request deny deny_status 429 if {condition}'.format(
                                 condition=condition, indent=INDENT

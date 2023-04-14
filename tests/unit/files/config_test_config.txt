@@ -128,6 +128,7 @@ site9.local:
       rate-limit:
         condition: "{ sc_http_req_rate(0) gt 20 }"
         sticky-table: "type ip size 1m expire 30s store http_req_rate(10s)"
+        track: "src"
     /private/content:
       extra-configs:
         - root /srv/example1.com/content/

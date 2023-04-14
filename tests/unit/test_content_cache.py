@@ -693,6 +693,7 @@ site1.local:
       rate-limit:
         condition: "{ sc_http_req_rate(0) gt 20 }"
         sticky-table: "type ip size 1m expire 30s store http_req_rate(10s)"
+        track: "src"
 '''
         self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
