@@ -322,6 +322,8 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
             # the X-F-F header in case it's spoofed.
             new_cached_loc_conf['backend-options'].insert(0, 'http-request set-header X-Forwarded-For %[src]')
 
+            new_cached_loc_conf['rate-limit'] = loc_conf.get('rate-limit', '')
+
             # No backends
             if not site_conf['locations'][location].get('backends'):
                 if not new_conf[cached_site]['locations']:

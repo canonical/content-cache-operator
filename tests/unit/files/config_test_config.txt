@@ -113,7 +113,7 @@ site8.local:
       cache-valid: ['200 1h', '401 15m']
       site-name: auth.site8.local
 
-# Test 9: Custom backend-inter-time
+# Test 9: Custom backend-inter-time and rate limiting
 site9.local:
   locations:
     /:
@@ -124,6 +124,11 @@ site9.local:
       cache-validity: ['200 1h', '401 30m']
       extra-configs:
         - proxy_force_ranges off
+      # https://www.haproxy.com/blog/four-examples-of-haproxy-rate-limiting/
+      rate-limit:
+        condition: "{ sc_http_req_rate(0) gt 20 }"
+        sticky-table: "type ip size 1m expire 30s store http_req_rate(10s)"
+        track: "src"
     /private/content:
       extra-configs:
         - root /srv/example1.com/content/

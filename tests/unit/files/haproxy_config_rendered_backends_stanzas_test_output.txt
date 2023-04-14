@@ -63,6 +63,9 @@ backend backend-site8-local-2
 
 backend backend-site9-local
     option httpchk HEAD / HTTP/1.1\r\nHost:\ site9.local\r\nUser-Agent:\ haproxy/httpchk
+    stick-table type ip size 1m expire 30s store http_req_rate(10s)
+    http-request track-sc0 src
+    http-request deny deny_status 429 if { sc_http_req_rate(0) gt 20 }
     http-request set-header Host site9.local
     balance leastconn
     server server_1 127.0.1.15:80 check inter 1m rise 2 fall 5 maxconn 200
