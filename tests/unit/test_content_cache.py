@@ -157,8 +157,17 @@ class TestCharm(unittest.TestCase):
             mock.call('content_cache.haproxy.configured'),
             mock.call('content_cache.nginx.configured'),
             mock.call('content_cache.sysctl.configured'),
-            mock.call('content_cache.firewall.configured'),
             mock.call('nagios-nrpe.configured'),
+        ]
+        clear_flag.assert_has_calls(want, any_order=True)
+        self.assertEqual(len(want), len(clear_flag.mock_calls))
+
+    @mock.patch('charms.reactive.clear_flag')
+    def test_hook_config_changed_firewall_flags(self, clear_flag):
+        '''Test correct flags are set via config-changed charm hook'''
+        content_cache.config_changed_firewall()
+        want = [
+            mock.call('content_cache.firewall.configured'),
         ]
         clear_flag.assert_has_calls(want, any_order=True)
         self.assertEqual(len(want), len(clear_flag.mock_calls))
@@ -1156,6 +1165,49 @@ site2.local:
         nrpe_instance_mock.write.assert_called()
 
         want = [mock.call('nagios-nrpe-telegraf.configured')]
+        set_flag.assert_has_calls(want, any_order=True)
+
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('charmhelpers.contrib.network.ufw.modify_access')
+    @mock.patch('charmhelpers.contrib.network.ufw.status')
+    def test_configure_firewall(self, ufw_status, ufw_modify_access, set_flag):
+        self.mock_config.return_value = {
+            'enable_firewalling': True,
+            'blocked_ips': '203.0.113.222,203.0.113.0/25,2001:db8::/32',
+        }
+        content_cache.configure_firewall()
+        status.maintenance.assert_called_with("updating ip blocklist")
+        want = [
+            mock.call(src='203.0.113.222/32', dst='any', action='deny', comment='CONTENT_CACHE_CHARM_RULE'),
+            mock.call(src='203.0.113.0/25', dst='any', action='deny', comment='CONTENT_CACHE_CHARM_RULE'),
+            mock.call(src='2001:db8::/32', dst='any', action='deny', comment='CONTENT_CACHE_CHARM_RULE'),
+        ]
+        ufw_modify_access.assert_called()
+        ufw_modify_access.assert_has_calls(want, any_order=True)
+        want = [mock.call('content_cache.firewall.configured')]
+        set_flag.assert_has_calls(want, any_order=True)
+
+    @mock.patch('charms.reactive.set_flag')
+    def test_configure_firewall_disabled(self, set_flag):
+        self.mock_config.return_value = {'enable_firewalling': False}
+        content_cache.configure_firewall()
+        status.maintenance.assert_called_with("firewalling disabled, not updating ip blocklist")
+        want = [mock.call('content_cache.firewall.configured')]
+        set_flag.assert_has_calls(want, any_order=True)
+
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('charmhelpers.contrib.network.ufw.disable')
+    @mock.patch('charmhelpers.contrib.network.ufw.status')
+    def test_configure_firewall_empty_blocked_ips(self, ufw_status, ufw_disable, set_flag):
+        self.mock_config.return_value = {
+            'enable_firewalling': True,
+            'blocked_ips': '',
+        }
+        content_cache.configure_firewall()
+        status.maintenance.assert_called_with("Disabling ufw...")
+        ufw_status.assert_called()
+        ufw_disable.assert_called()
+        want = [mock.call('content_cache.firewall.configured')]
         set_flag.assert_has_calls(want, any_order=True)
 
     def test_sites_from_config(self):

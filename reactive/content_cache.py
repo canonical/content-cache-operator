@@ -64,7 +64,6 @@ def install():
 
 @reactive.when('config.changed')
 def config_changed():
-    reactive.clear_flag('content_cache.firewall.configured')
     reactive.clear_flag('content_cache.haproxy.configured')
     reactive.clear_flag('content_cache.nginx.configured')
     reactive.clear_flag('content_cache.sysctl.configured')
@@ -575,11 +574,26 @@ def check_haproxy_alerts():
     reactive.set_flag('nagios-nrpe-telegraf.configured')
 
 
+@reactive.when_any(
+    'config.changed.enable_firewalling',
+    'config.changed.blocked_ips',
+)
+def config_changed_firewall():
+    reactive.clear_flag('content_cache.firewall.configured')
+
+
 @reactive.when_not('content_cache.firewall.configured')
-def config_firewall():
-    status.maintenance("updating ip blocklist")
+def configure_firewall():
     reactive.clear_flag('content_cache.active')
+
     config = hookenv.config()
+
+    if not config.get('enable_firewalling', True):
+        status.maintenance("firewalling disabled, not updating ip blocklist")
+        reactive.set_flag('content_cache.firewall.configured')
+        return
+
+    status.maintenance("updating ip blocklist")
     try:
         desired_blocklist = set(utils.parse_ip_blocklist_config(config.get("blocked_ips")))
     except ValueError as e:
