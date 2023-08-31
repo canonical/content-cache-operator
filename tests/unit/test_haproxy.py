@@ -359,3 +359,23 @@ class TestLibHAProxy(unittest.TestCase):
         with open(haproxy.saved_server_state_path, 'rb') as f:
             saved_state = f.read()
         self.assertEqual(server_state, saved_state)
+
+    @mock.patch('lib.haproxy.socket.socket.connect')
+    @mock.patch('lib.haproxy.socket.socket.recv')
+    @mock.patch('lib.haproxy.socket.socket.sendall')
+    def test_remove_server_state(self, sendall, recv, connect):
+        haproxy = HAProxy.HAProxyConf(self.tmpdir)
+        haproxy.saved_server_state_path = os.path.join(self.tmpdir, 'saved-server-state')
+
+        with open('tests/unit/files/haproxy_show_servers_state.txt', 'rb') as f:
+            server_state = f.read()
+        recv.side_effect = [server_state, '']
+        haproxy.save_server_state()
+
+        self.assertTrue(os.path.exists(haproxy.saved_server_state_path))
+        haproxy.remove_server_state()
+        self.assertFalse(os.path.exists(haproxy.saved_server_state_path))
+
+        # Call it a second time to make sure it's able to deal with when state
+        # file does not exist.
+        haproxy.remove_server_state()
