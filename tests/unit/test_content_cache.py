@@ -1779,11 +1779,20 @@ site1.local:
     @mock.patch('charmhelpers.core.hookenv.open_port')
     @mock.patch('charmhelpers.core.hookenv.opened_ports')
     @mock.patch('charmhelpers.core.host.pwgen')
+    @mock.patch('lib.haproxy.HAProxyConf.remove_server_state')
     @mock.patch('lib.haproxy.HAProxyConf.save_server_state')
     @mock.patch('reactive.content_cache.service_start_or_reload')
     @mock.patch('reactive.content_cache.update_logrotate')
     def test_configure_haproxy_ports_management(
-        self, logrotation, service_start_or_reload, save_server_state, pwgen, opened_ports, open_port, close_port
+        self,
+        logrotation,
+        service_start_or_reload,
+        remove_server_state,
+        save_server_state,
+        pwgen,
+        opened_ports,
+        open_port,
+        close_port,
     ):
         with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
             ngx_config = f.read()
@@ -1800,6 +1809,7 @@ site1.local:
             opened_ports.return_value = {"80/tcp", "{0}/tcp".format(nginx.METRICS_PORT)}
             content_cache.configure_haproxy()
             close_port.assert_called_once_with(nginx.METRICS_PORT)
+            remove_server_state.assert_called()
 
             # Test that haproxy calls open_port with the nginx.METRIC_PORT when enable_prometheus_metrics is True
             close_port.reset_mock()
@@ -1811,6 +1821,7 @@ site1.local:
             }
             content_cache.configure_haproxy()
             close_port.assert_not_called()
+            remove_server_state.assert_called()
 
     @mock.patch('charms.reactive.set_flag')
     @mock.patch('charmhelpers.core.hookenv.close_port')

@@ -381,12 +381,17 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         new_ports.add(nginx.METRICS_PORT)
 
     hookenv.log("Desired opened ports: {}".format(new_ports))
+    port_changes = False
     for port in new_ports.difference(old_ports):
         hookenv.log("Opening new port: {}".format(port))
         hookenv.open_port(port)
+        port_changes = True
     for obsolete_port in old_ports.difference(new_ports):
         hookenv.log("Closing obsolete port: {}".format(obsolete_port))
         hookenv.close_port(obsolete_port)
+        port_changes = True
+    if port_changes:
+        haproxy.remove_server_state()
 
     monitoring_password = haproxy.monitoring_password
     if not monitoring_password:
@@ -768,7 +773,7 @@ def interpolate_secrets(sites, secrets):
                 loc_conf['origin-headers'] = _interpolate_secrets_origin_headers(origin_headers, origin_header_secrets)
             # Handle other location config keys.
             for k, v in loc_conf.items():
-                if type(v) == str and v.strip() == '${secret}':
+                if type(v) is str and v.strip() == '${secret}':
                     if k not in location_secrets:
                         # This will leave the secret marker in place.
                         continue

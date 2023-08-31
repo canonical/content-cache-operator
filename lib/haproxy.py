@@ -469,6 +469,10 @@ backend backend-{name}
 
         return False
 
+    def remove_server_state(self):
+        if os.path.exists(self.saved_server_state_path):
+            os.unlink(self.saved_server_state_path)
+
     def save_server_state(self):
         server_state = b""
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
