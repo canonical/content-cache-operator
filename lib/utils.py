@@ -291,3 +291,20 @@ def normalize_ip(ip):
         except ValueError:
             pass
     raise ValueError("{} is not a valid ip address".format(repr(ip)))
+
+
+def systemd_override(service, opts, systemd_path='/etc/systemd/system'):
+    service_path = os.path.join(systemd_path, '{}.service.d'.format(service))
+    if not os.path.exists(service_path):
+        os.mkdir(service_path)
+
+    content = ['[Service]']
+    for k, v in opts.items():
+        content.append('{}={}'.format(k, v))
+
+    override_path = os.path.join(service_path, 'override.conf')
+    with open(override_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(content) + '\n')
+
+    cmd = ['systemctl', 'daemon-reload']
+    subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

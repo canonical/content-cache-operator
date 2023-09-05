@@ -315,3 +315,31 @@ class TestLibUtils(unittest.TestCase):
                 lambda _: utils.parse_ip_blocklist_config(incorrect_config),
                 "firewall config containing incorrect seperator should be invalid",
             )
+
+    @mock.patch('subprocess.call')
+    def test_systemd_override(self, call):
+        opts = {'LimitNOFILE': 12345}
+        utils.systemd_override('haproxy', opts, systemd_path=self.tmpdir)
+        with open(os.path.join(self.tmpdir, 'haproxy.service.d', 'override.conf')) as f:
+            want = textwrap.dedent(
+                """\
+                [Service]
+                LimitNOFILE=12345
+                """
+            )
+            got = f.read()
+            self.assertEqual(want, got)
+
+        call.assert_called_once_with(['systemctl', 'daemon-reload'], stdout=-3, stderr=-3)
+
+        opts = {'LimitNOFILE': 66666}
+        utils.systemd_override('haproxy', opts, systemd_path=self.tmpdir)
+        with open(os.path.join(self.tmpdir, 'haproxy.service.d', 'override.conf')) as f:
+            want = textwrap.dedent(
+                """\
+                [Service]
+                LimitNOFILE=66666
+                """
+            )
+            got = f.read()
+            self.assertEqual(want, got)
