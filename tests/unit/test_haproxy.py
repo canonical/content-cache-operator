@@ -303,8 +303,9 @@ class TestLibHAProxy(unittest.TestCase):
         self.assertEqual(haproxy.get_parent_pid(pidfile='tests/unit/files/some-file-doesnt-exist.pid'), 1)
 
     @mock.patch('lib.utils.process_rlimits')
+    @mock.patch('lib.utils.systemd_override')
     @mock.patch('subprocess.call')
-    def test_increase_maxfds(self, call, process_rlimits):
+    def test_increase_maxfds(self, call, systemd_override, process_rlimits):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
 
         call.reset_mock()
@@ -332,7 +333,8 @@ class TestLibHAProxy(unittest.TestCase):
         call.assert_not_called()
 
     @mock.patch('lib.utils.process_rlimits')
-    def test_increase_maxfds_cpe(self, process_rlimits):
+    @mock.patch('lib.utils.systemd_override')
+    def test_increase_maxfds_cpe(self, systemd_override, process_rlimits):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
 
         process_rlimits.return_value = '10'

@@ -465,6 +465,11 @@ backend backend-{name}
         if haproxy_maxfds and haproxy_maxfds != 'unlimited' and int(maxfds) > int(haproxy_maxfds):
             cmd = ['prlimit', '--pid', str(haproxy_pid), '--nofile={}'.format(str(maxfds))]
             subprocess.call(cmd, stdout=subprocess.DEVNULL)
+
+            # We also need to make it persistent across HAproxy restarts
+            opts = {'LimitNOFILE': int(maxfds)}
+            utils.systemd_override(service='haproxy', opts=opts)
+
             return True
 
         return False
