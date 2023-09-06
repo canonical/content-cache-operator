@@ -31,6 +31,7 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmpdir)
         os.environ['UNIT_STATE_DB'] = os.path.join(self.tmpdir, '.unit-state.db')
         unitdata.kv().set('existing_site_ports_map', {})
+        unitdata.kv().set('haproxy_max_conns', 0)
 
         self.charm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
@@ -339,6 +340,8 @@ site1.local:
             os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
             os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+            shutil.copyfile('tests/unit/files/nginx.conf', os.path.join(self.tmpdir, 'nginx.conf'))
+
             content_cache.configure_nginx(self.tmpdir)
             for site in ['site1.local']:
                 output = 'tests/unit/files/nginx_config_rendered_test_output-{}-secrets.txt'.format(site)
@@ -1863,6 +1866,50 @@ site1.local:
                 want = f.read()
 
             test_file = os.path.join(self.tmpdir, 'sites-available/{0}.conf'.format(site))
+            with open(test_file, 'r', encoding='utf-8') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('charmhelpers.core.hookenv.close_port')
+    @mock.patch('charmhelpers.core.hookenv.opened_ports')
+    @mock.patch('reactive.content_cache.update_logrotate')
+    def test_configure_nginx_worker_rlimit_nofile(self, logrotation, opened_ports, close_port, set_flag):
+        with open('tests/unit/files/config_test_basic_config.txt', 'r', encoding='utf-8') as f:
+            ngx_config = f.read()
+        self.mock_config.return_value = {
+            'cache_inactive_time': '2h',
+            'cache_max_size': '1g',
+            'cache_path': '/var/lib/nginx/proxy',
+            'enable_cache_background_update': False,
+            'enable_cache_lock': False,
+            'enable_prometheus_metrics': True,
+            'metrics_listen_address': '127.0.0.2',
+            'reuseport': False,
+            'sites': ngx_config,
+            'worker_connections': 768,
+            'worker_processes': 0,
+        }
+
+        unitdata.kv().set('haproxy_max_conns', 16384)
+
+        with mock.patch('lib.nginx.NginxConf.sites_path', new_callable=mock.PropertyMock) as mock_site_path:
+            mock_site_path.return_value = os.path.join(self.tmpdir, 'sites-available')
+            # conf.d, sites-available, and sites-enabled won't exist in our
+            # temporary directory.
+            os.mkdir(os.path.join(self.tmpdir, 'conf.d'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-available'))
+            os.mkdir(os.path.join(self.tmpdir, 'sites-enabled'))
+            shutil.copyfile('tests/unit/files/nginx.conf', os.path.join(self.tmpdir, 'nginx.conf'))
+
+            opened_ports.return_value = ['80/tcp', '{0}/tcp'.format(nginx.METRICS_PORT)]
+            content_cache.configure_nginx(self.tmpdir)
+
+            test_file = 'tests/unit/files/nginx-worker-rlimit-nofile.conf'
+            with open(test_file, 'r', encoding='utf-8') as f:
+                want = f.read()
+
+            test_file = os.path.join(self.tmpdir, 'nginx.conf')
             with open(test_file, 'r', encoding='utf-8') as f:
                 got = f.read()
             self.assertEqual(got, want)

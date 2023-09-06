@@ -156,7 +156,7 @@ def stop_nginx():
 
 @reactive.when('content_cache.nginx.installed')
 @reactive.when_not('content_cache.nginx.configured')
-def configure_nginx(conf_path=None):
+def configure_nginx(conf_path=None):  # NOQA: C901
     status.maintenance('setting up Nginx as caching layer')
     reactive.clear_flag('content_cache.active')
 
@@ -220,10 +220,14 @@ def configure_nginx(conf_path=None):
     if enable_prometheus_metrics:
         sites[nginx.METRICS_SITE] = None
 
+    if ngx_conf.sync_sites(sites.keys()):
+        hookenv.log('Enabled sites: {}'.format(' '.join(sites.keys())))
+        changed = True
+
     connections = config['worker_connections']
     processes = config['worker_processes']
-    if ngx_conf.sync_sites(sites.keys()) or ngx_conf.set_workers(connections, processes):
-        hookenv.log('Enabled sites: {}'.format(' '.join(sites.keys())))
+    rlimit_nofile = unitdata.kv().get('haproxy_max_conns', 0)
+    if ngx_conf.set_workers(connections, processes, rlimit_nofile):
         changed = True
 
     if copy_file('files/nginx-logging-format.conf', os.path.join(ngx_conf.conf_path, 'nginx-logging-format.conf')):
@@ -404,6 +408,9 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         haproxy.save_server_state()
         reactive.set_flag('content_cache.haproxy.reload-required')
         reactive.clear_flag('content_cache.sysctl.configured')
+
+    # Save HAProxy calculated max. connections for use with Nginx
+    unitdata.kv().set('haproxy_max_conns', haproxy.max_connections)
 
     update_logrotate('haproxy', retention=config.get('log_retention'))
     reactive.set_flag('content_cache.haproxy.configured')
