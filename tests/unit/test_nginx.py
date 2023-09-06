@@ -252,29 +252,47 @@ class TestLibNginx(unittest.TestCase):
         self.assertFalse(os.path.exists(metrics_site_available))
         self.assertFalse(os.path.exists(metrics_site_enabled))
 
-    def test_nginx_config_set_workers(self):
+    def test_nginx_config_set_worker_confs(self):
         ngx_conf = nginx.NginxConf(self.tmpdir)
         shutil.copyfile('tests/unit/files/nginx.conf', os.path.join(self.tmpdir, 'nginx.conf'))
 
         # No change
         self.assertFalse(ngx_conf.set_workers(768, 0))
-        self.assertEqual(ngx_conf.get_workers(), ('768', 'auto'))
+        self.assertEqual(ngx_conf.get_workers(), ('768', 'auto', None))
 
         # Changes
         self.assertTrue(ngx_conf.set_workers(10, 0))
-        self.assertEqual(ngx_conf.get_workers(), ('10', 'auto'))
+        self.assertEqual(ngx_conf.get_workers(), ('10', 'auto', None))
         self.assertTrue(ngx_conf.set_workers(2048, 512))
-        self.assertEqual(ngx_conf.get_workers(), ('2048', '512'))
+        self.assertEqual(ngx_conf.get_workers(), ('2048', '512', None))
+
+    def test_nginx_config_set_worker_confs_missing(self):
+        ngx_conf = nginx.NginxConf(self.tmpdir)
 
         # Test a file without the worker configs.
         shutil.copyfile('tests/unit/files/nginx-no-workers-configs.conf', os.path.join(self.tmpdir, 'nginx.conf'))
-        self.assertFalse(ngx_conf.set_workers(768, 0))
-        self.assertEqual(ngx_conf.get_workers(), (None, None))
+        self.assertTrue(ngx_conf.set_workers(768, 'auto'))
+        self.assertEqual(ngx_conf.get_workers(), ('768', 'auto', None))
 
         # Test a file with just worker_connections
         shutil.copyfile('tests/unit/files/nginx-just-worker-connections.conf', os.path.join(self.tmpdir, 'nginx.conf'))
-        self.assertFalse(ngx_conf.set_workers(768, 0))
-        self.assertEqual(ngx_conf.get_workers(), ('768', None))
+        self.assertTrue(ngx_conf.set_workers(768, 0))
+        self.assertEqual(ngx_conf.get_workers(), ('768', 'auto', None))
+
+    def test_nginx_config_set_worker_conf_rlimit_nofile(self):
+        ngx_conf = nginx.NginxConf(self.tmpdir)
+        shutil.copyfile('tests/unit/files/nginx.conf', os.path.join(self.tmpdir, 'nginx.conf'))
+
+        self.assertTrue(ngx_conf.set_workers(768, 0, 12345))
+        self.assertEqual(ngx_conf.get_workers(), ('768', 'auto', '12345'))
+
+        # No change
+        self.assertFalse(ngx_conf.set_workers(768, 0, 12345))
+        self.assertEqual(ngx_conf.get_workers(), ('768', 'auto', '12345'))
+
+        # Not provided / reset.
+        self.assertTrue(ngx_conf.set_workers(768, 0))
+        self.assertEqual(ngx_conf.get_workers(), ('768', 'auto', None))
 
     def test_nginx__process_extra_configs(self):
         ngx_conf = nginx.NginxConf(self.tmpdir)

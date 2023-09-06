@@ -249,32 +249,61 @@ class NginxConf:
         nginx_conf_file = os.path.join(self._base_path, 'nginx.conf')
         with open(nginx_conf_file, 'r', encoding='utf-8') as f:
             content = f.read().split('\n')
-        res = {'worker_processes': None, 'worker_connections': None}
-        regex = re.compile(r'^(?:\s+)?(worker_processes|worker_connections)(?:\s+)(\S+).*;')
+        res = {'worker_processes': None, 'worker_connections': None, 'worker_rlimit_nofile': None}
+        regex = re.compile(r'^(?:\s+)?(worker_processes|worker_connections|worker_rlimit_nofile)(?:\s+)(\S+).*;')
         for line in content:
             m = regex.match(line)
             if m:
                 res[m.group(1)] = m.group(2)
-        return res['worker_connections'], res['worker_processes']
+        return res['worker_connections'], res['worker_processes'], res['worker_rlimit_nofile']
 
-    def set_workers(self, connections, processes):
+    def set_workers(self, connections, processes, rlimit_nofile=0):  # NOQA: C901
         nginx_conf_file = os.path.join(self._base_path, 'nginx.conf')
 
-        val = {'worker_processes': processes, 'worker_connections': connections}
         if processes == 0:
-            val['worker_processes'] = 'auto'
+            processes = 'auto'
+
+        new = ['worker_processes {};'.format(processes)]
+        if rlimit_nofile != 0:
+            new.append('worker_rlimit_nofile {};'.format(rlimit_nofile))
 
         with open(nginx_conf_file, 'r', encoding='utf-8') as f:
             content = f.read().split('\n')
 
-        new = []
-        regex = re.compile(r'^(\s*(worker_processes|worker_connections))(\s+).*;')
+        regex = re.compile(r'^(?:\s*(worker_processes|worker_rlimit_nofile))(\s+).*;')
+        regex_conns = re.compile(r'^(\s*(worker_connections))(\s+).*;')
+        regex_events_start = re.compile(r'^\s*events\s+{\s*$')
+        regex_events_end = re.compile(r'^\s*}\s*$')
+        start_events = False
+        found_worker_connections = False
         for line in content:
-            m = regex.match(line)
-            if m:
-                new.append('{}{}{};'.format(m.group(1), m.group(3), val[m.group(2)]))
-            else:
+            # worker_processes or worker_connections, so we ignore and skip
+            if regex.match(line):
+                continue
+
+            if regex_events_start.match(line):
+                start_events = True
                 new.append(line)
+                continue
+
+            if not start_events:
+                new.append(line)
+                continue
+
+            # worker_connections, replace it with our value
+            m = regex_conns.match(line)
+            if m:
+                new.append('{}{}{};'.format(m.group(1), m.group(3), connections))
+                found_worker_connections = True
+                continue
+
+            if regex_events_end.match(line):
+                start_events = False
+                if not found_worker_connections:
+                    new.append('    worker_connections {};'.format(connections))
+                    found_worker_connections = True
+
+            new.append(line)
 
         # Check if contents changed
         if new == content:
