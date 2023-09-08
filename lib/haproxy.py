@@ -24,6 +24,7 @@ class HAProxyConf:
         self, conf_path=HAPROXY_BASE_PATH, max_connections=0, hard_stop_after='5m', load_balancing_algorithm=None
     ):
         self._conf_path = conf_path
+        self._global_max_conns = 0
         self.max_connections = int(max_connections)
         self.hard_stop_after = hard_stop_after
         self.load_balancing_algorithm = HAPROXY_LOAD_BALANCING_ALGORITHM
@@ -39,6 +40,10 @@ class HAProxyConf:
     @property
     def conf_file(self):
         return os.path.join(self._conf_path, 'haproxy.cfg')
+
+    @property
+    def global_max_connections(self):
+        return self._global_max_conns
 
     @property
     def monitoring_password(self):
@@ -412,6 +417,7 @@ backend backend-{name}
             maxfds = init_maxfds
         # Increase max. fds for the HAProxy process, if it needs to.
         self.increase_maxfds(self.get_parent_pid(), maxfds)
+        self._global_max_conns = maxfds
 
         if not tls_cipher_suites:
             tls_cipher_suites = TLS_CIPHER_SUITES
