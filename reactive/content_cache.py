@@ -154,6 +154,7 @@ def stop_nginx():
     reactive.set_flag('content_cache.nginx.installed')
 
 
+@reactive.when('content_cache.haproxy.configured')
 @reactive.when('content_cache.nginx.installed')
 @reactive.when_not('content_cache.nginx.configured')
 def configure_nginx(conf_path=None):  # NOQA: C901
@@ -409,8 +410,8 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         reactive.set_flag('content_cache.haproxy.reload-required')
         reactive.clear_flag('content_cache.sysctl.configured')
 
-    # Save HAProxy calculated max. connections for use with Nginx
-    unitdata.kv().set('haproxy_max_conns', haproxy.max_connections)
+    # Save HAProxy calculated max. fds for use with Nginx
+    unitdata.kv().set('haproxy_max_conns', haproxy.global_max_connections)
 
     update_logrotate('haproxy', retention=config.get('log_retention'))
     reactive.set_flag('content_cache.haproxy.configured')
