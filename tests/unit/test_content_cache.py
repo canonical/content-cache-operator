@@ -1474,6 +1474,7 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
             # Check contents
@@ -1497,7 +1498,10 @@ site1.local:
     @mock.patch('lib.utils.tune_tcp_mem')
     def test_configure_sysctl_all(self, tune_tcp_mem, tcp_cc, process_rlimits, call, set_flag):
         sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
-        self.mock_config.return_value = {'tune_tcp_mem_multiplier': 1.5}
+        self.mock_config.return_value = {
+            'tune_nf_conntrack_max': 2097152,
+            'tune_tcp_mem_multiplier': 1.5,
+        }
         process_rlimits.return_value = '1048777'
 
         # Test with all 3, qdisc, tcp_congestion_control, and tcp_mem
@@ -1505,11 +1509,13 @@ site1.local:
         tcp_cc.return_value = 'bbr'
         # Use '/proc/uptime' for unit test as that will always exist.
         qdisc_path = '/proc/uptime'
+        conntrack_max_path = '/proc/uptime'
 
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_NETFILTER_CONNTRACK_MAX=conntrack_max_path,
         ):
             content_cache.configure_sysctl()
             with open('tests/unit/files/sysctl.conf', 'r') as f:
@@ -1536,6 +1542,7 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
             with open('tests/unit/files/sysctl_core_default_qdisc.conf', 'r') as f:
@@ -1549,9 +1556,57 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
             with open('tests/unit/files/sysctl_core_default_qdisc_none.conf', 'r') as f:
+                want = f.read()
+            with open(sysctl_conf_path, 'r') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('subprocess.call')
+    @mock.patch('lib.utils.process_rlimits')
+    @mock.patch('lib.utils.select_tcp_congestion_control')
+    @mock.patch('lib.utils.tune_tcp_mem')
+    def test_configure_sysctl_nf_conntrack_max(self, tune_tcp_mem, tcp_cc, process_rlimits, call, set_flag):
+        sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        self.mock_config.return_value = {
+            'tune_nf_conntrack_max': 2097152,
+            'tune_tcp_mem_multiplier': 1.5,
+        }
+        process_rlimits.return_value = '1048777'
+        tcp_cc.return_value = None
+        tune_tcp_mem.return_value = None
+        # Use '/proc/uptime' for unit test as that will always exist.
+        conntrack_max_path = '/proc/uptime'
+
+        with mock.patch.multiple(
+            'reactive.content_cache',
+            SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_NETFILTER_CONNTRACK_MAX=conntrack_max_path,
+        ):
+            content_cache.configure_sysctl()
+            with open('tests/unit/files/sysctl_nf_conntrack_max.conf', 'r') as f:
+                want = f.read()
+            with open(sysctl_conf_path, 'r') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+        self.mock_config.return_value = {
+            'tune_nf_conntrack_max': 0,
+            'tune_tcp_mem_multiplier': 1.5,
+        }
+        with mock.patch.multiple(
+            'reactive.content_cache',
+            SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_NETFILTER_CONNTRACK_MAX=conntrack_max_path,
+        ):
+            content_cache.configure_sysctl()
+            with open('tests/unit/files/sysctl_nf_conntrack_max_none.conf', 'r') as f:
                 want = f.read()
             with open(sysctl_conf_path, 'r') as f:
                 got = f.read()
@@ -1574,6 +1629,7 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
             with open('tests/unit/files/sysctl_net_tcp_congestion_control.conf', 'r') as f:
@@ -1587,6 +1643,7 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
             with open('tests/unit/files/sysctl_net_tcp_congestion_control_bbr2.conf', 'r') as f:
@@ -1600,6 +1657,7 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
             with open('tests/unit/files/sysctl_net_tcp_congestion_control_no_bbr.conf', 'r') as f:
@@ -1618,13 +1676,13 @@ site1.local:
         self.mock_config.return_value = {'tune_tcp_mem_multiplier': 1.5}
         tcp_cc.return_value = None
         process_rlimits.return_value = '1048777'
-        qdisc_path = 'some-file-does-not-exist'
 
         tune_tcp_mem.return_value = '188081 250774 376162'
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
-            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
             with open('tests/unit/files/sysctl_net_tcp_mem.conf', 'r') as f:
@@ -1634,11 +1692,11 @@ site1.local:
             self.assertEqual(got, want)
 
         tune_tcp_mem.return_value = None
-        qdisc_path = 'some-file-does-not-exist'
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
-            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
             with open('tests/unit/files/sysctl_net_tcp_mem_none.conf', 'r') as f:
