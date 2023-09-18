@@ -518,6 +518,7 @@ def configure_nagios():
 
 
 _SYSCTL_CORE_DEFAULT_QDISC = '/proc/sys/net/core/default_qdisc'
+_SYSCTL_NETFILTER_CONNTRACK_MAX = '/proc/sys/net/nf_conntrack_max'
 
 
 @reactive.when_not('content_cache.sysctl.configured')
@@ -535,6 +536,9 @@ def configure_sysctl():
     preferred_tcp_cc = ['bbr2', 'bbr']
     context['net_ipv4_tcp_congestion_control'] = utils.select_tcp_congestion_control(preferred_tcp_cc)
     context['net_ipv4_tcp_mem'] = utils.tune_tcp_mem(config['tune_tcp_mem_multiplier'])
+
+    if os.path.exists(_SYSCTL_NETFILTER_CONNTRACK_MAX):
+        context['net_nf_conntrack_max'] = config['tune_nf_conntrack_max']
 
     # Set or lower tcp_notsent_lowat to optimise HTTP/2 prioritisation.
     # https://blog.cloudflare.com/http-2-prioritization-with-nginx/

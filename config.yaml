@@ -148,9 +148,14 @@ options:
     type: string
     description: >
       Override default ciphers used for TLS/SSL termination (OpenSSL format).
+  tune_nf_conntrack_max:
+    default: 0
+    type: int
+    description: >
+      Tune or set net.nf_conntrack_max. Set to 0 to disable.
   tune_tcp_mem_multiplier:
-    type: float
     default: 1.5
+    type: float
     description: >
       Tune net.ipv4.tcp_mem, apply multiplier.
   worker_connections:
