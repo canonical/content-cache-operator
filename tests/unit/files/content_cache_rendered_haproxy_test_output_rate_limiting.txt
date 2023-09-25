@@ -76,6 +76,7 @@ listen  stats
     stats realm Haproxy\ Statistics
     stats auth haproxy:biometricsarenotsecret
     stats refresh 3
+    no log
 
 
 listen cached-site1-local
