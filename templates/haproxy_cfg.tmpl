@@ -86,6 +86,7 @@ listen  stats
     stats realm Haproxy\ Statistics
     stats auth haproxy:{{monitoring_password}}
     stats refresh 3
+    no log
 
 {% for stanza in listen -%}
 {{stanza}}
