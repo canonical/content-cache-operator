@@ -302,7 +302,13 @@ backend backend-{name}
                         # "last" - pick the address which appears in the state file
                         # "libc" - use the libc's internal resolver.
                         # "none" - start without any valid IP address in a down state
-                        use_resolvers = ' resolvers dns init-addr last,libc,none'
+                        use_resolvers = ' resolvers dns'
+                        # We also want to see if there are additional resolve configs
+                        for option in loc_conf.get('backend-options', []):
+                            if not option.startswith('resolve-'):
+                                continue
+                            use_resolvers += ' {}'.format(option)
+                        use_resolvers += ' init-addr last,libc,none'
                     backend_confs.append(
                         '{indent}{name} {backend}{backup}{use_resolvers} check inter {inter_time} '
                         'rise {rise_count} fall {fall_count} maxconn {maxconn}{tls}'.format(
@@ -344,6 +350,9 @@ backend backend-{name}
                     if option.split()[0] == 'retry-on' and LooseVersion(
                         utils.package_version('haproxy')
                     ) <= LooseVersion('2.1'):
+                        continue
+                    # resolve-* options such as resolve-prefer are only for backend server configs.
+                    if option.startswith('resolve-'):
                         continue
                     prefix = ''
                     if option.split()[0] in ['allbackups', 'forceclose', 'forwardfor', 'redispatch']:

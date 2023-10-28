@@ -597,6 +597,8 @@ site1.local:
       backends:
         - _http._tcp.us.archive.ubuntu.com:80 srv 2
         - _http._tcp.gb.archive.ubuntu.com:80 srv 2 backup
+      backend-options:
+        - resolve-prefer ipv4
 '''
         self.mock_config.return_value = {'haproxy_hard_stop_after': '15m', 'max_connections': 8192, 'sites': config}
         with mock.patch('lib.haproxy.HAProxyConf.conf_file', new_callable=mock.PropertyMock) as mock_conf_file:
