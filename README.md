@@ -1,3 +1,6 @@
+[![CharmHub Badge](https://charmhub.io/content-cache/badge.svg)](https://charmhub.io/content-cache)
+[![Discourse Status](https://img.shields.io/discourse/status?server=https%3A%2F%2Fdiscourse.charmhub.io&style=flat&label=CharmHub%20Discourse)](https://discourse.charmhub.io)
+
 # Content Cache
 
 A Juju charm for deploying and managing a content cache.
