@@ -1,3 +1,5 @@
+looseversion >= '3.12'
+
 # Include python requirements here
 psutil<5.9.3;python_version < '3.8'
 psutil;python_version >= '3.8'

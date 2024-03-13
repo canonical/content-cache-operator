@@ -1,6 +1,7 @@
 charmhelpers
 charms.reactive
 freezegun
+looseversion >= '3.12'
 mock
 psutil
 pytest
