@@ -518,6 +518,7 @@ def configure_nagios():
 
 
 _SYSCTL_CORE_DEFAULT_QDISC = '/proc/sys/net/core/default_qdisc'
+_SYSCTL_CORE_SOMAXCONN = '/proc/sys/net/core/somaxconn'
 _SYSCTL_NETFILTER_CONNTRACK_MAX = '/proc/sys/net/nf_conntrack_max'
 
 
@@ -527,6 +528,7 @@ def configure_sysctl():
 
     context = {
         'net_core_default_qdisc': None,
+        'net_core_somax_conn': None,
         'net_ipv4_tcp_congestion_control': None,
     }
 
@@ -543,6 +545,13 @@ def configure_sysctl():
     # Set or lower tcp_notsent_lowat to optimise HTTP/2 prioritisation.
     # https://blog.cloudflare.com/http-2-prioritization-with-nginx/
     context['net_ipv4_tcp_notsent_lowat'] = '16384'
+
+    # Bump, 4096 is the default as of Linux 5.4. Apply same tuning for earlier.
+    somaxconn = 4096
+    if os.path.exists(_SYSCTL_CORE_SOMAXCONN):
+        with open(_SYSCTL_CORE_SOMAXCONN, 'r', encoding='utf-8') as f:
+            if int(f.readline()) < somaxconn:
+                context['net_core_somax_conn'] = somaxconn
 
     base = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(base))
