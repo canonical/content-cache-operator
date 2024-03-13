@@ -1472,10 +1472,15 @@ site1.local:
         tcp_cc.return_value = None
         process_rlimits.return_value = '1048777'
 
+        somaxconn_path = os.path.join(self.tmpdir, 'somaxconn')
+        with open(somaxconn_path, 'w', encoding='utf-8') as f:
+            f.write('4096\n')
+
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
@@ -1513,10 +1518,15 @@ site1.local:
         qdisc_path = '/proc/uptime'
         conntrack_max_path = '/proc/uptime'
 
+        somaxconn_path = os.path.join(self.tmpdir, 'somaxconn')
+        with open(somaxconn_path, 'w', encoding='utf-8') as f:
+            f.write('4096\n')
+
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX=conntrack_max_path,
         ):
             content_cache.configure_sysctl()
@@ -1538,12 +1548,17 @@ site1.local:
         tcp_cc.return_value = None
         process_rlimits.return_value = '1048777'
 
+        somaxconn_path = os.path.join(self.tmpdir, 'somaxconn')
+        with open(somaxconn_path, 'w', encoding='utf-8') as f:
+            f.write('4096\n')
+
         # Use '/proc/uptime' for unit test as that will always exist.
         qdisc_path = '/proc/uptime'
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
@@ -1558,10 +1573,58 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
             with open('tests/unit/files/sysctl_core_default_qdisc_none.conf', 'r') as f:
+                want = f.read()
+            with open(sysctl_conf_path, 'r') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+    @mock.patch('charms.reactive.set_flag')
+    @mock.patch('subprocess.call')
+    @mock.patch('lib.utils.process_rlimits')
+    @mock.patch('lib.utils.select_tcp_congestion_control')
+    @mock.patch('lib.utils.tune_tcp_mem')
+    def test_configure_sysctl_somaxconn(self, tune_tcp_mem, tcp_cc, process_rlimits, call, set_flag):
+        sysctl_conf_path = os.path.join(self.tmpdir, '90-content-cache.conf')
+        self.mock_config.return_value = {'tune_tcp_mem_multiplier': 1.5}
+        tune_tcp_mem.return_value = None
+        tcp_cc.return_value = None
+        process_rlimits.return_value = '1048777'
+        # Use '/proc/uptime' for unit test as that will always exist.
+        qdisc_path = '/proc/uptime'
+
+        somaxconn_path = os.path.join(self.tmpdir, 'somaxconn')
+        with open(somaxconn_path, 'w', encoding='utf-8') as f:
+            f.write('1024\n')
+
+        with mock.patch.multiple(
+            'reactive.content_cache',
+            SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
+            _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
+        ):
+            content_cache.configure_sysctl()
+            with open('tests/unit/files/sysctl_core_somaxconn.conf', 'r') as f:
+                want = f.read()
+            with open(sysctl_conf_path, 'r') as f:
+                got = f.read()
+            self.assertEqual(got, want)
+
+        somaxconn_path = 'some-file-does-not-exist'
+        with mock.patch.multiple(
+            'reactive.content_cache',
+            SYSCTL_CONF_PATH=sysctl_conf_path,
+            _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
+            _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
+        ):
+            content_cache.configure_sysctl()
+            with open('tests/unit/files/sysctl_core_default_somaxconn_none.conf', 'r') as f:
                 want = f.read()
             with open(sysctl_conf_path, 'r') as f:
                 got = f.read()
@@ -1584,10 +1647,15 @@ site1.local:
         # Use '/proc/uptime' for unit test as that will always exist.
         conntrack_max_path = '/proc/uptime'
 
+        somaxconn_path = os.path.join(self.tmpdir, 'somaxconn')
+        with open(somaxconn_path, 'w', encoding='utf-8') as f:
+            f.write('4096\n')
+
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX=conntrack_max_path,
         ):
             content_cache.configure_sysctl()
@@ -1605,6 +1673,7 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX=conntrack_max_path,
         ):
             content_cache.configure_sysctl()
@@ -1626,11 +1695,16 @@ site1.local:
         process_rlimits.return_value = '1048777'
         qdisc_path = 'some-file-does-not-exist'
 
+        somaxconn_path = os.path.join(self.tmpdir, 'somaxconn')
+        with open(somaxconn_path, 'w', encoding='utf-8') as f:
+            f.write('4096\n')
+
         tcp_cc.return_value = 'bbr'
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
@@ -1645,6 +1719,7 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
@@ -1659,6 +1734,7 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC=qdisc_path,
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
@@ -1679,11 +1755,16 @@ site1.local:
         tcp_cc.return_value = None
         process_rlimits.return_value = '1048777'
 
+        somaxconn_path = os.path.join(self.tmpdir, 'somaxconn')
+        with open(somaxconn_path, 'w', encoding='utf-8') as f:
+            f.write('4096\n')
+
         tune_tcp_mem.return_value = '188081 250774 376162'
         with mock.patch.multiple(
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()
@@ -1698,6 +1779,7 @@ site1.local:
             'reactive.content_cache',
             SYSCTL_CONF_PATH=sysctl_conf_path,
             _SYSCTL_CORE_DEFAULT_QDISC='some-file-does-not-exist',
+            _SYSCTL_CORE_SOMAXCONN=somaxconn_path,
             _SYSCTL_NETFILTER_CONNTRACK_MAX='some-file-does-not-exist',
         ):
             content_cache.configure_sysctl()

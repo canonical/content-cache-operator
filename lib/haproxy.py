@@ -6,7 +6,11 @@ import subprocess
 import socket
 
 import jinja2
-from distutils.version import LooseVersion
+
+try:
+    from distutils.version import LooseVersion
+except ImportError:
+    from looseversion import LooseVersion
 
 from lib import utils
 
