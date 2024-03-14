@@ -404,7 +404,10 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
     num_procs = config.get('haproxy_processes')
     num_threads = config.get('haproxy_threads')
     tls_cipher_suites = config.get('tls_cipher_suites')
-    rendered_config = haproxy.render(new_conf, num_procs, num_threads, monitoring_password, tls_cipher_suites)
+    extra_configs = config.get('haproxy_extra_configs')
+    rendered_config = haproxy.render(
+        new_conf, num_procs, num_threads, monitoring_password, tls_cipher_suites, extra_configs
+    )
     if haproxy.write(rendered_config):
         haproxy.save_server_state()
         reactive.set_flag('content_cache.haproxy.reload-required')

@@ -95,4 +95,8 @@ listen  stats
 {% for stanza in backend -%}
 {{stanza}}
 {%- endfor -%}
+{% if extra_configs %}
 
+### Extra Configs ###
+{{extra_configs}}
+{%- endif %}

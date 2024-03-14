@@ -222,6 +222,45 @@ class TestLibHAProxy(unittest.TestCase):
             want = f.read()
         self.assertEqual(new_conf, want)
 
+    @freezegun.freeze_time("2019-03-22", tz_offset=0)
+    @mock.patch('lib.utils.dns_servers')
+    @mock.patch('lib.utils.package_version')
+    @mock.patch('lib.utils.process_rlimits')
+    def test_haproxy_config_rendered_full_config_with_extra_configs(
+        self, process_rlimits, package_version, dns_servers
+    ):
+        dns_servers.return_value = ['127.0.0.53']
+        package_version.return_value = '1.8.8-1ubuntu0.10'
+        haproxy = HAProxy.HAProxyConf(self.tmpdir, max_connections=5000)
+        config = self.site_config
+        num_procs = 2
+        num_threads = 4
+        tls_cipher_suites = 'ECDH+AESGCM:!aNULL:!MD5:!DSS'
+        password = "biometricsarenotsecret"
+
+        extra_configs = """
+frontend fe_rsync
+    mode tcp
+    bind *:873
+    default_backend be_rsync
+
+backend be_rsync
+    mode tcp
+    balance leastconn
+    server server1 192.168.1.1:873
+    server server2 192.168.1.2:873
+"""
+
+        process_rlimits.return_value = 'unlimited'
+        self.assertTrue(
+            haproxy.write(haproxy.render(config, num_procs, num_threads, password, tls_cipher_suites, extra_configs))
+        )
+        with open(haproxy.conf_file, 'r') as f:
+            new_conf = f.read()
+        with open('tests/unit/files/haproxy_config_rendered_test_output_with_extra_configs.txt', 'r') as f:
+            want = f.read()
+        self.assertEqual(new_conf, want)
+
     def test_haproxy_config_write(self):
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         with open('tests/unit/files/haproxy_config_rendered_test_output.txt', 'r', encoding='utf-8') as f:
