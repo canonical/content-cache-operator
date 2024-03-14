@@ -14,9 +14,9 @@ tags:
   - web-cache
   - ops
 series:
-  - bionic
-  - focal
   - jammy
+  - focal
+  - bionic
 subordinate: false
 provides:
   nrpe-external-master:
