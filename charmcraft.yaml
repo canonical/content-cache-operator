@@ -7,7 +7,7 @@ bases:
     run-on:
       - name: ubuntu
         channel: "22.04"
-        architectures: [amd64, arm64, ppc64el, riscv64, s390x]
+        architectures: [amd64, arm64, ppc64el, s390x]
   - build-on:
       - name: ubuntu
         channel: "20.04"
@@ -15,7 +15,7 @@ bases:
     run-on:
       - name: ubuntu
         channel: "20.04"
-        architectures: [amd64, arm64, ppc64el, riscv64, s390x]
+        architectures: [amd64, arm64, ppc64el, s390x]
   - build-on:
       - name: ubuntu
         channel: "18.04"
@@ -23,7 +23,7 @@ bases:
     run-on:
       - name: ubuntu
         channel: "18.04"
-        architectures: [amd64, arm64, ppc64el, riscv64, s390x]
+        architectures: [amd64, arm64, ppc64el, s390x]
 parts:
   charm:
     source: .
