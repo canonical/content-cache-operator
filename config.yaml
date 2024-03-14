@@ -60,6 +60,11 @@ options:
       Prometheus metrics are exposed at /metrics on localhost:9145.
 
       NOTE: This breaks on Jammy and above due to LUA no longer supported - LP:1262710
+  haproxy_extra_configs:
+    default: ""
+    type: string
+    description: >
+      Extra configs for HAproxy. Use at your own risk.
   haproxy_hard_stop_after:
     default: "5m"
     type: string

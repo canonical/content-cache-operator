@@ -399,7 +399,15 @@ backend backend-{name}
         num_threads = min(64, num_threads)
         return (num_procs, num_threads)
 
-    def render(self, config, num_procs=None, num_threads=None, monitoring_password=None, tls_cipher_suites=None):
+    def render(
+        self,
+        config,
+        num_procs=None,
+        num_threads=None,
+        monitoring_password=None,
+        tls_cipher_suites=None,
+        extra_configs=None,
+    ):
         (num_procs, num_threads) = self._calculate_num_procs_threads(num_procs, num_threads)
 
         listen_stanzas = self.render_stanza_listen(config)
@@ -434,6 +442,7 @@ backend backend-{name}
             {
                 'backend': self.render_stanza_backend(config),
                 'dns_servers': utils.dns_servers(),
+                'extra_configs': extra_configs,
                 'global_max_connections': global_max_connections,
                 'hard_stop_after': self.hard_stop_after,
                 'listen': listen_stanzas,
