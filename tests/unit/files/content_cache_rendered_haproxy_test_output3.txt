@@ -83,17 +83,20 @@ listen redirect-site1-local
     bind 0.0.0.0:80
     bind :::80
     capture request header X-Cache-Request-ID len 60
+    capture request header Host len 30
     redirect prefix https://site1.local
 
 listen cached-site1-local
     bind 0.0.0.0:443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
     bind :::443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
     capture request header X-Cache-Request-ID len 60
+    capture request header Host len 30
     default_backend backend-cached-site1-local
 
 listen site1-local
     bind 127.0.0.1:8080
     capture request header X-Cache-Request-ID len 60
+    capture request header Host len 30
     default_backend backend-site1-local
 
 backend backend-cached-site1-local

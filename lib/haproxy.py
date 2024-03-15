@@ -126,6 +126,7 @@ class HAProxyConf:
 listen {name}
 {bind_config}
 {indent}capture request header X-Cache-Request-ID len 60
+{indent}capture request header Host len 30
 {redirect_config}{backend_config}{default_backend}"""
         backend_conf = '{indent}use_backend backend-{backend} if {{ hdr(Host) -i {site_name} }}\n'
         backend_conf_no_logging = '{indent}http-request set-log-level silent if {{ hdr(Host) -i {site_name} }}\n'
