@@ -148,6 +148,7 @@ listen {name}
             redirect_http_to_https = False
             for site, site_conf in config[address_port].items():
                 site_name = site_conf.get('site-name', site)
+                additional_site_names = site_conf.get('additional-site-names', [])
                 default_site = site_conf.get('default', False)
                 redirect_http_to_https = site_conf.get('enable-redirect-http-to-https', False)
 
@@ -174,15 +175,19 @@ listen {name}
                         default_backend = "{indent}redirect prefix https://{site_name}\n".format(
                             site_name=site_name, indent=INDENT
                         )
-                else:
-                    backend_name = self._generate_stanza_name(
-                        site_conf.get('locations', {}).get('backend-name') or site
+                    continue
+
+                backend_name = self._generate_stanza_name(site_conf.get('locations', {}).get('backend-name') or site)
+                backend_config.append(backend_conf.format(backend=backend_name, site_name=site_name, indent=INDENT))
+                for additional_site in additional_site_names:
+                    backend_config.append(
+                        backend_conf.format(backend=backend_name, site_name=additional_site, indent=INDENT)
                     )
-                    backend_config.append(backend_conf.format(backend=backend_name, site_name=site_name, indent=INDENT))
-                    if default_site:
-                        default_backend = "{indent}default_backend backend-{backend}\n".format(
-                            backend=backend_name, indent=INDENT
-                        )
+
+                if default_site:
+                    default_backend = "{indent}default_backend backend-{backend}\n".format(
+                        backend=backend_name, indent=INDENT
+                    )
 
             tls_config = ''
             if tls_cert_bundle_paths:

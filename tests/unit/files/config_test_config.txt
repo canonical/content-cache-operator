@@ -50,7 +50,7 @@ site3.local:
         - forceclose
       cache-maxconn: 4096
 
-# Test 4: No backends, a few local content
+# Test 4: No backends, a few local content, additional site names
 site4.local:
   locations:
     /:
@@ -60,6 +60,10 @@ site4.local:
       extra-configs:
         - autoindex on
         - auth_request /auth
+  additional-site-names:
+    - mysite.site4.local
+    - site4-alt.local
+    - -m end .site4.local
 
 # Test 5: Multiple backends
 site5:
