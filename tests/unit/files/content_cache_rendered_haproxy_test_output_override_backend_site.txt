@@ -83,20 +83,20 @@ listen combined-443
     bind 0.0.0.0:443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
     bind :::443 ssl crt /var/lib/haproxy/certs alpn h2,http/1.1
     capture request header X-Cache-Request-ID len 60
-    capture request header Host len 30
+    capture request header Host len 60
     use_backend backend-cached-site1-local if { hdr(Host) -i site1.local }
     use_backend backend-cached-site2-local if { hdr(Host) -i site2.local }
 
 listen site1-local
     bind 127.0.0.1:8080
     capture request header X-Cache-Request-ID len 60
-    capture request header Host len 30
+    capture request header Host len 60
     default_backend backend-site1-local
 
 listen site2-local
     bind 127.0.0.1:8081
     capture request header X-Cache-Request-ID len 60
-    capture request header Host len 30
+    capture request header Host len 60
     default_backend backend-site2-local
 
 backend backend-cached-site1-local

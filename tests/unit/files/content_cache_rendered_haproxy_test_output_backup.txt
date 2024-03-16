@@ -83,19 +83,19 @@ listen cached-site1-local
     bind 0.0.0.0:80
     bind :::80
     capture request header X-Cache-Request-ID len 60
-    capture request header Host len 30
+    capture request header Host len 60
     default_backend backend-cached-site1-local
 
 listen site1-local
     bind 127.0.0.1:8080
     capture request header X-Cache-Request-ID len 60
-    capture request header Host len 30
+    capture request header Host len 60
     default_backend backend-site1-local
 
 listen site1-local-2
     bind 127.0.0.1:8081
     capture request header X-Cache-Request-ID len 60
-    capture request header Host len 30
+    capture request header Host len 60
     default_backend backend-site1-local-2
 
 backend backend-cached-site1-local
