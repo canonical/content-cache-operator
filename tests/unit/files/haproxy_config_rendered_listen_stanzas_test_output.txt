@@ -8,6 +8,9 @@ listen combined-80
     use_backend backend-site1-local if { hdr(Host) -i site1.local }
     use_backend backend-site3-local if { hdr(Host) -i site3.local }
     use_backend backend-site4-local if { hdr(Host) -i site4.local }
+    use_backend backend-site4-local if { hdr(Host) -i mysite.site4.local }
+    use_backend backend-site4-local if { hdr(Host) -i site4-alt.local }
+    use_backend backend-site4-local if { hdr(Host) -i -m end .site4.local }
     use_backend backend-site5 if { hdr(Host) -i site5.local }
     use_backend backend-site6-local if { hdr(Host) -i site6.local }
     use_backend backend-site9-local if { hdr(Host) -i site9.local }
