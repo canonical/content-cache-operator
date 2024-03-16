@@ -373,17 +373,22 @@ backend backend-{name}
                 if opts:
                     options = '\n'.join(opts + [''])
 
-                httpchk = (
-                    r"option httpchk {method} {path} HTTP/1.1\r\n"
-                    r"Host:\ {site_name}\r\n"
-                    r"User-Agent:\ haproxy/httpchk"
-                ).format(method=method, path=path, site_name=site_name)
+                httpchk = "option httpchk {method} {path} HTTP/1.1".format(method=method, path=path)
+                httpchk_extras = "\n{indent}http-check send hdr Host {site_name} hdr User-Agent haproxy/httpchk".format(
+                    site_name=site_name, indent=INDENT
+                )
+                # Older versions of HAProxy such as 1.8 shiped with Bionic
+                # doesn't support 'http-check send'.
+                if LooseVersion(utils.package_version('haproxy')) <= LooseVersion('2.1'):
+                    httpchk_extras = r"\r\nHost:\ {site_name}\r\nUser-Agent:\ haproxy/httpchk".format(
+                        site_name=site_name
+                    )
 
                 output = backend_stanza.format(
                     name=backend_name,
                     site=site,
                     site_name=site_name,
-                    httpchk=httpchk,
+                    httpchk=httpchk + httpchk_extras,
                     load_balancing_algorithm=self.load_balancing_algorithm,
                     backends='\n'.join(backend_confs),
                     options=options,
