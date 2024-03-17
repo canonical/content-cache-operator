@@ -152,7 +152,10 @@ class TestLibHAProxy(unittest.TestCase):
             want = f.read()
         self.assertEqual(''.join(haproxy.render_stanza_backend(config)), want)
 
-    def test_haproxy_config_rendered_backend_stanzas_use_dns(self):
+    @freezegun.freeze_time("2019-10-10", tz_offset=0)
+    @mock.patch('lib.utils.package_version')
+    def test_haproxy_config_rendered_backend_stanzas_use_dns(self, package_version):
+        package_version.return_value = '1.8.8-1ubuntu0.10'
         haproxy = HAProxy.HAProxyConf(self.tmpdir)
         config = {'site1.local': {'locations': {'/': {'backends': ['archive.ubuntu.com:80']}}}}
         output = 'tests/unit/files/haproxy_config_rendered_backends_stanzas_test_output2.txt'
