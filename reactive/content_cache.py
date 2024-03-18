@@ -278,6 +278,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         cache_port = site_conf['cache_port']
         cached_site = 'cached-{}'.format(site)
         new_conf[cached_site] = {'site-name': site_conf.get('site-name') or site, 'locations': {}}
+        new_conf[cached_site]['additional-site-names'] = site_conf.get('additional-site-names', [])
 
         default_site = site_conf.get('default')
         if default_site:
