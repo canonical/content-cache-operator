@@ -242,13 +242,16 @@ listen {name}
         backend_stanza = """
 backend backend-{name}
 {indent}{httpchk}
-{ratelimit}{indent}http-request set-header Host {site_name}
+{ratelimit}{orig_host}{indent}http-request set-header Host {site_name}
 {options}{indent}balance {load_balancing_algorithm}
 {backends}
 """
         rendered_output = []
         for site, site_conf in config.items():
             backends = []
+            orig_host = ""
+            if site.startswith('cached-'):
+                orig_host = "{indent}http-request set-header X-Orig-Host %[req.hdr(Host)]\n".format(indent=INDENT)
 
             for location, loc_conf in site_conf.get('locations', {}).items():
                 # No backends, so nothing needed
@@ -393,6 +396,7 @@ backend backend-{name}
                     backends='\n'.join(backend_confs),
                     options=options,
                     ratelimit=ratelimit,
+                    orig_host=orig_host,
                     indent=INDENT,
                 )
 

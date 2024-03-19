@@ -190,6 +190,7 @@ listen site12-local
 backend backend-cached-site1-local
     option httpchk HEAD /?token=1861920000_f3e404e205ed44749e942d481f7a7bec57c5e78a HTTP/1.1
     http-check send hdr Host site1.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site1.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -209,6 +210,7 @@ backend backend-site1-local
 backend backend-cached-site2-local
     option httpchk GET /_status/content-cache-check HTTP/1.1
     http-check send hdr Host site2.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site2.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -228,6 +230,7 @@ backend backend-site2-local
 backend backend-cached-site3-local
     option httpchk GET /_status/content-cache-check HTTP/1.1
     http-check send hdr Host site3.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site3.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -249,6 +252,7 @@ backend backend-site3-local
 backend backend-cached-site4-local
     option httpchk GET /_status/content-cache-check HTTP/1.1
     http-check send hdr Host site4.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site4.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -257,6 +261,7 @@ backend backend-cached-site4-local
 backend backend-cached-site5
     option httpchk GET /_status/content-cache-check HTTP/1.1
     http-check send hdr Host site5.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site5.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -283,6 +288,7 @@ backend backend-site5-2
 backend backend-cached-site6-local
     option httpchk GET /_status/content-cache-check HTTP/1.1
     http-check send hdr Host site6.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site6.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -300,6 +306,7 @@ backend backend-site6-local
 backend backend-cached-site7-local
     option httpchk GET /_status/content-cache-check HTTP/1.1
     http-check send hdr Host site7.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site7.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -317,6 +324,7 @@ backend backend-site7-local
 backend backend-cached-site8-local
     option httpchk GET /_status/content-cache-check HTTP/1.1
     http-check send hdr Host site8.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site8.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -346,6 +354,7 @@ backend backend-cached-site9-local
     stick-table type ip size 1m expire 30s store http_req_rate(10s)
     http-request track-sc0 src
     http-request deny deny_status 429 if { sc_http_req_rate(0) gt 20 }
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site9.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -363,6 +372,7 @@ backend backend-site9-local
 backend backend-cached-site10-local
     option httpchk GET /_status/content-cache-check HTTP/1.1
     http-check send hdr Host site10.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site10.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -371,6 +381,7 @@ backend backend-cached-site10-local
 backend backend-cached-site11-local
     option httpchk GET /_status/content-cache-check HTTP/1.1
     http-check send hdr Host site11.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site11.local
     http-request set-header X-Forwarded-For %[src]
     acl restricted_page query -m reg ^q=............$
@@ -394,6 +405,7 @@ backend backend-site11-local
 backend backend-cached-site12-local
     option httpchk GET /_status/content-cache-check HTTP/1.1
     http-check send hdr Host site12.local hdr User-Agent haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site12.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn

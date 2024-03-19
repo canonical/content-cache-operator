@@ -101,6 +101,7 @@ listen site2-local
 
 backend backend-cached-site1-local
     option httpchk GET /_status/content-cache-check HTTP/1.1\r\nHost:\ site1.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site1.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
@@ -115,6 +116,7 @@ backend backend-site1-local
 
 backend backend-cached-site2-local
     option httpchk GET /_status/content-cache-check HTTP/1.1\r\nHost:\ site2.local\r\nUser-Agent:\ haproxy/httpchk
+    http-request set-header X-Orig-Host %[req.hdr(Host)]
     http-request set-header Host site2.local
     http-request set-header X-Forwarded-For %[src]
     balance leastconn
