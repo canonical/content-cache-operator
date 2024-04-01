@@ -1,4 +1,6 @@
+import grp
 import os
+import pwd
 import shutil
 import sys
 import tempfile
@@ -198,6 +200,31 @@ class TestCharm(unittest.TestCase):
         status.maintenance.assert_called()
         service_start.assert_not_called()
         service_reload.assert_called_with('nginx')
+
+    @mock.patch('charms.reactive.clear_flag')
+    @mock.patch('charmhelpers.core.host.write_file')
+    @mock.patch('subprocess.call')
+    def test_save_config(self, call, write_file, clear_flag):
+        '''Test saving config'''
+        self.mock_config.return_value = {'sites': 'site1:'}
+        conf_path = os.path.join(self.tmpdir, 'content-cache')
+        etckeeper_path = os.path.join(self.tmpdir, 'etckeeper')
+        dot_etckeeper_path = os.path.join(self.tmpdir, '.etckeeper')
+        content_cache.save_config(conf_path, etckeeper_path, dot_etckeeper_path)
+        self.assertTrue(os.path.exists(conf_path))
+        clear_flag.assert_called_once_with('content_cache.save-config')
+        write_file.assert_called_once_with(
+            path=os.path.join(conf_path, 'sites.yaml'),
+            content='site1:',
+            owner=pwd.getpwuid(os.getuid()).pw_name,
+            group=grp.getgrgid(os.getgid()).gr_name,
+            perms=0o644,
+        )
+
+        call.reset_mock()
+        os.mkdir(etckeeper_path)
+        content_cache.save_config(conf_path, etckeeper_path, dot_etckeeper_path)
+        call.assert_called_once_with(['etckeeper', 'commit', 'Saved updated content-cache charm configs'])
 
     @mock.patch('charmhelpers.core.host.service_running')
     @mock.patch('charmhelpers.core.host.service_reload')

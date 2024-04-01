@@ -119,6 +119,25 @@ def service_start_or_reload():
             reactive.clear_flag('content_cache.{}.reload-required'.format(name))
 
 
+@reactive.when(
+    'content_cache.haproxy.configured',
+    'content_cache.nginx.configured',
+    'content_cache.sysctl.configured',
+    'content_cache.save-config',
+)
+def save_config(conf_path='/etc/content-cache', etckeeper_path='/etc/etckeeper', dot_etckeeper_path='/etc/.etckeeper'):
+    config = hookenv.config()
+
+    if not os.path.exists(conf_path):
+        os.mkdir(conf_path)
+    write_file(config.get('sites'), os.path.join(conf_path, 'sites.yaml'))
+
+    if os.path.exists(etckeeper_path) or os.path.exists(dot_etckeeper_path):
+        subprocess.call(['etckeeper', 'commit', 'Saved updated content-cache charm configs'])
+
+    reactive.clear_flag('content_cache.save-config')
+
+
 def configure_nginx_metrics(ngx_conf, enable_prometheus_metrics, listen_address):
     """Configure nginx to expose metrics.
 
@@ -236,6 +255,7 @@ def configure_nginx(conf_path=None):  # NOQA: C901
 
     if changed:
         reactive.set_flag('content_cache.nginx.reload-required')
+        reactive.set_flag('content_cache.save-config')
 
     update_logrotate('nginx', retention=config.get('log_retention'))
     reactive.set_flag('content_cache.nginx.configured')
@@ -413,6 +433,7 @@ def configure_haproxy():  # NOQA: C901 LP#1825084
         haproxy.save_server_state()
         reactive.set_flag('content_cache.haproxy.reload-required')
         reactive.clear_flag('content_cache.sysctl.configured')
+        reactive.set_flag('content_cache.save-config')
 
     # Save HAProxy calculated max. fds for use with Nginx
     unitdata.kv().set('haproxy_max_conns', haproxy.global_max_connections)
