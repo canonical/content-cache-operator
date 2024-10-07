@@ -1,0 +1,34 @@
+# Copyright 2024 Canonical Ltd.
+# See LICENSE file for licensing details.
+# This file populates the Overview on Charmhub.
+# See https://juju.is/docs/sdk/metadata-reference for a checklist and guidance.
+
+# The charm package name, no spaces (required)
+# See https://juju.is/docs/sdk/naming#heading--naming-charms for guidance.
+name: content-cache
+ 
+# The following metadata are human-readable and will be published prominently on Charmhub.
+
+# (Recommended)
+display-name: Content Cache
+
+# (Required)
+summary: A very short one-line summary of the charm.
+docs: https://discourse.charmhub.io
+issues: https://github.com/canonical/is-charms-template-repo/issues
+maintainers: 
+  - https://launchpad.net/~canonical-is-devops
+source: https://github.com/canonical/is-charms-template-repo
+
+description: |
+  A single sentence that says what the charm is, concisely and memorably.
+
+  A paragraph of one to three short sentences, that describe what the charm does.
+
+  A third paragraph that explains what need the charm meets.
+
+  Finally, a paragraph that describes whom the charm is useful for.
+
+provides:
+  cache-config:
+    interface: content-cache-config
