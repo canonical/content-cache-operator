@@ -1,8 +1,0 @@
-charmhelpers
-charms.reactive
-freezegun
-looseversion
-mock
-psutil
-pytest
-pytest-cov
