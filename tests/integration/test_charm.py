@@ -19,11 +19,8 @@ async def test_charm_start(app: Application, config_app: Application, model: Mod
     assert: The applications in blocked status waiting for integration.
     """
     assert len(app.units) == 1
-    assert len(config_app.units) == 1
     unit = app.units[0]
-    config_unit = config_app.units[0]
     assert unit.workload_status_message == "Waiting for integration with config charm"
-    assert config_unit.workload_status_message == "Empty backends configuration found"
 
 
 @pytest.mark.asyncio

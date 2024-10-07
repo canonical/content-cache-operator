@@ -3,6 +3,8 @@
 
 """Helper functions and classes for integration test."""
 
+from http.client import HTTPConnection
+
 from juju.application import Application
 from juju.model import Model
 from juju.unit import Unit
@@ -30,6 +32,7 @@ class CacheTester:
         self._model = model
         self._app = app
         self._config_app = config_app
+        HTTPConnection._http_vsn_str = "HTTP/1.1"
 
     async def integrate(self) -> None:
         """Integrate the applications."""
