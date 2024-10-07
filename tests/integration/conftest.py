@@ -59,7 +59,6 @@ async def app_fixture(model: Model, charm_file: str, app_name: str) -> AsyncIter
 async def config_app_fixture(model: Model, config_app_name: str) -> AsyncIterator[Application]:
     logger.info("Deploying test cache application %s", config_app_name)
     app: Application = await model.deploy(CONFIG_CHARM_NAME, config_app_name, channel="latest/edge")
-    await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
     yield app
     logger.info("Cleaning test cache application %s", config_app_name)
     await model.remove_application(config_app_name)
