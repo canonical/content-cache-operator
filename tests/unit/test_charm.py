@@ -157,11 +157,11 @@ def test_empty_integration_data(harness: Harness, charm: ContentCacheCharm):
     act: Add a config integration with no data.
     assert: The configuration parsed from integration is empty.
 
-    It seems harness does not fire relation-changed if calling add_relation or 
-    update_relation_data with empty dict. Therefore the test checks for the configuration parsed 
-    manually. 
+    It seems harness does not fire relation-changed if calling add_relation or
+    update_relation_data with empty dict. Therefore the test checks for the configuration parsed
+    manually.
     """
-    harness.add_relation( CACHE_CONFIG_INTEGRATION_NAME, remote_app="config", app_data={})
-    
+    harness.add_relation(CACHE_CONFIG_INTEGRATION_NAME, remote_app="config", app_data={})
+
     config = state.get_nginx_config(charm)
     assert not config

@@ -3,7 +3,6 @@
 
 """Integration test for the content-cache charm."""
 
-import ops
 import pytest
 from juju.application import Application
 from juju.model import Model
@@ -24,7 +23,9 @@ async def test_charm_start(app: Application, config_app: Application, model: Mod
 
 
 @pytest.mark.asyncio
-async def test_charm_integrate_with_no_data(app: Application, config_app: Application, model: Model) -> None:
+async def test_charm_integrate_with_no_data(
+    app: Application, config_app: Application, model: Model
+) -> None:
     """
     arrange: A working application of content-cache charm, with no integrations.
     act:
@@ -34,8 +35,8 @@ async def test_charm_integrate_with_no_data(app: Application, config_app: Applic
         1. The application in blocked status waiting for integration.
         2. The request to the cache should succeed.
     """
-    await config_app.set_config({})
     cache_tester = CacheTester(model, app, config_app)
+    await cache_tester.reset()
 
     # 1.
     await cache_tester.integrate()
@@ -50,12 +51,10 @@ async def test_charm_integrate_with_no_data(app: Application, config_app: Applic
     # 2.
     await cache_tester.setup_config()
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
-    await cache_tester.test_cache()
-    
+    assert await cache_tester.test_cache()
+
     # Cleanup
     await cache_tester.reset()
-    
-    
 
 
 @pytest.mark.asyncio
@@ -72,7 +71,7 @@ async def test_charm_integrate_with_data(
     await cache_tester.integrate()
 
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
-    await cache_tester.test_cache()
+    assert await cache_tester.test_cache()
 
     # Cleanup
     await cache_tester.reset()
