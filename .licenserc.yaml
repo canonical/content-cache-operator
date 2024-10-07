@@ -1,0 +1,29 @@
+header:
+  license:
+    spdx-id: Apache-2.0
+    copyright-owner: Canonical Ltd.
+    content: |
+      Copyright [year] [owner]
+      See LICENSE file for licensing details.
+  paths:
+    - '**'
+  paths-ignore:
+    - '.github/**'
+    - '**/*.j2'
+    - '**/*.json'
+    - '**/*.md'
+    - '**/*.txt'
+    - '.codespellignore'
+    - '.copier-answers.yml'
+    - '.flake8'
+    - '.jujuignore'
+    - '.gitignore'
+    - '.licenserc.yaml'
+    - 'CODEOWNERS'
+    - 'icon.svg'
+    - 'LICENSE'
+    - '.pylintrc'
+    - '.woke.yaml'
+    - 'lib/**'
+    - 'tests/integration/data/clouds.yaml.tmpl'
+  comment: on-failure

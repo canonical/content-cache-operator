@@ -1,0 +1,7 @@
+ignore_files:
+# List of files to ignore
+  - lib/*
+
+rules:
+  # ignore blacklist, a term used by bandit
+  - name: blacklist
