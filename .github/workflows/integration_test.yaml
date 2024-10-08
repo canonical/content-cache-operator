@@ -11,5 +11,3 @@ jobs:
       juju-channel: 3.2/stable
       provider: lxd
       modules: '["test_charm"]'
-      self-hosted-runner: true
-      self-hosted-runner-label: "edge"
