@@ -25,5 +25,4 @@ header:
     - '.pylintrc'
     - '.woke.yaml'
     - 'lib/**'
-    - 'tests/integration/data/clouds.yaml.tmpl'
   comment: on-failure
