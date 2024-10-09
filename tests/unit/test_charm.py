@@ -19,24 +19,24 @@ from charm import (
 )
 
 
-def test_start_no_relation(charm: ContentCacheCharm):
+def test_start_no_relation(charm: ContentCacheCharm, mock_nginx_manager: MagicMock):
     """
     arrange: A working charm.
     act: None.
-    assert: Waiting for integration to join. Nginx init called.
+    assert: Waiting for integration to join. Method to initialize nginx called.
     """
     assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
-    charm._nginx.init.assert_called_once()
+    mock_nginx_manager.initialize.assert_called_once()
 
 
-def test_stop_nginx(charm: ContentCacheCharm):
+def test_stop_nginx(charm: ContentCacheCharm, mock_nginx_manager: MagicMock):
     """
     arrange: A working charm.
     act: Emit stop event.
-    assert: Nginx stop called.
+    assert: Method to stop nginx called.
     """
     charm._on_stop(MagicMock())
-    charm._nginx.stop.assert_called_once()
+    mock_nginx_manager.stop.assert_called_once()
 
 
 def test_update_status_no_relation(charm: ContentCacheCharm):
@@ -57,14 +57,18 @@ def test_update_status_no_relation(charm: ContentCacheCharm):
     ],
 )
 def test_update_status_with_integration(
-    charm: ContentCacheCharm, harness: Harness, ready: bool, status: ops.StatusBase
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+    harness: Harness,
+    ready: bool,
+    status: ops.StatusBase,
 ):
     """
     arrange: Charm is integrated, and nginx is not ready.
     act: Emit update status.
     assert: Charm waiting for integration.
     """
-    charm._nginx.ready_check.return_value = ready
+    mock_nginx_manager.ready_check.return_value = ready
     harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
@@ -89,7 +93,8 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
         app_data={
-            "location": "example.com",
+            "hostname": "example.com",
+            "path": "/",
             "backends": '["10.10.1.1", "10.1.1.2"]',
             "protocol": "https",
         },
@@ -100,8 +105,9 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
     config = state.get_nginx_config(charm)
     assert len(config) == 1
     assert "example.com" in config
-    location_config = config["example.com"]
-    assert location_config.location == "example.com"
+    location_config = config["example.com"]["/"]
+    assert location_config.hostname == "example.com"
+    assert location_config.path == "/"
     assert location_config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.1.1.2"))
     assert location_config.protocol == "https"
 
@@ -116,7 +122,8 @@ def test_remove_integration(harness: Harness, charm: ContentCacheCharm):
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
         app_data={
-            "location": "example.com",
+            "hostname": "example.com",
+            "path": "/",
             "backends": '["10.10.1.1", "10.1.1.2"]',
             "protocol": "https",
         },
@@ -141,7 +148,8 @@ def test_invalid_integration_data(harness: Harness, charm: ContentCacheCharm):
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
         app_data={
-            "location": "example.com",
+            "hostname": "example.com",
+            "path": "/",
             "backends": '["10.10.1.1", "10.1.1.2"]',
             "protocol": "invalid",
         },

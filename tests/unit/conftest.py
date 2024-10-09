@@ -3,6 +3,7 @@
 
 """Fixtures for unit tests."""
 
+from pathlib import Path
 from typing import Iterator
 from unittest.mock import MagicMock
 
@@ -25,25 +26,34 @@ SAMPLE_INTEGRATION_DATA = {
 }
 
 
-@pytest.fixture(name="nginx_manager", scope="function")
-def nginx_manager_fixture() -> MagicMock:
-    mock_manager = MagicMock()
-    mock_manager.init = MagicMock()
-    mock_manager.load = MagicMock()
-    mock_manager.stop = MagicMock()
-    mock_manager.update_config = MagicMock()
-    mock_manager.ready_check = MagicMock()
-    mock_manager.ready_check.return_value = True
-    mock_constructor = MagicMock()
-    mock_constructor.return_value = mock_manager
-    return mock_constructor
+@pytest.fixture(name="patch_nginx_manager_path", scope="function")
+def patch_nginx_manager_path_fixture(monkeypatch, tmp_path: Path) -> Iterator[None]:
+    monkeypatch.setattr("nginx_manager.NGINX_SITES_ENABLED_PATH", tmp_path / "sites-enabled")
+    monkeypatch.setattr("nginx_manager.NGINX_SITES_AVAILABLE_PATH", tmp_path / "sites-available")
+
+
+@pytest.fixture(name="mock_nginx_manager", scope="function")
+def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
+    """Mock the nginx_manager module for charm module."""
+    mock_nginx_manager = MagicMock()
+    mock_nginx_manager.initialize = MagicMock()
+    mock_nginx_manager.load_config = MagicMock()
+    mock_nginx_manager.stop = MagicMock()
+    mock_nginx_manager.update_config = MagicMock()
+    mock_nginx_manager.ready_check = MagicMock()
+    mock_nginx_manager.ready_check.return_value = True
+
+    monkeypatch.setattr("charm.nginx_manager.initialize", mock_nginx_manager.initialize)
+    monkeypatch.setattr("charm.nginx_manager.load_config", mock_nginx_manager.load_config)
+    monkeypatch.setattr("charm.nginx_manager.stop", mock_nginx_manager.stop)
+    monkeypatch.setattr("charm.nginx_manager.update_config", mock_nginx_manager.update_config)
+    monkeypatch.setattr("charm.nginx_manager.ready_check", mock_nginx_manager.ready_check)
+    return mock_nginx_manager
 
 
 @pytest.fixture(name="harness", scope="function")
-def harness_fixture(monkeypatch, nginx_manager: MagicMock) -> Iterator[Harness]:
+def harness_fixture(mock_nginx_manager: MagicMock) -> Iterator[Harness]:
     """The ops testing harness fixture."""
-    monkeypatch.setattr("charm.NginxManager", nginx_manager)
-
     harness = Harness(ContentCacheCharm)
     harness.begin_with_initial_hooks()
     yield harness

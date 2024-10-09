@@ -13,7 +13,15 @@ class ConfigurationError(Exception):
 
 
 class NginxError(Exception):
-    """Represents nginx service in bad state."""
+    """Represents nginx-related failure."""
+
+
+class NginxSetupError(Exception):
+    """Represents failure in nginx setup."""
+
+
+class NginxStopError(Exception):
+    """Represents failure to stop nginx."""
 
 
 class NginxConfigurationError(NginxError):

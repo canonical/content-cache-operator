@@ -4,11 +4,18 @@
 """Manage nginx instance."""
 
 import logging
+import shutil
 from pathlib import Path
 
 import nginx
 
-from errors import NginxConfigurationAggregateError, NginxConfigurationError, NginxFileError
+from errors import (
+    NginxConfigurationAggregateError,
+    NginxConfigurationError,
+    NginxFileError,
+    NginxSetupError,
+    NginxStopError,
+)
 from state import NginxConfig, ServerConfig
 from utilities import execute_command
 
@@ -19,24 +26,33 @@ NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
 NGINX_LOG_PATH = Path("/var/log/nginx")
 
 
-# Unit test is not valuable as the class is closely coupled with nginx.
+# Unit test is not valuable as the module is closely coupled with nginx.
 # This should be tested with integration tests.
 
-# pragma: no cover
 
+def initialize() -> None:  # pragma: no cover
+    """Initialize the nginx server.
 
-def initialize() -> None:
-    """Initialize the nginx server."""
+    Raises:
+        NginxSetupError: Failure to set up nginx.
+    """
     logger.info("Installing and enabling nginx")
     # The install, systemctl enable, and systemctl start are idempotent.
-    execute_command(["sudo", "apt", "install", "nginx", "-yq"])
+    return_code, _, stderr = execute_command(["sudo", "apt", "install", "nginx", "-yq"])
+    if return_code != 0:
+        raise NginxSetupError(f"Failed to install nginx: {stderr}")
+
     logger.info("Clean up default configuration files")
     _reset_sites_config_files()
-    execute_command(["sudo", "systemctl", "enable", "nginx"])
-    execute_command(["sudo", "systemctl", "start", "nginx"])
+    return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", "nginx"])
+    if return_code != 0:
+        raise NginxSetupError(f"Failed to enable nginx: {stderr}")
+    return_code, _, stderr = execute_command(["sudo", "systemctl", "start", "nginx"])
+    if return_code != 0:
+        raise NginxSetupError(f"Failed to start nginx: {stderr}")
 
 
-def load_config() -> None:
+def load_config() -> None:  # pragma: no cover
     """Load nginx configurations."""
     if ready_check():
         logger.info("Loading nginx configuration files")
@@ -47,13 +63,15 @@ def load_config() -> None:
     execute_command(["sudo", "systemctl", "restart", "nginx"])
 
 
-def stop() -> None:
+def stop() -> None:  # pragma: no cover
     """Stop the nginx server."""
     logger.info("Stopping nginx")
-    execute_command(["sudo", "systemctl", "stop", "nginx"])
+    return_code, _, stderr = execute_command(["sudo", "systemctl", "stop", "nginx"])
+    if return_code != 0:
+        raise NginxStopError(f"Failed to stop nginx: {stderr}")
 
 
-def ready_check() -> bool:
+def ready_check() -> bool:  # pragma: no cover
     """Check if nginx is ready to serve requests.
 
     Returns:
@@ -68,11 +86,13 @@ def update_config(configuration: NginxConfig) -> None:
     """Update the nginx configuration files.
 
     Raises:
-        NginxConfigurationError: Error during converting configurations to nginx format.
-        NginxFileError: Error during writing nginx configuration files.
+        NginxConfigurationAggregateError: All failures related to creating nginx configuration.
+        NginxFileError: Failed to write nginx configuration files.
+
     Args:
         configuration: The nginx locations configurations.
     """
+    # This will reset the file permissions.
     _reset_sites_config_files()
 
     errored_hosts: list[str] = []
@@ -92,14 +112,36 @@ def update_config(configuration: NginxConfig) -> None:
         raise NginxConfigurationAggregateError(errored_hosts, configuration_errors)
 
 
+def _reset_sites_config_files() -> None:
+    """Reset the Nginx sites configuration files.
+
+    Raises:
+        NginxFileError: Failed to write nginx configuration files.
+    """
+    logger.info("Resetting the nginx sites configuration files directories")
+    try:
+        if NGINX_SITES_AVAILABLE_PATH.exists():
+            shutil.rmtree(NGINX_SITES_AVAILABLE_PATH)
+        if NGINX_SITES_ENABLED_PATH.exists():
+            shutil.rmtree(NGINX_SITES_ENABLED_PATH)
+        # The default permission for nginx configuration files are 755.
+        NGINX_SITES_AVAILABLE_PATH.mkdir(mode=0o755, parents=True, exist_ok=True)
+        NGINX_SITES_ENABLED_PATH.mkdir(mode=0o755, parents=True, exist_ok=True)
+        NGINX_SITES_AVAILABLE_PATH.chmod(mode=0o755)
+        NGINX_SITES_ENABLED_PATH.chmod(mode=0o755)
+    except (PermissionError, OSError, IOError) as err:
+        logger.exception("Failed to reset the sites configurations directories.")
+        raise NginxFileError("Failed to reset sites configurations") from err
+
+
 def _create_server_config(host: str, configuration: ServerConfig) -> None:
     logger.info("Creating the nginx site configuration file for hosts %s", host)
     try:
         nginx_config = nginx.Conf()
         server_config = nginx.Server(
             nginx.Key("server_name", host),
-            nginx.Key("access_log", _get_access_log_path()),
-            nginx.Key("error_log", _get_error_log_path()),
+            nginx.Key("access_log", _get_access_log_path(host)),
+            nginx.Key("error_log", _get_error_log_path(host)),
         )
 
         for path, config in configuration.items():
@@ -126,8 +168,8 @@ def _create_server_config(host: str, configuration: ServerConfig) -> None:
         ) from err
 
     try:
-        nginx.dumpf(nginx_config, _get_site_available_path(host))
-        _get_site_enable_path(host).symlink_to(_get_site_available_path(host))
+        nginx.dumpf(nginx_config, _get_sites_available_path(host))
+        _get_sites_enabled_path(host).symlink_to(_get_sites_available_path(host))
     except (PermissionError, FileNotFoundError) as err:
         logger.exception("Issue with configuration directories")
         raise NginxFileError("Issue with configuration directories") from err
@@ -136,31 +178,49 @@ def _create_server_config(host: str, configuration: ServerConfig) -> None:
         raise NginxFileError("File write issue with configuration file") from err
 
 
-def _reset_sites_config_files() -> None:
-    """Reset the Nginx sites configuration files."""
-    logger.info("Resetting the nginx sites configuration files directories")
-    NGINX_SITES_AVAILABLE_PATH.mkdir(mode=755, exist_ok=True)
-    NGINX_SITES_ENABLED_PATH.mkdir(mode=755, exist_ok=True)
-    NGINX_SITES_AVAILABLE_PATH.chmod(mode=755)
-    NGINX_SITES_ENABLED_PATH.chmod(mode=755)
+def _get_sites_available_path(host: str) -> Path:
+    """Get the sites available configuration path to a host.
 
-    for child in NGINX_SITES_AVAILABLE_PATH.iterdir():
-        child.unlink(missing_ok=True)
-    for child in NGINX_SITES_ENABLED_PATH.iterdir():
-        child.unlink(missing_ok=True)
+    Args:
+        host: The name of the host.
 
-
-def _get_site_available_path(host: str) -> Path:
+    Returns:
+        The path.
+    """
     return NGINX_SITES_AVAILABLE_PATH / f"{host}.conf"
 
 
-def _get_site_enable_path(host: str) -> Path:
+def _get_sites_enabled_path(host: str) -> Path:
+    """Get the sites enabled configuration path to a host.
+
+    Args:
+        host: The name of the host.
+
+    Returns:
+        The path.
+    """
     return NGINX_SITES_ENABLED_PATH / f"{host}.conf"
 
 
 def _get_access_log_path(host: str) -> Path:
+    """Get the access log path for a host.
+
+    Args:
+        host: The name of the host.
+
+    Returns:
+        The path.
+    """
     return NGINX_LOG_PATH / f"{host}-access.log"
 
 
 def _get_error_log_path(host: str) -> Path:
+    """Get the error log path for a host.
+
+    Args:
+        host: The name of the host.
+
+    Returns:
+        The path.
+    """
     return NGINX_LOG_PATH / f"{host}-error.log"

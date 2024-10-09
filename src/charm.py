@@ -9,8 +9,14 @@ import logging
 
 import ops
 
-from errors import IntegrationDataError
 import nginx_manager
+from errors import (
+    IntegrationDataError,
+    NginxConfigurationAggregateError,
+    NginxFileError,
+    NginxSetupError,
+    NginxStopError,
+)
 from state import CACHE_CONFIG_INTEGRATION_NAME, get_nginx_config
 
 logger = logging.getLogger(__name__)
@@ -43,12 +49,12 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_start(self, _: ops.StartEvent) -> None:
         """Handle start event."""
-        nginx_manager.initialize()
+        _nginx_initialize()
         self._set_status()
 
     def _on_stop(self, _: ops.StopEvent) -> None:
         """Handle the stop event."""
-        nginx_manager.stop()
+        _nginx_stop()
 
     def _on_update_status(self, _: ops.UpdateStatusEvent) -> None:
         """Handle update status event."""
@@ -82,13 +88,41 @@ class ContentCacheCharm(ops.CharmBase):
             self.unit.status = ops.BlockedStatus(str(err))
             return
         if not nginx_config:
-            nginx_manager.stop()
+            _nginx_stop()
             self.unit.status = ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
             return
 
-        nginx_manager.update_config(nginx_config)
-        nginx_manager.start_or_load_config()
-        self.unit.status = ops.ActiveStatus()
+        status_message = ""
+        try:
+            nginx_manager.update_config(nginx_config)
+        except NginxFileError:
+            logger.exception("Failed to write file, going to error state for retries")
+            raise
+        except NginxConfigurationAggregateError as err:
+            logger.exception("Found error with configuration for hosts: %s", err.hosts)
+            logger.warning(
+                "Any hosts configuration without errors will be served on content cache"
+            )
+            status_message = f"Error for host: {err.hosts}"
+
+        nginx_manager.load_config()
+        self.unit.status = ops.ActiveStatus(status_message)
+
+
+def _nginx_initialize() -> None:
+    try:
+        nginx_manager.initialize()
+    except NginxSetupError:
+        logger.exception("Failed to initialize nginx, going to error state for retries")
+        raise
+
+
+def _nginx_stop() -> None:
+    try:
+        nginx_manager.stop()
+    except NginxStopError:
+        logger.exception("Failed to stop nginx, going to error state for retries")
+        raise
 
 
 if __name__ == "__main__":  # pragma: nocover
