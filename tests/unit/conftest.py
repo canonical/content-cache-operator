@@ -10,10 +10,16 @@ import pytest
 from ops.testing import Harness
 
 from charm import ContentCacheCharm
-from state import BACKENDS_CONFIG_NAME, LOCATION_CONFIG_NAME, PROTOCOL_CONFIG_NAME
+from state import (
+    BACKENDS_CONFIG_NAME,
+    HOSTNAME_CONFIG_NAME,
+    PATH_CONFIG_NAME,
+    PROTOCOL_CONFIG_NAME,
+)
 
 SAMPLE_INTEGRATION_DATA = {
-    LOCATION_CONFIG_NAME: "example.com",
+    HOSTNAME_CONFIG_NAME: "example.com",
+    PATH_CONFIG_NAME: "/",
     BACKENDS_CONFIG_NAME: '["10.10.1.1", "10.10.2.2"]',
     PROTOCOL_CONFIG_NAME: "https",
 }

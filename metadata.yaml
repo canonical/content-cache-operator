@@ -13,7 +13,7 @@ name: content-cache
 display-name: Content Cache
 
 # (Required)
-summary: A charm for dpeloying and managing a static web content cache with nginx.
+summary: A charm for deploying and managing a static web content cache with nginx.
 docs: https://discourse.charmhub.io
 issues: https://github.com/canonical/is-charms-template-repo/issues
 maintainers: 

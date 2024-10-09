@@ -6,7 +6,9 @@
 import enum
 import json
 import logging
+import re
 import typing
+from collections import defaultdict
 
 import ops
 import pydantic
@@ -17,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
 
-LOCATION_CONFIG_NAME = "location"
+HOSTNAME_CONFIG_NAME = "hostname"
+PATH_CONFIG_NAME = "path"
 BACKENDS_CONFIG_NAME = "backends"
 PROTOCOL_CONFIG_NAME = "protocol"
 
@@ -38,15 +41,65 @@ class LocationConfig(pydantic.BaseModel):
     """Represents the configuration for a location.
 
     Attributes:
-        location: Defines what URL to match for this set of configuration.
+        hostname: The hostname for the virtual host for this set of configuration.
+        path: The path for this set of configuration.
         backends: The backends for this set of configuration.
         protocol: The protocol to request the backends with. Can be http or
             https.
     """
 
-    location: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
+    hostname: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
+    path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     backends: tuple[pydantic.IPvAnyAddress, ...]
     protocol: Protocol
+
+    @pydantic.field_validator("hostname")
+    @classmethod
+    def validate_hostname(cls, value: str) -> str:
+        """Validate the hostname.
+
+        Args:
+            value: The value to validate.
+
+        Raises:
+            ValueError: Error in validation.
+
+        Returns:
+            The value after validation.
+        """
+        if len(value) > 255:
+            raise ValueError("Hostname cannot be longer than 255")
+
+        valid_segment = re.compile("(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
+        for segment in value.split("."):
+            if valid_segment.fullmatch(segment) is None:
+                raise ValueError(
+                    "Each Hostname segment must be less than 64 in length, and consist of alphanumeric and hyphen"
+                )
+
+        return value
+
+    @pydantic.field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        """Validate the path.
+
+        Args:
+            value: The value to validate.
+
+        Raises:
+            ValueError: Error in validation.
+
+        Returns:
+            The value after validation.
+        """
+        # This are the valid characters for path in addition to `/`:
+        # a-z A-Z 0-9 . - _ ~ ! $ & ' ( ) * + , ; = : @
+        # https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
+        valid_path = re.compile("[/A-Z\d.\-_~!$&'()*+,;=:@]+", re.IGNORECASE)
+        if valid_path.fullmatch(value) is None:
+            raise ValueError("Path contains non-allowed character")
+        return value
 
     @classmethod
     def from_integration_data(cls, data: ops.RelationDataContent) -> "LocationConfig":
@@ -61,7 +114,8 @@ class LocationConfig(pydantic.BaseModel):
         Returns:
             The object.
         """
-        location = data.get(LOCATION_CONFIG_NAME, "").strip()
+        hostname = data.get(HOSTNAME_CONFIG_NAME, "").strip()
+        path = data.get(PATH_CONFIG_NAME, "").strip()
         protocol = data.get(PROTOCOL_CONFIG_NAME, "").lower().strip()
         backends_str = data.get(BACKENDS_CONFIG_NAME, "").strip()
 
@@ -78,7 +132,8 @@ class LocationConfig(pydantic.BaseModel):
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
             return cls(
-                location=location,
+                hostname=hostname,
+                path=path,
                 backends=backends,  # type: ignore
                 protocol=protocol,  # type: ignore
             )
@@ -90,7 +145,10 @@ class LocationConfig(pydantic.BaseModel):
             raise ConfigurationError(f"Config error: {err_msg}") from err
 
 
-NginxConfig = dict[str, LocationConfig]
+Hostname = str
+Location = str
+NginxConfig = dict[Hostname, dict[Location, LocationConfig]]
+ServerConfig = dict[Location, LocationConfig]
 
 
 def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
@@ -110,7 +168,7 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
         logger.info("Found no integrations")
         return {}
 
-    configurations = {}
+    configurations = defaultdict(dict)
 
     for rel in relations:
         logger.info("Parsing integration data for %s", rel.app)
@@ -124,5 +182,6 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
             raise IntegrationDataError(
                 f"Faulty data from integration {rel.id}: {str(err)}"
             ) from err
-        configurations[config.location] = config
+
+        configurations[config.hostname][config.path] = config
     return configurations

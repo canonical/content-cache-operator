@@ -6,7 +6,8 @@ from ipaddress import IPv4Address
 import pytest
 
 from errors import ConfigurationError
-from state import BACKENDS_CONFIG_NAME, LOCATION_CONFIG_NAME, LocationConfig
+from src.state import HOSTNAME_CONFIG_NAME, PATH_CONFIG_NAME
+from state import BACKENDS_CONFIG_NAME, LocationConfig
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
 
@@ -17,25 +18,90 @@ def test_config_from_integration_data():
     assert: The configurations are correctly parsed.
     """
     config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
-    assert config.location == "example.com"
+    assert config.hostname == "example.com"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "https"
 
 
-def test_config_with_empty_location_integration_data():
+def test_config_with_empty_hostname_integration_data():
     """
-    arrange: Sample integration data with empty location.
+    arrange: Sample integration data with empty hostname.
     act: Create the config from the data.
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[LOCATION_CONFIG_NAME] = ""
+    data[HOSTNAME_CONFIG_NAME] = ""
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
 
     assert (
-        str(err.value) == "Config error: ['location = : String should have at least 1 character']"
+        str(err.value) == "Config error: ['hostname = : String should have at least 1 character']"
+    )
+
+
+def test_config_with_long_hostname_integration_data():
+    """
+    arrange: Sample integration data with long hostname.
+    act: Create the config from the data.
+    assert: Exception raised with the correct error message.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[HOSTNAME_CONFIG_NAME] = "a" * 256
+
+    with pytest.raises(ConfigurationError) as err:
+        LocationConfig.from_integration_data(data)
+
+    assert "Value error, Hostname cannot be longer than 255" in str(err.value)
+
+
+def test_config_with_invalid_hostname_integration_data():
+    """
+    arrange: Sample integration data with hostname with invalid character.
+    act: Create the config from the data.
+    assert: Exception raised with the correct error message.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[HOSTNAME_CONFIG_NAME] = "example?.com"
+
+    with pytest.raises(ConfigurationError) as err:
+        LocationConfig.from_integration_data(data)
+
+    assert "must be less than 64 in length, and consist of alphanumeric and hyphen" in str(
+        err.value
+    )
+
+
+def test_config_with_empty_path_integration_data():
+    """
+    arrange: Sample integration data with empty path.
+    act: Create the config from the data.
+    assert: Exception raised with the correct error message.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[PATH_CONFIG_NAME] = ""
+
+    with pytest.raises(ConfigurationError) as err:
+        LocationConfig.from_integration_data(data)
+
+    assert str(err.value) == "Config error: ['path = : String should have at least 1 character']"
+
+
+def test_config_with_invalid_path_integration_data():
+    """
+    arrange: Sample integration data with path with invalid character.
+    act: Create the config from the data.
+    assert: Exception raised with the correct error message.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[PATH_CONFIG_NAME] = "/^"
+
+    with pytest.raises(ConfigurationError) as err:
+        LocationConfig.from_integration_data(data)
+
+    assert (
+        str(err.value)
+        == "Config error: ['path = /^: Value error, Path contains non-allowed character']"
     )
 
 
