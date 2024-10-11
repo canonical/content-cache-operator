@@ -142,4 +142,4 @@ def _nginx_stop() -> None:
 
 
 if __name__ == "__main__":  # pragma: nocover
-    ops.main(ContentCacheCharm)  # type: ignore
+    ops.main(ContentCacheCharm)
