@@ -56,6 +56,7 @@ async def app_fixture(model: Model, charm_file: str, app_name: str) -> AsyncIter
 
 @pytest_asyncio.fixture(name="config_app", scope="module")
 async def config_app_fixture(model: Model, config_app_name: str) -> AsyncIterator[Application]:
+    """The configuration charm application for testing."""
     logger.info("Deploying test cache application %s", config_app_name)
     app: Application = await model.deploy(
         CONFIG_CHARM_NAME, config_app_name, base="ubuntu@24.04", channel="latest/edge", revision=2
