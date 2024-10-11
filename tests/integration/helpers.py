@@ -57,9 +57,16 @@ class CacheTester:
         # Pick a unit from the content cache application for testing.
         assert self._app.units
         unit: Unit = self._app.units[0]
-
         ip = await unit.get_public_address()
-        response = requests.get(f"http://{ip}", headers={"Host", "test.local"}, allow_redirects=False, verify=False, timeout=10)
+
+        response = requests.get(
+            f"http://{ip}",
+            headers={"Host": "test.local"},
+            allow_redirects=False,
+            verify=False,
+            timeout=10,
+        )
+
         # The configuration is set to a IP for github.com.
         # This should return a 301 Moved Permanently.
         return response.status_code == 301

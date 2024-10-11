@@ -10,6 +10,7 @@ from juju.model import Model
 from tests.integration.helpers import CacheTester
 
 
+@pytest.mark.abort_on_fail
 @pytest.mark.asyncio
 async def test_charm_start(app: Application, config_app: Application, model: Model) -> None:
     """
@@ -22,6 +23,7 @@ async def test_charm_start(app: Application, config_app: Application, model: Mod
     assert unit.workload_status_message == "Waiting for integration with config charm"
 
 
+@pytest.mark.abort_on_fail
 @pytest.mark.asyncio
 async def test_charm_integrate_with_no_data(
     app: Application, config_app: Application, model: Model
@@ -57,6 +59,7 @@ async def test_charm_integrate_with_no_data(
     await cache_tester.reset()
 
 
+@pytest.mark.abort_on_fail
 @pytest.mark.asyncio
 async def test_charm_integrate_with_data(
     app: Application, config_app: Application, model: Model

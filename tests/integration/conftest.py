@@ -47,7 +47,7 @@ async def model_fixture(ops_test) -> AsyncIterator[Model]:
 async def app_fixture(model: Model, charm_file: str, app_name: str) -> AsyncIterator[Application]:
     """The content-cache charm application for testing."""
     logger.info("Deploying test cache application %s", app_name)
-    app: Application = await model.deploy(charm_file, app_name)
+    app: Application = await model.deploy(charm_file, app_name, base="ubuntu@24.04")
     await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
     yield app
     logger.info("Cleaning test cache application %s", app_name)
@@ -58,7 +58,7 @@ async def app_fixture(model: Model, charm_file: str, app_name: str) -> AsyncIter
 async def config_app_fixture(model: Model, config_app_name: str) -> AsyncIterator[Application]:
     logger.info("Deploying test cache application %s", config_app_name)
     app: Application = await model.deploy(
-        CONFIG_CHARM_NAME, config_app_name, channel="latest/edge"
+        CONFIG_CHARM_NAME, config_app_name, base="ubuntu@24.04", channel="latest/edge", revision=2
     )
     yield app
     logger.info("Cleaning test cache application %s", config_app_name)

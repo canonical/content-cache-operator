@@ -145,7 +145,7 @@ def _create_server_config(host: str, configuration: ServerConfig) -> None:
         )
 
         for path, config in configuration.items():
-            host_with_path = host + path
+            host_with_path = host + path.rstrip("/")
 
             backends = [nginx.Key("server", ip) for ip in config.backends]
             upstream_config = nginx.Upstream(host_with_path, *backends)
@@ -153,7 +153,7 @@ def _create_server_config(host: str, configuration: ServerConfig) -> None:
             server_config.add(
                 nginx.Location(
                     path,
-                    nginx.Key("proxy_pass", f"{config.protocol}://{host_with_path}"),
+                    nginx.Key("proxy_pass", f"{config.protocol.value}://{host_with_path}"),
                     nginx.Key("proxy_set_header", f'Host "{host}"'),
                 )
             )
