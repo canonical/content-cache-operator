@@ -148,7 +148,7 @@ class LocationConfig(pydantic.BaseModel):
 Hostname = str
 Location = str
 NginxConfig = dict[Hostname, dict[Location, LocationConfig]]
-ServerConfig = dict[Location, LocationConfig]
+HostConfig = dict[Location, LocationConfig]
 
 
 def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:

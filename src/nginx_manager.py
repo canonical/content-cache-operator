@@ -16,7 +16,7 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import NginxConfig, ServerConfig
+from state import NginxConfig, HostConfig
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ def update_config(configuration: NginxConfig) -> None:
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
-        NginxFileError: Failed to write nginx configuration files.
+        NginxFileError: File operation errors while updating nginx configuration files.
 
     Args:
         configuration: The nginx locations configurations.
@@ -116,7 +116,7 @@ def _reset_sites_config_files() -> None:
     """Reset the Nginx sites configuration files.
 
     Raises:
-        NginxFileError: Failed to write nginx configuration files.
+        NginxFileError: File operation errors while updating nginx configuration files.
     """
     logger.info("Resetting the nginx sites configuration files directories")
     try:
@@ -134,7 +134,17 @@ def _reset_sites_config_files() -> None:
         raise NginxFileError("Failed to reset sites configurations") from err
 
 
-def _create_server_config(host: str, configuration: ServerConfig) -> None:
+def _create_server_config(host: str, configuration: HostConfig) -> None:
+    """Create the nginx configuration file for a virtual host.
+    
+    Args:
+        host: The name of the virtual host.
+        configuration: The configurations of the host.
+    
+    Raises:
+        NginxConfigurationError: Failed to convert the configuration to nginx format.
+        NginxFileError: File operation errors while updating nginx configuration files.
+    """
     logger.info("Creating the nginx site configuration file for hosts %s", host)
     try:
         nginx_config = nginx.Conf()

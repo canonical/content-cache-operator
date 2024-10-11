@@ -16,6 +16,7 @@ class CacheTester:
 
     Attributes:
         TEST_CONFIG: The cache configuration for testing.
+        EMPTY_CONFIG: The empty cache configuration.
     """
 
     TEST_CONFIG = {
@@ -23,6 +24,13 @@ class CacheTester:
         "path": "/",
         "backends": "20.27.177.113",  # A IP to github.com
         "protocol": "http",
+    }
+
+    EMPTY_CONFIG = {
+            "hostname": "",
+            "path": "/",
+            "backends": "", 
+            "protocol": "https",
     }
 
     def __init__(self, model: Model, app: Application, config_app: Application):
@@ -77,4 +85,8 @@ class CacheTester:
             await self._app.remove_relation(
                 CACHE_CONFIG_INTEGRATION_NAME, self._config_app.name, True
             )
-        await self._config_app.set_config({})
+        await self.reset_config()
+    
+    async def reset_config(self) -> None:
+        """Reset the configuration of configuration charm application."""
+        await self._config_app.set_config(CacheTester.EMPTY_CONFIG)

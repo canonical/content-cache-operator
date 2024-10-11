@@ -29,9 +29,15 @@ class NginxConfigurationError(NginxError):
 
 
 class NginxConfigurationAggregateError(NginxError):
-    """Represents a collection of NginxConfigurationError"""
+    """Represents a collection of NginxConfigurationError."""
 
-    def __init__(self, hosts: tuple[str], errors: tuple[NginxError]):
+    def __init__(self, hosts: tuple[str], errors: tuple[NginxConfigurationError]):
+        """Initialize the object.
+
+        Args:
+            hosts: List of hosts with configuration issues.
+            errors: Collection of the configuration errors.
+        """
         super().__init__(f"Configuration error in hosts: {hosts}")
 
         self.hosts = hosts

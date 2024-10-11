@@ -81,7 +81,11 @@ class ContentCacheCharm(ops.CharmBase):
         self.unit.status = ops.ActiveStatus()
 
     def _load_nginx_config(self) -> None:
-        """Validate the configuration and load to integration."""
+        """Validate the configuration and load to integration.
+        
+        Raises:
+            NginxFileError: File operation errors while updating nginx configuration files.
+        """
         try:
             nginx_config = get_nginx_config(self)
         except IntegrationDataError as err:
@@ -96,7 +100,7 @@ class ContentCacheCharm(ops.CharmBase):
         try:
             nginx_manager.update_config(nginx_config)
         except NginxFileError:
-            logger.exception("Failed to write file, going to error state for retries")
+            logger.exception("Failed to update nginx config file, going to error state for retries")
             raise
         except NginxConfigurationAggregateError as err:
             logger.exception("Found error with configuration for hosts: %s", err.hosts)
@@ -110,6 +114,11 @@ class ContentCacheCharm(ops.CharmBase):
 
 
 def _nginx_initialize() -> None:
+    """Initialize the nginx instance.
+    
+    Raises:
+        NginxSetupError: Failure to setup nginx.
+    """
     try:
         nginx_manager.initialize()
     except NginxSetupError:
@@ -118,6 +127,11 @@ def _nginx_initialize() -> None:
 
 
 def _nginx_stop() -> None:
+    """Stop the nginx instance.
+
+    Raises:
+        NginxStopError: Failure to stop nginx.
+    """
     try:
         nginx_manager.stop()
     except NginxStopError:

@@ -5,8 +5,6 @@
 
 from ipaddress import IPv4Address
 
-import pytest
-
 import nginx_manager
 from state import LocationConfig
 
