@@ -16,7 +16,7 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import NginxConfig, HostConfig
+from state import HostConfig, NginxConfig
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,11 @@ def load_config() -> None:  # pragma: no cover
 
 
 def stop() -> None:  # pragma: no cover
-    """Stop the nginx server."""
+    """Stop the nginx server.
+
+    Raises:
+        NginxStopError: Failed to stop nginx.
+    """
     logger.info("Stopping nginx")
     return_code, _, stderr = execute_command(["sudo", "systemctl", "stop", "nginx"])
     if return_code != 0:
@@ -136,11 +140,11 @@ def _reset_sites_config_files() -> None:
 
 def _create_server_config(host: str, configuration: HostConfig) -> None:
     """Create the nginx configuration file for a virtual host.
-    
+
     Args:
         host: The name of the virtual host.
         configuration: The configurations of the host.
-    
+
     Raises:
         NginxConfigurationError: Failed to convert the configuration to nginx format.
         NginxFileError: File operation errors while updating nginx configuration files.

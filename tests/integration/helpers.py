@@ -27,10 +27,10 @@ class CacheTester:
     }
 
     EMPTY_CONFIG = {
-            "hostname": "",
-            "path": "/",
-            "backends": "", 
-            "protocol": "https",
+        "hostname": "",
+        "path": "/",
+        "backends": "",
+        "protocol": "https",
     }
 
     def __init__(self, model: Model, app: Application, config_app: Application):
@@ -86,7 +86,7 @@ class CacheTester:
                 CACHE_CONFIG_INTEGRATION_NAME, self._config_app.name, True
             )
         await self.reset_config()
-    
+
     async def reset_config(self) -> None:
         """Reset the configuration of configuration charm application."""
         await self._config_app.set_config(CacheTester.EMPTY_CONFIG)

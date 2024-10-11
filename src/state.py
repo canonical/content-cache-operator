@@ -74,7 +74,10 @@ class LocationConfig(pydantic.BaseModel):
         for segment in value.split("."):
             if valid_segment.fullmatch(segment) is None:
                 raise ValueError(
-                    "Each Hostname segment must be less than 64 in length, and consist of alphanumeric and hyphen"
+                    (
+                        "Each Hostname segment must be less than 64 in length, and consist of "
+                        "alphanumeric and hyphen"
+                    )
                 )
 
         return value
@@ -168,7 +171,7 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
         logger.info("Found no integrations")
         return {}
 
-    configurations = defaultdict(dict)
+    configurations: defaultdict[Hostname, dict[Location, LocationConfig]] = defaultdict(dict)
 
     for rel in relations:
         logger.info("Parsing integration data for %s", rel.app)

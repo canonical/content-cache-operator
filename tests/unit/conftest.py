@@ -27,7 +27,8 @@ SAMPLE_INTEGRATION_DATA = {
 
 
 @pytest.fixture(name="patch_nginx_manager_path", scope="function")
-def patch_nginx_manager_path_fixture(monkeypatch, tmp_path: Path) -> Iterator[None]:
+def patch_nginx_manager_path_fixture(monkeypatch, tmp_path: Path) -> None:
+    """Patch the Path used by nginx_manager module."""
     monkeypatch.setattr("nginx_manager.NGINX_SITES_ENABLED_PATH", tmp_path / "sites-enabled")
     monkeypatch.setattr("nginx_manager.NGINX_SITES_AVAILABLE_PATH", tmp_path / "sites-available")
 
