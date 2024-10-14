@@ -4,8 +4,10 @@
 """Manage nginx instance."""
 
 import logging
+import secrets
 import shutil
 from pathlib import Path
+import uuid
 
 import nginx
 
@@ -159,15 +161,14 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
         )
 
         for path, config in configuration.items():
-            host_with_path = host + path.rstrip("/")
-
+            upstream = uuid.uuid4()
             backends = [nginx.Key("server", ip) for ip in config.backends]
-            upstream_config = nginx.Upstream(host_with_path, *backends)
+            upstream_config = nginx.Upstream(upstream, *backends)
             nginx_config.add(upstream_config)
             server_config.add(
                 nginx.Location(
                     path,
-                    nginx.Key("proxy_pass", f"{config.protocol.value}://{host_with_path}"),
+                    nginx.Key("proxy_pass", f"{config.protocol.value}://{upstream}"),
                     nginx.Key("proxy_set_header", f'Host "{host}"'),
                 )
             )
