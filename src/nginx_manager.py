@@ -4,10 +4,9 @@
 """Manage nginx instance."""
 
 import logging
-import secrets
 import shutil
-from pathlib import Path
 import uuid
+from pathlib import Path
 
 import nginx
 
@@ -149,7 +148,6 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
 
     Raises:
         NginxConfigurationError: Failed to convert the configuration to nginx format.
-        NginxFileError: File operation errors while updating nginx configuration files.
     """
     logger.info("Creating the nginx site configuration file for hosts %s", host)
     try:
@@ -161,6 +159,11 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
         )
 
         for path, config in configuration.items():
+            # Each set of hostname configuration with path configuration needs a upstream.
+            # Each upstream needs a unique upstream hostname.
+            # Since the hostname configuration supports any valid hostname, which is up to 255 in
+            # length, the upstream hostname cannot be built upon it. Therefore, UUIDv4 is used to
+            # the upstream hostname.
             upstream = uuid.uuid4()
             backends = [nginx.Key("server", ip) for ip in config.backends]
             upstream_config = nginx.Upstream(upstream, *backends)
@@ -182,6 +185,22 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
             f"Unable to convert {host} configuration to nginx format: {configuration}"
         ) from err
 
+    _create_and_enable_config(host, nginx_config)
+
+
+def _create_and_enable_config(host: str, nginx_config: nginx.Conf) -> None:
+    """Store the nginx configuration and enable it.
+
+    Nginx configuration files are usually stored in the sites-available path.
+    The configurations that are enabled are usually symlink to the sites-enabled path.
+
+    Args:
+        host: The name of the host.
+        nginx_config: The configuration to store as file and enable.
+
+    Raises:
+        NginxFileError: File operation errors while updating nginx configuration files.
+    """
     try:
         nginx.dumpf(nginx_config, _get_sites_available_path(host))
         _get_sites_enabled_path(host).symlink_to(_get_sites_available_path(host))
