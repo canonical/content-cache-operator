@@ -105,7 +105,7 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
     assert location_config.health_check_path == "/"
     assert location_config.health_check_interval == 30
     assert location_config.backends_path == "/"
-    assert location_config.proxy_cache_valid == '["200 302 1h", "404 1m"]'
+    assert location_config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 
 def test_remove_integration(harness: Harness, charm: ContentCacheCharm):

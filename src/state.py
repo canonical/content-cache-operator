@@ -63,7 +63,7 @@ class LocationConfig(pydantic.BaseModel):
     health_check_path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     health_check_interval: pydantic.PositiveInt
     backends_path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
-    proxy_cache_valid: str
+    proxy_cache_valid: tuple[str,...]
 
     @pydantic.field_validator("hostname")
     @classmethod
@@ -135,7 +135,7 @@ class LocationConfig(pydantic.BaseModel):
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
-    def validate_proxy_cache_valid(cls, value: str) -> str:
+    def validate_proxy_cache_valid(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         """Validate the proxy_cache_valid.
 
         Args:
@@ -147,15 +147,7 @@ class LocationConfig(pydantic.BaseModel):
         Returns:
             The value after validation.
         """
-        try:
-            cache_valid = json.loads(value)
-        except json.JSONDecodeError as err:
-            raise ValueError(f"Unable to parse proxy_cache_valid: {value}") from err
-
-        if not isinstance(cache_valid, list):
-            raise ValueError(f"The proxy_cache_valid is not a list: {value}")
-
-        for item in cache_valid:
+        for item in value:
             tokens = item.split(" ")
             if len(tokens) < 2:
                 raise ValueError(f"Invalid item in proxy_cache_valid: {item}")
@@ -185,7 +177,15 @@ class LocationConfig(pydantic.BaseModel):
         health_check_path = data.get(HEALTH_CHECK_PATH_CONFIG_NAME, "").strip()
         health_check_interval = data.get(HEALTH_CHECK_INTERVAL_CONFIG_NAME, "").strip()
         backends_path = data.get(BACKENDS_PATH_CONFIG_NAME, "").strip()
-        proxy_cache_valid = data.get(PROXY_CACHE_VALID_CONFIG_NAME, "").strip()
+        proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_CONFIG_NAME, "").strip()
+
+        try:
+            proxy_cache_valid = json.loads(proxy_cache_valid_str)
+        except json.JSONDecodeError as err:
+            raise ConfigurationError(f"Unable to parse proxy_cache_valid: {proxy_cache_valid_str}") from err
+
+        if not isinstance(proxy_cache_valid, list):
+            raise ConfigurationError(f"The proxy_cache_valid is not a list: {proxy_cache_valid_str}")
 
         try:
             backends = json.loads(backends_str)

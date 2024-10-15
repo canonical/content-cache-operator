@@ -17,7 +17,7 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import HostConfig, NginxConfig
+from state import HostConfig, LocationConfig, NginxConfig
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)
@@ -157,7 +157,6 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
             nginx.Key("access_log", _get_access_log_path(host)),
             nginx.Key("error_log", _get_error_log_path(host)),
         )
-
         for path, config in configuration.items():
             # Each set of hostname configuration with path configuration needs a upstream.
             # Each upstream needs a unique upstream hostname.
@@ -165,17 +164,12 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
             # length, the upstream hostname cannot be built upon it. Therefore, UUIDv4 is used to
             # the upstream hostname.
             upstream = uuid.uuid4()
-            backends = [nginx.Key("server", ip) for ip in config.backends]
-            upstream_config = nginx.Upstream(upstream, *backends)
+            upstream_keys = _get_upstream_config_keys(config)
+            upstream_config = nginx.Upstream(upstream, *upstream_keys)
             nginx_config.add(upstream_config)
-            server_config.add(
-                nginx.Location(
-                    path,
-                    nginx.Key("proxy_pass", f"{config.protocol.value}://{upstream}"),
-                    nginx.Key("proxy_set_header", f'Host "{host}"'),
-                )
-            )
 
+            location_keys = _get_location_config_keys(config, upstream, host)
+            server_config.add(nginx.Location(path, *location_keys))
         nginx_config.add(server_config)
     except nginx.ParseError as err:
         logger.exception(
@@ -186,6 +180,49 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
         ) from err
 
     _create_and_enable_config(host, nginx_config)
+
+
+def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
+    """Create the nginx keys for the upstream configuration.
+
+    Args:
+        config: The location configurations.
+
+    Returns:
+        The nginx.Key for the upstream configuration.
+    """
+    keys = [nginx.Key("server", ip) for ip in config.backends]
+    keys.append(
+        nginx.Key(
+            "health_check",
+            f"interval={config.health_check_interval} uri={config.health_check_path}",
+        )
+    )
+    return keys
+
+
+def _get_location_config_keys(
+    config: LocationConfig, upstream: str, host: str
+) -> tuple[nginx.Key, ...]:
+    """Create the nginx keys for location configuration.
+
+    Args:
+        config: The location configurations.
+        upstream: The upstream hostname for the backends.
+        host: The hostname for this server.
+
+    Returns:
+        The nginx.Key for the Location configuration.
+    """
+    keys = [
+        nginx.Key("proxy_pass", f"{config.protocol.value}://{upstream}{config.backends_path}"),
+        nginx.Key("proxy_set_header", f'Host "{host}"'),
+    ]
+
+    for cache_valid in config.proxy_cache_valid:
+        keys.append(nginx.Key("proxy_cache_valid", cache_valid))
+
+    return keys
 
 
 def _create_and_enable_config(host: str, nginx_config: nginx.Conf) -> None:

@@ -58,15 +58,15 @@ def test_update_config_with_valid_config(patch_nginx_manager_path: None):
     hostname = "example.com"
     sample_data = {
         hostname: {
-            "/": LocationConfig(
+            "/path": LocationConfig(
                 hostname=hostname,
-                path="/",
-                backends=(IPv4Address("10.10.10.10"),),
+                path="/path",
+                backends=(IPv4Address("10.10.10.2"),IPv4Address("10.10.10.1")),
                 protocol="https",
-                health_check_path="/",
-                health_check_interval=30,
-                backends_path="/",
-                proxy_cache_valid='["200 302 30m", "404 1m"]'
+                health_check_path="/health",
+                health_check_interval=300,
+                backends_path="/backend",
+                proxy_cache_valid=("200 302 30m", "404 1m"),
             )
         }
     }
@@ -74,7 +74,15 @@ def test_update_config_with_valid_config(patch_nginx_manager_path: None):
     nginx_manager.update_config(sample_data)
 
     config_file_content = nginx_manager._get_sites_enabled_path(hostname).read_text()
-    assert "server 10.10.10.10" in config_file_content
+    
+    assert "server 10.10.10.1" in config_file_content
+    assert "server 10.10.10.2" in config_file_content
+    assert "location /path" in config_file_content
+    assert "health_check interval=300 uri=/health" in config_file_content
     assert "server_name example.com" in config_file_content
     assert "access_log" in config_file_content
     assert "error_log" in config_file_content
+    assert "proxy_cache_valid 200 302 30m" in config_file_content
+    assert "proxy_cache_valid 404 1m" in config_file_content
+    assert "proxy_pass https://" in config_file_content
+    assert "/backend" in config_file_content

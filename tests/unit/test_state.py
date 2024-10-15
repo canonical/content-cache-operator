@@ -32,7 +32,7 @@ def test_config_from_integration_data():
     assert config.health_check_path == "/"
     assert config.health_check_interval == 30
     assert config.backends_path == "/"
-    assert config.proxy_cache_valid == '["200 302 1h", "404 1m"]'
+    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 
 def test_config_from_integration_data():
@@ -49,8 +49,7 @@ def test_config_from_integration_data():
     assert config.health_check_path == "/"
     assert config.health_check_interval == 30
     assert config.backends_path == "/"
-    assert config.proxy_cache_valid == '["200 302 1h", "404 1m"]'
-
+    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 def test_config_subdomain_integration_data():
     """
@@ -68,7 +67,7 @@ def test_config_subdomain_integration_data():
     assert config.health_check_path == "/"
     assert config.health_check_interval == 30
     assert config.backends_path == "/"
-    assert config.proxy_cache_valid == '["200 302 1h", "404 1m"]'
+    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 
 def test_config_with_empty_hostname_integration_data():
@@ -171,7 +170,7 @@ def test_config_long_path_integration_data():
     assert config.health_check_path == "/path$/to&/here!"
     assert config.health_check_interval == 30
     assert config.backends_path == "/here/there"
-    assert config.proxy_cache_valid == '["200 302 1h", "404 1m"]'
+    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 
 @pytest.mark.parametrize(
@@ -220,7 +219,7 @@ def test_config_http_protocol_integration_data():
     assert config.health_check_path == "/"
     assert config.health_check_interval == 30
     assert config.backends_path == "/"
-    assert config.proxy_cache_valid == '["200 302 1h", "404 1m"]'
+    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 
 def test_config_invalid_format_proxy_cache_valid_integration_data():
@@ -235,7 +234,7 @@ def test_config_invalid_format_proxy_cache_valid_integration_data():
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
 
-    assert "Value error, Unable to parse proxy_cache_valid: invalid" in str(err.value)
+    assert "Unable to parse proxy_cache_valid: invalid" in str(err.value)
 
 
 def test_config_proxy_cache_valid_without_time_integration_data():
@@ -265,7 +264,7 @@ def test_config_non_list_proxy_cache_valid_integration_data():
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
 
-    assert 'Value error, The proxy_cache_valid is not a list: {"hello": 10}' in str(err.value)
+    assert 'The proxy_cache_valid is not a list: {"hello": 10}' in str(err.value)
 
 
 def test_config_invalid_time_proxy_cache_valid_integration_data():
