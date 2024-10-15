@@ -63,6 +63,10 @@ def test_update_config_with_valid_config(patch_nginx_manager_path: None):
                 path="/",
                 backends=(IPv4Address("10.10.10.10"),),
                 protocol="https",
+                health_check_path="/",
+                health_check_interval=30,
+                backends_path="/",
+                proxy_cache_valid='["200 302 30m", "404 1m"]'
             )
         }
     }

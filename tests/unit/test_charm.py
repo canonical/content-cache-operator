@@ -17,6 +17,7 @@ from charm import (
     WAIT_FOR_CONFIG_MESSAGE,
     ContentCacheCharm,
 )
+from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
 
 def test_start_no_relation(charm: ContentCacheCharm, mock_nginx_manager: MagicMock):
@@ -72,11 +73,7 @@ def test_update_status_with_integration(
     harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
-        app_data={
-            "location": "example.com",
-            "backends": '["10.10.1.1", "10.1.1.2"]',
-            "protocol": "https",
-        },
+        app_data=SAMPLE_INTEGRATION_DATA,
     )
 
     charm._on_update_status(MagicMock())
@@ -92,12 +89,7 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
     harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
-        app_data={
-            "hostname": "example.com",
-            "path": "/",
-            "backends": '["10.10.1.1", "10.1.1.2"]',
-            "protocol": "https",
-        },
+        app_data=SAMPLE_INTEGRATION_DATA,
     )
     assert charm.unit.status == ops.ActiveStatus()
 
@@ -108,8 +100,12 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
     location_config = config["example.com"]["/"]
     assert location_config.hostname == "example.com"
     assert location_config.path == "/"
-    assert location_config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.1.1.2"))
+    assert location_config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert location_config.protocol == "https"
+    assert location_config.health_check_path == "/"
+    assert location_config.health_check_interval == 30
+    assert location_config.backends_path == "/"
+    assert location_config.proxy_cache_valid == '["200 302 1h", "404 1m"]'
 
 
 def test_remove_integration(harness: Harness, charm: ContentCacheCharm):
@@ -121,12 +117,7 @@ def test_remove_integration(harness: Harness, charm: ContentCacheCharm):
     relation_id = harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
-        app_data={
-            "hostname": "example.com",
-            "path": "/",
-            "backends": '["10.10.1.1", "10.1.1.2"]',
-            "protocol": "https",
-        },
+        app_data=SAMPLE_INTEGRATION_DATA,
     )
     assert charm.unit.status == ops.ActiveStatus()
 
@@ -144,15 +135,12 @@ def test_invalid_integration_data(harness: Harness, charm: ContentCacheCharm):
     act: Add a config integration with invalid data.
     assert: Charm in block state.
     """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[state.PROTOCOL_CONFIG_NAME] = "invalid"
     harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
-        app_data={
-            "hostname": "example.com",
-            "path": "/",
-            "backends": '["10.10.1.1", "10.1.1.2"]',
-            "protocol": "invalid",
-        },
+        app_data=data,
     )
     assert charm.unit.status == ops.BlockedStatus(
         "Faulty data from integration 0: Config error: [\"protocol = invalid: Input should be 'http' or 'https'\"]"
