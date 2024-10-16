@@ -1,0 +1,10 @@
+# Copyright 2024 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+ignore_files:
+# List of files to ignore
+  - lib/*
+
+rules:
+  # ignore blacklist, a term used by bandit
+  - name: blacklist
