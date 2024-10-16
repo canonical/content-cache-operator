@@ -31,8 +31,8 @@ async def test_charm_integrate_with_no_data(
     """
     arrange: A working application of content-cache charm, with no integrations.
     act:
-        1. Integrate with a charm that provides configuration.
-        2. Add configuration to the charm that provides data.
+        1. Integrate with the configuration charm.
+        2. Add configuration to the configuration charm.
     assert:
         1. The application in blocked status waiting for integration.
         2. The request to the cache should succeed.
@@ -67,8 +67,8 @@ async def test_charm_integrate_with_data(
     """
     arrange: A working application of content-cache charm, with no integrations.
     act:
-        1. Configure a charm that provides configuration, and integrate it.
-        2. Remove the configuration on the charm.
+        1. Integrate with the configuration charm with configuration set.
+        2. Remove the configuration on the configuration charm.
         3. Remove the integration between the charms.
     assert:
         1. The request to the cache should succeed.
