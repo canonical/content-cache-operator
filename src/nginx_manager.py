@@ -60,6 +60,7 @@ def load_config() -> None:  # pragma: no cover
         # This is reload the configuration files without interrupting service.
         execute_command(["sudo", "nginx", "-s", "reload"])
         return
+
     logger.info("Restarting nginx to load the configuration files.")
     execute_command(["sudo", "systemctl", "restart", "nginx"])
 
