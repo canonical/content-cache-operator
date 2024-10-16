@@ -38,16 +38,16 @@ def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
     """Mock the nginx_manager module for charm module."""
     mock_nginx_manager = MagicMock()
     mock_nginx_manager.initialize = MagicMock()
-    mock_nginx_manager.load_config = MagicMock()
     mock_nginx_manager.stop = MagicMock()
-    mock_nginx_manager.update_config = MagicMock()
+    mock_nginx_manager.update_and_load_config = MagicMock()
     mock_nginx_manager.ready_check = MagicMock()
     mock_nginx_manager.ready_check.return_value = True
 
     monkeypatch.setattr("charm.nginx_manager.initialize", mock_nginx_manager.initialize)
-    monkeypatch.setattr("charm.nginx_manager.load_config", mock_nginx_manager.load_config)
     monkeypatch.setattr("charm.nginx_manager.stop", mock_nginx_manager.stop)
-    monkeypatch.setattr("charm.nginx_manager.update_config", mock_nginx_manager.update_config)
+    monkeypatch.setattr(
+        "charm.nginx_manager.update_and_load_config", mock_nginx_manager.update_and_load_config
+    )
     monkeypatch.setattr("charm.nginx_manager.ready_check", mock_nginx_manager.ready_check)
     return mock_nginx_manager
 

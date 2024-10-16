@@ -53,18 +53,6 @@ def initialize() -> None:  # pragma: no cover
         raise NginxSetupError(f"Failed to start nginx: {stderr}")
 
 
-def load_config() -> None:  # pragma: no cover
-    """Load nginx configurations."""
-    if ready_check():
-        logger.info("Loading nginx configuration files")
-        # This is reload the configuration files without interrupting service.
-        execute_command(["sudo", "nginx", "-s", "reload"])
-        return
-
-    logger.info("Restarting nginx to load the configuration files.")
-    execute_command(["sudo", "systemctl", "restart", "nginx"])
-
-
 def stop() -> None:  # pragma: no cover
     """Stop the nginx server.
 
@@ -88,8 +76,8 @@ def ready_check() -> bool:  # pragma: no cover
     return return_code == 0
 
 
-def update_config(configuration: NginxConfig) -> None:
-    """Update the nginx configuration files.
+def update_and_load_config(configuration: NginxConfig) -> None:
+    """Update the nginx configuration files and load them.
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
@@ -116,6 +104,20 @@ def update_config(configuration: NginxConfig) -> None:
 
     if errored_hosts:
         raise NginxConfigurationAggregateError(errored_hosts, configuration_errors)
+
+    _load_config()
+
+
+def _load_config() -> None:  # pragma: no cover
+    """Load nginx configurations."""
+    if ready_check():
+        logger.info("Loading nginx configuration files")
+        # This is reload the configuration files without interrupting service.
+        execute_command(["sudo", "nginx", "-s", "reload"])
+        return
+
+    logger.info("Restarting nginx to load the configuration files.")
+    execute_command(["sudo", "systemctl", "restart", "nginx"])
 
 
 def _reset_sites_config_files() -> None:

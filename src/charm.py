@@ -98,7 +98,7 @@ class ContentCacheCharm(ops.CharmBase):
 
         status_message = ""
         try:
-            nginx_manager.update_config(nginx_config)
+            nginx_manager.update_and_load_config(nginx_config)
         except NginxFileError:
             logger.exception(
                 "Failed to update nginx config file, going to error state for retries"
@@ -111,7 +111,6 @@ class ContentCacheCharm(ops.CharmBase):
             )
             status_message = f"Error for host: {err.hosts}"
 
-        nginx_manager.load_config()
         self.unit.status = ops.ActiveStatus(status_message)
 
 
