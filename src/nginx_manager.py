@@ -195,13 +195,10 @@ def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
     Returns:
         The nginx.Key for the upstream configuration.
     """
-    keys = [nginx.Key("server", ip) for ip in config.backends]
-    keys.append(
-        nginx.Key(
-            "health_check",
-            f"interval={config.health_check_interval} uri={config.health_check_path}",
-        )
-    )
+    keys = [
+        nginx.Key("server", f"{ip} fail_timeout={config.health_check_interval}s")
+        for ip in config.backends
+    ]
     return tuple(keys)
 
 
@@ -221,6 +218,11 @@ def _get_location_config_keys(
     keys = [
         nginx.Key("proxy_pass", f"{config.protocol.value}://{upstream}{config.backends_path}"),
         nginx.Key("proxy_set_header", f'Host "{host}"'),
+        # TODO: The health_check is a paid feature. Need to research how uri can be set otherwise.
+        # nginx.Key(
+        #     "health_check",
+        #     f"interval={config.health_check_interval} uri={config.health_check_path}",
+        # )
     ]
 
     for cache_valid in config.proxy_cache_valid:

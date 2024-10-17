@@ -136,7 +136,7 @@ def test_invalid_integration_data(harness: Harness, charm: ContentCacheCharm):
     assert: Charm in block state.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[state.PROTOCOL_CONFIG_NAME] = "invalid"
+    data[state.PROTOCOL_FIELD_NAME] = "invalid"
     harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",

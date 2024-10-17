@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
 
-HOSTNAME_CONFIG_NAME = "hostname"
-PATH_CONFIG_NAME = "path"
-BACKENDS_CONFIG_NAME = "backends"
-PROTOCOL_CONFIG_NAME = "protocol"
-HEALTH_CHECK_PATH_CONFIG_NAME = "health-check-path"
-HEALTH_CHECK_INTERVAL_CONFIG_NAME = "health-check-interval"
-BACKENDS_PATH_CONFIG_NAME = "backends-path"
-PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
+HOSTNAME_FIELD_NAME = "hostname"
+PATH_FIELD_NAME = "path"
+BACKENDS_FIELD_NAME = "backends"
+PROTOCOL_FIELD_NAME = "protocol"
+HEALTH_CHECK_PATH_FIELD_NAME = "health_check_path"
+HEALTH_CHECK_INTERVAL_FIELD_NAME = "health_check_interval"
+BACKENDS_PATH_FIELD_NAME = "backends_path"
+PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
 
 
 class Protocol(str, enum.Enum):
@@ -170,14 +170,14 @@ class LocationConfig(pydantic.BaseModel):
         Returns:
             The object.
         """
-        hostname = data.get(HOSTNAME_CONFIG_NAME, "").strip()
-        path = data.get(PATH_CONFIG_NAME, "").strip()
-        protocol = data.get(PROTOCOL_CONFIG_NAME, "").lower().strip()
-        backends_str = data.get(BACKENDS_CONFIG_NAME, "").strip()
-        health_check_path = data.get(HEALTH_CHECK_PATH_CONFIG_NAME, "").strip()
-        health_check_interval = data.get(HEALTH_CHECK_INTERVAL_CONFIG_NAME, "").strip()
-        backends_path = data.get(BACKENDS_PATH_CONFIG_NAME, "").strip()
-        proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_CONFIG_NAME, "").strip()
+        hostname = data.get(HOSTNAME_FIELD_NAME, "").strip()
+        path = data.get(PATH_FIELD_NAME, "").strip()
+        protocol = data.get(PROTOCOL_FIELD_NAME, "").lower().strip()
+        backends_str = data.get(BACKENDS_FIELD_NAME, "").strip()
+        health_check_path = data.get(HEALTH_CHECK_PATH_FIELD_NAME, "").strip()
+        health_check_interval = data.get(HEALTH_CHECK_INTERVAL_FIELD_NAME, "").strip()
+        backends_path = data.get(BACKENDS_PATH_FIELD_NAME, "").strip()
+        proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
 
         try:
             proxy_cache_valid = json.loads(proxy_cache_valid_str)
@@ -319,6 +319,7 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
                 continue
             config = LocationConfig.from_integration_data(relation_data)
         except ConfigurationError as err:
+            logger.exception("Found integration %s with faulty data", rel.id)
             raise IntegrationDataError(
                 f"Faulty data from integration {rel.id}: {str(err)}"
             ) from err

@@ -6,13 +6,13 @@ from ipaddress import IPv4Address
 import pytest
 
 from errors import ConfigurationError
-from src.state import HOSTNAME_CONFIG_NAME, PATH_CONFIG_NAME
+from src.state import HOSTNAME_FIELD_NAME, PATH_FIELD_NAME
 from state import (
-    BACKENDS_CONFIG_NAME,
-    BACKENDS_PATH_CONFIG_NAME,
-    HEALTH_CHECK_PATH_CONFIG_NAME,
-    PROTOCOL_CONFIG_NAME,
-    PROXY_CACHE_VALID_CONFIG_NAME,
+    BACKENDS_FIELD_NAME,
+    BACKENDS_PATH_FIELD_NAME,
+    HEALTH_CHECK_PATH_FIELD_NAME,
+    PROTOCOL_FIELD_NAME,
+    PROXY_CACHE_VALID_FIELD_NAME,
     LocationConfig,
 )
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
@@ -42,7 +42,7 @@ def test_config_subdomain_integration_data():
     assert: The configurations are correctly parsed.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_CONFIG_NAME] = "hello.example.com"
+    data[HOSTNAME_FIELD_NAME] = "hello.example.com"
     config = LocationConfig.from_integration_data(data)
     assert config.hostname == "hello.example.com"
     assert config.path == "/"
@@ -61,7 +61,7 @@ def test_config_with_empty_hostname_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_CONFIG_NAME] = ""
+    data[HOSTNAME_FIELD_NAME] = ""
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -78,7 +78,7 @@ def test_config_with_long_hostname_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_CONFIG_NAME] = "a" * 256
+    data[HOSTNAME_FIELD_NAME] = "a" * 256
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -93,7 +93,7 @@ def test_config_with_invalid_hostname_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_CONFIG_NAME] = "example?.com"
+    data[HOSTNAME_FIELD_NAME] = "example?.com"
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -110,7 +110,7 @@ def test_config_with_empty_path_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PATH_CONFIG_NAME] = ""
+    data[PATH_FIELD_NAME] = ""
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -125,7 +125,7 @@ def test_config_with_invalid_path_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PATH_CONFIG_NAME] = "/^"
+    data[PATH_FIELD_NAME] = "/^"
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -143,9 +143,9 @@ def test_config_long_path_integration_data():
     assert: The configurations are correctly parsed.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PATH_CONFIG_NAME] = "/path/to/somewhere"
-    data[HEALTH_CHECK_PATH_CONFIG_NAME] = "/path$/to&/here!"
-    data[BACKENDS_PATH_CONFIG_NAME] = "/here/there"
+    data[PATH_FIELD_NAME] = "/path/to/somewhere"
+    data[HEALTH_CHECK_PATH_FIELD_NAME] = "/path$/to&/here!"
+    data[BACKENDS_PATH_FIELD_NAME] = "/here/there"
     config = LocationConfig.from_integration_data(data)
     assert config.hostname == "example.com"
     assert config.path == "/path/to/somewhere"
@@ -179,7 +179,7 @@ def test_config_with_invalid_backends_integration_data(invalid_backends, error_m
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[BACKENDS_CONFIG_NAME] = invalid_backends
+    data[BACKENDS_FIELD_NAME] = invalid_backends
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -194,7 +194,7 @@ def test_config_http_protocol_integration_data():
     assert: The configurations are correctly parsed.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROTOCOL_CONFIG_NAME] = "http"
+    data[PROTOCOL_FIELD_NAME] = "http"
     config = LocationConfig.from_integration_data(data)
     assert config.hostname == "example.com"
     assert config.path == "/"
@@ -213,7 +213,7 @@ def test_config_invalid_format_proxy_cache_valid_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_CONFIG_NAME] = "invalid"
+    data[PROXY_CACHE_VALID_FIELD_NAME] = "invalid"
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -228,7 +228,7 @@ def test_config_proxy_cache_valid_without_time_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_CONFIG_NAME] = '["200"]'
+    data[PROXY_CACHE_VALID_FIELD_NAME] = '["200"]'
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -243,7 +243,7 @@ def test_config_non_list_proxy_cache_valid_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_CONFIG_NAME] = '{"hello": 10}'
+    data[PROXY_CACHE_VALID_FIELD_NAME] = '{"hello": 10}'
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -258,7 +258,7 @@ def test_config_invalid_time_proxy_cache_valid_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 302 1y"]'
+    data[PROXY_CACHE_VALID_FIELD_NAME] = '["200 302 1y"]'
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -273,7 +273,7 @@ def test_config_non_int_time_proxy_cache_valid_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 302 tend"]'
+    data[PROXY_CACHE_VALID_FIELD_NAME] = '["200 302 tend"]'
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -288,7 +288,7 @@ def test_config_negative_time_proxy_cache_valid_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 302 -10d"]'
+    data[PROXY_CACHE_VALID_FIELD_NAME] = '["200 302 -10d"]'
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -303,7 +303,7 @@ def test_config_non_int_status_code_proxy_cache_valid_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_CONFIG_NAME] = '["ok 30m"]'
+    data[PROXY_CACHE_VALID_FIELD_NAME] = '["ok 30m"]'
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
@@ -318,9 +318,29 @@ def test_config_invalid_status_code_proxy_cache_valid_integration_data():
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 99 30m"]'
+    data[PROXY_CACHE_VALID_FIELD_NAME] = '["200 99 30m"]'
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
 
     assert "Value error, Invalid status code in proxy_cache_valid: 99" in str(err.value)
+
+
+def test_config_empty_proxy_cache_valid_integration_data():
+    """
+    arrange: Sample integration data with empty list as proxy_cache_valid.
+    act: Create the config from the data.
+    assert: Exception raised with the correct error message.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[PROXY_CACHE_VALID_FIELD_NAME] = "[]"
+
+    config = LocationConfig.from_integration_data(data)
+    assert config.hostname == "example.com"
+    assert config.path == "/"
+    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
+    assert config.protocol == "https"
+    assert config.health_check_path == "/"
+    assert config.health_check_interval == 30
+    assert config.backends_path == "/"
+    assert config.proxy_cache_valid == ()

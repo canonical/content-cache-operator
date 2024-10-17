@@ -23,6 +23,7 @@ class CacheTester:
         "hostname": "test.local",
         "path": "/",
         "backends": "20.27.177.113",  # A IP to github.com
+        "backends-path": "/canonical",
         "protocol": "http",
     }
 
@@ -30,6 +31,7 @@ class CacheTester:
         "hostname": "",
         "path": "/",
         "backends": "",
+        "backends-path": "/",
         "protocol": "https",
     }
 
