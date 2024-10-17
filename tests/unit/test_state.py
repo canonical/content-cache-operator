@@ -25,6 +25,7 @@ def test_config_from_integration_data():
     assert: The configurations are correctly parsed.
     """
     config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+
     assert config.hostname == "example.com"
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
@@ -43,6 +44,7 @@ def test_config_subdomain_integration_data():
     data = dict(SAMPLE_INTEGRATION_DATA)
     data[HOSTNAME_FIELD_NAME] = "hello.example.com"
     config = LocationConfig.from_integration_data(data)
+
     assert config.hostname == "hello.example.com"
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
@@ -192,6 +194,7 @@ def test_config_http_protocol_integration_data():
     data = dict(SAMPLE_INTEGRATION_DATA)
     data[PROTOCOL_FIELD_NAME] = "http"
     config = LocationConfig.from_integration_data(data)
+
     assert config.hostname == "example.com"
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
@@ -291,6 +294,7 @@ def test_config_valid_proxy_cache_valid_integration_data(proxy_cache_valid: str)
     data[PROXY_CACHE_VALID_FIELD_NAME] = proxy_cache_valid
 
     config = LocationConfig.from_integration_data(data)
+
     assert config.hostname == "example.com"
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))

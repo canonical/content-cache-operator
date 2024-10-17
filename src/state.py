@@ -232,7 +232,7 @@ def check_nginx_time_str(time_str: str) -> None:
     Raises:
         ValueError: The input is not valid time str for nginx.
     """
-    time_char = set(("d", "h", "m", "s"))
+    time_char = {"d", "h", "m", "s"}
     if time_str[-1] not in time_char:
         raise ValueError(f"Invalid time for proxy_cache_valid: {time_str}")
     try:
