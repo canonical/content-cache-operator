@@ -10,7 +10,6 @@ from src.state import HOSTNAME_FIELD_NAME, PATH_FIELD_NAME
 from state import (
     BACKENDS_FIELD_NAME,
     BACKENDS_PATH_FIELD_NAME,
-    HEALTH_CHECK_PATH_FIELD_NAME,
     PROTOCOL_FIELD_NAME,
     PROXY_CACHE_VALID_FIELD_NAME,
     LocationConfig,
@@ -29,7 +28,6 @@ def test_config_from_integration_data():
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "https"
-    assert config.health_check_path == "/"
     assert config.health_check_interval == 30
     assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
@@ -48,7 +46,6 @@ def test_config_subdomain_integration_data():
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "https"
-    assert config.health_check_path == "/"
     assert config.health_check_interval == 30
     assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
@@ -144,14 +141,12 @@ def test_config_long_path_integration_data():
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
     data[PATH_FIELD_NAME] = "/path/to/somewhere"
-    data[HEALTH_CHECK_PATH_FIELD_NAME] = "/path$/to&/here!"
     data[BACKENDS_PATH_FIELD_NAME] = "/here/there"
     config = LocationConfig.from_integration_data(data)
     assert config.hostname == "example.com"
     assert config.path == "/path/to/somewhere"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "https"
-    assert config.health_check_path == "/path$/to&/here!"
     assert config.health_check_interval == 30
     assert config.backends_path == "/here/there"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
@@ -200,7 +195,6 @@ def test_config_http_protocol_integration_data():
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "http"
-    assert config.health_check_path == "/"
     assert config.health_check_interval == 30
     assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
@@ -340,7 +334,6 @@ def test_config_empty_proxy_cache_valid_integration_data():
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "https"
-    assert config.health_check_path == "/"
     assert config.health_check_interval == 30
     assert config.backends_path == "/"
     assert config.proxy_cache_valid == ()

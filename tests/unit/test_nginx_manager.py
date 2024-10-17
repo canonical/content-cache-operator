@@ -80,10 +80,9 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager_path: 
 
     config_file_content = nginx_manager._get_sites_enabled_path(hostname).read_text()
 
-    assert "server 10.10.10.1" in config_file_content
-    assert "server 10.10.10.2" in config_file_content
+    assert "server 10.10.10.1 fail_timeout=300s" in config_file_content
+    assert "server 10.10.10.2 fail_timeout=300s" in config_file_content
     assert "location /path" in config_file_content
-    assert "health_check interval=300 uri=/health" in config_file_content
     assert "server_name example.com" in config_file_content
     assert "access_log" in config_file_content
     assert "error_log" in config_file_content

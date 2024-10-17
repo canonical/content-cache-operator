@@ -218,11 +218,6 @@ def _get_location_config_keys(
     keys = [
         nginx.Key("proxy_pass", f"{config.protocol.value}://{upstream}{config.backends_path}"),
         nginx.Key("proxy_set_header", f'Host "{host}"'),
-        # TODO: The health_check is a paid feature. Need to research how uri can be set otherwise.
-        # nginx.Key(
-        #     "health_check",
-        #     f"interval={config.health_check_interval} uri={config.health_check_path}",
-        # )
     ]
 
     for cache_valid in config.proxy_cache_valid:

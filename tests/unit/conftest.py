@@ -15,7 +15,6 @@ from state import (
     BACKENDS_FIELD_NAME,
     BACKENDS_PATH_FIELD_NAME,
     HEALTH_CHECK_INTERVAL_FIELD_NAME,
-    HEALTH_CHECK_PATH_FIELD_NAME,
     HOSTNAME_FIELD_NAME,
     PATH_FIELD_NAME,
     PROTOCOL_FIELD_NAME,
@@ -27,7 +26,6 @@ SAMPLE_INTEGRATION_DATA = {
     PATH_FIELD_NAME: "/",
     BACKENDS_FIELD_NAME: '["10.10.1.1", "10.10.2.2"]',
     PROTOCOL_FIELD_NAME: "https",
-    HEALTH_CHECK_PATH_FIELD_NAME: "/",
     HEALTH_CHECK_INTERVAL_FIELD_NAME: "30",
     BACKENDS_PATH_FIELD_NAME: "/",
     PROXY_CACHE_VALID_FIELD_NAME: '["200 302 1h", "404 1m"]',
@@ -61,8 +59,12 @@ def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
 
 
 @pytest.fixture(name="harness", scope="function")
-def harness_fixture(mock_nginx_manager: MagicMock) -> Iterator[Harness]:
-    """The ops testing harness fixture."""
+def harness_fixture(monkeypatch, mock_nginx_manager: MagicMock) -> Iterator[Harness]:
+    """The ops testing harness fixture.
+
+    The mock_nginx_manager is to ensure the nginx_manager module is patched.
+    """
+    monkeypatch.setattr("charm.sleep", MagicMock())
     harness = Harness(ContentCacheCharm)
     harness.begin_with_initial_hooks()
     yield harness

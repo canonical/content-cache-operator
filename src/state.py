@@ -23,7 +23,6 @@ HOSTNAME_FIELD_NAME = "hostname"
 PATH_FIELD_NAME = "path"
 BACKENDS_FIELD_NAME = "backends"
 PROTOCOL_FIELD_NAME = "protocol"
-HEALTH_CHECK_PATH_FIELD_NAME = "health_check_path"
 HEALTH_CHECK_INTERVAL_FIELD_NAME = "health_check_interval"
 BACKENDS_PATH_FIELD_NAME = "backends_path"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
@@ -50,7 +49,6 @@ class LocationConfig(pydantic.BaseModel):
         backends: The backends for this set of configuration.
         protocol: The protocol to request the backends with. Can be http or
             https.
-        health_check_path: The health check path for the backends.
         health_check_interval: The interval between health check for the backends.
         backends_path: The path to request the backends.
         proxy_cache_valid: The cache valid duration.
@@ -60,7 +58,6 @@ class LocationConfig(pydantic.BaseModel):
     path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     backends: tuple[pydantic.IPvAnyAddress, ...]
     protocol: Protocol
-    health_check_path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     health_check_interval: pydantic.PositiveInt
     backends_path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     proxy_cache_valid: tuple[str, ...]
@@ -98,19 +95,6 @@ class LocationConfig(pydantic.BaseModel):
     @classmethod
     def validate_path(cls, value: str) -> str:
         """Validate the path.
-
-        Args:
-            value: The value to validate.
-
-        Returns:
-            The value after validation.
-        """
-        return validate_path_value(value)
-
-    @pydantic.field_validator("health_check_path")
-    @classmethod
-    def validate_health_check_path(cls, value: str) -> str:
-        """Validate the health_check_path.
 
         Args:
             value: The value to validate.
@@ -174,7 +158,6 @@ class LocationConfig(pydantic.BaseModel):
         path = data.get(PATH_FIELD_NAME, "").strip()
         protocol = data.get(PROTOCOL_FIELD_NAME, "").lower().strip()
         backends_str = data.get(BACKENDS_FIELD_NAME, "").strip()
-        health_check_path = data.get(HEALTH_CHECK_PATH_FIELD_NAME, "").strip()
         health_check_interval = data.get(HEALTH_CHECK_INTERVAL_FIELD_NAME, "").strip()
         backends_path = data.get(BACKENDS_PATH_FIELD_NAME, "").strip()
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
@@ -208,7 +191,6 @@ class LocationConfig(pydantic.BaseModel):
                 path=path,
                 backends=backends,  # type: ignore
                 protocol=protocol,  # type: ignore
-                health_check_path=health_check_path,
                 health_check_interval=health_check_interval,  # type: ignore
                 backends_path=backends_path,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
