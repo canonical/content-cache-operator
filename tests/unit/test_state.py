@@ -1,6 +1,7 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import json
 from ipaddress import IPv4Address
 
 import pytest
@@ -28,7 +29,7 @@ def test_config_from_integration_data():
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "https"
-    assert config.health_check_interval == 30
+    assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
@@ -46,7 +47,7 @@ def test_config_subdomain_integration_data():
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "https"
-    assert config.health_check_interval == 30
+    assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
@@ -147,7 +148,7 @@ def test_config_long_path_integration_data():
     assert config.path == "/path/to/somewhere"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "https"
-    assert config.health_check_interval == 30
+    assert config.fail_timeout == "30s"
     assert config.backends_path == "/here/there"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
@@ -195,145 +196,105 @@ def test_config_http_protocol_integration_data():
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "http"
-    assert config.health_check_interval == 30
+    assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 
-def test_config_invalid_format_proxy_cache_valid_integration_data():
+@pytest.mark.parametrize(
+    "invalid_proxy_cache_valid, error_message",
+    [
+        pytest.param(
+            "invalid",
+            "Unable to parse proxy_cache_valid: invalid",
+            id="invalid format",
+        ),
+        pytest.param(
+            '["200"]',
+            "Invalid item in proxy_cache_valid: 200",
+            id="no time",
+        ),
+        pytest.param(
+            '{"hello": 10}',
+            'The proxy_cache_valid is not a list: {"hello": 10}',
+            id="non list",
+        ),
+        pytest.param(
+            '["200 302 1y"]',
+            "Invalid time for proxy_cache_valid: 1y",
+            id="Invalid time unit",
+        ),
+        pytest.param(
+            '["200 tenm"]',
+            "Non-int time in proxy_cache_valid: tenm",
+            id="non-int time",
+        ),
+        pytest.param(
+            '["200 -10h"]',
+            "Time must be positive int for proxy_cache_valid: -10h",
+            id="negative time",
+        ),
+        pytest.param(
+            '["ok 30m"]',
+            "Non-int status code in proxy_cache_valid: ok",
+            id="non-int status code",
+        ),
+        pytest.param(
+            '["200 99 30m"]',
+            "Invalid status code in proxy_cache_valid: 99",
+            id="invalid status code",
+        ),
+    ],
+)
+def test_config_invalid_proxy_cache_valid_integration_data(
+    invalid_proxy_cache_valid: str, error_message: str
+):
     """
-    arrange: Sample integration data with proxy_cache_valid of invalid format.
+    arrange: Sample integration data with invalid proxy_cache_valid.
     act: Create the config from the data.
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = "invalid"
+    data[PROXY_CACHE_VALID_FIELD_NAME] = invalid_proxy_cache_valid
 
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
 
-    assert "Unable to parse proxy_cache_valid: invalid" in str(err.value)
+    assert error_message in str(err.value)
 
 
-def test_config_proxy_cache_valid_without_time_integration_data():
+@pytest.mark.parametrize(
+    "proxy_cache_valid",
+    [
+        pytest.param("[]", id="empty"),
+        pytest.param(
+            '["200 302 2h", "400 1m"]',
+            id="common",
+        ),
+        pytest.param('["200 1m"]', id="single item"),
+        pytest.param('["200 1s"]', id="seconds in time"),
+        pytest.param('["200 1h"]', id="hours in time"),
+        pytest.param('["100 200 302 404 1h"]', id="long item"),
+        pytest.param(
+            '["100 200 302 404 1h", "300 500 502 2m", "202 201 401 402 403 1s"]',
+            id="multiple long in proxy-cache-valid",
+        ),
+    ],
+)
+def test_config_valid_proxy_cache_valid_integration_data(proxy_cache_valid: str):
     """
-    arrange: Sample integration data with proxy_cache_valid without time.
+    arrange: Sample integration data with valid proxy_cache_valid.
     act: Create the config from the data.
     assert: Exception raised with the correct error message.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = '["200"]'
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "Value error, Invalid item in proxy_cache_valid: 200" in str(err.value)
-
-
-def test_config_non_list_proxy_cache_valid_integration_data():
-    """
-    arrange: Sample integration data with non-list proxy_cache_valid.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = '{"hello": 10}'
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert 'The proxy_cache_valid is not a list: {"hello": 10}' in str(err.value)
-
-
-def test_config_invalid_time_proxy_cache_valid_integration_data():
-    """
-    arrange: Sample integration data with proxy_cache_valid with invalid time.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = '["200 302 1y"]'
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "Value error, Invalid time for proxy_cache_valid: 1y" in str(err.value)
-
-
-def test_config_non_int_time_proxy_cache_valid_integration_data():
-    """
-    arrange: Sample integration data with proxy_cache_valid with non-int time.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = '["200 302 tend"]'
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "Value error, Non-int time in proxy_cache_valid: tend" in str(err.value)
-
-
-def test_config_negative_time_proxy_cache_valid_integration_data():
-    """
-    arrange: Sample integration data with proxy_cache_valid with negative time.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = '["200 302 -10d"]'
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "Value error, Time must be positive int for proxy_cache_valid: -10d" in str(err.value)
-
-
-def test_config_non_int_status_code_proxy_cache_valid_integration_data():
-    """
-    arrange: Sample integration data with proxy_cache_valid with non-int status code.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = '["ok 30m"]'
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "Value error, Non-int status code in proxy_cache_valid: ok" in str(err.value)
-
-
-def test_config_invalid_status_code_proxy_cache_valid_integration_data():
-    """
-    arrange: Sample integration data with proxy_cache_valid with invalid status code.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = '["200 99 30m"]'
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "Value error, Invalid status code in proxy_cache_valid: 99" in str(err.value)
-
-
-def test_config_empty_proxy_cache_valid_integration_data():
-    """
-    arrange: Sample integration data with empty list as proxy_cache_valid.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = "[]"
+    data[PROXY_CACHE_VALID_FIELD_NAME] = proxy_cache_valid
 
     config = LocationConfig.from_integration_data(data)
     assert config.hostname == "example.com"
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "https"
-    assert config.health_check_interval == 30
+    assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.proxy_cache_valid == ()
+    assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))

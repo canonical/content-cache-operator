@@ -102,7 +102,7 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
     assert location_config.path == "/"
     assert location_config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert location_config.protocol == "https"
-    assert location_config.health_check_interval == 30
+    assert location_config.fail_timeout == "30s"
     assert location_config.backends_path == "/"
     assert location_config.proxy_cache_valid == ("200 302 1h", "404 1m")
 

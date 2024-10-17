@@ -196,8 +196,7 @@ def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
         The nginx.Key for the upstream configuration.
     """
     keys = [
-        nginx.Key("server", f"{ip} fail_timeout={config.health_check_interval}s")
-        for ip in config.backends
+        nginx.Key("server", f"{ip} fail_timeout={config.fail_timeout}") for ip in config.backends
     ]
     return tuple(keys)
 

@@ -68,8 +68,7 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager_path: 
                 path="/path",
                 backends=(IPv4Address("10.10.10.2"), IPv4Address("10.10.10.1")),
                 protocol="https",
-                health_check_path="/health",
-                health_check_interval=300,
+                fail_timeout="30s",
                 backends_path="/backend",
                 proxy_cache_valid=("200 302 30m", "404 1m"),
             )
@@ -80,8 +79,8 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager_path: 
 
     config_file_content = nginx_manager._get_sites_enabled_path(hostname).read_text()
 
-    assert "server 10.10.10.1 fail_timeout=300s" in config_file_content
-    assert "server 10.10.10.2 fail_timeout=300s" in config_file_content
+    assert "server 10.10.10.1 fail_timeout=30s" in config_file_content
+    assert "server 10.10.10.2 fail_timeout=30s" in config_file_content
     assert "location /path" in config_file_content
     assert "server_name example.com" in config_file_content
     assert "access_log" in config_file_content

@@ -23,7 +23,7 @@ HOSTNAME_FIELD_NAME = "hostname"
 PATH_FIELD_NAME = "path"
 BACKENDS_FIELD_NAME = "backends"
 PROTOCOL_FIELD_NAME = "protocol"
-HEALTH_CHECK_INTERVAL_FIELD_NAME = "health_check_interval"
+FAIL_TIMEOUT_FIELD_NAME = "fail_timeout"
 BACKENDS_PATH_FIELD_NAME = "backends_path"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
 
@@ -47,9 +47,8 @@ class LocationConfig(pydantic.BaseModel):
         hostname: The hostname for the virtual host for this set of configuration.
         path: The path for this set of configuration.
         backends: The backends for this set of configuration.
-        protocol: The protocol to request the backends with. Can be http or
-            https.
-        health_check_interval: The interval between health check for the backends.
+        protocol: The protocol to request the backends with. Can be http or https.
+        fail_timeout: The time to wait before using a backend after failure.
         backends_path: The path to request the backends.
         proxy_cache_valid: The cache valid duration.
     """
@@ -58,7 +57,7 @@ class LocationConfig(pydantic.BaseModel):
     path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     backends: tuple[pydantic.IPvAnyAddress, ...]
     protocol: Protocol
-    health_check_interval: pydantic.PositiveInt
+    fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     backends_path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     proxy_cache_valid: tuple[str, ...]
 
@@ -158,7 +157,7 @@ class LocationConfig(pydantic.BaseModel):
         path = data.get(PATH_FIELD_NAME, "").strip()
         protocol = data.get(PROTOCOL_FIELD_NAME, "").lower().strip()
         backends_str = data.get(BACKENDS_FIELD_NAME, "").strip()
-        health_check_interval = data.get(HEALTH_CHECK_INTERVAL_FIELD_NAME, "").strip()
+        fail_timeout = data.get(FAIL_TIMEOUT_FIELD_NAME, "").strip()
         backends_path = data.get(BACKENDS_PATH_FIELD_NAME, "").strip()
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
 
@@ -191,7 +190,7 @@ class LocationConfig(pydantic.BaseModel):
                 path=path,
                 backends=backends,  # type: ignore
                 protocol=protocol,  # type: ignore
-                health_check_interval=health_check_interval,  # type: ignore
+                fail_timeout=fail_timeout,
                 backends_path=backends_path,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
             )

@@ -22,9 +22,13 @@ class CacheTester:
     TEST_CONFIG = {
         "hostname": "test.local",
         "path": "/",
-        "backends": "20.27.177.113",  # A IP to github.com
+        # 196.168.111.111 is a IP to nowhere.
+        # 20.27.177.113 is a IP to github.com.
+        "backends": "196.168.111.111,20.27.177.113",
         "backends-path": "/canonical",
         "protocol": "http",
+        "fail-timeout": "10s",
+        "proxy-cache-valid": '["301 10s"]',
     }
 
     EMPTY_CONFIG = {
@@ -33,6 +37,8 @@ class CacheTester:
         "backends": "",
         "backends-path": "/",
         "protocol": "https",
+        "fail-timeout": "30s",
+        "proxy-cache-valid": "[]",
     }
 
     def __init__(self, model: Model, app: Application, config_app: Application):
