@@ -56,8 +56,10 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager_path: 
     act: Create configuration files from the data.
     assert: The files are created and has the configurations.
     """
-    # TODO: Patch the execute_command, and ready_check instead of _load_config
-    monkeypatch.setattr("nginx_manager._load_config", MagicMock())
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    mock_ready_check = MagicMock()
+    mock_ready_check.return_value = True
+    monkeypatch.setattr("nginx_manager.ready_check", mock_ready_check)
     hostname = "example.com"
     sample_data = {
         hostname: {
