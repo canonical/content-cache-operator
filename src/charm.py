@@ -6,6 +6,7 @@
 """The content-cache charm."""
 
 import logging
+from time import sleep
 
 import ops
 
@@ -111,7 +112,12 @@ class ContentCacheCharm(ops.CharmBase):
             )
             status_message = f"Error for host: {err.hosts}"
 
-        self.unit.status = ops.ActiveStatus(status_message)
+        for _ in range(6):
+            self._set_status()
+            if isinstance(self.unit.status, ops.ActiveStatus):
+                self.unit.status = ops.ActiveStatus(status_message)
+                break
+            sleep(5)
 
 
 def _nginx_initialize() -> None:
