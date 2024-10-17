@@ -59,7 +59,7 @@ async def config_app_fixture(model: Model, config_app_name: str) -> AsyncIterato
     """The configuration charm application for testing."""
     logger.info("Deploying test cache application %s", config_app_name)
     app: Application = await model.deploy(
-        CONFIG_CHARM_NAME, config_app_name, base="ubuntu@24.04", channel="latest/edge", revision=4
+        CONFIG_CHARM_NAME, config_app_name, base="ubuntu@24.04", channel="latest/edge", revision=5
     )
     yield app
     logger.info("Cleaning test cache application %s", config_app_name)

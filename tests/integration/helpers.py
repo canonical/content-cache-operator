@@ -21,10 +21,9 @@ class CacheTester:
 
     TEST_CONFIG = {
         "hostname": "test.local",
-        "path": "/",
-        # 196.168.111.111 is a IP to nowhere.
+        "path": "/content-cache-operator",
         # 20.27.177.113 is a IP to github.com.
-        "backends": "196.168.111.111,20.27.177.113",
+        "backends": "20.27.177.113",
         "backends-path": "/canonical",
         "protocol": "http",
         "fail-timeout": "10s",
@@ -76,7 +75,7 @@ class CacheTester:
         ip = await unit.get_public_address()
 
         response = requests.get(
-            f"http://{ip}",
+            f"http://{ip}/content-cache-operator",
             headers={"Host": "test.local"},
             allow_redirects=False,
             verify=False,
