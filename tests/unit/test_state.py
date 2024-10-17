@@ -35,22 +35,6 @@ def test_config_from_integration_data():
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 
-def test_config_from_integration_data():
-    """
-    arrange: Valid sample integration data.
-    act: Create the config from the data.
-    assert: The configurations are correctly parsed.
-    """
-    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
-    assert config.hostname == "example.com"
-    assert config.path == "/"
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
-    assert config.health_check_path == "/"
-    assert config.health_check_interval == 30
-    assert config.backends_path == "/"
-    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
-
 def test_config_subdomain_integration_data():
     """
     arrange: Valid sample integration data with subdomain in hostname.

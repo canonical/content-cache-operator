@@ -4,6 +4,7 @@
 """Unit test for nginx_manager module."""
 
 from ipaddress import IPv4Address
+from unittest.mock import MagicMock
 
 import nginx_manager
 from state import LocationConfig
@@ -49,19 +50,21 @@ def test_reset_file_with_existing_files(patch_nginx_manager_path: None):
     assert not tuple(nginx_manager.NGINX_SITES_ENABLED_PATH.iterdir())
 
 
-def test_update_config_with_valid_config(patch_nginx_manager_path: None):
+def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager_path: None):
     """
     arrange: Valid configuration data.
     act: Create configuration files from the data.
     assert: The files are created and has the configurations.
     """
+    # TODO: Patch the execute_command, and ready_check instead of _load_config
+    monkeypatch.setattr("nginx_manager._load_config", MagicMock())
     hostname = "example.com"
     sample_data = {
         hostname: {
             "/path": LocationConfig(
                 hostname=hostname,
                 path="/path",
-                backends=(IPv4Address("10.10.10.2"),IPv4Address("10.10.10.1")),
+                backends=(IPv4Address("10.10.10.2"), IPv4Address("10.10.10.1")),
                 protocol="https",
                 health_check_path="/health",
                 health_check_interval=300,
@@ -71,10 +74,10 @@ def test_update_config_with_valid_config(patch_nginx_manager_path: None):
         }
     }
 
-    nginx_manager.update_config(sample_data)
+    nginx_manager.update_and_load_config(sample_data)
 
     config_file_content = nginx_manager._get_sites_enabled_path(hostname).read_text()
-    
+
     assert "server 10.10.10.1" in config_file_content
     assert "server 10.10.10.2" in config_file_content
     assert "location /path" in config_file_content

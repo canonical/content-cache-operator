@@ -63,7 +63,7 @@ class LocationConfig(pydantic.BaseModel):
     health_check_path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     health_check_interval: pydantic.PositiveInt
     backends_path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
-    proxy_cache_valid: tuple[str,...]
+    proxy_cache_valid: tuple[str, ...]
 
     @pydantic.field_validator("hostname")
     @classmethod
@@ -182,10 +182,14 @@ class LocationConfig(pydantic.BaseModel):
         try:
             proxy_cache_valid = json.loads(proxy_cache_valid_str)
         except json.JSONDecodeError as err:
-            raise ConfigurationError(f"Unable to parse proxy_cache_valid: {proxy_cache_valid_str}") from err
+            raise ConfigurationError(
+                f"Unable to parse proxy_cache_valid: {proxy_cache_valid_str}"
+            ) from err
 
         if not isinstance(proxy_cache_valid, list):
-            raise ConfigurationError(f"The proxy_cache_valid is not a list: {proxy_cache_valid_str}")
+            raise ConfigurationError(
+                f"The proxy_cache_valid is not a list: {proxy_cache_valid_str}"
+            )
 
         try:
             backends = json.loads(backends_str)
@@ -203,11 +207,11 @@ class LocationConfig(pydantic.BaseModel):
                 hostname=hostname,
                 path=path,
                 backends=backends,  # type: ignore
-                health_check_path=health_check_path,
-                health_check_interval=health_check_interval,
-                backends_path=backends_path,
-                proxy_cache_valid=proxy_cache_valid,
                 protocol=protocol,  # type: ignore
+                health_check_path=health_check_path,
+                health_check_interval=health_check_interval,  # type: ignore
+                backends_path=backends_path,
+                proxy_cache_valid=proxy_cache_valid,  # type: ignore
             )
         except pydantic.ValidationError as err:
             err_msg = [

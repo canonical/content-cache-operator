@@ -53,17 +53,6 @@ def initialize() -> None:  # pragma: no cover
         raise NginxSetupError(f"Failed to start nginx: {stderr}")
 
 
-def load_config() -> None:  # pragma: no cover
-    """Load nginx configurations."""
-    if ready_check():
-        logger.info("Loading nginx configuration files")
-        # This is reload the configuration files without interrupting service.
-        execute_command(["sudo", "nginx", "-s", "reload"])
-        return
-    logger.info("Restarting nginx to load the configuration files.")
-    execute_command(["sudo", "systemctl", "restart", "nginx"])
-
-
 def stop() -> None:  # pragma: no cover
     """Stop the nginx server.
 
@@ -87,8 +76,8 @@ def ready_check() -> bool:  # pragma: no cover
     return return_code == 0
 
 
-def update_config(configuration: NginxConfig) -> None:
-    """Update the nginx configuration files.
+def update_and_load_config(configuration: NginxConfig) -> None:
+    """Update the nginx configuration files and load them.
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
@@ -115,6 +104,20 @@ def update_config(configuration: NginxConfig) -> None:
 
     if errored_hosts:
         raise NginxConfigurationAggregateError(errored_hosts, configuration_errors)
+
+    _load_config()
+
+
+def _load_config() -> None:  # pragma: no cover
+    """Load nginx configurations."""
+    if ready_check():
+        logger.info("Loading nginx configuration files")
+        # This is reload the configuration files without interrupting service.
+        execute_command(["sudo", "nginx", "-s", "reload"])
+        return
+
+    logger.info("Restarting nginx to load the configuration files.")
+    execute_command(["sudo", "systemctl", "restart", "nginx"])
 
 
 def _reset_sites_config_files() -> None:
@@ -157,13 +160,14 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
             nginx.Key("access_log", _get_access_log_path(host)),
             nginx.Key("error_log", _get_error_log_path(host)),
         )
+
         for path, config in configuration.items():
             # Each set of hostname configuration with path configuration needs a upstream.
             # Each upstream needs a unique upstream hostname.
             # Since the hostname configuration supports any valid hostname, which is up to 255 in
             # length, the upstream hostname cannot be built upon it. Therefore, UUIDv4 is used to
             # the upstream hostname.
-            upstream = uuid.uuid4()
+            upstream = str(uuid.uuid4())
             upstream_keys = _get_upstream_config_keys(config)
             upstream_config = nginx.Upstream(upstream, *upstream_keys)
             nginx_config.add(upstream_config)
@@ -198,7 +202,7 @@ def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
             f"interval={config.health_check_interval} uri={config.health_check_path}",
         )
     )
-    return keys
+    return tuple(keys)
 
 
 def _get_location_config_keys(
@@ -222,7 +226,7 @@ def _get_location_config_keys(
     for cache_valid in config.proxy_cache_valid:
         keys.append(nginx.Key("proxy_cache_valid", cache_valid))
 
-    return keys
+    return tuple(keys)
 
 
 def _create_and_enable_config(host: str, nginx_config: nginx.Conf) -> None:
