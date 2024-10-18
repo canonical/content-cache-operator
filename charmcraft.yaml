@@ -13,5 +13,10 @@ platforms:
 parts:
   charm:
     build-packages: [cargo, rustc, pkg-config, libffi-dev, libssl-dev]
+    build-snaps:
+      - rustup
+    override-build: |
+      rustup default stable
+      craftctl default
     charm-python-packages: [setuptools, pip]  # https://discourse.charmhub.io/t/install-or-update-python-packages-before-packing-a-charm/5158
     charm-binary-python-packages: [cosl]  # https://github.com/canonical/charmcraft/issues/1269
