@@ -56,15 +56,21 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager_path: 
     act: Create configuration files from the data.
     assert: The files are created and has the configurations.
     """
-    monkeypatch.setattr("nginx_manager._load_config", MagicMock())
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    mock_ready_check = MagicMock()
+    mock_ready_check.return_value = True
+    monkeypatch.setattr("nginx_manager.ready_check", mock_ready_check)
     hostname = "example.com"
     sample_data = {
         hostname: {
-            "/": LocationConfig(
+            "/path": LocationConfig(
                 hostname=hostname,
-                path="/",
-                backends=(IPv4Address("10.10.10.10"),),
+                path="/path",
+                backends=(IPv4Address("10.10.10.2"), IPv4Address("10.10.10.1")),
                 protocol="https",
+                fail_timeout="30s",
+                backends_path="/backend",
+                proxy_cache_valid=("200 302 30m", "404 1m"),
             )
         }
     }
@@ -72,7 +78,14 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager_path: 
     nginx_manager.update_and_load_config(sample_data)
 
     config_file_content = nginx_manager._get_sites_enabled_path(hostname).read_text()
-    assert "server 10.10.10.10" in config_file_content
+
+    assert "server 10.10.10.1 fail_timeout=30s" in config_file_content
+    assert "server 10.10.10.2 fail_timeout=30s" in config_file_content
+    assert "location /path" in config_file_content
     assert "server_name example.com" in config_file_content
     assert "access_log" in config_file_content
     assert "error_log" in config_file_content
+    assert "proxy_cache_valid 200 302 30m" in config_file_content
+    assert "proxy_cache_valid 404 1m" in config_file_content
+    assert "proxy_pass https://" in config_file_content
+    assert "/backend" in config_file_content
