@@ -71,6 +71,9 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _set_status(self) -> None:
         """Set the charm status."""
+        if isinstance(self.unit.status, ops.BlockedStatus):
+            return
+
         if not self.model.relations[CACHE_CONFIG_INTEGRATION_NAME]:
             self.unit.status = ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
             return
