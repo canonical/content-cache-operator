@@ -32,11 +32,14 @@ def test_start_no_relation(charm: ContentCacheCharm, mock_nginx_manager: MagicMo
 
 def test_stop_nginx(charm: ContentCacheCharm, mock_nginx_manager: MagicMock):
     """
-    arrange: A working charm.
+    arrange: A working charm. Reset the mocks.
     act: Emit stop event.
     assert: Method to stop nginx called.
     """
+    mock_nginx_manager.stop.reset_mock()
+
     charm._on_stop(MagicMock())
+
     mock_nginx_manager.stop.assert_called_once()
 
 
