@@ -14,11 +14,11 @@ display-name: Content Cache
 
 # (Required)
 summary: A charm for managing a content cache with nginx.
-docs: https://discourse.charmhub.io
-issues: https://github.com/canonical/is-charms-template-repo/issues
+docs: https://discourse.charmhub.io/content-cache-documentation-overview
+issues: https://github.com/canonical/content-cache-operator/issues
 maintainers: 
   - https://launchpad.net/~canonical-is-devops
-source: https://github.com/canonical/is-charms-template-repo
+source: https://github.com/canonical/content-cache-operator
 
 description: |
   A [Juju](https://juju.is/) [charm](https://juju.is/docs/olm/charmed-operators) deploying and managing a static web content cache with nginx.
