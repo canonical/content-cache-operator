@@ -4,6 +4,8 @@
 """Manage nginx instance."""
 
 import logging
+import os
+import pwd
 import shutil
 import uuid
 from pathlib import Path
@@ -25,6 +27,8 @@ logger = logging.getLogger(__name__)
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
 NGINX_LOG_PATH = Path("/var/log/nginx")
+NGINX_PROXY_CACHE_DIR_PATH = Path("/data/nginx/cache")
+NGINX_USER = "www-data"
 
 
 # Unit test is not valuable as the module is closely coupled with nginx.
@@ -44,7 +48,7 @@ def initialize() -> None:  # pragma: no cover
         raise NginxSetupError(f"Failed to install nginx: {stderr}")
 
     logger.info("Clean up default configuration files")
-    _reset_sites_config_files()
+    _reset_nginx_files()
     return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", "nginx"])
     if return_code != 0:
         raise NginxSetupError(f"Failed to enable nginx: {stderr}")
@@ -87,7 +91,7 @@ def update_and_load_config(configuration: NginxConfig) -> None:
         configuration: The nginx locations configurations.
     """
     # This will reset the file permissions.
-    _reset_sites_config_files()
+    _reset_nginx_files()
 
     errored_hosts: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
@@ -120,14 +124,14 @@ def _load_config() -> None:  # pragma: no cover
     execute_command(["sudo", "systemctl", "restart", "nginx"])
 
 
-def _reset_sites_config_files() -> None:
-    """Reset the Nginx sites configuration files.
+def _reset_nginx_files() -> None:
+    """Reset the Nginx files.
 
     Raises:
-        NginxFileError: File operation errors while updating nginx configuration files.
+        NginxFileError: File operation errors resetting Nginx files.
     """
-    logger.info("Resetting the nginx sites configuration files directories")
     try:
+        logger.info("Resetting the nginx sites configuration files directories.")
         if NGINX_SITES_AVAILABLE_PATH.exists():
             shutil.rmtree(NGINX_SITES_AVAILABLE_PATH)
         if NGINX_SITES_ENABLED_PATH.exists():
@@ -137,9 +141,13 @@ def _reset_sites_config_files() -> None:
         NGINX_SITES_ENABLED_PATH.mkdir(mode=0o755, parents=True, exist_ok=True)
         NGINX_SITES_AVAILABLE_PATH.chmod(mode=0o755)
         NGINX_SITES_ENABLED_PATH.chmod(mode=0o755)
+        logger.info("Ensure nginx cache directory is present.")
+        NGINX_PROXY_CACHE_DIR_PATH.mkdir(mode=0o755, parents=True, exist_ok=True)
+        user = pwd.getpwnam(NGINX_USER)
+        os.chown(NGINX_PROXY_CACHE_DIR_PATH, user.pw_uid, user.pw_gid)
     except (PermissionError, OSError, IOError) as err:
-        logger.exception("Failed to reset the sites configurations directories.")
-        raise NginxFileError("Failed to reset sites configurations") from err
+        logger.exception("Failed to reset the nginx files.")
+        raise NginxFileError("Failed to reset nginx files") from err
 
 
 def _create_server_config(host: str, configuration: HostConfig) -> None:
@@ -154,8 +162,12 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
     """
     logger.info("Creating the nginx site configuration file for hosts %s", host)
     try:
-        nginx_config = nginx.Conf()
+        proxy_cache_path = NGINX_PROXY_CACHE_DIR_PATH / host
+        nginx_config = nginx.Conf(
+            nginx.Key("proxy_cache_path", f"{proxy_cache_path} keys_zone={host}:10m")
+        )
         server_config = nginx.Server(
+            nginx.Key("proxy_cache", host),
             nginx.Key("server_name", host),
             nginx.Key("access_log", _get_access_log_path(host)),
             nginx.Key("error_log", _get_error_log_path(host)),

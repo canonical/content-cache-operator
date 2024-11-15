@@ -32,11 +32,14 @@ SAMPLE_INTEGRATION_DATA = {
 }
 
 
-@pytest.fixture(name="patch_nginx_manager_path", scope="function")
-def patch_nginx_manager_path_fixture(monkeypatch, tmp_path: Path) -> None:
-    """Patch the Path used by nginx_manager module."""
+@pytest.fixture(name="patch_nginx_manager", scope="function")
+def patch_nginx_manager_fixture(monkeypatch, tmp_path: Path) -> None:
+    """Patch the nginx_manager module."""
     monkeypatch.setattr("nginx_manager.NGINX_SITES_ENABLED_PATH", tmp_path / "sites-enabled")
     monkeypatch.setattr("nginx_manager.NGINX_SITES_AVAILABLE_PATH", tmp_path / "sites-available")
+    monkeypatch.setattr("nginx_manager.NGINX_LOG_PATH", tmp_path / "logs")
+    monkeypatch.setattr("nginx_manager.NGINX_PROXY_CACHE_DIR_PATH", tmp_path / "cache")
+    monkeypatch.setattr("nginx_manager.os.chown", MagicMock())
 
 
 @pytest.fixture(name="mock_nginx_manager", scope="function")
