@@ -71,7 +71,7 @@ class ContentCacheCharm(ops.CharmBase):
         self._load_nginx_config()
 
     def _update_status(self) -> None:
-        """Set the charm status."""
+        """Update the charm status."""
         if self.get_config_and_update_status() is None:
             return
         self._update_status_with_nginx()
