@@ -30,3 +30,7 @@ description: |
 provides:
   cache-config:
     interface: content-cache-config
+
+requires:
+  certificates:
+    interface: tls-certificates
