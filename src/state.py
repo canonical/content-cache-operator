@@ -133,7 +133,9 @@ class LocationConfig(pydantic.BaseModel):
         for item in value:
             tokens = item.split(" ")
             if len(tokens) < 2:
-                raise ValueError(f"Invalid item in proxy_cache_valid: {item}")
+                raise ValueError(
+                    f"The proxy_cache_valid must contain at least one status code and a time: {item}"
+                )
             status_codes, time_str = tokens[:-1], tokens[-1]
             for code_str in status_codes:
                 check_status_code(code_str)
@@ -234,7 +236,7 @@ def check_nginx_time_str(time_str: str) -> None:
     """
     time_char = {"d", "h", "m", "s"}
     if time_str[-1] not in time_char:
-        raise ValueError(f"Invalid time for proxy_cache_valid: {time_str}")
+        raise ValueError(f"Invalid time unit for proxy_cache_valid: {time_str}")
     try:
         time = int(time_str[:-1])
     except ValueError as err:

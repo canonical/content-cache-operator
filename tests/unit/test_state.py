@@ -214,7 +214,7 @@ def test_config_http_protocol_integration_data():
         ),
         pytest.param(
             '["200"]',
-            "Invalid item in proxy_cache_valid: 200",
+            "The proxy_cache_valid must contain at least one status code and a time: 200",
             id="no time",
         ),
         pytest.param(
@@ -224,7 +224,7 @@ def test_config_http_protocol_integration_data():
         ),
         pytest.param(
             '["200 302 1y"]',
-            "Invalid time for proxy_cache_valid: 1y",
+            "Invalid time unit for proxy_cache_valid: 1y",
             id="Invalid time unit",
         ),
         pytest.param(

@@ -128,7 +128,6 @@ class ContentCacheCharm(ops.CharmBase):
             self.unit.status = ops.BlockedStatus(str(err))
             return None
         if not nginx_config:
-            _nginx_stop()
             self.unit.status = ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
             return None
         self.unit.status = ops.MaintenanceStatus(RECEIVED_NGINX_CONFIG_MESSAGE)
