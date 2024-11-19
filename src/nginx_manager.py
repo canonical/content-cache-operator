@@ -162,9 +162,8 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
     """
     logger.info("Creating the nginx site configuration file for hosts %s", host)
     try:
-        proxy_cache_path = NGINX_PROXY_CACHE_DIR_PATH / host
         nginx_config = nginx.Conf(
-            nginx.Key("proxy_cache_path", f"{proxy_cache_path} keys_zone={host}:10m")
+            nginx.Key("proxy_cache_path", f"{NGINX_PROXY_CACHE_DIR_PATH} use_temp_path=off levels=1:2 keys_zone={host}:10m")
         )
         server_config = nginx.Server(
             nginx.Key("proxy_cache", host),
