@@ -72,7 +72,7 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _update_status(self) -> None:
         """Update the charm status."""
-        if self.get_config_and_update_status() is None:
+        if self._get_config_and_update_status() is None:
             return
         self._update_status_with_nginx()
 
@@ -90,7 +90,7 @@ class ContentCacheCharm(ops.CharmBase):
         Raises:
             NginxFileError: File operation errors while updating nginx configuration files.
         """
-        nginx_config = self.get_config_and_update_status()
+        nginx_config = self._get_config_and_update_status()
         if nginx_config is None:
             return
 
@@ -116,7 +116,7 @@ class ContentCacheCharm(ops.CharmBase):
                 break
             sleep(5)
 
-    def get_config_and_update_status(self) -> NginxConfig | None:
+    def _get_config_and_update_status(self) -> NginxConfig | None:
         """Attempt to get nginx config, updates charm status on failure.
 
         Returns:
