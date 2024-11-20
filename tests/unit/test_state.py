@@ -214,7 +214,7 @@ def test_config_http_protocol_integration_data():
         ),
         pytest.param(
             '["200"]',
-            "The proxy_cache_valid must contain at least one status code and a time: 200",
+            "The proxy_cache_valid requires at least one status code and a time: 200",
             id="no time",
         ),
         pytest.param(

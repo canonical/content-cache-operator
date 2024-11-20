@@ -134,7 +134,7 @@ class LocationConfig(pydantic.BaseModel):
             tokens = item.split(" ")
             if len(tokens) < 2:
                 raise ValueError(
-                    f"The proxy_cache_valid must contain at least one status code and a time: {item}"
+                    f"The proxy_cache_valid requires at least one status code and a time: {item}"
                 )
             status_codes, time_str = tokens[:-1], tokens[-1]
             for code_str in status_codes:
