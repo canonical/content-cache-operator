@@ -66,6 +66,10 @@ class LocationConfig(pydantic.BaseModel):
     def validate_hostname(cls, value: str) -> str:
         """Validate the hostname.
 
+        Validation performed:
+        - The hostname must be of length 255 or below.
+        - The hostname must be consist of a certain characters.
+
         Args:
             value: The value to validate.
 
@@ -95,6 +99,9 @@ class LocationConfig(pydantic.BaseModel):
     def validate_path(cls, value: str) -> str:
         """Validate the path.
 
+        Validation performed:
+        - The path is only consist of allowed characters.
+
         Args:
             value: The value to validate.
 
@@ -108,6 +115,9 @@ class LocationConfig(pydantic.BaseModel):
     def validate_backends_path(cls, value: str) -> str:
         """Validate the backends_path.
 
+        Validation performed:
+        - The path is only consist of allowed characters.
+
         Args:
             value: The value to validate.
 
@@ -120,6 +130,11 @@ class LocationConfig(pydantic.BaseModel):
     @classmethod
     def validate_proxy_cache_valid(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         """Validate the proxy_cache_valid.
+
+        Validation performed:
+        - Each token is consist of at least one status code and a time.
+        - The status code is a int within allowed range.
+        - The time string is of correct format.
 
         Args:
             value: The value to validate.
@@ -206,6 +221,9 @@ class LocationConfig(pydantic.BaseModel):
 
 def validate_path_value(value: str) -> str:
     """Validate the value as a path.
+
+    Validation performed:
+    - The path is only consist of allowed characters.
 
     Args:
         value: The value to validate.
