@@ -6,7 +6,6 @@
 """The content-cache charm."""
 
 import logging
-from time import sleep
 
 import ops
 
@@ -52,7 +51,7 @@ class ContentCacheCharm(ops.CharmBase):
     def _on_start(self, _: ops.StartEvent) -> None:
         """Handle start event."""
         _nginx_initialize()
-        self._update_status()
+        self._load_nginx_config()
 
     def _on_stop(self, _: ops.StopEvent) -> None:
         """Handle the stop event."""
@@ -60,7 +59,7 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_update_status(self, _: ops.UpdateStatusEvent) -> None:
         """Handle update status event."""
-        self._update_status()
+        self._load_nginx_config()
 
     def _on_cache_config_relation_changed(self, _: ops.RelationChangedEvent) -> None:
         """Handle config relation changed event."""
@@ -109,12 +108,9 @@ class ContentCacheCharm(ops.CharmBase):
             )
             status_message = f"Error for host: {err.hosts}"
 
-        for _ in range(6):
-            self._update_status_with_nginx()
-            if isinstance(self.unit.status, ops.ActiveStatus):
-                self.unit.status = ops.ActiveStatus(status_message)
-                break
-            sleep(5)
+        self._update_status_with_nginx()
+        if isinstance(self.unit.status, ops.ActiveStatus):
+            self.unit.status = ops.ActiveStatus(status_message)
 
     def _get_config_and_update_status(self) -> NginxConfig | None:
         """Attempt to get nginx config, updates charm status on failure.
