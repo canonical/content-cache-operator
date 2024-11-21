@@ -83,7 +83,6 @@ def health_check() -> bool:
         response = requests.get(
             f"http://localhost{NGINX_STATUS_URL_PATH}",
             allow_redirects=False,
-            verify=False,
             timeout=NGINX_HEALTH_CHECK_TIMEOUT,
         )
         response.raise_for_status()
