@@ -92,6 +92,7 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert "proxy_pass https://" in config_file_content
     assert "/backend" in config_file_content
 
+
 def test_health_check(monkeypatch, patch_nginx_manager: None):
     """
     arrange: Patch the requests.get to return successful health check.
@@ -101,11 +102,15 @@ def test_health_check(monkeypatch, patch_nginx_manager: None):
     monkeypatch.setattr("nginx_manager.requests.get", MagicMock())
     assert nginx_manager.health_check()
 
+
 def test_health_check_failure(monkeypatch, patch_nginx_manager: None):
     """
     arrange: Patch the requests.get to raise error.
     act: Perform health check.
     assert: The health check returns false.
     """
-    monkeypatch.setattr("nginx_manager.requests.get", MagicMock(side_effect=requests.exceptions.HTTPError("Mock error")))
+    monkeypatch.setattr(
+        "nginx_manager.requests.get",
+        MagicMock(side_effect=requests.exceptions.HTTPError("Mock error")),
+    )
     assert not nginx_manager.health_check()
