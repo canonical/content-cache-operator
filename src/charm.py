@@ -69,15 +69,9 @@ class ContentCacheCharm(ops.CharmBase):
         """Handle config relation broken event."""
         self._load_nginx_config()
 
-    def _update_status(self) -> None:
-        """Update the charm status."""
-        if self._get_config_and_update_status() is None:
-            return
-        self._update_status_with_nginx()
-
     def _update_status_with_nginx(self) -> None:
         """Set the charm status according to nginx status."""
-        if not nginx_manager.ready_check():
+        if not nginx_manager.health_check():
             self.unit.status = ops.MaintenanceStatus(NGINX_NOT_READY_MESSAGE)
             return
 

@@ -49,15 +49,15 @@ def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
     mock_nginx_manager.initialize = MagicMock()
     mock_nginx_manager.stop = MagicMock()
     mock_nginx_manager.update_and_load_config = MagicMock()
-    mock_nginx_manager.ready_check = MagicMock()
-    mock_nginx_manager.ready_check.return_value = True
+    mock_nginx_manager.health_check = MagicMock()
+    mock_nginx_manager.health_check.return_value = True
 
     monkeypatch.setattr("charm.nginx_manager.initialize", mock_nginx_manager.initialize)
     monkeypatch.setattr("charm.nginx_manager.stop", mock_nginx_manager.stop)
     monkeypatch.setattr(
         "charm.nginx_manager.update_and_load_config", mock_nginx_manager.update_and_load_config
     )
-    monkeypatch.setattr("charm.nginx_manager.ready_check", mock_nginx_manager.ready_check)
+    monkeypatch.setattr("charm.nginx_manager.health_check", mock_nginx_manager.health_check)
     return mock_nginx_manager
 
 
@@ -67,7 +67,6 @@ def harness_fixture(monkeypatch, mock_nginx_manager: MagicMock) -> Iterator[Harn
 
     The mock_nginx_manager is to ensure the nginx_manager module is patched.
     """
-    monkeypatch.setattr("charm.sleep", MagicMock())
     harness = Harness(ContentCacheCharm)
     harness.begin_with_initial_hooks()
     yield harness

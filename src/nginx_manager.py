@@ -11,6 +11,7 @@ import uuid
 from pathlib import Path
 
 import nginx
+import requests
 
 from errors import (
     NginxConfigurationAggregateError,
@@ -29,6 +30,9 @@ NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
 NGINX_LOG_PATH = Path("/var/log/nginx")
 NGINX_PROXY_CACHE_DIR_PATH = Path("/data/nginx/cache")
 NGINX_USER = "www-data"
+
+NGINX_STATUS_URL_PATH = "/nginx_status"
+NGINX_HEALTH_CHECK_TIMEOUT = 300
 
 
 # Unit test is not valuable as the module is closely coupled with nginx.
@@ -69,11 +73,31 @@ def stop() -> None:  # pragma: no cover
         raise NginxStopError(f"Failed to stop nginx: {stderr}")
 
 
-def ready_check() -> bool:  # pragma: no cover
-    """Check if nginx is ready to serve requests.
+def health_check() -> bool:
+    """Use nginx status page as health check.
 
     Returns:
-        True if ready, else false.
+        Whether the nginx is serving responses.
+    """
+    try:
+        response = requests.get(
+            f"http://localhost{NGINX_STATUS_URL_PATH}",
+            allow_redirects=False,
+            verify=False,
+            timeout=NGINX_HEALTH_CHECK_TIMEOUT,
+        )
+        response.raise_for_status()
+    except requests.RequestException:
+        logger.exception("Failed nginx health check.")
+        return False
+    return True
+
+
+def _systemctl_status_check() -> bool:  # pragma: no cover
+    """Check nginx process health.
+
+    Returns:
+        True if process is running, else false.
     """
     # The return code is 0 for active and 3 for failed or inactive.
     return_code, _, _ = execute_command(["systemctl", "status", "nginx"])
@@ -92,6 +116,12 @@ def update_and_load_config(configuration: NginxConfig) -> None:
     """
     # This will reset the file permissions.
     _reset_nginx_files()
+
+    try:
+        _create_status_page_config()
+    except NginxFileError:
+        logger.info("Stop updating configuration file due to file write issues")
+        raise
 
     errored_hosts: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
@@ -114,7 +144,7 @@ def update_and_load_config(configuration: NginxConfig) -> None:
 
 def _load_config() -> None:  # pragma: no cover
     """Load nginx configurations."""
-    if ready_check():
+    if _systemctl_status_check():
         logger.info("Loading nginx configuration files")
         # This is reload the configuration files without interrupting service.
         execute_command(["sudo", "nginx", "-s", "reload"])
@@ -148,6 +178,23 @@ def _reset_nginx_files() -> None:
     except (PermissionError, OSError, IOError) as err:
         logger.exception("Failed to reset the nginx files.")
         raise NginxFileError("Failed to reset nginx files") from err
+
+
+def _create_status_page_config() -> None:
+    """Create the nginx configuration file for status page."""
+    logger.info("Creating the nginx site configuration file for status page")
+    # The following should not throw any nginx.ParseError as it is static.
+    nginx_config = nginx.Conf(
+        nginx.Server(
+            nginx.Location(
+                NGINX_STATUS_URL_PATH,
+                nginx.Key("stub_status", "on"),
+                nginx.Key("allow", "127.0.0.1"),
+                nginx.Key("deny", "all"),
+            )
+        )
+    )
+    _create_and_enable_config("nginx_status", nginx_config)
 
 
 def _create_server_config(host: str, configuration: HostConfig) -> None:

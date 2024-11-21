@@ -17,6 +17,7 @@ from charm import (
     WAIT_FOR_CONFIG_MESSAGE,
     ContentCacheCharm,
 )
+from errors import NginxConfigurationAggregateError, NginxConfigurationError, NginxFileError
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
 
@@ -54,7 +55,7 @@ def test_update_status_no_relation(charm: ContentCacheCharm):
 
 
 @pytest.mark.parametrize(
-    ["ready", "status"],
+    ["health", "status"],
     [
         pytest.param(False, ops.MaintenanceStatus(NGINX_NOT_READY_MESSAGE)),
         pytest.param(True, ops.ActiveStatus()),
@@ -64,7 +65,7 @@ def test_update_status_with_integration(
     charm: ContentCacheCharm,
     mock_nginx_manager: MagicMock,
     harness: Harness,
-    ready: bool,
+    health: bool,
     status: ops.StatusBase,
 ):
     """
@@ -72,7 +73,7 @@ def test_update_status_with_integration(
     act: Emit update status.
     assert: Charm waiting for integration.
     """
-    mock_nginx_manager.ready_check.return_value = ready
+    mock_nginx_manager.health_check.return_value = health
     harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
@@ -163,3 +164,49 @@ def test_empty_integration_data(harness: Harness, charm: ContentCacheCharm):
 
     config = state.get_nginx_config(charm)
     assert not config
+
+
+def test_nginx_file_error(monkeypatch, harness: Harness, charm: ContentCacheCharm):
+    """
+    arrange: The update_and_load_config to raise the NginxFileError.
+    act: Add configuration integration.
+    assert: The error is re-raised.
+    """
+    monkeypatch.setattr(
+        "nginx_manager.update_and_load_config",
+        MagicMock(side_effect=NginxFileError("Mock error")),
+    )
+
+    with pytest.raises(NginxFileError):
+        harness.add_relation(
+            CACHE_CONFIG_INTEGRATION_NAME,
+            remote_app="config",
+            app_data=SAMPLE_INTEGRATION_DATA,
+        )
+
+
+def test_nginx_config_error(
+    monkeypatch, harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: The update_and_load_config to raise the NginxConfigurationAggregateError.
+    act: Add configuration integration and load the nginx config.
+    assert: The charm status reflects the errors raised
+    """
+    monkeypatch.setattr(
+        "charm.nginx_manager.update_and_load_config",
+        MagicMock(
+            side_effect=NginxConfigurationAggregateError(
+                ("mock host",), (NginxConfigurationError("Mock errors"),)
+            )
+        ),
+    )
+
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+
+    charm._load_nginx_config()
+    assert charm.unit.status == ops.ActiveStatus("Error for host: ('mock host',)")

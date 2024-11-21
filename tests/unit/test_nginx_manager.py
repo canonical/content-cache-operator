@@ -6,6 +6,8 @@
 from ipaddress import IPv4Address
 from unittest.mock import MagicMock
 
+import requests
+
 import nginx_manager
 from state import LocationConfig
 
@@ -57,9 +59,9 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert: The files are created and has the configurations.
     """
     monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
-    mock_ready_check = MagicMock()
-    mock_ready_check.return_value = True
-    monkeypatch.setattr("nginx_manager.ready_check", mock_ready_check)
+    mock_status_check = MagicMock()
+    mock_status_check.return_value = True
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", mock_status_check)
     hostname = "example.com"
     sample_data = {
         hostname: {
@@ -89,3 +91,21 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert "proxy_cache_valid 404 1m" in config_file_content
     assert "proxy_pass https://" in config_file_content
     assert "/backend" in config_file_content
+
+def test_health_check(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Patch the requests.get to return successful health check.
+    act: Perform health check.
+    assert: The health check returns true.
+    """
+    monkeypatch.setattr("nginx_manager.requests.get", MagicMock())
+    assert nginx_manager.health_check()
+
+def test_health_check_failure(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Patch the requests.get to raise error.
+    act: Perform health check.
+    assert: The health check returns false.
+    """
+    monkeypatch.setattr("nginx_manager.requests.get", MagicMock(side_effect=requests.exceptions.HTTPError("Mock error")))
+    assert not nginx_manager.health_check()
