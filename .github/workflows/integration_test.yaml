@@ -11,3 +11,4 @@ jobs:
       juju-channel: 3.5/stable
       provider: lxd
       modules: '["test_charm"]'
+      working-directory: ./content-cache
