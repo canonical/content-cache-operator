@@ -18,6 +18,7 @@ from errors import ConfigurationError, IntegrationDataError
 logger = logging.getLogger(__name__)
 
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
+CERTIFICATE_INTEGRATION_NAME = "certificates"
 
 HOSTNAME_FIELD_NAME = "hostname"
 PATH_FIELD_NAME = "path"
@@ -306,7 +307,7 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
     """
     relations = charm.model.relations[CACHE_CONFIG_INTEGRATION_NAME]
     if not relations:
-        logger.info("Found no integrations")
+        logger.info("Found no configuration integrations")
         return {}
 
     configurations: defaultdict[Hostname, dict[Location, LocationConfig]] = defaultdict(dict)

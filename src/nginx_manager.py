@@ -25,6 +25,7 @@ from utilities import execute_command
 
 logger = logging.getLogger(__name__)
 
+NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
 NGINX_LOG_PATH = Path("/var/log/nginx")
