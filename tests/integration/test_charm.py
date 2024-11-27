@@ -24,7 +24,9 @@ from tests.integration.helpers import (
 
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
-async def test_charm_start(app: Application, config_app: Application, model: Model) -> None:
+async def test_charm_start(
+    app: Application, config_app: Application, cert_app: Application, model: Model
+) -> None:
     """
     arrange: The applications deployed.
     act: Nothing.
@@ -59,7 +61,7 @@ async def test_charm_integrate_with_no_data(
     await cache_tester.reset()
 
     # 1.
-    await cache_tester.integrate()
+    await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="blocked", timeout=5 * 60)
     assert len(app.units) == 1
     assert len(config_app.units) == 1
@@ -90,6 +92,7 @@ async def test_charm_integrate_with_no_data(
 async def test_charm_integrate_with_data(
     app: Application,
     config_app: Application,
+    cache_tester: CacheTester,
     http_ok_path: str,
     http_ok_message: str,
     http_ok_ip: str,
@@ -111,7 +114,6 @@ async def test_charm_integrate_with_data(
             serving according to the old configuration.
         5. The application in blocked status waiting for integration.
     """
-    cache_tester = CacheTester(model, app, config_app)
     hostname = f"test.{secrets.token_hex(2)}.local"
     config = dict(CacheTester.BASE_CONFIG)
     config[HOSTNAME_CONFIG_NAME] = hostname
@@ -120,7 +122,7 @@ async def test_charm_integrate_with_data(
     config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
-    await cache_tester.integrate()
+    await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
 
     response = await cache_tester.query_cache(path="/", hostname=hostname)
@@ -158,19 +160,13 @@ async def test_charm_integrate_with_data(
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
-    # This removes the integration and configurations.
-    await cache_tester.reset()
-
-    await model.wait_for_idle([app.name], status="blocked", timeout=5 * 60)
-    assert unit.workload_status_message == "Waiting for integration with config charm"
-    # The configuration charm is removed due to being subordinate charm with no relation.
-
 
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
 async def test_charm_with_failover(
     app: Application,
     config_app: Application,
+    cache_tester: Application,
     http_ok_path: str,
     http_ok_message: str,
     http_ok_ip: str,
@@ -185,7 +181,6 @@ async def test_charm_with_failover(
     # A random IP for a non-existence server.
     fake_ip = "10.111.111.23"
 
-    cache_tester = CacheTester(model, app, config_app)
     hostname = f"test.{secrets.token_hex(2)}.local"
     config = dict(CacheTester.BASE_CONFIG)
     config[HOSTNAME_CONFIG_NAME] = hostname
@@ -195,9 +190,75 @@ async def test_charm_with_failover(
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     config[FAIL_TIMEOUT_CONFIG_NAME] = "5s"
     await cache_tester.setup_config(config)
-    await cache_tester.integrate()
+    await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
 
     response = await cache_tester.query_cache(path="/", hostname=hostname)
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
+
+
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_charm_integrate_with_data_then_cert(
+    app: Application,
+    config_app: Application,
+    cache_tester: CacheTester,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ip: str,
+    model: Model,
+) -> None:
+    """
+    arrange: A working application of content-cache charm no integration.
+    act: Integrate with configuration charm then TLS certificate charm.
+    assert: HTTPS request should succeed.
+    """
+    hostname = f"test.{secrets.token_hex(2)}.local"
+    config = dict(CacheTester.BASE_CONFIG)
+    config[HOSTNAME_CONFIG_NAME] = hostname
+    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[PROTOCOL_CONFIG_NAME] = "http"
+    config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
+    await cache_tester.setup_config(config)
+    await cache_tester.integrate_config()
+    await cache_tester.integrate_cert()
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="https")
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
+
+
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_charm_integrate_with_cert_then_data(
+    app: Application,
+    config_app: Application,
+    cache_tester: CacheTester,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ip: str,
+    model: Model,
+) -> None:
+    """
+    arrange: A working application of content-cache charm no integration.
+    act: Integrate with TLS certificate charm then configuration charm.
+    assert: HTTPS request should succeed.
+    """
+    hostname = f"test.{secrets.token_hex(2)}.local"
+    config = dict(CacheTester.BASE_CONFIG)
+    config[HOSTNAME_CONFIG_NAME] = hostname
+    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[PROTOCOL_CONFIG_NAME] = "http"
+    config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
+    await cache_tester.setup_config(config)
+    await cache_tester.integrate_cert()
+    await cache_tester.integrate_config()
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="https")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")

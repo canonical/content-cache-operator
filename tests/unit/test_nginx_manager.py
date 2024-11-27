@@ -77,7 +77,7 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
         }
     }
 
-    nginx_manager.update_and_load_config(sample_data)
+    nginx_manager.update_and_load_config(sample_data, {})
 
     config_file_content = nginx_manager._get_sites_enabled_path(hostname).read_text()
 

@@ -46,3 +46,11 @@ class NginxConfigurationAggregateError(NginxError):
 
 class NginxFileError(NginxError):
     """Represents failures in writing the nginx configuration file."""
+
+
+class TLSCertificateError(Exception):
+    """Represents failure related to TLS certificate."""
+
+
+class TLSCertificateFileError(TLSCertificateError):
+    """Represents failure in writing TLS certificates to file."""

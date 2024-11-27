@@ -13,8 +13,10 @@ from ops.testing import Harness
 import state
 from charm import (
     CACHE_CONFIG_INTEGRATION_NAME,
+    CERTIFICATE_INTEGRATION_NAME,
     NGINX_NOT_READY_MESSAGE,
     WAIT_FOR_CONFIG_MESSAGE,
+    WAIT_FOR_TLS_CERT_MESSAGE,
     ContentCacheCharm,
 )
 from errors import NginxConfigurationAggregateError, NginxConfigurationError, NginxFileError
@@ -125,7 +127,7 @@ def test_remove_integration(harness: Harness, charm: ContentCacheCharm):
     assert charm.unit.status == ops.ActiveStatus()
 
     harness.remove_relation(relation_id)
-    assert charm.unit.status == ops.BlockedStatus("Waiting for integration with config charm")
+    assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
 
     # Test no data
     config = state.get_nginx_config(charm)
@@ -210,3 +212,29 @@ def test_nginx_config_error(
 
     charm._load_nginx_config()
     assert charm.unit.status == ops.ActiveStatus("Error for host: ('mock host',)")
+
+
+def test_integration_cert_then_config(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A working charm.
+    act:
+        1. Integrate with certificate charm.
+        2. Integrate with configuration charm.
+    assert:
+        1. Charm in blocked state waiting for configuration
+        2. Charm in maintenance state waiting for TLS certificate.
+    """
+    harness.add_relation(
+        CERTIFICATE_INTEGRATION_NAME,
+        remote_app="cert",
+    )
+    assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
+
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    assert charm.unit.status == ops.MaintenanceStatus(WAIT_FOR_TLS_CERT_MESSAGE)

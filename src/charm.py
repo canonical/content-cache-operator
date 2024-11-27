@@ -11,6 +11,7 @@ import pwd
 from pathlib import Path
 
 import ops
+from charms.tls_certificates_interface.v4.tls_certificates import Mode, TLSCertificatesRequiresV4
 
 import nginx_manager
 from certificates import TLSCertificatesManager, generate_certificate_requests
@@ -20,10 +21,7 @@ from errors import (
     NginxFileError,
     NginxSetupError,
     NginxStopError,
-)
-from lib.charms.tls_certificates_interface.v4.tls_certificates import (
-    Mode,
-    TLSCertificatesRequiresV4,
+    TLSCertificateFileError,
 )
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
@@ -135,14 +133,30 @@ class ContentCacheCharm(ops.CharmBase):
         if nginx_config is None:
             return
 
-        if not self.certificates_manager.reconcile():
-            logger.warning("Unable to load nginx config due to certificates not available yet")
-            self.unit.status = ops.MaintenanceStatus(WAIT_FOR_TLS_CERT_MESSAGE)
-            return
+        hostnames = list(nginx_config.keys())
+
+        hostname_to_cert = {}
+        if self.certificates_manager.integration_exists():
+            logger.info("Loading the certificates")
+            try:
+                hostname_to_cert = self.certificates_manager.load_certificates(hostnames)
+            except TLSCertificateFileError:
+                logger.exception(
+                    "Failed to write TLS certificate file, going to error state for retries"
+                )
+                raise
+
+            if len(hostname_to_cert) != len(hostnames):
+                logger.warning(
+                    "Unable to load nginx config due to not all certificates are available yet"
+                )
+                self.unit.status = ops.MaintenanceStatus(WAIT_FOR_TLS_CERT_MESSAGE)
+                return
+            logger.info("Found all certificate requested")
 
         status_message = ""
         try:
-            nginx_manager.update_and_load_config(nginx_config)
+            nginx_manager.update_and_load_config(nginx_config, hostname_to_cert)
         except NginxFileError:
             logger.exception(
                 "Failed to update nginx config file, going to error state for retries"
