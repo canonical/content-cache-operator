@@ -230,6 +230,9 @@ async def test_charm_integrate_with_data_then_cert(
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
+    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    assert http_ok_message not in response.content.decode("utf-8")
+
 
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
@@ -262,3 +265,6 @@ async def test_charm_integrate_with_cert_then_data(
     response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="https")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    assert http_ok_message not in response.content.decode("utf-8")

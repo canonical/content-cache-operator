@@ -1,5 +1,11 @@
 # Changelog
 
+## 2024-11-28
+
+### Added
+
+- Support for TLS certificate integration. Integrating with charms that provides tls-certificates will enable HTTPS for the content cache.
+
 ## 2024-10-17
 
 ### Added
