@@ -77,7 +77,11 @@ class CacheTester:
         )
 
     async def integrate_cert(self) -> None:
-        """Integrate the TLS certification application."""
+        """Integrate the TLS certification application.
+
+        Raises:
+            TestSetupError: The TLS certificate application is not provided.
+        """
         if self._cert_app is None:
             raise TestSetupError("TLS certificate application not provided")
         await self._model.integrate(
@@ -101,6 +105,7 @@ class CacheTester:
         Args:
             path: The URL path to the content-cache.
             hostname: The hostname of the content-cache.
+            protocol: The protocol to make the request.
 
         Returns:
             Whether the cache is working.

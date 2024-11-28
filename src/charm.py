@@ -6,15 +6,12 @@
 """The content-cache charm."""
 
 import logging
-import os
-import pwd
-from pathlib import Path
 
 import ops
 from charms.tls_certificates_interface.v4.tls_certificates import Mode, TLSCertificatesRequiresV4
 
 import nginx_manager
-from certificates import TLSCertificatesManager, generate_certificate_requests
+from certificates import TLSCertificatesManager, _generate_certificate_requests
 from errors import (
     IntegrationDataError,
     NginxConfigurationAggregateError,
@@ -53,7 +50,7 @@ class ContentCacheCharm(ops.CharmBase):
         certificate_requests = []
         try:
             nginx_config = get_nginx_config(self)
-            certificate_requests = generate_certificate_requests(list(nginx_config.keys()))
+            certificate_requests = _generate_certificate_requests(list(nginx_config.keys()))
         except IntegrationDataError as err:
             logger.warning("Issues with integration data: %s", err)
             # Unable to do anything about the error, therefore continue with setup.
