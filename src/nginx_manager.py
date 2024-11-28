@@ -21,7 +21,7 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import HostConfig, LocationConfig, NginxConfig
+from state import HostConfig, LocationConfig, NginxConfig, Protocol
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)
@@ -271,8 +271,11 @@ def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
     Returns:
         The nginx.Key for the upstream configuration.
     """
+    port = 80
+    if config.protocol == Protocol.HTTPS:
+        port = 443
     keys = [
-        nginx.Key("server", f"{ip} fail_timeout={config.fail_timeout}") for ip in config.backends
+        nginx.Key("server", f"{ip}:{port} fail_timeout={config.fail_timeout}") for ip in config.backends
     ]
     return tuple(keys)
 
