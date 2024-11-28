@@ -4,9 +4,17 @@ on:
   pull_request:
 
 jobs:
-  unit-tests:
+  unit-tests-content-cache:
     uses: canonical/operator-workflows/.github/workflows/test.yaml@main
     secrets: inherit
     with:
       self-hosted-runner: true
       self-hosted-runner-label: "edge"
+      working-directory: ./content-cache
+  unit-tests-content-cache-backends-config:
+    uses: canonical/operator-workflows/.github/workflows/test.yaml@main
+    secrets: inherit
+    with:
+      self-hosted-runner: true
+      self-hosted-runner-label: "edge"
+      working-directory: ./content-cache-backends-config
