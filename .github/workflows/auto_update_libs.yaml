@@ -5,6 +5,13 @@ on:
     - cron: "0 1 * * *"
 
 jobs:
-  auto-update-libs:
+  auto-update-libs-for-content-cache:
     uses: canonical/operator-workflows/.github/workflows/auto_update_charm_libs.yaml@main
     secrets: inherit
+    with:
+      working-directory: ./content-cache
+  auto-update-libs-for-content-cache-backends-config:
+    uses: canonical/operator-workflows/.github/workflows/auto_update_charm_libs.yaml@main
+    secrets: inherit
+    with:
+      working-directory: ./content-cache-backends-config
