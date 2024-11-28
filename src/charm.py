@@ -17,12 +17,13 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import CACHE_CONFIG_INTEGRATION_NAME, get_nginx_config
+from state import CACHE_CONFIG_INTEGRATION_NAME, NginxConfig, get_nginx_config
 
 logger = logging.getLogger(__name__)
 
 WAIT_FOR_CONFIG_MESSAGE = "Waiting for integration with config charm"
 NGINX_NOT_READY_MESSAGE = "Nginx is not ready"
+RECEIVED_NGINX_CONFIG_MESSAGE = "Received nginx configuration"
 
 
 class ContentCacheCharm(ops.CharmBase):
@@ -50,7 +51,7 @@ class ContentCacheCharm(ops.CharmBase):
     def _on_start(self, _: ops.StartEvent) -> None:
         """Handle start event."""
         _nginx_initialize()
-        self._set_status()
+        self._load_nginx_config()
 
     def _on_stop(self, _: ops.StopEvent) -> None:
         """Handle the stop event."""
@@ -58,7 +59,7 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_update_status(self, _: ops.UpdateStatusEvent) -> None:
         """Handle update status event."""
-        self._set_status()
+        self._load_nginx_config()
 
     def _on_cache_config_relation_changed(self, _: ops.RelationChangedEvent) -> None:
         """Handle config relation changed event."""
@@ -68,13 +69,9 @@ class ContentCacheCharm(ops.CharmBase):
         """Handle config relation broken event."""
         self._load_nginx_config()
 
-    def _set_status(self) -> None:
-        """Set the charm status."""
-        if not self.model.relations[CACHE_CONFIG_INTEGRATION_NAME]:
-            self.unit.status = ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
-            return
-
-        if not nginx_manager.ready_check():
+    def _update_status_with_nginx(self) -> None:
+        """Set the charm status according to nginx status."""
+        if not nginx_manager.health_check():
             self.unit.status = ops.MaintenanceStatus(NGINX_NOT_READY_MESSAGE)
             return
 
@@ -86,14 +83,8 @@ class ContentCacheCharm(ops.CharmBase):
         Raises:
             NginxFileError: File operation errors while updating nginx configuration files.
         """
-        try:
-            nginx_config = get_nginx_config(self)
-        except IntegrationDataError as err:
-            self.unit.status = ops.BlockedStatus(str(err))
-            return
-        if not nginx_config:
-            _nginx_stop()
-            self.unit.status = ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
+        nginx_config = self._get_config_and_update_status()
+        if nginx_config is None:
             return
 
         status_message = ""
@@ -111,7 +102,26 @@ class ContentCacheCharm(ops.CharmBase):
             )
             status_message = f"Error for host: {err.hosts}"
 
-        self.unit.status = ops.ActiveStatus(status_message)
+        self._update_status_with_nginx()
+        if isinstance(self.unit.status, ops.ActiveStatus):
+            self.unit.status = ops.ActiveStatus(status_message)
+
+    def _get_config_and_update_status(self) -> NginxConfig | None:
+        """Attempt to get nginx config, updates charm status on failure.
+
+        Returns:
+            The nginx configuration if found and valid.
+        """
+        try:
+            nginx_config = get_nginx_config(self)
+        except IntegrationDataError as err:
+            self.unit.status = ops.BlockedStatus(str(err))
+            return None
+        if not nginx_config:
+            self.unit.status = ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
+            return None
+        self.unit.status = ops.MaintenanceStatus(RECEIVED_NGINX_CONFIG_MESSAGE)
+        return nginx_config
 
 
 def _nginx_initialize() -> None:

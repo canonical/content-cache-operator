@@ -12,25 +12,34 @@ from ops.testing import Harness
 
 from charm import ContentCacheCharm
 from state import (
-    BACKENDS_CONFIG_NAME,
-    HOSTNAME_CONFIG_NAME,
-    PATH_CONFIG_NAME,
-    PROTOCOL_CONFIG_NAME,
+    BACKENDS_FIELD_NAME,
+    BACKENDS_PATH_FIELD_NAME,
+    FAIL_TIMEOUT_FIELD_NAME,
+    HOSTNAME_FIELD_NAME,
+    PATH_FIELD_NAME,
+    PROTOCOL_FIELD_NAME,
+    PROXY_CACHE_VALID_FIELD_NAME,
 )
 
 SAMPLE_INTEGRATION_DATA = {
-    HOSTNAME_CONFIG_NAME: "example.com",
-    PATH_CONFIG_NAME: "/",
-    BACKENDS_CONFIG_NAME: '["10.10.1.1", "10.10.2.2"]',
-    PROTOCOL_CONFIG_NAME: "https",
+    HOSTNAME_FIELD_NAME: "example.com",
+    PATH_FIELD_NAME: "/",
+    BACKENDS_FIELD_NAME: '["10.10.1.1", "10.10.2.2"]',
+    PROTOCOL_FIELD_NAME: "https",
+    FAIL_TIMEOUT_FIELD_NAME: "30s",
+    BACKENDS_PATH_FIELD_NAME: "/",
+    PROXY_CACHE_VALID_FIELD_NAME: '["200 302 1h", "404 1m"]',
 }
 
 
-@pytest.fixture(name="patch_nginx_manager_path", scope="function")
-def patch_nginx_manager_path_fixture(monkeypatch, tmp_path: Path) -> None:
-    """Patch the Path used by nginx_manager module."""
+@pytest.fixture(name="patch_nginx_manager", scope="function")
+def patch_nginx_manager_fixture(monkeypatch, tmp_path: Path) -> None:
+    """Patch the nginx_manager module."""
     monkeypatch.setattr("nginx_manager.NGINX_SITES_ENABLED_PATH", tmp_path / "sites-enabled")
     monkeypatch.setattr("nginx_manager.NGINX_SITES_AVAILABLE_PATH", tmp_path / "sites-available")
+    monkeypatch.setattr("nginx_manager.NGINX_LOG_PATH", tmp_path / "logs")
+    monkeypatch.setattr("nginx_manager.NGINX_PROXY_CACHE_DIR_PATH", tmp_path / "cache")
+    monkeypatch.setattr("nginx_manager.os.chown", MagicMock())
 
 
 @pytest.fixture(name="mock_nginx_manager", scope="function")
@@ -40,21 +49,24 @@ def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
     mock_nginx_manager.initialize = MagicMock()
     mock_nginx_manager.stop = MagicMock()
     mock_nginx_manager.update_and_load_config = MagicMock()
-    mock_nginx_manager.ready_check = MagicMock()
-    mock_nginx_manager.ready_check.return_value = True
+    mock_nginx_manager.health_check = MagicMock()
+    mock_nginx_manager.health_check.return_value = True
 
     monkeypatch.setattr("charm.nginx_manager.initialize", mock_nginx_manager.initialize)
     monkeypatch.setattr("charm.nginx_manager.stop", mock_nginx_manager.stop)
     monkeypatch.setattr(
         "charm.nginx_manager.update_and_load_config", mock_nginx_manager.update_and_load_config
     )
-    monkeypatch.setattr("charm.nginx_manager.ready_check", mock_nginx_manager.ready_check)
+    monkeypatch.setattr("charm.nginx_manager.health_check", mock_nginx_manager.health_check)
     return mock_nginx_manager
 
 
 @pytest.fixture(name="harness", scope="function")
-def harness_fixture(mock_nginx_manager: MagicMock) -> Iterator[Harness]:
-    """The ops testing harness fixture."""
+def harness_fixture(monkeypatch, mock_nginx_manager: MagicMock) -> Iterator[Harness]:
+    """The ops testing harness fixture.
+
+    The mock_nginx_manager is to ensure the nginx_manager module is patched.
+    """
     harness = Harness(ContentCacheCharm)
     harness.begin_with_initial_hooks()
     yield harness

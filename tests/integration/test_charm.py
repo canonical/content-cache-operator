@@ -3,11 +3,23 @@
 
 """Integration test for the content-cache charm."""
 
+import json
+import secrets
+from asyncio import sleep
+
 import pytest
 from juju.application import Application
 from juju.model import Model
 
-from tests.integration.helpers import CacheTester
+from tests.integration.helpers import (
+    BACKENDS_CONFIG_NAME,
+    BACKENDS_PATH_CONFIG_NAME,
+    FAIL_TIMEOUT_CONFIG_NAME,
+    HOSTNAME_CONFIG_NAME,
+    PROTOCOL_CONFIG_NAME,
+    PROXY_CACHE_VALID_CONFIG_NAME,
+    CacheTester,
+)
 
 
 @pytest.mark.abort_on_fail
@@ -26,10 +38,16 @@ async def test_charm_start(app: Application, config_app: Application, model: Mod
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
 async def test_charm_integrate_with_no_data(
-    app: Application, config_app: Application, model: Model
+    app: Application,
+    config_app: Application,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ip: str,
+    model: Model,
 ) -> None:
     """
-    arrange: A working application of content-cache charm, with no integrations.
+    arrange: A working application of content-cache charm, with no integrations, and a test HTTP
+        server.
     act:
         1. Integrate with the configuration charm.
         2. Add configuration to the configuration charm.
@@ -51,9 +69,17 @@ async def test_charm_integrate_with_no_data(
     assert config_unit.workload_status_message == "Empty backends configuration found"
 
     # 2.
-    await cache_tester.setup_config()
+    hostname = f"test.{secrets.token_hex(2)}.local"
+    config = dict(CacheTester.BASE_CONFIG)
+    config[HOSTNAME_CONFIG_NAME] = hostname
+    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[PROTOCOL_CONFIG_NAME] = "http"
+    await cache_tester.setup_config(config)
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
-    assert await cache_tester.test_cache()
+    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
 
     # Cleanup
     await cache_tester.reset()
@@ -62,26 +88,58 @@ async def test_charm_integrate_with_no_data(
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
 async def test_charm_integrate_with_data(
-    app: Application, config_app: Application, model: Model
+    app: Application,
+    config_app: Application,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ip: str,
+    model: Model,
 ) -> None:
     """
     arrange: A working application of content-cache charm, with no integrations.
     act:
         1. Integrate with the configuration charm with configuration set.
-        2. Remove the configuration on the configuration charm.
-        3. Remove the integration between the charms.
+        2. Wait for a while, then query again.
+        3. Wait until the cache expires ang query again.
+        4. Remove the configuration on the configuration charm.
+        5. Remove the integration between the charms.
     assert:
         1. The request to the cache should succeed.
-        2. The configuration charm should be in blocked state. The content-cache charm will be
+        2. The timestamp of the response should be the same as last request.
+        3. The timestamp of the response should be refreshed.
+        4. The configuration charm should be in blocked state. The content-cache charm will be
             serving according to the old configuration.
-        3. The application in blocked status waiting for integration.
+        5. The application in blocked status waiting for integration.
     """
     cache_tester = CacheTester(model, app, config_app)
-    await cache_tester.setup_config()
+    hostname = f"test.{secrets.token_hex(2)}.local"
+    config = dict(CacheTester.BASE_CONFIG)
+    config[HOSTNAME_CONFIG_NAME] = hostname
+    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[PROTOCOL_CONFIG_NAME] = "http"
+    config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
+    await cache_tester.setup_config(config)
     await cache_tester.integrate()
-
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
-    assert await cache_tester.test_cache()
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
+    timestamp = json.loads(response.content.decode("utf-8"))["time"]
+
+    await sleep(3)
+    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
+    assert timestamp == json.loads(response.content.decode("utf-8"))["time"]
+
+    # The cache valid is set to 10 seconds, the total wait should exceed it.
+    await sleep(11)
+    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
+    assert timestamp != json.loads(response.content.decode("utf-8"))["time"]
 
     await cache_tester.reset_config()
 
@@ -96,7 +154,9 @@ async def test_charm_integrate_with_data(
     config_unit = config_app.units[0]
     assert unit.workload_status_message == ""
     assert config_unit.workload_status_message == "Empty backends configuration found"
-    assert await cache_tester.test_cache()
+    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
 
     # This removes the integration and configurations.
     await cache_tester.reset()
@@ -104,3 +164,40 @@ async def test_charm_integrate_with_data(
     await model.wait_for_idle([app.name], status="blocked", timeout=5 * 60)
     assert unit.workload_status_message == "Waiting for integration with config charm"
     # The configuration charm is removed due to being subordinate charm with no relation.
+
+
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_charm_with_failover(
+    app: Application,
+    config_app: Application,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ip: str,
+    model: Model,
+) -> None:
+    """
+    arrange: A working application of content-cache charm with configurations. The backends
+        configuration has non-existence server and a fallback server.
+    act: Make a request to the content-cache.
+    assert: The fallback server respond with the output.
+    """
+    # A random IP for a non-existence server.
+    fake_ip = "10.111.111.23"
+
+    cache_tester = CacheTester(model, app, config_app)
+    hostname = f"test.{secrets.token_hex(2)}.local"
+    config = dict(CacheTester.BASE_CONFIG)
+    config[HOSTNAME_CONFIG_NAME] = hostname
+    config[BACKENDS_CONFIG_NAME] = f"{fake_ip},{http_ok_ip}"
+    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[PROTOCOL_CONFIG_NAME] = "http"
+    config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
+    config[FAIL_TIMEOUT_CONFIG_NAME] = "5s"
+    await cache_tester.setup_config(config)
+    await cache_tester.integrate()
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
