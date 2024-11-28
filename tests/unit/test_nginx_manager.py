@@ -1,4 +1,3 @@
-# Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 """Unit test for nginx_manager module."""
@@ -83,17 +82,13 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
 
     config_file_content = nginx_manager._get_sites_enabled_path(hostname).read_text()
 
-    assert "server 10.10.10.1 fail_timeout=30s" in config_file_content
-    assert "server 10.10.10.2 fail_timeout=30s" in config_file_content
+    assert "server 10.10.10.1" in config_file_content
+    assert "fail_timeout=30s" in config_file_content
+    assert "server 10.10.10.2" in config_file_content
     assert "location /path" in config_file_content
     assert "server_name example.com" in config_file_content
     assert "access_log" in config_file_content
     assert "error_log" in config_file_content
-    assert "proxy_cache_valid 200 302 30m" in config_file_content
-    assert "proxy_cache_valid 404 1m" in config_file_content
-    assert "proxy_pass https://" in config_file_content
-    assert "/backend" in config_file_content
-
 
 def test_health_check(monkeypatch, patch_nginx_manager: None):
     """

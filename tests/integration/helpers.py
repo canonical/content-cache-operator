@@ -32,6 +32,19 @@ class TestSetupError(Exception):
     """Represent error in test setup."""
 
 
+logger = logging.getLogger(__name__)
+
+TEST_SERVER_PATH = Path("tests/integration/scripts/test_server.py")
+
+HOSTNAME_CONFIG_NAME = "hostname"
+PATH_CONFIG_NAME = "path"
+BACKENDS_CONFIG_NAME = "backends"
+BACKENDS_PATH_CONFIG_NAME = "backends-path"
+PROTOCOL_CONFIG_NAME = "protocol"
+FAIL_TIMEOUT_CONFIG_NAME = "fail-timeout"
+PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
+
+
 class CacheTester:
     """Test content cache.
 

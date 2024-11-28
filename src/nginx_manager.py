@@ -275,7 +275,8 @@ def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
     if config.protocol == Protocol.HTTPS:
         port = 443
     keys = [
-        nginx.Key("server", f"{ip}:{port} fail_timeout={config.fail_timeout}") for ip in config.backends
+        nginx.Key("server", f"{ip}:{port} fail_timeout={config.fail_timeout}")
+        for ip in config.backends
     ]
     return tuple(keys)
 
