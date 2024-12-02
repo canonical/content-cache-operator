@@ -8,6 +8,7 @@
 import logging
 
 import ops
+from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 from charms.tls_certificates_interface.v4.tls_certificates import Mode, TLSCertificatesRequiresV4
 
 import nginx_manager
@@ -45,6 +46,8 @@ class ContentCacheCharm(ops.CharmBase):
             framework: The ops framework.
         """
         super().__init__(framework)
+
+        COSAgentProvider(charm=self)
 
         # Get the hostname from the integration data.
         certificate_requests = []

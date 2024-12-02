@@ -30,6 +30,8 @@ description: |
 provides:
   cache-config:
     interface: content-cache-config
+  cos-agent:
+    interface: cos_agent
 
 requires:
   certificates:
