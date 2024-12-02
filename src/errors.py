@@ -52,5 +52,13 @@ class TLSCertificateError(Exception):
     """Represents failure related to TLS certificate."""
 
 
+class TLSCertificateIntegrationNotExistError(TLSCertificateError):
+    """Represents TLS certificates integration not exists."""
+
+
+class TLSCertificateNotAvailableError(TLSCertificateError):
+    """Represents TLS certificate not available yet."""
+
+
 class TLSCertificateFileError(TLSCertificateError):
     """Represents failure in writing TLS certificates to file."""

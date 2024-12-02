@@ -15,7 +15,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
 )
 
 import nginx_manager
-from certificates import TLSCertificatesManager, _generate_certificate_requests
+from certificates import load_certificates
 from errors import (
     IntegrationDataError,
     NginxConfigurationAggregateError,
@@ -23,6 +23,8 @@ from errors import (
     NginxSetupError,
     NginxStopError,
     TLSCertificateFileError,
+    TLSCertificateIntegrationNotExistError,
+    TLSCertificateNotAvailableError,
 )
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
@@ -59,7 +61,7 @@ class ContentCacheCharm(ops.CharmBase):
             logger.warning("Issues with integration data: %s", err)
             # Unable to do anything about the error, therefore continue with setup.
 
-        certificates = TLSCertificatesRequiresV4(
+        self.certificates = TLSCertificatesRequiresV4(
             charm=self,
             relationship_name=CERTIFICATE_INTEGRATION_NAME,
             certificate_requests=[
@@ -70,11 +72,6 @@ class ContentCacheCharm(ops.CharmBase):
                 self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_changed,
                 self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_broken,
             ],
-        )
-        self.certificates_manager = TLSCertificatesManager(
-            user=nginx_manager.NGINX_USER,
-            certificates_path=nginx_manager.NGINX_CERTIFICATES_PATH,
-            certificates=certificates,
         )
 
         framework.observe(self.on.start, self._on_start)
@@ -89,7 +86,7 @@ class ContentCacheCharm(ops.CharmBase):
             self._on_cache_config_relation_broken,
         )
         framework.observe(
-            self.certificates_manager.certificates.on.certificate_available,
+            self.certificates.on.certificate_available,
             self._on_certificate_available,
         )
 
@@ -136,26 +133,29 @@ class ContentCacheCharm(ops.CharmBase):
         if nginx_config is None:
             return
 
-        hostnames = list(nginx_config.keys())
-
+        hostnames = get_hostnames(self)
         hostname_to_cert = {}
-        if self.certificates_manager.integration_exists():
-            logger.info("Loading the certificates")
-            try:
-                hostname_to_cert = self.certificates_manager.load_certificates(hostnames)
-            except TLSCertificateFileError:
-                logger.exception(
-                    "Failed to write TLS certificate file, going to error state for retries"
-                )
-                raise
-
-            if len(hostname_to_cert) != len(hostnames):
-                logger.warning(
-                    "Unable to load nginx config due to not all certificates are available yet"
-                )
-                self.unit.status = ops.MaintenanceStatus(WAIT_FOR_TLS_CERT_MESSAGE)
-                return
-            logger.info("Found all certificate requested")
+        try:
+            hostname_to_cert = load_certificates(
+                hostnames,
+                nginx_manager.NGINX_USER,
+                nginx_manager.NGINX_CERTIFICATES_PATH,
+                self.certificates,
+            )
+        except TLSCertificateIntegrationNotExistError:
+            logger.info("Skipping TLS certificates as tls-certificate integration not found")
+        except TLSCertificateFileError:
+            logger.exception(
+                "Failed to write TLS certificate file, going to error state for retries"
+            )
+            raise
+        except TLSCertificateNotAvailableError:
+            logger.warning(
+                "Unable to load nginx config due to not all certificate needed are available yet"
+            )
+            self.unit.status = ops.MaintenanceStatus(WAIT_FOR_TLS_CERT_MESSAGE)
+            return
+        logger.info("Found all certificate requested")
 
         status_message = ""
         try:

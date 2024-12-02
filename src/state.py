@@ -309,7 +309,7 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
     return configurations
 
 
-def get_hostnames(charm: ops.CharmBase) -> tuple[Hostname]:
+def get_hostnames(charm: ops.CharmBase) -> tuple[Hostname, ...]:
     """Get the hostnames from integration data.
 
     Args:
@@ -321,11 +321,11 @@ def get_hostnames(charm: ops.CharmBase) -> tuple[Hostname]:
     Returns:
         A list of hostnames.
     """
-    hostnames = []
+    hostnames: list[Hostname] = []
     relations = charm.model.relations[CACHE_CONFIG_INTEGRATION_NAME]
     if not relations:
         logger.info("Found no configuration integrations")
-        return hostnames
+        return tuple(hostnames)
 
     for rel in relations:
         logger.info("Getting hostname from integration data for %s", rel.app)
@@ -338,4 +338,4 @@ def get_hostnames(charm: ops.CharmBase) -> tuple[Hostname]:
                 f"Faulty hostname from integration {rel.id}: {str(err)}"
             ) from err
         hostnames.append(hostname)
-    return hostnames
+    return tuple(hostnames)
