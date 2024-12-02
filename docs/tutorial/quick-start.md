@@ -42,8 +42,8 @@ juju config backends backends=185.125.90.20 hostname=ubuntu.com protocol=https
 The `backends` takes a comma-separated list of IPs, and `protocol` can be set to `http` or `https`.
 The above configuration ask the nginx to cache the content from `https://185.125.90.20`.
 The configuration can be changed to point to a different server.
-The juju machine hosting the content-cache charm needs to be able to access the server, for the charm to work.
-Whether the juju machine is able to access to server can be tested by `juju ssh` into the juju machine and use curl to test access.
+The Juju machine hosting the content-cache charm needs to be able to access the server, for the charm to work.
+Whether the Juju machine is able to access to server can be tested by `juju ssh` into the Juju machine and use curl to test access.
 
 - Integrate the two charms, and wait until the charms are in active state.
 
@@ -52,7 +52,7 @@ juju integrate cache backends
 juju status --watch 5s
 ```
 
-- Test the Content Cache.
+- Test the Content Cache with cURL.
 
 ```bash
 curl http://<IP of the juju machine> -H "Host: ubuntu.com"

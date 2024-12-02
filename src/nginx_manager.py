@@ -130,10 +130,10 @@ def update_and_load_config(
     errored_hosts: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
     for host, config in configuration.items():
+        cert_path = None
+        if host in hostname_to_cert:
+            cert_path = hostname_to_cert[host]
         try:
-            cert_path = None
-            if host in hostname_to_cert:
-                cert_path = hostname_to_cert[host]
             _create_server_config(host, config, cert_path)
         except NginxConfigurationError as err:
             errored_hosts.append(host)
