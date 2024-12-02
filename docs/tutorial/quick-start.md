@@ -1,5 +1,7 @@
 # Deploy Content Cache
 
+The content-cache charm makes deploying and managing a static web content cache with nginx easy with the help of [Juju](https://juju.is/) [charm](https://juju.is/docs/olm/charmed-operators).
+
 ## What you'll do
 
 - Deploy the Content Cache charm.
