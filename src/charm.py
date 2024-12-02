@@ -8,7 +8,11 @@
 import logging
 
 import ops
-from charms.tls_certificates_interface.v4.tls_certificates import Mode, TLSCertificatesRequiresV4
+from charms.tls_certificates_interface.v4.tls_certificates import (
+    CertificateRequestAttributes,
+    Mode,
+    TLSCertificatesRequiresV4,
+)
 
 import nginx_manager
 from certificates import TLSCertificatesManager, _generate_certificate_requests
@@ -24,6 +28,7 @@ from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
     CERTIFICATE_INTEGRATION_NAME,
     NginxConfig,
+    get_hostnames,
     get_nginx_config,
 )
 
@@ -47,10 +52,9 @@ class ContentCacheCharm(ops.CharmBase):
         super().__init__(framework)
 
         # Get the hostname from the integration data.
-        certificate_requests = []
+        hostnames = []
         try:
-            nginx_config = get_nginx_config(self)
-            certificate_requests = _generate_certificate_requests(list(nginx_config.keys()))
+            hostnames = get_hostnames(self)
         except IntegrationDataError as err:
             logger.warning("Issues with integration data: %s", err)
             # Unable to do anything about the error, therefore continue with setup.
@@ -58,7 +62,9 @@ class ContentCacheCharm(ops.CharmBase):
         certificates = TLSCertificatesRequiresV4(
             charm=self,
             relationship_name=CERTIFICATE_INTEGRATION_NAME,
-            certificate_requests=certificate_requests,
+            certificate_requests=[
+                CertificateRequestAttributes(common_name=name) for name in hostnames
+            ],
             mode=Mode.UNIT,
             refresh_events=[
                 self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_changed,
