@@ -30,6 +30,7 @@ from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
     CERTIFICATE_INTEGRATION_NAME,
     NginxConfig,
+    extract_hostname_from_nginx_config,
     get_hostnames,
     get_nginx_config,
 )
@@ -133,7 +134,7 @@ class ContentCacheCharm(ops.CharmBase):
         if nginx_config is None:
             return
 
-        hostnames = get_hostnames(self)
+        hostnames = extract_hostname_from_nginx_config(nginx_config)
         hostname_to_cert = {}
         try:
             hostname_to_cert = load_certificates(

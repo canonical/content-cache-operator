@@ -272,6 +272,18 @@ NginxConfig = dict[Hostname, dict[Location, LocationConfig]]
 HostConfig = dict[Location, LocationConfig]
 
 
+def extract_hostname_from_nginx_config(config: NginxConfig) -> tuple[Hostname, ...]:
+    """Extract the list of hostnames from nginx configuration.
+
+    Args:
+        config: The configuration.
+
+    Returns:
+        The list of hostnames.
+    """
+    return tuple(config.keys())
+
+
 def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
     """Get the nginx locations configuration from integration data.
 
