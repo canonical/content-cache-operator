@@ -21,6 +21,7 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
+from lib.charms.operator_libs_linux.v0.apt import PackageError, PackageNotFoundError, add_package
 from state import HostConfig, LocationConfig, NginxConfig, Protocol
 from utilities import execute_command
 
@@ -49,9 +50,10 @@ def initialize() -> None:  # pragma: no cover
     """
     logger.info("Installing and enabling nginx")
     # The install, systemctl enable, and systemctl start are idempotent.
-    return_code, _, stderr = execute_command(["sudo", "apt", "install", "nginx", "-yq"])
-    if return_code != 0:
-        raise NginxSetupError(f"Failed to install nginx: {stderr}")
+    try:
+        add_package("nginx")
+    except (PackageError, PackageNotFoundError) as e:
+        raise NginxSetupError("Failed to install nginx.") from e
 
     logger.info("Clean up default configuration files")
     _reset_nginx_files()
