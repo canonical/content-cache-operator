@@ -27,6 +27,9 @@ from utilities import execute_command
 
 logger = logging.getLogger(__name__)
 
+NGINX_BIN = "nginx"
+NGINX_PACKAGE = "nginx"
+NGINX_SERVICE = "nginx"
 NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
@@ -51,16 +54,16 @@ def initialize() -> None:  # pragma: no cover
     logger.info("Installing and enabling nginx")
     # The install, systemctl enable, and systemctl start are idempotent.
     try:
-        add_package("nginx")
+        add_package(NGINX_PACKAGE)
     except (PackageError, PackageNotFoundError) as e:
         raise NginxSetupError("Failed to install nginx.") from e
 
-    logger.info("Clean up default configuration files")
+    logger.info("Clean up default configurati&on files")
     _reset_nginx_files()
-    return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", "nginx"])
+    return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", NGINX_SERVICE])
     if return_code != 0:
         raise NginxSetupError(f"Failed to enable nginx: {stderr}")
-    return_code, _, stderr = execute_command(["sudo", "systemctl", "start", "nginx"])
+    return_code, _, stderr = execute_command(["sudo", "systemctl", "start", NGINX_SERVICE])
     if return_code != 0:
         raise NginxSetupError(f"Failed to start nginx: {stderr}")
 
@@ -72,7 +75,7 @@ def stop() -> None:  # pragma: no cover
         NginxStopError: Failed to stop nginx.
     """
     logger.info("Stopping nginx")
-    return_code, _, stderr = execute_command(["sudo", "systemctl", "stop", "nginx"])
+    return_code, _, stderr = execute_command(["sudo", "systemctl", "stop", NGINX_SERVICE])
     if return_code != 0:
         raise NginxStopError(f"Failed to stop nginx: {stderr}")
 
@@ -103,7 +106,7 @@ def _systemctl_status_check() -> bool:  # pragma: no cover
         True if process is running, else false.
     """
     # The return code is 0 for active and 3 for failed or inactive.
-    return_code, _, _ = execute_command(["systemctl", "status", "nginx"])
+    return_code, _, _ = execute_command(["systemctl", "status", NGINX_SERVICE])
     return return_code == 0
 
 
@@ -156,11 +159,11 @@ def _load_config() -> None:  # pragma: no cover
     if _systemctl_status_check():
         logger.info("Loading nginx configuration files")
         # This is reload the configuration files without interrupting service.
-        execute_command(["sudo", "nginx", "-s", "reload"])
+        execute_command(["sudo", NGINX_BIN, "-s", "reload"])
         return
 
     logger.info("Restarting nginx to load the configuration files.")
-    execute_command(["sudo", "systemctl", "restart", "nginx"])
+    execute_command(["sudo", "systemctl", "restart", NGINX_SERVICE])
 
 
 def _reset_nginx_files() -> None:
