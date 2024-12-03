@@ -79,6 +79,10 @@ def _validate_path_value(value: str) -> str:
     Validation performed:
     - The path is only consist of allowed characters.
 
+    These are the valid characters for path in addition to `/`:
+    a-z A-Z 0-9 . - _ ~ ! $ & ' ( ) * + , ; = : @
+    https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
+
     Args:
         value: The value to validate.
 
@@ -88,9 +92,6 @@ def _validate_path_value(value: str) -> str:
     Returns:
         The value after validation.
     """
-    # This are the valid characters for path in addition to `/`:
-    # a-z A-Z 0-9 . - _ ~ ! $ & ' ( ) * + , ; = : @
-    # https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
     valid_path = re.compile(r"[/\w.\-~!$&'()*+,;=:@]+", re.IGNORECASE)
     if valid_path.fullmatch(value) is None:
         raise ValueError("Path contains non-allowed character")
@@ -226,6 +227,10 @@ class LocationConfig(pydantic.BaseModel):
 def _check_nginx_time_str(time_str: str) -> None:
     """Check if nginx time str is valid.
 
+    Validation performed:
+    - The character at the end must be "d", "h", "m", "s".
+    - The time must be positive int.
+
     Args:
         time_str: The time str for nginx configuration.
 
@@ -247,6 +252,16 @@ def _check_nginx_time_str(time_str: str) -> None:
 def _check_status_code(code_str: str) -> None:
     """Check if status code is valid.
 
+    Validation performed:
+    - The status code must be int.
+    - The status code must be within 100 to 900.
+
+    The standard status code is found here:
+    https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
+
+    It is possible for software to have custom status code, so any three digit int is
+    supported here.
+
     Args:
         code_str: The status code.
 
@@ -258,10 +273,6 @@ def _check_status_code(code_str: str) -> None:
     except ValueError as err:
         raise ValueError(f"Non-int status code in proxy_cache_valid: {code_str}") from err
 
-    # The standard status code is found here:
-    # https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
-    # It is possible for software to have custom status code, so any three digit int is
-    # supported here.
     if code < 100 or code > 999:
         raise ValueError(f"Invalid status code in proxy_cache_valid: {code}")
 
@@ -334,7 +345,7 @@ def get_hostnames(charm: ops.CharmBase) -> tuple[Hostname, ...]:
         A list of hostnames.
     """
     hostnames: list[Hostname] = []
-    relations = charm.model.relations[CACHE_CONFIG_INTEGRATION_NAME]
+    relations = charm.model.relations.get(CACHE_CONFIG_INTEGRATION_NAME)
     if not relations:
         logger.info("Found no configuration integrations")
         return tuple(hostnames)
