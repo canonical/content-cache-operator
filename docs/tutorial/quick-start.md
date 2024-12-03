@@ -19,20 +19,20 @@ using a Multipass VM as outlined in this guide:
 ## Steps
 
 - Pack the content-cache charm. Run the following command at the root of the git repo.
-The version of the charm is a unreleased rewrite of the charm.
+The version of the charm is an unreleased rewrite of the charm.
 In the future, it will be available on charmhub.
 
 ```bash
 charmcraft pack
 ```
 
-- Deploy the content-cache charm.
+- Deploy the Content Cache charm.
 
 ```bash
 juju deploy ./content-cache_amd64.charm cache
 ```
 
-- Deploy the content-cache-backends-config charm, and configure the application.
+- Deploy the Content Cache Backends Config charm, and configure the application.
 
 ```bash
 juju deploy content-cache-backends-config --channel=latest/edge --revision=5 backends
@@ -42,7 +42,7 @@ juju config backends backends=185.125.90.20 hostname=ubuntu.com protocol=https
 The `backends` takes a comma-separated list of IPs, and `protocol` can be set to `http` or `https`.
 The above configuration ask the nginx to cache the content from `https://185.125.90.20`.
 The configuration can be changed to point to a different server.
-The Juju machine hosting the content-cache charm needs to be able to access the server, for the charm to work.
+The Juju machine hosting the Content Cache charm needs to be able to access the server, for the charm to work.
 Whether the Juju machine is able to access to server can be tested by `juju ssh` into the Juju machine and use curl to test access.
 
 - Integrate the two charms, and wait until the charms are in active state.
