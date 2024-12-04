@@ -181,7 +181,7 @@ async def test_charm_with_failover(
     # A random IP for a non-existence server.
     fake_ip = "10.111.111.23"
 
-    hostname = f"test.{secrets.token_hex(2)}.local"
+    hostname = f"test.local"
     config = dict(CacheTester.BASE_CONFIG)
     config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = f"{fake_ip},{http_ok_ip}"
