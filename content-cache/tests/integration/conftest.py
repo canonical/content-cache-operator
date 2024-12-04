@@ -3,7 +3,6 @@
 
 """Fixture for integration tests."""
 
-
 import logging
 import secrets
 from typing import AsyncIterator
@@ -54,25 +53,51 @@ async def model_fixture(ops_test) -> AsyncIterator[Model]:
 
 
 @pytest_asyncio.fixture(name="app", scope="module")
-async def app_fixture(model: Model, charm_file: str, app_name: str) -> AsyncIterator[Application]:
+async def app_fixture(
+    model: Model, charm_file: str, app_name: str, pytestconfig: pytest.Config
+) -> AsyncIterator[Application]:
     """The content-cache charm application for testing."""
+    use_existing = pytestconfig.getoption("--use-existing-app", default=[])
+    if use_existing and app_name in use_existing:
+        yield model.applications[app_name]
+        return
+
     app: Application = await model.deploy(charm_file, app_name, base="ubuntu@24.04")
     await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
     yield app
 
 
 @pytest_asyncio.fixture(name="config_app", scope="module")
-async def config_app_fixture(model: Model, config_app_name: str) -> AsyncIterator[Application]:
+async def config_app_fixture(
+    model: Model, config_app_name: str, pytestconfig: pytest.Config
+) -> AsyncIterator[Application]:
     """The configuration charm application for testing."""
+    use_existing = pytestconfig.getoption("--use-existing-app", default=[])
+    if use_existing and config_app_name in use_existing:
+        yield model.applications[config_app_name]
+        return
+
     app: Application = await model.deploy(
-        CONFIG_CHARM_NAME, config_app_name, base="ubuntu@24.04", channel="latest/edge", revision=5
+        CONFIG_CHARM_NAME,
+        config_app_name,
+        base="ubuntu@24.04",
+        channel="latest/edge",
+        revision=5,
     )
     yield app
 
 
 @pytest_asyncio.fixture(name="cert_app", scope="module")
-async def cert_app_fixture(model: Model, cert_app_name: str) -> AsyncIterator[Application]:
+async def cert_app_fixture(
+    model: Model, cert_app_name: str, pytestconfig: pytest.Config
+) -> AsyncIterator[Application]:
     """The TLS certificate charm application for testing."""
+
+    use_existing = pytestconfig.getoption("--use-existing-app", default=[])
+    if use_existing and app.name in use_existing:
+        yield model.applications[app.name]
+        return
+
     app: Application = await model.deploy(
         CERT_CHARM_NAME, cert_app_name, base="ubuntu@22.04", channel="latest/edge"
     )
@@ -94,9 +119,14 @@ def http_ok_message_fixture() -> str:
 
 @pytest_asyncio.fixture(name="http_ok_app", scope="module")
 async def http_ok_app_fixture(
-    model: Model, http_ok_path: str, http_ok_message: str
+    model: Model, http_ok_path: str, http_ok_message: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The test HTTP application that returns OK."""
+    use_existing = pytestconfig.getoption("--use-existing-app", default=[])
+    if use_existing and "http-ok" in use_existing:
+        yield model.applications["http-ok"]
+        return
+
     app = await deploy_http_app(
         app_name="http-ok", path=http_ok_path, status=200, message=http_ok_message, model=model
     )
