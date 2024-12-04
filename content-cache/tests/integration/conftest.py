@@ -92,10 +92,9 @@ async def cert_app_fixture(
     model: Model, cert_app_name: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The TLS certificate charm application for testing."""
-
     use_existing = pytestconfig.getoption("--use-existing-app", default=[])
-    if use_existing and app.name in use_existing:
-        yield model.applications[app.name]
+    if use_existing and cert_app_name in use_existing:
+        yield model.applications[cert_app_name]
         return
 
     app: Application = await model.deploy(
