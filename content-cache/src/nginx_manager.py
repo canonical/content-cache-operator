@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 NGINX_BIN = "/usr/local/openresty/nginx/sbin/nginx"
 NGINX_PACKAGE = "openresty"
 NGINX_SERVICE = "openresty"
-NGINX_MAIN_CONF = Path("/usr/local/openresty/nginx/conf/nginx.conf")
+NGINX_MAIN_CONF_PATH = Path("/usr/local/openresty/nginx/conf/nginx.conf")
 NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
@@ -236,7 +236,7 @@ def _reset_nginx_files() -> None:
     """
     try:
         logger.info("Init nginx config")
-        # if not NGINX_MAIN_CONF.exists():
+        # if not NGINX_MAIN_CONF_PATH.exists():
         _init_nginx_main_conf()
         logger.info("Resetting the nginx sites configuration files directories.")
         if NGINX_SITES_AVAILABLE_PATH.exists():
@@ -452,7 +452,7 @@ def _get_error_log_path(host: str) -> Path:
 
 def _init_nginx_main_conf() -> None:
     """Generate the main nginx configuration."""
-    NGINX_MAIN_CONF.write_text(
+    NGINX_MAIN_CONF_PATH.write_text(
         """user www-data;
 worker_processes auto;
 pid /usr/local/openresty/nginx/logs/nginx.pid;
