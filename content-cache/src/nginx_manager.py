@@ -99,7 +99,7 @@ def initialize() -> None:  # pragma: no cover
 
     if os.path.exists(
         "/etc/apt/sources.list"
-    ):  # FIXME: apt libs raise an error on empty source list
+    ):  # FIX ME: apt libs raise an error on empty source list
         os.unlink("/etc/apt/sources.list")
     repositories = RepositoryMapping()
 
@@ -112,7 +112,7 @@ def initialize() -> None:  # pragma: no cover
                 release="noble",
                 groups=["main"],
             )
-        )  # FIXME
+        )  # FIX ME
         update()
 
     try:
