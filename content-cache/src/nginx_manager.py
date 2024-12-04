@@ -31,15 +31,14 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from lib.charms.operator_libs_linux.v0.apt import PackageError, PackageNotFoundError, add_package
 from state import HostConfig, LocationConfig, NginxConfig, Protocol
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)
 
-NGINX_BIN = "nginx"
-NGINX_PACKAGE = "nginx"
-NGINX_SERVICE = "nginx"
+NGINX_BIN = "openresty"
+NGINX_PACKAGE = "openresty"
+NGINX_SERVICE = "openresty"
 NGINX_MAIN_CONF = Path("/usr/local/openresty/nginx/conf/nginx.conf")
 NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
@@ -452,7 +451,8 @@ def _get_error_log_path(host: str) -> Path:
     return NGINX_LOG_PATH / f"{host}-error.log"
 
 
-def _init_nginx_main_conf():
+def _init_nginx_main_conf() -> None:
+    """Generate the main nginx configuration."""
     NGINX_MAIN_CONF.write_text(
         """user www-data;
 worker_processes auto;
@@ -460,19 +460,19 @@ pid /usr/local/openresty/nginx/logs/nginx.pid;
 error_log /var/log/nginx/error.log;
 include /etc/nginx/modules-enabled/*.conf;
 events {
-	worker_connections 768;
+worker_connections 768;
 }
 http {
-	sendfile on;
-	tcp_nopush on;
-	types_hash_max_size 2048;
-	include /usr/local/openresty/nginx/conf/mime.types;
-	default_type application/octet-stream;
-	ssl_prefer_server_ciphers on;
-	access_log /var/log/nginx/access.log;
-	gzip on;
-	include /etc/nginx/conf.d/*.conf;
-	include /etc/nginx/sites-enabled/*;
+sendfile on;
+tcp_nopush on;
+types_hash_max_size 2048;
+include /usr/local/openresty/nginx/conf/mime.types;
+default_type application/octet-stream;
+ssl_prefer_server_ciphers on;
+access_log /var/log/nginx/access.log;
+gzip on;
+include /etc/nginx/conf.d/*.conf;
+include /etc/nginx/sites-enabled/*;
 }
 """
     )
