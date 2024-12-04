@@ -31,7 +31,7 @@ def load_certificates(
     certificates_path: Path,
     certificates: TLSCertificatesRequiresV4,
 ) -> dict[str, Path]:
-    """Store the certificates available.
+    """Load the certificates available to file.
 
     Args:
         common_names: The common name of the certificates to check if available and store.
@@ -55,7 +55,7 @@ def load_certificates(
     logger.info("Loading the certificate available over tls-certificates integration")
 
     common_name_to_cert = {}
-    for request in [CertificateRequestAttributes(common_name=name) for name in common_names]:
+    for request in (CertificateRequestAttributes(common_name=name) for name in common_names):
         provider_certificate, private_key = certificates.get_assigned_certificate(request)
         if not provider_certificate or not private_key:
             logger.warning("Certificate or private key not found for %s", request.common_name)
