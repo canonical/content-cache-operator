@@ -36,7 +36,7 @@ from utilities import execute_command
 
 logger = logging.getLogger(__name__)
 
-NGINX_BIN = "openresty"
+NGINX_BIN = "/usr/local/openresty/nginx/sbin/nginx"
 NGINX_PACKAGE = "openresty"
 NGINX_SERVICE = "openresty"
 NGINX_MAIN_CONF = Path("/usr/local/openresty/nginx/conf/nginx.conf")
