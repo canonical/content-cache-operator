@@ -13,6 +13,7 @@ import pytest
 import pytest_asyncio
 from juju.application import Application
 from juju.model import Model
+from pytest_operator.plugin import OpsTest
 
 from tests.integration.helpers import CacheTester, deploy_http_app, get_app_ip
 
@@ -48,6 +49,12 @@ def charm_file_fixture(pytestconfig: pytest.Config) -> str:
     return f"./{file}"
 
 
+@pytest_asyncio.fixture(name="config_charm_file", scope="module")
+async def config_charm_file_fixture(ops_test: OpsTest) -> AsyncIterator[str]:
+    path = await ops_test.build_charm("../content-cache-backends-config")
+    yield str(path)
+
+
 @pytest_asyncio.fixture(name="model", scope="module")
 async def model_fixture(ops_test) -> AsyncIterator[Model]:
     """The juju model for testing."""
@@ -56,13 +63,16 @@ async def model_fixture(ops_test) -> AsyncIterator[Model]:
 
 @pytest_asyncio.fixture(name="applications", scope="module")
 async def deploy_applications_fixture(
-    model: Model, charm_file: str, app_name: str, config_app_name: str, cert_app_name: str
+    model: Model,
+    charm_file: str,
+    config_charm_file: str,
+    app_name: str,
+    config_app_name: str,
+    cert_app_name: str,
 ) -> AsyncIterator[dict[str, Application]]:
     """Deploy all applications in parallel."""
     app_task = model.deploy(charm_file, app_name, base="ubuntu@24.04")
-    config_app_task = model.deploy(
-        CONFIG_CHARM_NAME, config_app_name, base="ubuntu@24.04", channel="latest/edge", revision=5
-    )
+    config_app_task = model.deploy(config_charm_file, config_app_name, base="ubuntu@24.04")
     cert_app_task = model.deploy(
         CERT_CHARM_NAME, cert_app_name, base="ubuntu@22.04", channel="latest/edge"
     )
