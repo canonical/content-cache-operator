@@ -25,13 +25,13 @@ from errors import (
 logger = logging.getLogger(__name__)
 
 
-def load_certificates(
+def write_certificates(
     common_names: Sequence[str],
     username: str,
     certificates_path: Path,
     certificates: TLSCertificatesRequiresV4,
 ) -> dict[str, Path]:
-    """Load the certificates available to file.
+    """Write the certificates available to file.
 
     Args:
         common_names: The common name of the certificates to check if available and store.

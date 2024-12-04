@@ -15,7 +15,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
 )
 
 import nginx_manager
-from certificates import load_certificates
+from certificates import write_certificates
 from errors import (
     IntegrationDataError,
     NginxConfigurationAggregateError,
@@ -137,7 +137,7 @@ class ContentCacheCharm(ops.CharmBase):
         hostnames = extract_hostname_from_nginx_config(nginx_config)
         hostname_to_cert = {}
         try:
-            hostname_to_cert = load_certificates(
+            hostname_to_cert = write_certificates(
                 hostnames,
                 nginx_manager.NGINX_USER,
                 nginx_manager.NGINX_CERTIFICATES_PATH,
