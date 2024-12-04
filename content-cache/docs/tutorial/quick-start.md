@@ -18,7 +18,7 @@ using a Multipass VM as outlined in this guide:
 
 ## Steps
 
-- Pack the content-cache charm. Run the following command at the root of the git repo.
+- Pack the Content Cache charm. Run the following command at the root of the git repo.
 The version of the charm is an unreleased rewrite of the charm.
 In the future, it will be available on charmhub.
 
