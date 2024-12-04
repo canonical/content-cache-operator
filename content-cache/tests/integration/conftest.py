@@ -72,7 +72,7 @@ async def deploy_applications_fixture(
 ) -> AsyncIterator[dict[str, Application]]:
     """Deploy all applications in parallel."""
     app_task = model.deploy(charm_file, app_name, base="ubuntu@24.04")
-    config_app_task = model.deploy(config_charm_file, config_app_name, base="ubuntu@24.04")
+    config_app_task = model.deploy(config_charm_file, config_app_name)
     cert_app_task = model.deploy(
         CERT_CHARM_NAME, cert_app_name, base="ubuntu@22.04", channel="latest/edge"
     )
