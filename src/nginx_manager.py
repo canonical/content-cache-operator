@@ -9,6 +9,7 @@ import pwd
 import shutil
 import uuid
 from pathlib import Path
+from typing import Mapping
 
 import nginx
 import requests
@@ -20,11 +21,12 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import HostConfig, LocationConfig, NginxConfig
+from state import HostConfig, LocationConfig, NginxConfig, Protocol
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)
 
+NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
 NGINX_LOG_PATH = Path("/var/log/nginx")
@@ -103,15 +105,18 @@ def _systemctl_status_check() -> bool:  # pragma: no cover
     return return_code == 0
 
 
-def update_and_load_config(configuration: NginxConfig) -> None:
+def update_and_load_config(
+    configuration: NginxConfig, hostname_to_cert: Mapping[str, Path]
+) -> None:
     """Update the nginx configuration files and load them.
+
+    Args:
+        configuration: The nginx locations configurations.
+        hostname_to_cert: The mapping of hostname to the TLS certificates filepath.
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
         NginxFileError: File operation errors while updating nginx configuration files.
-
-    Args:
-        configuration: The nginx locations configurations.
     """
     # This will reset the file permissions.
     _reset_nginx_files()
@@ -125,8 +130,11 @@ def update_and_load_config(configuration: NginxConfig) -> None:
     errored_hosts: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
     for host, config in configuration.items():
+        cert_path = None
+        if host in hostname_to_cert:
+            cert_path = hostname_to_cert[host]
         try:
-            _create_server_config(host, config)
+            _create_server_config(host, config, cert_path)
         except NginxConfigurationError as err:
             errored_hosts.append(host)
             configuration_errors.append(err)
@@ -196,12 +204,15 @@ def _create_status_page_config() -> None:
     _create_and_enable_config("nginx_status", nginx_config)
 
 
-def _create_server_config(host: str, configuration: HostConfig) -> None:
+def _create_server_config(
+    host: str, configuration: HostConfig, certificate_path: Path | None
+) -> None:
     """Create the nginx configuration file for a virtual host.
 
     Args:
         host: The name of the virtual host.
         configuration: The configurations of the host.
+        certificate_path: The filepath to the TLS certificate for the host.
 
     Raises:
         NginxConfigurationError: Failed to convert the configuration to nginx format.
@@ -220,6 +231,11 @@ def _create_server_config(host: str, configuration: HostConfig) -> None:
             nginx.Key("access_log", _get_access_log_path(host)),
             nginx.Key("error_log", _get_error_log_path(host)),
         )
+
+        if certificate_path is not None:
+            server_config.add(nginx.Key("listen", "443 ssl"))
+            server_config.add(nginx.Key("ssl_certificate", str(certificate_path)))
+            server_config.add(nginx.Key("ssl_certificate_key", str(certificate_path)))
 
         for path, config in configuration.items():
             # Each set of hostname configuration with path configuration needs a upstream.
@@ -255,8 +271,12 @@ def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
     Returns:
         The nginx.Key for the upstream configuration.
     """
+    port = 80
+    if config.protocol == Protocol.HTTPS:
+        port = 443
     keys = [
-        nginx.Key("server", f"{ip} fail_timeout={config.fail_timeout}") for ip in config.backends
+        nginx.Key("server", f"{ip}:{port} fail_timeout={config.fail_timeout}")
+        for ip in config.backends
     ]
     return tuple(keys)
 

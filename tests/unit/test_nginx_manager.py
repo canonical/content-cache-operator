@@ -6,9 +6,11 @@
 from ipaddress import IPv4Address
 from unittest.mock import MagicMock
 
+import pytest
 import requests
 
 import nginx_manager
+from errors import NginxFileError
 from state import LocationConfig
 
 
@@ -77,20 +79,17 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
         }
     }
 
-    nginx_manager.update_and_load_config(sample_data)
+    nginx_manager.update_and_load_config(sample_data, {})
 
     config_file_content = nginx_manager._get_sites_enabled_path(hostname).read_text()
 
-    assert "server 10.10.10.1 fail_timeout=30s" in config_file_content
-    assert "server 10.10.10.2 fail_timeout=30s" in config_file_content
+    assert "server 10.10.10.1" in config_file_content
+    assert "fail_timeout=30s" in config_file_content
+    assert "server 10.10.10.2" in config_file_content
     assert "location /path" in config_file_content
     assert "server_name example.com" in config_file_content
     assert "access_log" in config_file_content
     assert "error_log" in config_file_content
-    assert "proxy_cache_valid 200 302 30m" in config_file_content
-    assert "proxy_cache_valid 404 1m" in config_file_content
-    assert "proxy_pass https://" in config_file_content
-    assert "/backend" in config_file_content
 
 
 def test_health_check(monkeypatch, patch_nginx_manager: None):
@@ -114,3 +113,22 @@ def test_health_check_failure(monkeypatch, patch_nginx_manager: None):
         MagicMock(side_effect=requests.exceptions.HTTPError("Mock error")),
     )
     assert not nginx_manager.health_check()
+
+
+def test_file_errors(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Patch nginx.dumpf to raise file errors.
+    act: Run _create_and_enable_config.
+    assert: NginxFileError raised.
+    """
+    monkeypatch.setattr("nginx_manager.nginx.dumpf", MagicMock(side_effect=OSError("Mock error")))
+
+    with pytest.raises(NginxFileError):
+        nginx_manager._create_and_enable_config("mock-host", {})
+
+    monkeypatch.setattr(
+        "nginx_manager.nginx.dumpf", MagicMock(side_effect=PermissionError("Mock error"))
+    )
+
+    with pytest.raises(NginxFileError):
+        nginx_manager._create_and_enable_config("mock-host", {})

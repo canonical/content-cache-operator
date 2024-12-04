@@ -18,6 +18,7 @@ from errors import ConfigurationError, IntegrationDataError
 logger = logging.getLogger(__name__)
 
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
+CERTIFICATE_INTEGRATION_NAME = "certificates"
 
 HOSTNAME_FIELD_NAME = "hostname"
 PATH_FIELD_NAME = "path"
@@ -40,6 +41,63 @@ class Protocol(str, enum.Enum):
     HTTPS = "https"
 
 
+def _validate_hostname_value(value: str) -> str:
+    """Validate the value as a hostname.
+
+    Validation performed:
+    - The hostname must be of length 255 or below.
+    - The hostname must be consist of a certain characters.
+
+    Args:
+        value: The value to validate.
+
+    Raises:
+        ValueError: The validation failed.
+
+    Returns:
+        The value after validation.
+    """
+    if len(value) > 255:
+        raise ValueError("Hostname cannot be longer than 255")
+
+    valid_segment = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
+    for segment in value.split("."):
+        if valid_segment.fullmatch(segment) is None:
+            raise ValueError(
+                (
+                    "Each Hostname segment must be less than 64 in length, and consist of "
+                    "alphanumeric and hyphen"
+                )
+            )
+
+    return value
+
+
+def _validate_path_value(value: str) -> str:
+    """Validate the value as a path.
+
+    Validation performed:
+    - The path is only consist of allowed characters.
+
+    These are the valid characters for path in addition to `/`:
+    a-z A-Z 0-9 . - _ ~ ! $ & ' ( ) * + , ; = : @
+    https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
+
+    Args:
+        value: The value to validate.
+
+    Raises:
+        ValueError: The validation failed.
+
+    Returns:
+        The value after validation.
+    """
+    valid_path = re.compile(r"[/\w.\-~!$&'()*+,;=:@]+", re.IGNORECASE)
+    if valid_path.fullmatch(value) is None:
+        raise ValueError("Path contains non-allowed character")
+    return value
+
+
 class LocationConfig(pydantic.BaseModel):
     """Represents the configuration for a location.
 
@@ -53,78 +111,25 @@ class LocationConfig(pydantic.BaseModel):
         proxy_cache_valid: The cache valid duration.
     """
 
-    hostname: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
-    path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
+    hostname: typing.Annotated[
+        str,
+        pydantic.StringConstraints(min_length=1),
+        pydantic.AfterValidator(_validate_hostname_value),
+    ]
+    path: typing.Annotated[
+        str,
+        pydantic.StringConstraints(min_length=1),
+        pydantic.AfterValidator(_validate_path_value),
+    ]
     backends: tuple[pydantic.IPvAnyAddress, ...]
     protocol: Protocol
     fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
-    backends_path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
+    backends_path: typing.Annotated[
+        str,
+        pydantic.StringConstraints(min_length=1),
+        pydantic.AfterValidator(_validate_path_value),
+    ]
     proxy_cache_valid: tuple[str, ...]
-
-    @pydantic.field_validator("hostname")
-    @classmethod
-    def validate_hostname(cls, value: str) -> str:
-        """Validate the hostname.
-
-        Validation performed:
-        - The hostname must be of length 255 or below.
-        - The hostname must be consist of a certain characters.
-
-        Args:
-            value: The value to validate.
-
-        Raises:
-            ValueError: The validation failed.
-
-        Returns:
-            The value after validation.
-        """
-        if len(value) > 255:
-            raise ValueError("Hostname cannot be longer than 255")
-
-        valid_segment = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
-        for segment in value.split("."):
-            if valid_segment.fullmatch(segment) is None:
-                raise ValueError(
-                    (
-                        "Each Hostname segment must be less than 64 in length, and consist of "
-                        "alphanumeric and hyphen"
-                    )
-                )
-
-        return value
-
-    @pydantic.field_validator("path")
-    @classmethod
-    def validate_path(cls, value: str) -> str:
-        """Validate the path.
-
-        Validation performed:
-        - The path is only consist of allowed characters.
-
-        Args:
-            value: The value to validate.
-
-        Returns:
-            The value after validation.
-        """
-        return validate_path_value(value)
-
-    @pydantic.field_validator("backends_path")
-    @classmethod
-    def validate_backends_path(cls, value: str) -> str:
-        """Validate the backends_path.
-
-        Validation performed:
-        - The path is only consist of allowed characters.
-
-        Args:
-            value: The value to validate.
-
-        Returns:
-            The value after validation.
-        """
-        return validate_path_value(value)
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
@@ -153,8 +158,8 @@ class LocationConfig(pydantic.BaseModel):
                 )
             status_codes, time_str = tokens[:-1], tokens[-1]
             for code_str in status_codes:
-                check_status_code(code_str)
-            check_nginx_time_str(time_str)
+                _check_status_code(code_str)
+            _check_nginx_time_str(time_str)
         return value
 
     @classmethod
@@ -219,32 +224,12 @@ class LocationConfig(pydantic.BaseModel):
             raise ConfigurationError(f"Config error: {err_msg}") from err
 
 
-def validate_path_value(value: str) -> str:
-    """Validate the value as a path.
+def _check_nginx_time_str(time_str: str) -> None:
+    """Check if nginx time str is valid.
 
     Validation performed:
-    - The path is only consist of allowed characters.
-
-    Args:
-        value: The value to validate.
-
-    Raises:
-        ValueError: The validation failed.
-
-    Returns:
-        The value after validation.
-    """
-    # This are the valid characters for path in addition to `/`:
-    # a-z A-Z 0-9 . - _ ~ ! $ & ' ( ) * + , ; = : @
-    # https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
-    valid_path = re.compile(r"[/\w.\-~!$&'()*+,;=:@]+", re.IGNORECASE)
-    if valid_path.fullmatch(value) is None:
-        raise ValueError("Path contains non-allowed character")
-    return value
-
-
-def check_nginx_time_str(time_str: str) -> None:
-    """Check if nginx time str is valid.
+    - The character at the end must be "d", "h", "m", "s".
+    - The time must be positive int.
 
     Args:
         time_str: The time str for nginx configuration.
@@ -264,8 +249,18 @@ def check_nginx_time_str(time_str: str) -> None:
         raise ValueError(f"Time must be positive int for proxy_cache_valid: {time_str}")
 
 
-def check_status_code(code_str: str) -> None:
+def _check_status_code(code_str: str) -> None:
     """Check if status code is valid.
+
+    Validation performed:
+    - The status code must be int.
+    - The status code must be within 100 to 900.
+
+    The standard status code is found here:
+    https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
+
+    It is possible for software to have custom status code, so any three digit int is
+    supported here.
 
     Args:
         code_str: The status code.
@@ -278,10 +273,6 @@ def check_status_code(code_str: str) -> None:
     except ValueError as err:
         raise ValueError(f"Non-int status code in proxy_cache_valid: {code_str}") from err
 
-    # The standard status code is found here:
-    # https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
-    # It is possible for software to have custom status code, so any three digit int is
-    # supported here.
     if code < 100 or code > 999:
         raise ValueError(f"Invalid status code in proxy_cache_valid: {code}")
 
@@ -290,6 +281,18 @@ Hostname = str
 Location = str
 NginxConfig = dict[Hostname, dict[Location, LocationConfig]]
 HostConfig = dict[Location, LocationConfig]
+
+
+def extract_hostname_from_nginx_config(config: NginxConfig) -> tuple[Hostname, ...]:
+    """Extract the list of hostnames from nginx configuration.
+
+    Args:
+        config: The configuration.
+
+    Returns:
+        The list of hostnames.
+    """
+    return tuple(config.keys())
 
 
 def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
@@ -306,18 +309,18 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
     """
     relations = charm.model.relations[CACHE_CONFIG_INTEGRATION_NAME]
     if not relations:
-        logger.info("Found no integrations")
+        logger.info("Found no configuration integrations")
         return {}
 
     configurations: defaultdict[Hostname, dict[Location, LocationConfig]] = defaultdict(dict)
 
     for rel in relations:
         logger.info("Parsing integration data for %s", rel.app)
+        relation_data = rel.data[rel.app]
+        if not relation_data:
+            logger.info("Found integration %s with no data", rel.id)
+            continue
         try:
-            relation_data = rel.data[rel.app]
-            if not relation_data:
-                logger.info("Found integration %s with no data", rel.id)
-                continue
             config = LocationConfig.from_integration_data(relation_data)
         except ConfigurationError as err:
             logger.exception("Found integration %s with faulty data", rel.id)
@@ -327,3 +330,35 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
 
         configurations[config.hostname][config.path] = config
     return configurations
+
+
+def get_hostnames(charm: ops.CharmBase) -> list[Hostname]:
+    """Get the hostnames from integration data.
+
+    Args:
+        charm: The charm to extract integration data from.
+
+    Raises:
+        IntegrationDataError: Invalid hostname in integration data.
+
+    Returns:
+        A list of hostnames.
+    """
+    hostnames: list[Hostname] = []
+    relations = charm.model.relations.get(CACHE_CONFIG_INTEGRATION_NAME)
+    if not relations:
+        logger.info("Found no configuration integrations")
+        return hostnames
+
+    for rel in relations:
+        logger.info("Getting hostname from integration data for %s", rel.app)
+        hostname = rel.data[rel.app].get(HOSTNAME_FIELD_NAME, "").strip()
+        try:
+            _validate_hostname_value(hostname)
+        except ValueError as err:
+            logger.exception("Found integration %s with faulty hostname %s", rel.id, hostname)
+            raise IntegrationDataError(
+                f"Faulty hostname from integration {rel.id}: {str(err)}"
+            ) from err
+        hostnames.append(hostname)
+    return hostnames

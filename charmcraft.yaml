@@ -12,7 +12,12 @@ platforms:
 
 parts:
   charm:
-    build-packages: [cargo, rustc, pkg-config, libffi-dev, libssl-dev]
+    build-packages: 
+      - cargo
+      - rustc
+      - pkg-config
+      - libffi-dev
+      - libssl-dev
     build-snaps:
       - rustup
     override-build: |

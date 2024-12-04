@@ -13,7 +13,24 @@ from juju.application import Application
 from juju.model import Model
 from juju.unit import Unit
 
-from state import CACHE_CONFIG_INTEGRATION_NAME
+from state import CACHE_CONFIG_INTEGRATION_NAME, CERTIFICATE_INTEGRATION_NAME
+
+logger = logging.getLogger(__name__)
+
+TEST_SERVER_PATH = Path("tests/integration/scripts/test_server.py")
+
+HOSTNAME_CONFIG_NAME = "hostname"
+PATH_CONFIG_NAME = "path"
+BACKENDS_CONFIG_NAME = "backends"
+BACKENDS_PATH_CONFIG_NAME = "backends-path"
+PROTOCOL_CONFIG_NAME = "protocol"
+FAIL_TIMEOUT_CONFIG_NAME = "fail-timeout"
+PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
+
+
+class TestSetupError(Exception):
+    """Represent error in test setup."""
+
 
 logger = logging.getLogger(__name__)
 
@@ -45,23 +62,44 @@ class CacheTester:
         PROXY_CACHE_VALID_CONFIG_NAME: "[]",
     }
 
-    def __init__(self, model: Model, app: Application, config_app: Application):
+    def __init__(
+        self,
+        model: Model,
+        app: Application,
+        config_app: Application,
+        cert_app: Application | None = None,
+    ):
         """Initialize the object.
 
         Args:
             model: The juju model containing the applications.
             app: The content-cache application.
             config_app: The configuration charm application.
+            cert_app: The TLS certification charm application.
         """
         self._model = model
         self._app = app
         self._config_app = config_app
+        self._cert_app = cert_app
 
-    async def integrate(self) -> None:
-        """Integrate the applications."""
+    async def integrate_config(self) -> None:
+        """Integrate the configuration application."""
         await self._model.integrate(
-            f"{self._app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
             f"{self._config_app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
+            f"{self._app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
+        )
+
+    async def integrate_cert(self) -> None:
+        """Integrate the TLS certification application.
+
+        Raises:
+            TestSetupError: The TLS certificate application is not provided.
+        """
+        if self._cert_app is None:
+            raise TestSetupError("TLS certificate application not provided")
+        await self._model.integrate(
+            f"{self._app.name}:{CERTIFICATE_INTEGRATION_NAME}",
+            f"{self._cert_app.name}:{CERTIFICATE_INTEGRATION_NAME}",
         )
 
     async def setup_config(self, configuration: dict[str, str]) -> None:
@@ -72,12 +110,15 @@ class CacheTester:
         """
         await self._config_app.set_config(configuration)
 
-    async def query_cache(self, path: str, hostname: str) -> requests.Response:
+    async def query_cache(
+        self, path: str, hostname: str, protocol: str = "http"
+    ) -> requests.Response:
         """Test the content cache with a request.
 
         Args:
             path: The URL path to the content-cache.
             hostname: The hostname of the content-cache.
+            protocol: The protocol to make the request.
 
         Returns:
             Whether the cache is working.
@@ -85,7 +126,7 @@ class CacheTester:
         ip = await get_app_ip(self._app)
 
         response = requests.get(
-            f"http://{ip}{path}",
+            f"{protocol}://{ip}{path}",
             headers={"Host": hostname},
             allow_redirects=False,
             verify=False,
@@ -96,10 +137,12 @@ class CacheTester:
 
     async def reset(self) -> None:
         """Reset the state of the applications."""
-        if self._app.related_applications():
+        if self._app.related_applications(CACHE_CONFIG_INTEGRATION_NAME):
             await self._app.remove_relation(
                 CACHE_CONFIG_INTEGRATION_NAME, self._config_app.name, True
             )
+        if self._app.related_applications(CERTIFICATE_INTEGRATION_NAME):
+            await self._app.remove_relation(CERTIFICATE_INTEGRATION_NAME, self._app.name, True)
         await self.reset_config()
 
     async def reset_config(self) -> None:

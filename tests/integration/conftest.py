@@ -13,11 +13,12 @@ import pytest_asyncio
 from juju.application import Application
 from juju.model import Model
 
-from tests.integration.helpers import deploy_http_app, get_app_ip
+from tests.integration.helpers import CacheTester, deploy_http_app, get_app_ip
 
 logger = logging.getLogger(__name__)
 
 CONFIG_CHARM_NAME = "content-cache-backends-config"
+CERT_CHARM_NAME = "self-signed-certificates"
 
 
 @pytest.fixture(name="app_name", scope="module")
@@ -30,6 +31,12 @@ def app_name_fixture() -> str:
 def config_app_name_fixture() -> str:
     """The application name for the configuration charm."""
     return "config"
+
+
+@pytest.fixture(name="cert_app_name", scope="module")
+def cert_app_name_fixture() -> str:
+    """The application name for the TLS certificate charm."""
+    return "cert"
 
 
 @pytest.fixture(name="charm_file", scope="module")
@@ -49,24 +56,28 @@ async def model_fixture(ops_test) -> AsyncIterator[Model]:
 @pytest_asyncio.fixture(name="app", scope="module")
 async def app_fixture(model: Model, charm_file: str, app_name: str) -> AsyncIterator[Application]:
     """The content-cache charm application for testing."""
-    logger.info("Deploying test cache application %s", app_name)
     app: Application = await model.deploy(charm_file, app_name, base="ubuntu@24.04")
     await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
     yield app
-    logger.info("Cleaning test cache application %s", app_name)
-    await model.remove_application(app_name)
 
 
 @pytest_asyncio.fixture(name="config_app", scope="module")
 async def config_app_fixture(model: Model, config_app_name: str) -> AsyncIterator[Application]:
     """The configuration charm application for testing."""
-    logger.info("Deploying test cache application %s", config_app_name)
     app: Application = await model.deploy(
         CONFIG_CHARM_NAME, config_app_name, base="ubuntu@24.04", channel="latest/edge", revision=5
     )
     yield app
-    logger.info("Cleaning test cache application %s", config_app_name)
-    await model.remove_application(config_app_name)
+
+
+@pytest_asyncio.fixture(name="cert_app", scope="module")
+async def cert_app_fixture(model: Model, cert_app_name: str) -> AsyncIterator[Application]:
+    """The TLS certificate charm application for testing."""
+    app: Application = await model.deploy(
+        CERT_CHARM_NAME, cert_app_name, base="ubuntu@22.04", channel="latest/edge"
+    )
+    await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
+    yield app
 
 
 @pytest.fixture(name="http_ok_path", scope="module")
@@ -86,7 +97,6 @@ async def http_ok_app_fixture(
     model: Model, http_ok_path: str, http_ok_message: str
 ) -> AsyncIterator[Application]:
     """The test HTTP application that returns OK."""
-    logger.info("Deploying test HTTP server application.")
     app = await deploy_http_app(
         app_name="http-ok", path=http_ok_path, status=200, message=http_ok_message, model=model
     )
@@ -94,10 +104,24 @@ async def http_ok_app_fixture(
 
     yield app
 
-    logger.info("Cleaning test HTTP application %s", app.name)
-    await model.remove_application(app.name)
-
 
 @pytest_asyncio.fixture(name="http_ok_ip", scope="module")
 async def http_ok_ip_fixture(http_ok_app: Application) -> str:
     return await get_app_ip(http_ok_app)
+
+
+@pytest_asyncio.fixture(name="cache_tester", scope="function")
+async def cache_tester_fixture(
+    model: Model, app: Application, config_app: Application, cert_app: Application
+) -> AsyncIterator[CacheTester]:
+    unit = app.units[0]
+    tester = CacheTester(model, app, config_app, cert_app)
+
+    yield tester
+
+    # This removes the integration and configurations.
+    await tester.reset()
+
+    await model.wait_for_idle([app.name], status="blocked", timeout=5 * 60)
+    assert unit.workload_status_message == "Waiting for integration with config charm"
+    # The configuration charm is removed due to being subordinate charm with no relation.
