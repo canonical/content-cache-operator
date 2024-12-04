@@ -266,7 +266,6 @@ def _create_status_page_config() -> None:
     # The following should not throw any nginx.ParseError as it is static.
     nginx_config = nginx.Conf(
         nginx.Server(
-            nginx.Key("listen", "localhost"),
             nginx.Location(
                 NGINX_STATUS_URL_PATH,
                 nginx.Key("stub_status", "on"),
