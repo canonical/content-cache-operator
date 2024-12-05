@@ -1,0 +1,19 @@
+# Copyright 2024 Canonical Ltd.
+# See LICENSE file for licensing details.
+# This file configures Charmcraft.
+# See https://juju.is/docs/sdk/charmcraft-config for guidance.
+
+type: charm
+
+base: ubuntu@24.04
+
+platforms:
+  amd64:
+    build-on: amd64
+    build-for: amd64
+
+parts:
+  charm:
+    build-packages: [cargo, rustc, pkg-config, libffi-dev, libssl-dev]
+    charm-python-packages: [setuptools, pip]  # https://discourse.charmhub.io/t/install-or-update-python-packages-before-packing-a-charm/5158
+    charm-binary-python-packages: [cosl]  # https://github.com/canonical/charmcraft/issues/1269

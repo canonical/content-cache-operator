@@ -8,6 +8,9 @@ jobs:
     uses: canonical/operator-workflows/.github/workflows/integration_test.yaml@main
     secrets: inherit
     with:
-      juju-channel: 3.5/stable
+      juju-channel: 3.6/stable
       provider: lxd
       modules: '["test_charm"]'
+      working-directory: ./content-cache
+      self-hosted-runner: true
+      self-hosted-runner-label: "edge"
