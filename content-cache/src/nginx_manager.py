@@ -35,6 +35,22 @@ NGINX_USER = "www-data"
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_HEALTH_CHECK_TIMEOUT = 300
+NGINX_CACHE_LOG_FORMAT_NAME = "cache"
+NGINX_CACHE_LOG_FORMAT = (
+    "{",
+    '"local time": "$time_local",',
+    '"connection serial number": "$connection",',
+    '"hostname": "$hostname",',
+    '"client address": "$remote_addr",',
+    '"request method": "$request_method",',
+    '"protocol": "$server_protocol,"',
+    '"status code": "$status",',
+    '"cache status": "$upstream_cache_status",',
+    '"request time": "$request_time",',
+    '"bytes sent": "$bytes_sent",',
+    '"body bytes sent": "$body_bytes_sent"',
+    "}",
+)
 
 
 # Unit test is not valuable as the module is closely coupled with nginx.
@@ -223,12 +239,16 @@ def _create_server_config(
             nginx.Key(
                 "proxy_cache_path",
                 f"{NGINX_PROXY_CACHE_DIR_PATH} use_temp_path=off levels=1:2 keys_zone={host}:10m",
+            ),
+            nginx.Key(
+                "log_format", f"{NGINX_CACHE_LOG_FORMAT_NAME} {NGINX_CACHE_LOG_FORMAT}"
             )
         )
         server_config = nginx.Server(
             nginx.Key("proxy_cache", host),
             nginx.Key("server_name", host),
             nginx.Key("access_log", _get_access_log_path(host)),
+            nginx.Key("access_log", _get_cache_log_path(host)),
             nginx.Key("error_log", _get_error_log_path(host)),
         )
 
@@ -362,8 +382,19 @@ def _get_access_log_path(host: str) -> Path:
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / f"{host}-access.log"
+    return NGINX_LOG_PATH / f"{host}.access.log"
 
+
+def _get_cache_log_path(host: str) -> Path:
+    """Get the cache log path for a host.
+
+    Args:
+        host: The name of the host.
+
+    Returns:
+        The path.
+    """
+    return NGINX_LOG_PATH / f"{host}.cache.log"
 
 def _get_error_log_path(host: str) -> Path:
     """Get the error log path for a host.
@@ -374,4 +405,4 @@ def _get_error_log_path(host: str) -> Path:
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / f"{host}-error.log"
+    return NGINX_LOG_PATH / f"{host}.error.log"
