@@ -84,6 +84,29 @@ h2EiDJbMKk+QJcMPliIePZCP9JWj7n0ok9ccLg5XcNwiFEtn
 # This should be tested with integration tests.
 
 
+class NginxLuaSection:  # pylint: disable=R0903
+    """Simple class to insert Lua code in Nginx conf.
+
+    Attrs:
+        as_strings: a string to be dumped in the nginx configuration file
+    """
+
+    def __init__(self, name: str, content: str) -> None:
+        """Initialize with section's name and content.
+
+        Args:
+            name: name of the lua section
+            content: content of the lua section
+        """
+        self.name = name
+        self.content = content
+
+    @property
+    def as_strings(self) -> str:
+        """Return a string to be dumped in nginx conf."""
+        return f"{self.name} {{{self.content}}}\n"
+
+
 def initialize() -> None:  # pragma: no cover
     """Initialize the nginx server.
 
@@ -296,7 +319,10 @@ def _create_server_config(
             nginx.Key(
                 "proxy_cache_path",
                 f"{NGINX_PROXY_CACHE_DIR_PATH} use_temp_path=off levels=1:2 keys_zone={host}:10m",
-            )
+            ),
+            # From: https://github.com/openresty/lua-resty-upstream-healthcheck
+            nginx.Key("lua_shared_dict", "healthcheck 1m"),
+            nginx.Key("lua_socket_log_errors", "off"),
         )
         server_config = nginx.Server(
             nginx.Key("proxy_cache", host),
@@ -320,9 +346,20 @@ def _create_server_config(
             upstream_keys = _get_upstream_config_keys(config)
             upstream_config = nginx.Upstream(upstream, *upstream_keys)
             nginx_config.add(upstream_config)
+            nginx_config.add(
+                NginxLuaSection(
+                    "init_worker_by_lua_block",
+                    _get_upstream_healthchecks_worker(upstream, config),
+                )
+            )
 
             location_keys = _get_location_config_keys(config, upstream, host)
             server_config.add(nginx.Location(path, *location_keys))
+
+        # local hc = require "resty.upstream.healthcheck"}
+        #                       """
+        #     )
+
         nginx_config.add(server_config)
     except nginx.ParseError as err:
         logger.exception(
@@ -352,6 +389,40 @@ def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
         for ip in config.backends
     ]
     return tuple(keys)
+
+
+def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> str:
+    """Create the lua script to perform the healthchecks on backends.
+
+    Args:
+        upstream: The upstream name.
+        config: The virtualhost config.
+
+    Returns:
+        A string with the lua script for the healthcheck workers.
+    """
+    return rf"""local hc = require "resty.upstream.healthcheck"
+
+        local ok, err = hc.spawn_checker{{
+            shm = "healthcheck",
+            upstream = "{upstream}",
+            type = "{config.protocol.value}",
+
+            http_req = "GET {config.healthcheck_path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",
+
+            port = {433 if config.protocol.value == "https" else 80},
+            interval = {config.healthcheck_interval},
+            timeout = 1000,
+            fall = 3,
+            rise = 2,
+            valid_statuses = {{200}},
+            concurrency = 10,
+        }}
+        if not ok then
+            ngx.log(ngx.ERR, "failed to spawn health checker: ", err)
+            return
+        end
+    """
 
 
 def _get_location_config_keys(
