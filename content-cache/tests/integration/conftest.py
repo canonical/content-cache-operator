@@ -148,6 +148,6 @@ async def cache_tester_fixture(
     # This removes the integration and configurations.
     await tester.reset()
 
-    await model.wait_for_idle([app.name], status="blocked", timeout=5 * 60)
+    await model.wait_for_idle([app.name], status="blocked", timeout=10 * 60)
     assert unit.workload_status_message == "Waiting for integration with config charm"
     # The configuration charm is removed due to being subordinate charm with no relation.

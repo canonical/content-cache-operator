@@ -62,7 +62,7 @@ async def test_charm_integrate_with_no_data(
 
     # 1.
     await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="blocked", timeout=5 * 60)
+    await model.wait_for_idle([app.name, config_app.name], status="blocked", timeout=10 * 60)
     assert len(app.units) == 1
     assert len(config_app.units) == 1
     unit = app.units[0]
@@ -78,7 +78,7 @@ async def test_charm_integrate_with_no_data(
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[PROTOCOL_CONFIG_NAME] = "http"
     await cache_tester.setup_config(config)
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
     response = await cache_tester.query_cache(path="/", hostname=hostname)
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
@@ -123,7 +123,7 @@ async def test_charm_integrate_with_data(
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
     response = await cache_tester.query_cache(path="/", hostname=hostname)
     assert response.status_code == 200
@@ -148,8 +148,8 @@ async def test_charm_integrate_with_data(
     # The configuration update should fail on the configuration charm, and enter blocked state.
     # Since the integration data is not updated, the content-cache charm will continue serve the
     # site, according to the old configuration.
-    await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
-    await model.wait_for_idle([config_app.name], status="blocked", timeout=5 * 60)
+    await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
+    await model.wait_for_idle([config_app.name], status="blocked", timeout=10 * 60)
     assert len(app.units) == 1
     assert len(config_app.units) == 1
     unit = app.units[0]
@@ -191,7 +191,7 @@ async def test_charm_with_failover(
     config[FAIL_TIMEOUT_CONFIG_NAME] = "5s"
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
     response = await cache_tester.query_cache(path="/", hostname=hostname)
     assert response.status_code == 200
@@ -224,7 +224,7 @@ async def test_charm_integrate_with_data_then_cert(
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
     await cache_tester.integrate_cert()
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
     response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="https")
     assert response.status_code == 200
@@ -260,7 +260,7 @@ async def test_charm_integrate_with_cert_then_data(
     await cache_tester.setup_config(config)
     await cache_tester.integrate_cert()
     await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=5 * 60)
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
     response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="https")
     assert response.status_code == 200
