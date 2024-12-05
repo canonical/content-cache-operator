@@ -49,7 +49,7 @@ NGINX_CACHE_LOG_FORMAT = (
     '"request time": "$request_time",',
     '"bytes sent": "$bytes_sent",',
     '"body bytes sent": "$body_bytes_sent"',
-    "}",
+    "};",
 )
 
 
