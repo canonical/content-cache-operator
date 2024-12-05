@@ -143,6 +143,7 @@ class ContentCacheCharm(ops.CharmBase):
                 nginx_manager.NGINX_CERTIFICATES_PATH,
                 self.certificates,
             )
+            logger.info("Found all certificate requested")
         except TLSCertificateIntegrationNotExistError:
             logger.info("Skipping TLS certificates as tls-certificate integration not found")
         except TLSCertificateFileError:
@@ -156,7 +157,6 @@ class ContentCacheCharm(ops.CharmBase):
             )
             self.unit.status = ops.MaintenanceStatus(WAIT_FOR_TLS_CERT_MESSAGE)
             return
-        logger.info("Found all certificate requested")
 
         status_message = ""
         try:
