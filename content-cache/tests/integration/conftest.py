@@ -50,8 +50,15 @@ def charm_file_fixture(pytestconfig: pytest.Config) -> str:
 
 
 @pytest_asyncio.fixture(name="config_charm_file", scope="module")
-async def config_charm_file_fixture(ops_test: OpsTest) -> AsyncIterator[str]:
+async def config_charm_file_fixture(
+    ops_test: OpsTest, pytestconfig: pytest.Config
+) -> AsyncIterator[str]:
     """Build the configuration charm file and return the path."""
+    file = pytestconfig.getoption("--config-charm-file")
+    if file:
+        yield file
+        return
+
     path = await ops_test.build_charm("../content-cache-backends-config")
     yield str(path)
 
