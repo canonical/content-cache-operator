@@ -81,11 +81,15 @@ async def deploy_applications_fixture(
 ) -> AsyncIterator[dict[str, Application]]:
     """Deploy all applications in parallel."""
     if pytestconfig.getoption("--no-deploy"):
-        yield {
-            app_name: model.applications[app_name],
-            config_app_name: model.applications[config_app_name],
-            cert_app_name: model.applications[cert_app_name],
-        }
+        try:
+            res = {
+                app_name: model.applications[app_name],
+                config_app_name: model.applications[config_app_name],
+                cert_app_name: model.applications[cert_app_name],
+            }
+        except KeyError:
+            raise RuntimeError("At least one app is missing, you cannot use --no-deploy.")
+        yield res
         return
 
     app_task = model.deploy(charm_file, app_name, base="ubuntu@24.04")
