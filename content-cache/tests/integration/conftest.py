@@ -41,6 +41,7 @@ def cert_app_name_fixture() -> str:
     """The application name for the TLS certificate charm."""
     return "cert"
 
+
 @pytest.fixture(name="metric_app_name", scope="module")
 def metric_app_name_fixture() -> str:
     """The application name of the metric export charm."""
@@ -85,10 +86,17 @@ async def deploy_applications_fixture(
         CERT_CHARM_NAME, cert_app_name, base="ubuntu@22.04", channel="latest/edge"
     )
     metric_app_deploy = model.deploy(METRIC_CHARM_NAME, metric_app_name, num_units=0)
-    app, config_app, cert_app, metric_app = await asyncio.gather(app_deploy, config_app_deploy, cert_app_deploy, metric_app_deploy)
+    app, config_app, cert_app, metric_app = await asyncio.gather(
+        app_deploy, config_app_deploy, cert_app_deploy, metric_app_deploy
+    )
     await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
     await model.wait_for_idle([cert_app.name], status="active", timeout=15 * 60)
-    yield {app_name: app, config_app_name: config_app, cert_app_name: cert_app, metric_app_name: metric_app}
+    yield {
+        app_name: app,
+        config_app_name: config_app,
+        cert_app_name: cert_app,
+        metric_app_name: metric_app,
+    }
 
 
 @pytest_asyncio.fixture(name="app", scope="module")
@@ -114,10 +122,14 @@ async def cert_app_fixture(
     """The TLS certificate charm application for testing."""
     yield applications[cert_app_name]
 
+
 @pytest_asyncio.fixture(name="metric_app", scope="module")
-async def metric_app_fixture(metric_app_name: str, applications: dict[str, Application]) -> AsyncIterator[Application]:
+async def metric_app_fixture(
+    metric_app_name: str, applications: dict[str, Application]
+) -> AsyncIterator[Application]:
     """The metric agent charm application for testing."""
     yield applications[metric_app_name]
+
 
 @pytest.fixture(name="http_ok_path", scope="module")
 def http_ok_path_fixture() -> str:

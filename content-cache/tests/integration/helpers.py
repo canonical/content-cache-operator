@@ -227,7 +227,17 @@ async def get_app_ip(app: Application) -> str:
     unit: Unit = app.units[0]
     return await unit.get_public_address()
 
+
 async def read_file(unit: Unit, path: Path) -> str:
+    """Read a file on the Juju unit.
+
+    Args:
+        unit: The Juju unit to read file on.
+        path: The path of the file to read.
+
+    Returns:
+        The file content.
+    """
     return_code, stdout, stderr = await run_in_unit(
         unit=unit,
         command=f"if [ -f {path} ]; then cat {path}; else echo ''; fi",
@@ -239,9 +249,22 @@ async def read_file(unit: Unit, path: Path) -> str:
 
 
 async def run_in_unit(
-        unit: Unit, command:str, timeout=None
-) -> tuple[int, str|None, str|None]:
+    unit: Unit, command: str, timeout=None
+) -> tuple[int, str | None, str | None]:
+    """Run a command in the Juju unit.
+
+    Args:
+        unit:The Juju unit to run the command in.
+        command: The command to run.
+        timeout: The time in seconds for the command run to be consider as failure.
+
+    Returns:
+        The return code, stdout, and stderr.
+    """
     run: Action = await unit.run(command, timeout)
     await run.wait()
-    return run.results["return-code"], run.results.get("stdout", None), run.results.get("stderr", None)
-    
+    return (
+        run.results["return-code"],
+        run.results.get("stdout", None),
+        run.results.get("stderr", None),
+    )

@@ -7,10 +7,11 @@ import json
 import secrets
 
 import pytest
-from juju.unit import Unit
 from juju.application import Application
 from juju.model import Model
+from juju.unit import Unit
 
+from src import nginx_manager
 from tests.integration.helpers import (
     BACKENDS_CONFIG_NAME,
     BACKENDS_PATH_CONFIG_NAME,
@@ -20,9 +21,9 @@ from tests.integration.helpers import (
     CacheTester,
     read_file,
 )
-from src import nginx_manager
 
 COS_AGENT_INTEGRATION_NAME = "cos-agent"
+
 
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
@@ -37,10 +38,10 @@ async def test_charm_metric_log(
     """
     arrange: A working application of content-cache charm integrated with config charm.
     act: Makes some requests to the content-cache.
-    assert: The cache log contains the metrics. 
+    assert: The cache log contains the metrics.
     """
     unit: Unit = app.units[0]
-    
+
     hostname = f"test.{secrets.token_hex(2)}.local"
     config = dict(CacheTester.BASE_CONFIG)
     config[HOSTNAME_CONFIG_NAME] = hostname
@@ -51,15 +52,15 @@ async def test_charm_metric_log(
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
-    
+
     response = await cache_tester.query_cache(path="/", hostname=hostname)
     assert response.status_code == 200
     response = await cache_tester.query_cache(path="/", hostname=hostname)
-    assert response.status_code == 200    
-    
+    assert response.status_code == 200
+
     content = await read_file(unit, nginx_manager._get_cache_log_path(hostname))
     assert content
-    lines = content.split('\n')
+    lines = content.split("\n")
     first_request: dict = json.loads(lines[0])
     second_request: dict = json.loads(lines[1])
     assert first_request["cache status"] == "MISS"
@@ -79,7 +80,7 @@ async def test_charm_metric_log(
     assert "body bytes sent" in second_request
     assert "request time" in second_request
     assert "time" in second_request
-    
+
 
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
@@ -114,14 +115,16 @@ async def test_charm_integrate_with_cos(
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
     response = await cache_tester.query_cache(path="/", hostname=hostname)
     assert response.status_code == 200, "Test arrange failure"
-    
+
     # 1.
     await model.integrate(
         f"{metric_app.name}:{COS_AGENT_INTEGRATION_NAME}",
         f"{app.name}:{COS_AGENT_INTEGRATION_NAME}",
     )
 
-    await model.wait_for_idle([app.name, config_app.name, metric_app.name], status="active", timeout=10 * 60)
+    await model.wait_for_idle(
+        [app.name, config_app.name, metric_app.name], status="active", timeout=10 * 60
+    )
 
     # 2.
     await app.remove_relation(COS_AGENT_INTEGRATION_NAME, metric_app.name, True)

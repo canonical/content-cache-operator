@@ -105,7 +105,7 @@ def health_check() -> bool:
         )
         response.raise_for_status()
     except requests.RequestException as err:
-        logger.warning("Failed nginx health check with status %s", err.response.status_code)
+        logger.warning("Failed nginx health check: %s", err)
         return False
     return True
 
