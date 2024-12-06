@@ -7,7 +7,6 @@
 import asyncio
 import logging
 import secrets
-from pathlib import Path
 from typing import AsyncIterator
 
 import pytest

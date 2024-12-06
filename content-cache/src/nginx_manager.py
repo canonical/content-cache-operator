@@ -49,7 +49,6 @@ NGINX_USER = "www-data"
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
-NGINX_BACKEND_STATUS_URL_PATH = "/nginx_backend_status"
 NGINX_HEALTH_CHECK_TIMEOUT = 300
 
 OPENRESTY_PUBLIC_KEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
