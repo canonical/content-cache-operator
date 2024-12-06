@@ -74,6 +74,8 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
                 protocol="https",
                 fail_timeout="30s",
                 backends_path="/backend",
+                healthcheck_path="/health",
+                healthcheck_interval=2123,
                 proxy_cache_valid=("200 302 30m", "404 1m"),
             )
         }
@@ -90,6 +92,8 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert "server_name example.com" in config_file_content
     assert "access_log" in config_file_content
     assert "error_log" in config_file_content
+    assert "GET /health" in config_file_content
+    assert "interval = 2123" in config_file_content
 
 
 def test_health_check(monkeypatch, patch_nginx_manager: None):

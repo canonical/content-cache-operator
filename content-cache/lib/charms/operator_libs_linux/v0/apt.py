@@ -1,4 +1,4 @@
-# Copyright 2021 Canonical Ltd.
+# Copyright 2024 Canonical Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -848,7 +848,7 @@ def import_key(key: str) -> str:
     queried for a key via HTTPS by its keyid. This method
     is less preferable because https proxy servers may
     require traffic decryption which is equivalent to a
-    man-in-the-middle attack (a proxy server impersonates
+    machine-in-the-middle attack (a proxy server impersonates
     keyserver TLS certificates and has to be explicitly
     trusted by the system).
 
@@ -1070,7 +1070,7 @@ class DebianRepository:
         queried for a key via HTTPS by its keyid. This method
         is less preferable because https proxy servers may
         require traffic decryption which is equivalent to a
-        man-in-the-middle attack (a proxy server impersonates
+        machine-in-the-middle attack (a proxy server impersonates
         keyserver TLS certificates and has to be explicitly
         trusted by the system).
 

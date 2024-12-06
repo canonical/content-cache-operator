@@ -15,6 +15,8 @@ from state import (
     BACKENDS_FIELD_NAME,
     BACKENDS_PATH_FIELD_NAME,
     FAIL_TIMEOUT_FIELD_NAME,
+    HEALTHCHECK_INTERVAL_FIELD_NAME,
+    HEALTHCHECK_PATH_FIELD_NAME,
     HOSTNAME_FIELD_NAME,
     PATH_FIELD_NAME,
     PROTOCOL_FIELD_NAME,
@@ -28,6 +30,8 @@ SAMPLE_INTEGRATION_DATA = {
     PROTOCOL_FIELD_NAME: "https",
     FAIL_TIMEOUT_FIELD_NAME: "30s",
     BACKENDS_PATH_FIELD_NAME: "/",
+    HEALTHCHECK_PATH_FIELD_NAME: "/",
+    HEALTHCHECK_INTERVAL_FIELD_NAME: "2000",
     PROXY_CACHE_VALID_FIELD_NAME: '["200 302 1h", "404 1m"]',
 }
 
@@ -35,6 +39,7 @@ SAMPLE_INTEGRATION_DATA = {
 @pytest.fixture(name="patch_nginx_manager", scope="function")
 def patch_nginx_manager_fixture(monkeypatch, tmp_path: Path) -> None:
     """Patch the nginx_manager module."""
+    monkeypatch.setattr("nginx_manager.NGINX_MAIN_CONF_PATH", tmp_path / "nginx.conf")
     monkeypatch.setattr("nginx_manager.NGINX_SITES_ENABLED_PATH", tmp_path / "sites-enabled")
     monkeypatch.setattr("nginx_manager.NGINX_SITES_AVAILABLE_PATH", tmp_path / "sites-available")
     monkeypatch.setattr("nginx_manager.NGINX_LOG_PATH", tmp_path / "logs")
