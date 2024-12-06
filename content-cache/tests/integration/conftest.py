@@ -46,6 +46,14 @@ def charm_file_fixture(pytestconfig: pytest.Config) -> str:
     return f"./{file}"
 
 
+@pytest.fixture(name="config_charm_file", scope="module")
+def config_charm_file_fixture(pytestconfig: pytest.Config) -> str:
+    """Path to the prebuilt charm."""
+    file = pytestconfig.getoption("--config-charm-file")
+    assert file, "Please specify the --config-charm-file"
+    return f"./{file}"
+
+
 @pytest_asyncio.fixture(name="model", scope="module")
 async def model_fixture(ops_test) -> AsyncIterator[Model]:
     """The juju model for testing."""
@@ -69,7 +77,7 @@ async def app_fixture(
 
 @pytest_asyncio.fixture(name="config_app", scope="module")
 async def config_app_fixture(
-    model: Model, config_app_name: str, pytestconfig: pytest.Config
+    model: Model, config_charm_file: str, config_app_name: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The configuration charm application for testing."""
     use_existing = pytestconfig.getoption("--use-existing-app", default=[])
@@ -78,7 +86,7 @@ async def config_app_fixture(
         return
 
     app: Application = await model.deploy(
-        CONFIG_CHARM_NAME,
+        config_charm_file,
         config_app_name,
         base="ubuntu@24.04",
         channel="latest/edge",
