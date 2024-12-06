@@ -38,6 +38,63 @@ class Protocol(str, enum.Enum):
     HTTPS = "https"
 
 
+def _validate_hostname_value(value: str) -> str:
+    """Validate the value as a hostname.
+
+    Validation performed:
+    - The hostname must be of length 255 or below.
+    - The hostname must be consist of a certain characters.
+
+    Args:
+        value: The value to validate.
+
+    Raises:
+        ValueError: The validation failed.
+
+    Returns:
+        The value after validation.
+    """
+    if len(value) > 255:
+        raise ValueError("Hostname cannot be longer than 255")
+
+    valid_segment = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
+    for segment in value.split("."):
+        if valid_segment.fullmatch(segment) is None:
+            raise ValueError(
+                (
+                    "Each Hostname segment must be less than 64 in length, and consist of "
+                    "alphanumeric and hyphen"
+                )
+            )
+
+    return value
+
+
+def _validate_path_value(value: str) -> str:
+    """Validate the value as a path.
+
+    Validation performed:
+    - The path is only consist of allowed characters.
+
+    These are the valid characters for path in addition to `/`:
+    a-z A-Z 0-9 . - _ ~ ! $ & ' ( ) * + , ; = : @
+    https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
+
+    Args:
+        value: The value to validate.
+
+    Raises:
+        ValueError: The validation failed.
+
+    Returns:
+        The value after validation.
+    """
+    valid_path = re.compile(r"[/\w.\-~!$&'()*+,;=:@]+", re.IGNORECASE)
+    if valid_path.fullmatch(value) is None:
+        raise ValueError("Path contains non-allowed character")
+    return value
+
+
 class Configuration(pydantic.BaseModel):
     """Represents the configuration.
 
@@ -51,82 +108,25 @@ class Configuration(pydantic.BaseModel):
         proxy_cache_valid: The cache valid duration.
     """
 
-    hostname: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
-    path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
+    hostname: typing.Annotated[
+        str,
+        pydantic.StringConstraints(min_length=1),
+        pydantic.AfterValidator(_validate_hostname_value),
+    ]
+    path: typing.Annotated[
+        str,
+        pydantic.StringConstraints(min_length=1),
+        pydantic.AfterValidator(_validate_path_value),
+    ]
     backends: tuple[pydantic.IPvAnyAddress, ...]
     protocol: Protocol
     fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
-    backends_path: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
+    backends_path: typing.Annotated[
+        str,
+        pydantic.StringConstraints(min_length=1),
+        pydantic.AfterValidator(_validate_path_value),
+    ]
     proxy_cache_valid: tuple[str, ...]
-
-    @pydantic.field_validator("hostname")
-    @classmethod
-    def validate_hostname(cls, value: str) -> str:
-        """Validate the hostname.
-
-        Args:
-            value: The value to validate.
-
-        Raises:
-            ValueError: The validation failed.
-
-        Returns:
-            The value after validation.
-        """
-        if len(value) > 255:
-            raise ValueError("Hostname cannot be longer than 255")
-
-        valid_segment = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
-        for segment in value.split("."):
-            if valid_segment.fullmatch(segment) is None:
-                raise ValueError(
-                    (
-                        "Each Hostname segment must be less than 64 in length, and consist of "
-                        "alphanumeric and hyphen"
-                    )
-                )
-
-        return value
-
-    @pydantic.field_validator("path")
-    @classmethod
-    def validate_path(cls, value: str) -> str:
-        """Validate the path.
-
-        Args:
-            value: The value to validate.
-
-        Returns:
-            The value after validation.
-        """
-        return validate_path_value(value)
-
-    @pydantic.field_validator("fail_timeout")
-    @classmethod
-    def validate_fail_timeout(cls, value: str) -> str:
-        """Validate the fail_timeout.
-
-        Args:
-            value: The value to validate.
-
-        Returns:
-            The value after validation.
-        """
-        check_nginx_time_str(value)
-        return value
-
-    @pydantic.field_validator("backends_path")
-    @classmethod
-    def validate_backends_path(cls, value: str) -> str:
-        """Validate the backends_path.
-
-        Args:
-            value: The value to validate.
-
-        Returns:
-            The value after validation.
-        """
-        return validate_path_value(value)
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
@@ -148,8 +148,8 @@ class Configuration(pydantic.BaseModel):
                 raise ValueError(f"Invalid item in proxy_cache_valid: {item}")
             status_codes, time_str = tokens[:-1], tokens[-1]
             for code_str in status_codes:
-                check_status_code(code_str)
-            check_nginx_time_str(time_str)
+                _check_status_code(code_str)
+            _check_nginx_time_str(time_str)
         return value
 
     @classmethod
@@ -240,28 +240,7 @@ class Configuration(pydantic.BaseModel):
         return data
 
 
-def validate_path_value(value: str) -> str:
-    """Validate the value as a path.
-
-    Args:
-        value: The value to validate.
-
-    Raises:
-        ValueError: The validation failed.
-
-    Returns:
-        The value after validation.
-    """
-    # This are the valid characters for path in addition to `/`:
-    # a-z A-Z 0-9 . - _ ~ ! $ & ' ( ) * + , ; = : @
-    # https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
-    valid_path = re.compile(r"[/\w.\-~!$&'()*+,;=:@]+", re.IGNORECASE)
-    if valid_path.fullmatch(value) is None:
-        raise ValueError("Path contains non-allowed character")
-    return value
-
-
-def check_nginx_time_str(time_str: str) -> None:
+def _check_nginx_time_str(time_str: str) -> None:
     """Check if nginx time str is valid.
 
     Args:
@@ -282,7 +261,7 @@ def check_nginx_time_str(time_str: str) -> None:
         raise ValueError(f"Time must be positive int for proxy_cache_valid: {time_str}")
 
 
-def check_status_code(code_str: str) -> None:
+def _check_status_code(code_str: str) -> None:
     """Check if status code is valid.
 
     Args:
