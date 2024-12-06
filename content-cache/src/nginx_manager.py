@@ -38,7 +38,7 @@ NGINX_HEALTH_CHECK_TIMEOUT = 300
 NGINX_CACHE_LOG_FORMAT_NAME = "cache"
 NGINX_CACHE_LOG_FORMAT = (
     "{"
-    '"local time": "$time_local",'
+    '"time": "$time_iso8601",'
     '"connection serial number": "$connection",'
     '"hostname": "$hostname",'
     '"client address": "$remote_addr",'
@@ -104,8 +104,8 @@ def health_check() -> bool:
             timeout=NGINX_HEALTH_CHECK_TIMEOUT,
         )
         response.raise_for_status()
-    except requests.RequestException:
-        logger.exception("Failed nginx health check.")
+    except requests.RequestException as err:
+        logger.warning("Failed nginx health check with status %s", err.response.status_code)
         return False
     return True
 
