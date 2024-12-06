@@ -43,7 +43,7 @@ NGINX_CACHE_LOG_FORMAT = (
     '"hostname": "$hostname",'
     '"client address": "$remote_addr",'
     '"request method": "$request_method",'
-    '"protocol": "$server_protocol,"'
+    '"protocol": "$server_protocol",'
     '"status code": "$status",'
     '"cache status": "$upstream_cache_status",'
     '"request time": "$request_time",'

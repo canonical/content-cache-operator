@@ -356,7 +356,6 @@ def get_hostnames(charm: ops.CharmBase) -> list[Hostname]:
         try:
             _validate_hostname_value(hostname)
         except ValueError as err:
-            logger.exception("Found integration %s with faulty hostname %s", rel.id, hostname)
             raise IntegrationDataError(
                 f"Faulty hostname from integration {rel.id}: {str(err)}"
             ) from err
