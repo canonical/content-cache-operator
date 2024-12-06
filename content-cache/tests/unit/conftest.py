@@ -75,5 +75,5 @@ def harness_fixture(monkeypatch, mock_nginx_manager: MagicMock) -> Iterator[Harn
 
 @pytest.fixture(name="charm", scope="function")
 def charm_fixture(harness: Harness) -> ContentCacheCharm:
-    """The charm fixture"""
+    """The charm fixture."""
     return harness.charm

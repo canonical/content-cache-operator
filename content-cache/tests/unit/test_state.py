@@ -1,6 +1,8 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+"""Test the charm state."""
+
 import json
 from ipaddress import IPv4Address
 
