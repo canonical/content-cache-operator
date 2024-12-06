@@ -1,13 +1,13 @@
 # How to enable COS integration
 
-The charm utilize nginx as a static web content cache.
+The charm utilizes nginx as a static web content cache.
 Various metrics on the requests to the cache are logged.
 The logs can be ingested into [COS](https://charmhub.io/topics/canonical-observability-stack) by integrating the charm with a charm that provides `cos-agent` integration.
 
 The [Grafana Agent charm](https://charmhub.io/grafana-agent) provides `cos-agent` integration to machine charms.
 If you are new to COS or the Grafana Agent charm it is recommended to first follow [this guide](https://charmhub.io/grafana-agent/docs/using) to understand the concepts of COS and how the charms work together.
 
-With a working content-cache charm deployment name `cache`, the following will add COS support to it:
+With a working Content Cache charm deployment name `cache`, the following will add COS support to it:
 
 ```bash
 juju deploy grafana-agent cos-agent
