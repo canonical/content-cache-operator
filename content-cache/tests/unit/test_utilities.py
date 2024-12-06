@@ -1,6 +1,8 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+"""Utilities for testing."""
+
 from utilities import execute_command
 
 

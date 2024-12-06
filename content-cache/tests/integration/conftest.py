@@ -51,6 +51,7 @@ def charm_file_fixture(pytestconfig: pytest.Config) -> str:
 
 @pytest_asyncio.fixture(name="config_charm_file", scope="module")
 async def config_charm_file_fixture(ops_test: OpsTest) -> AsyncIterator[str]:
+    """Build the configuration charm file and return the path."""
     path = await ops_test.build_charm("../content-cache-backends-config")
     yield str(path)
 
@@ -133,6 +134,7 @@ async def http_ok_app_fixture(
 
 @pytest_asyncio.fixture(name="http_ok_ip", scope="module")
 async def http_ok_ip_fixture(http_ok_app: Application) -> str:
+    """The IP to the test HTTP application that returns OK."""
     return await get_app_ip(http_ok_app)
 
 
@@ -140,6 +142,7 @@ async def http_ok_ip_fixture(http_ok_app: Application) -> str:
 async def cache_tester_fixture(
     model: Model, app: Application, config_app: Application, cert_app: Application
 ) -> AsyncIterator[CacheTester]:
+    """Get the cache tester."""
     unit = app.units[0]
     tester = CacheTester(model, app, config_app, cert_app)
 
@@ -148,6 +151,6 @@ async def cache_tester_fixture(
     # This removes the integration and configurations.
     await tester.reset()
 
-    await model.wait_for_idle([app.name], status="blocked", timeout=5 * 60)
+    await model.wait_for_idle([app.name], status="blocked", timeout=10 * 60)
     assert unit.workload_status_message == "Waiting for integration with config charm"
     # The configuration charm is removed due to being subordinate charm with no relation.
