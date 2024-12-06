@@ -178,7 +178,7 @@ class Configuration(pydantic.BaseModel):
         Returns:
             The value after validation.
         """
-        return validate_path_value(value)
+        return _validate_path_value(value)
 
     @pydantic.field_validator("fail_timeout")
     @classmethod
@@ -191,7 +191,7 @@ class Configuration(pydantic.BaseModel):
         Returns:
             The value after validation.
         """
-        check_nginx_time_str(value)
+        _check_nginx_time_str(value)
         return value
 
     @pydantic.field_validator("backends_path")
@@ -205,7 +205,7 @@ class Configuration(pydantic.BaseModel):
         Returns:
             The value after validation.
         """
-        return validate_path_value(value)
+        return _validate_path_value(value)
 
     @pydantic.field_validator("healthcheck_path")
     @classmethod
@@ -218,7 +218,7 @@ class Configuration(pydantic.BaseModel):
         Returns:
             The value after validation.
         """
-        return validate_path_value(value)
+        return _validate_path_value(value)
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod

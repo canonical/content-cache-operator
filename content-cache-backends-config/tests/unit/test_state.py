@@ -12,7 +12,7 @@ from factories import MockCharmFactory  # pylint: disable=import-error
 
 from errors import ConfigurationError
 
-# TODO:     #    HEALTHCHECK_INTERVAL_CONFIG_NAME,
+# TO DO:     #    HEALTHCHECK_INTERVAL_CONFIG_NAME,
 from src.state import (
     BACKENDS_CONFIG_NAME,
     BACKENDS_PATH_CONFIG_NAME,
@@ -156,7 +156,7 @@ def test_longer_path():
     assert config.proxy_cache_valid == ()
 
 
-# TODO: healthcheck through params
+# TO DO: healthcheck through params
 def test_empty_path():
     """
     arrange: Mock charm with empty path.
@@ -172,7 +172,7 @@ def test_empty_path():
     assert str(err.value) == "Config error: ['path = : String should have at least 1 character']"
 
 
-# TODO: healthcheck through params
+# TO DO: healthcheck through params
 def test_invalid_path():
     """
     arrange: Mock charm with path with invalid character.
@@ -273,7 +273,7 @@ def test_http_protocol():
     assert config.protocol == "http"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    # TODO
+    # TO DO
     assert config.proxy_cache_valid == ()
 
 
@@ -405,7 +405,7 @@ def test_valid_proxy_cache_valid(proxy_cache_valid: str):
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    # TODO
+    # TO DO
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
 
 
@@ -467,4 +467,4 @@ def test_configuration_to_json_dumps_error(monkeypatch):
     assert "Unable to convert configuration to integration data format" in str(err.value)
 
 
-# TODO: healthcheck interval
+# TO DO: healthcheck interval
