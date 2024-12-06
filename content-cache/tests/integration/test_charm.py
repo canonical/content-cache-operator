@@ -15,6 +15,8 @@ from tests.integration.helpers import (
     BACKENDS_CONFIG_NAME,
     BACKENDS_PATH_CONFIG_NAME,
     FAIL_TIMEOUT_CONFIG_NAME,
+    HEALTHCHECK_PATH_CONFIG_NAME,
+    HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HOSTNAME_CONFIG_NAME,
     PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
@@ -76,6 +78,8 @@ async def test_charm_integrate_with_no_data(
     config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[PROTOCOL_CONFIG_NAME] = "http"
     await cache_tester.setup_config(config)
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
