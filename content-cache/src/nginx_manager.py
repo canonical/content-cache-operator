@@ -48,6 +48,8 @@ NGINX_PROXY_CACHE_DIR_PATH = Path("/data/nginx/cache")
 NGINX_USER = "www-data"
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
+NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
+NGINX_BACKEND_STATUS_URL_PATH = "/nginx_backend_status"
 NGINX_HEALTH_CHECK_TIMEOUT = 300
 
 OPENRESTY_PUBLIC_KEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -294,6 +296,19 @@ def _create_status_page_config() -> None:
                 nginx.Key("stub_status", "on"),
                 nginx.Key("allow", "127.0.0.1"),
                 nginx.Key("deny", "all"),
+            ),
+            nginx.Location(
+                NGINX_BACKENDS_STATUS_URL_PATH,
+                nginx.Key("allow", "127.0.0.1"),
+                nginx.Key("deny", "all"),
+                nginx.Key("default_type", "text/plain"),
+                NginxLuaSection(
+                    "content_by_lua_block",
+                    """local hc = require "resty.upstream.healthcheck"
+                ngx.say("Nginx Worker PID: ", ngx.worker.pid())
+                ngx.print(hc.status_page())
+                """,
+                ),
             ),
         )
     )
