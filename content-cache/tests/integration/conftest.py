@@ -7,6 +7,7 @@
 import asyncio
 import logging
 import secrets
+from pathlib import Path
 from typing import AsyncIterator
 
 import pytest
@@ -52,7 +53,12 @@ def charm_file_fixture(pytestconfig: pytest.Config) -> str:
 @pytest_asyncio.fixture(name="config_charm_file", scope="module")
 async def config_charm_file_fixture(ops_test: OpsTest) -> AsyncIterator[str]:
     """Build the configuration charm file and return the path."""
-    path = await ops_test.build_charm("../content-cache-backends-config")
+    charm_path = Path("../content-cache-backends-config/content-cache-backends-config_amd64.charm")
+    if charm_path.exists():
+        yield str(charm_path)
+        return
+
+    path = await ops_test.build_charm(str(charm_path.parent))
     yield str(path)
 
 
@@ -70,8 +76,17 @@ async def deploy_applications_fixture(
     app_name: str,
     config_app_name: str,
     cert_app_name: str,
+    pytestconfig: pytest.Config,
 ) -> AsyncIterator[dict[str, Application]]:
     """Deploy all applications in parallel."""
+    if pytestconfig.getoption("--no-deploy"):
+        yield {
+            app_name: model.applications[app_name],
+            config_app_name: model.applications[config_app_name],
+            cert_app_name: model.applications[cert_app_name],
+        }
+        return
+
     app_task = model.deploy(charm_file, app_name, base="ubuntu@24.04")
     config_app_task = model.deploy(config_charm_file, config_app_name, num_units=0)
     cert_app_task = model.deploy(
