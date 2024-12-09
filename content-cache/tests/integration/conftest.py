@@ -88,7 +88,7 @@ async def deploy_applications_fixture(
         CERT_CHARM_NAME, cert_app_name, base="ubuntu@22.04", channel="latest/edge"
     )
     metric_app_deploy = model.deploy(
-        METRIC_CHARM_NAME, metric_app_name, base="ubuntu@24.04", num_units=0
+        METRIC_CHARM_NAME, metric_app_name, base="ubuntu@24.04", channel="latest/edge", num_units=0
     )
     app, config_app, cert_app, metric_app = await asyncio.gather(
         app_deploy, config_app_deploy, cert_app_deploy, metric_app_deploy
