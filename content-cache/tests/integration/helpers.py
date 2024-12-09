@@ -205,12 +205,17 @@ async def deploy_http_app(
         "any_charm.py": any_charm_content,
     }
 
-    app: Application = await model.deploy(
-        "any-charm",
-        application_name=app_name,
-        channel="beta",
-        config={"src-overwrite": json.dumps(src_overwrite)},
-    )
+    if app_name in model.applications:
+        logging.info(f"Found existing {app_name} application. Reconfiguring it.")
+        app = model.applications[app_name]
+        await app.set_config({"src-overwrite": json.dumps(src_overwrite)})
+    else:
+        app: Application = await model.deploy(
+            "any-charm",
+            application_name=app_name,
+            channel="beta",
+            config={"src-overwrite": json.dumps(src_overwrite)},
+        )
 
     return app
 
