@@ -161,6 +161,7 @@ async def deploy_http_app(
     test_server_content = TEST_SERVER_PATH.read_text()
     any_charm_content = textwrap.dedent(
         f'''
+    import logging
     import os
     import subprocess
     import textwrap
@@ -171,9 +172,15 @@ async def deploy_http_app(
     SERVICE_NAME = "test-http"
     SERVICE_PATH = Path("/etc/systemd/system/" + SERVICE_NAME + ".service")
 
+    logger = logging.getLogger(__name__)
 
     class AnyCharm(AnyCharmBase):
-        def _on_start_(self, event):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.framework.observe(self.on.config_changed, self._on_config_changed)
+
+        def generate_config(self):
+            logger.info(f"Configuring {{SERVICE_NAME}} to answer on {path}")
             test_server_path = Path(os.getcwd()) / "src" / "test_server.py"
             SERVICE_PATH.write_text(
                 textwrap.dedent(
@@ -195,10 +202,19 @@ async def deploy_http_app(
                     """
                 )
             )
+
+        def _on_start_(self, event):
+            self.generate_config()
+
             subprocess.run(["systemctl", "enable", SERVICE_NAME])
             subprocess.run(["systemctl", "start", SERVICE_NAME])
 
             super()._on_start_(event)
+
+        def _on_config_changed(self, event):
+            self.generate_config()
+            subprocess.run(["systemctl", "daemon-reload"])
+            subprocess.run(["systemctl", "restart", SERVICE_NAME])
     '''
     )
 
@@ -207,12 +223,13 @@ async def deploy_http_app(
         "any_charm.py": any_charm_content,
     }
 
+    app: Application
     if app_name in model.applications:
         logging.info(f"Found existing {app_name} application. Reconfiguring it.")
         app = model.applications[app_name]
         await app.set_config({"src-overwrite": json.dumps(src_overwrite)})
     else:
-        app: Application = await model.deploy(
+        app = await model.deploy(
             "any-charm",
             application_name=app_name,
             channel="beta",
