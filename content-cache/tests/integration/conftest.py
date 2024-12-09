@@ -7,7 +7,7 @@
 import asyncio
 import logging
 import secrets
-from typing import AsyncIterator
+from typing import AsyncIterator, List
 
 import pytest
 import pytest_asyncio
@@ -161,6 +161,20 @@ async def http_ok_app_fixture(
 async def http_ok_ip_fixture(http_ok_app: Application) -> str:
     """The IP to the test HTTP application that returns OK."""
     return await get_app_ip(http_ok_app)
+
+
+@pytest_asyncio.fixture(name="http_ok_ips", scope="module")
+async def http_ok_ips_fixture(model: Model, http_ok_app: Application) -> List[str]:
+    """The IPs of the test HTTP applications (2 units expected)"""
+    if len(http_ok_app.units) < 2:
+        await http_ok_app.add_unit(1)
+        await model.wait_for_idle([http_ok_app.name], status="active", timeout=10 * 60)
+
+    ips = []
+    for unit in http_ok_app.units:
+        ips.append(await unit.get_public_address())
+
+    return ips
 
 
 @pytest_asyncio.fixture(name="cache_tester", scope="function")
