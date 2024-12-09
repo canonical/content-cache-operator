@@ -70,6 +70,7 @@ class CacheTester:
         self._app = app
         self._config_app = config_app
         self._cert_app = cert_app
+        self._reset_after_run = True
 
     async def integrate_config(self) -> None:
         """Integrate the configuration application."""

@@ -187,6 +187,9 @@ async def cache_tester_fixture(
 
     yield tester
 
+    if not tester._reset_after_run:
+        return
+
     # This removes the integration and configurations.
     await tester.reset()
 
