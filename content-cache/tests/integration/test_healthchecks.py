@@ -3,9 +3,11 @@
 
 """Integration tests for the content-cache's active healthchecks."""
 
-import secrets
+import asyncio
+from typing import List
 
 import pytest
+import requests
 from juju.application import Application
 from juju.model import Model
 
@@ -20,6 +22,8 @@ from tests.integration.helpers import (
     PROXY_CACHE_VALID_CONFIG_NAME,
     CacheTester,
 )
+
+HEALTHCHECK_INTERVAL = 2000
 
 
 async def get_nginx_status(app: Application, path: str) -> str:
@@ -46,14 +50,15 @@ async def get_nginx_status(app: Application, path: str) -> str:
     return result.results["stdout"]
 
 
+@pytest.mark.abort_on_fail
 @pytest.mark.asyncio
-async def test_healthy_backends(
+async def test_healthchecks_healthy(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
     http_ok_path: str,
     http_ok_message: str,
-    http_ok_app: Application,
+    http_ok_ips: List[str],
     model: Model,
 ) -> None:
     """
@@ -61,19 +66,13 @@ async def test_healthy_backends(
     act: Nothing.
     assert: HTTP request should succeed and two backends are reported up in the status page.
     """
-    await http_ok_app.add_unit(1)
-    await model.wait_for_idle([http_ok_app.name], status="active", timeout=10 * 60)
-    ips = []
-    for unit in http_ok_app.units:
-        ips.append(await unit.get_public_address())
-
-    hostname = f"test.{secrets.token_hex(2)}.local"
+    hostname = "test.healthchecks.local"
     config = dict(CacheTester.BASE_CONFIG)
     config[HOSTNAME_CONFIG_NAME] = hostname
-    config[BACKENDS_CONFIG_NAME] = ",".join(ips)
+    config[BACKENDS_CONFIG_NAME] = ",".join(http_ok_ips)
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
-    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
+    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
@@ -93,5 +92,101 @@ async def test_healthy_backends(
     # Backup Peers
 
     status = await get_nginx_status(app, path=NGINX_BACKENDS_STATUS_URL_PATH)
-    assert f"{ips[0]}:80 UP" in status
-    assert f"{ips[1]}:80 UP" in status
+    assert f"{http_ok_ips[0]}:80 UP" in status
+    assert f"{http_ok_ips[1]}:80 UP" in status
+
+    cache_tester._reset_after_run = False
+
+
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_healthchecks_one_unhealthy(
+    app: Application,
+    config_app: Application,
+    cache_tester: CacheTester,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ips: List[str],
+    model: Model,
+) -> None:
+    """
+    arrange: Two backends responding 200 on their healthchecks.
+    act: Turn one backend unhealty.
+    assert: HTTP request should succeed. One backend is reported UP. One backend is reported DOWN.
+    """
+    hostname = "test.healthchecks.local"
+
+    requests.get(f"http://{http_ok_ips[0]}/turn-unhealthy")
+    await asyncio.sleep(4 * HEALTHCHECK_INTERVAL / 1000)
+
+    status = await get_nginx_status(app, path=NGINX_BACKENDS_STATUS_URL_PATH)
+    assert f"{http_ok_ips[0]}:80 DOWN" in status
+    assert f"{http_ok_ips[1]}:80 UP" in status
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
+
+    cache_tester._reset_after_run = False
+
+
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_healthchecks_one_recovery(
+    app: Application,
+    config_app: Application,
+    cache_tester: CacheTester,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ips: List[str],
+    model: Model,
+) -> None:
+    """
+    arrange: Two backends. One responding 200 on its healthcheck, and the other 500.
+    act: Bring back the faulty backend to an healthy state.
+    assert: HTTP request should succeed. Two backends are reported up.
+    """
+    hostname = "test.healthchecks.local"
+
+    requests.get(f"http://{http_ok_ips[0]}/turn-healthy")
+    await asyncio.sleep(3 * HEALTHCHECK_INTERVAL / 1000)
+
+    status = await get_nginx_status(app, path=NGINX_BACKENDS_STATUS_URL_PATH)
+    assert f"{http_ok_ips[0]}:80 UP" in status
+    assert f"{http_ok_ips[1]}:80 UP" in status
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
+
+    cache_tester._reset_after_run = False
+
+
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_healthchecks_all_unhealthy(
+    app: Application,
+    config_app: Application,
+    cache_tester: CacheTester,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ips: List[str],
+    model: Model,
+) -> None:
+    """
+    arrange: Two healthy backends.
+    act: Turn both backends unhealth.
+    assert: HTTP request should fail with 502. Both backends are reported DOWN.
+    """
+    hostname = "test.healthchecks.local"
+
+    requests.get(f"http://{http_ok_ips[0]}/turn-unhealthy")
+    requests.get(f"http://{http_ok_ips[1]}/turn-unhealthy")
+    await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
+
+    status = await get_nginx_status(app, path=NGINX_BACKENDS_STATUS_URL_PATH)
+    assert f"{http_ok_ips[0]}:80 DOWN" in status
+    assert f"{http_ok_ips[1]}:80 DOWN" in status
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    assert response.status_code == 502
