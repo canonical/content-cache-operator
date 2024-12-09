@@ -53,7 +53,7 @@ async def test_healthy_backends(
     cache_tester: CacheTester,
     http_ok_path: str,
     http_ok_message: str,
-    http_ok_ip: str,
+    http_ok_app: Application,
     model: Model,
 ) -> None:
     """
@@ -61,10 +61,16 @@ async def test_healthy_backends(
     act: Nothing.
     assert: HTTP request should succeed and two backends are reported up in the status page.
     """
+    await http_ok_app.add_unit(1)
+    await model.wait_for_idle([http_ok_app.name], status="active", timeout=10 * 60)
+    ips = []
+    for unit in http_ok_app.units:
+        ips.append(await unit.get_public_address())
+
     hostname = f"test.{secrets.token_hex(2)}.local"
     config = dict(CacheTester.BASE_CONFIG)
     config[HOSTNAME_CONFIG_NAME] = hostname
-    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_CONFIG_NAME] = ",".join(ips)
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
@@ -87,4 +93,5 @@ async def test_healthy_backends(
     # Backup Peers
 
     status = await get_nginx_status(app, path=NGINX_BACKENDS_STATUS_URL_PATH)
-    assert f"{http_ok_ip}:80 UP" in status
+    assert f"{ips[0]}:80 UP" in status
+    assert f"{ips[1]}:80 UP" in status
