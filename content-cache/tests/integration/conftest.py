@@ -81,11 +81,15 @@ async def deploy_applications_fixture(
 ) -> AsyncIterator[dict[str, Application]]:
     """Deploy all applications in parallel."""
     app_deploy = model.deploy(charm_file, app_name, base="ubuntu@24.04")
-    config_app_deploy = model.deploy(config_charm_file, config_app_name, num_units=0)
+    config_app_deploy = model.deploy(
+        config_charm_file, config_app_name, base="ubuntu@24.04", num_units=0
+    )
     cert_app_deploy = model.deploy(
         CERT_CHARM_NAME, cert_app_name, base="ubuntu@22.04", channel="latest/edge"
     )
-    metric_app_deploy = model.deploy(METRIC_CHARM_NAME, metric_app_name, num_units=0)
+    metric_app_deploy = model.deploy(
+        METRIC_CHARM_NAME, metric_app_name, base="ubuntu@24.04", num_units=0
+    )
     app, config_app, cert_app, metric_app = await asyncio.gather(
         app_deploy, config_app_deploy, cert_app_deploy, metric_app_deploy
     )
