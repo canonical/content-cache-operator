@@ -87,10 +87,16 @@ async def deploy_applications_fixture(
     cert_app_deploy = model.deploy(
         CERT_CHARM_NAME, cert_app_name, channel="latest/edge", base="ubuntu@22.04"
     )
-    # The pinning to revision 319 due to a `model.deploy` issue. Ideally, the revision is not pinned.
-    # The `model.deploy` is unable to resolve to a workable revision, hence hardcoding to revision 319.
+    # The pinning to revision 319 due to a `model.deploy` issue. Ideally, the revision is not
+    # pinned. The `model.deploy` is unable to resolve to a workable revision, hence hardcoding to
+    # revision 319.
     metric_app_deploy = model.deploy(
-        METRIC_CHARM_NAME, metric_app_name, channel="latest/edge", base="ubuntu@24.04", revision=319, num_units=0
+        METRIC_CHARM_NAME,
+        metric_app_name,
+        channel="latest/edge",
+        base="ubuntu@24.04",
+        revision=319,
+        num_units=0,
     )
     app, config_app, cert_app, metric_app = await asyncio.gather(
         app_deploy, config_app_deploy, cert_app_deploy, metric_app_deploy
