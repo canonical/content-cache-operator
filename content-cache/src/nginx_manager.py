@@ -39,16 +39,16 @@ NGINX_CACHE_LOG_FORMAT_NAME = "cache"
 NGINX_CACHE_LOG_FORMAT = (
     "{"
     '"time": "$time_iso8601",'
-    '"connection serial number": "$connection",'
+    '"connection_number": "$connection",'
     '"hostname": "$hostname",'
-    '"client address": "$remote_addr",'
-    '"request method": "$request_method",'
+    '"client_address": "$remote_addr",'
+    '"request_method": "$request_method",'
     '"protocol": "$server_protocol",'
-    '"status code": "$status",'
-    '"cache status": "$upstream_cache_status",'
-    '"request time": "$request_time",'
-    '"bytes sent": "$bytes_sent",'
-    '"body bytes sent": "$body_bytes_sent"'
+    '"status_code": "$status",'
+    '"cache_status": "$upstream_cache_status",'
+    '"request_time": "$request_time",'
+    '"bytes_sent": "$bytes_sent",'
+    '"body_bytes_sent": "$body_bytes_sent"'
     "}"
 )
 

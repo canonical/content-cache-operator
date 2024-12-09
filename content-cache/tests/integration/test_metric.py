@@ -63,22 +63,22 @@ async def test_charm_metric_log(
     lines = content.split("\n")
     first_request: dict = json.loads(lines[0])
     second_request: dict = json.loads(lines[1])
-    assert first_request["cache status"] == "MISS"
-    assert first_request["request method"] == "GET"
-    assert first_request["status code"] == "200"
-    assert second_request["cache status"] == "HIT"
-    assert second_request["request method"] == "GET"
-    assert second_request["status code"] == "200"
+    assert first_request["cache_status"] == "MISS"
+    assert first_request["request_method"] == "GET"
+    assert first_request["status_code"] == "200"
+    assert second_request["cache_status"] == "HIT"
+    assert second_request["request_method"] == "GET"
+    assert second_request["status_code"] == "200"
     # The following fields are different each run.
     assert "hostname" in first_request
-    assert "bytes sent" in first_request
-    assert "body bytes sent" in first_request
-    assert "request time" in first_request
+    assert "bytes_sent" in first_request
+    assert "body_bytes_sent" in first_request
+    assert "request_time" in first_request
     assert "time" in first_request
     assert "hostname" in second_request
-    assert "bytes sent" in second_request
-    assert "body bytes sent" in second_request
-    assert "request time" in second_request
+    assert "bytes_sent" in second_request
+    assert "body_bytes_sent" in second_request
+    assert "request_time" in second_request
     assert "time" in second_request
 
 
