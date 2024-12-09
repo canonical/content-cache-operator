@@ -113,9 +113,11 @@ class CacheTester:
             Whether the cache is working.
         """
         ip = await get_app_ip(self._app)
+        url = f"{protocol}://{ip}{path}"
+        logger.info(f"Querying cache on {url} with Host: {hostname}")
 
         response = requests.get(
-            f"{protocol}://{ip}{path}",
+            url,
             headers={"Host": hostname},
             allow_redirects=False,
             verify=False,
