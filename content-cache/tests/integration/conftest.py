@@ -88,7 +88,6 @@ async def deploy_applications_fixture(
     pytestconfig: pytest.Config,
 ) -> AsyncIterator[dict[str, Application]]:
     """Deploy all applications in parallel."""
-
     if pytestconfig.getoption("--no-deploy"):
         try:
             res = {

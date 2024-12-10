@@ -11,7 +11,6 @@ import pytest
 from factories import MockCharmFactory  # pylint: disable=import-error
 
 from errors import ConfigurationError
-
 from src.state import (
     BACKENDS_CONFIG_NAME,
     BACKENDS_PATH_CONFIG_NAME,
