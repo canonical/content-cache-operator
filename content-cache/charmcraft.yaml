@@ -13,7 +13,7 @@ platforms:
 parts:
   nginx-module-lua-upstream:
     plugin: dump
-    source: .
+    source: https://github.com/openresty/lua-upstream-nginx-module.git
     build-packages:
       - gcc
       - git
