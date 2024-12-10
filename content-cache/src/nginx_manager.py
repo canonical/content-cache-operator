@@ -13,16 +13,6 @@ from typing import Mapping
 
 import nginx
 import requests
-from charms.operator_libs_linux.v0.apt import (
-    DebianRepository,
-    GPGKeyError,
-    PackageError,
-    PackageNotFoundError,
-    RepositoryMapping,
-    add_package,
-    import_key,
-    update,
-)
 
 from errors import (
     NginxConfigurationAggregateError,
@@ -36,10 +26,10 @@ from utilities import execute_command
 
 logger = logging.getLogger(__name__)
 
-NGINX_BIN = "/usr/local/openresty/nginx/sbin/nginx"
-NGINX_PACKAGE = "openresty"
-NGINX_SERVICE = "openresty"
-NGINX_MAIN_CONF_PATH = Path("/usr/local/openresty/nginx/conf/nginx.conf")
+NGINX_BIN = "/usr/sbin/nginx"
+NGINX_PACKAGE = "nginx"
+NGINX_SERVICE = "nginx"
+NGINX_MAIN_CONF_PATH = Path("/etc/nginx/nginx.conf")
 NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
@@ -51,35 +41,6 @@ NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
 NGINX_HEALTH_CHECK_TIMEOUT = 300
 
-OPENRESTY_PUBLIC_KEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
-
-mQENBFkg3CEBCADG5Vem2p+1p6yV2jZfNsbJBPY1KYzR9weF/K3hmLODcrTaWfiD
-EugHwKlAptGDGBtrMsERjUiOWUNUS8IHa+R6tzhnQePG6wO7/yGWBC4J82BkCT2x
-M7zCDgldtNYkNqoBc0UfE4ln+WR/RX1DuzPM+DTBZBXLqRJVJFyFtHVJn8I5HPO2
-hj51uYqHsewTyAkGzABV4gmSIETSmcU5KDisQ9Vt5OllE0ylh7+kakDFZklyBCHT
-3IAuZhA18mw2qk1z5bnn/GpQ4fJi5w25lb9sqhhxta3ogwWWdJzXA+Nevb2dez8i
-bpzPeFnba9q0UVD2VJ25e99DpG15aPvNt+tbABEBAAG0JU9wZW5SZXN0eSBBZG1p
-biA8YWRtaW5Ab3BlbnJlc3R5LmNvbT6JATgEEwECACIFAlkg3CECGwMGCwkIBwMC
-BhUIAgkKCwQWAgMBAh4BAheAAAoJEJfbdEPV7et08k0H/iIOiZmDavSKE7NSPLxS
-ddRLh4+OGL3QW8JZh/+UaX1Z17G3q8kKSJwOemZBL/jIDkoMuHs1Hq0yp9vJ8BaS
-5unX+FRmivwdS5yvkS9s3oA3iJbHagXw0KMnr+baDDNrUwo9MeO0m9muNF/eDoRz
-FZ9SpOrgxwhz0kOOt8j+gxWk3TaQ6/JonH4rm3XtP4GMKOKQuUo6l8+pMPEfM209
-nMv82kRPAxRV2TwRYToB+TithLTQytJTBytLA+ck5Ny8sGoO5PQWRyx6gj+Bhg0O
-rFXfg7/sP2/FEeiDZcF2qn/VMDPvnC7ux2EQdI05MMGFY/pkjVYtLJC2Nb17Bcqj
-DH25AQ0EWSDcIQEIAJOoTY0vf0mr+PGUbnv0KKtk65CTzKmICmWIAkCxZaTH+o/3
-Lt9ZDtANH1ot3xVTkKg+qBuexh53jnyXyIaIfNqavH1gm+9JusrApVOad2ruODT5
-XeVamz0blq37LTmJ7A4T1i8WvB0BQ3j1vh6XkVW6xq1URzVOYyhVqNNq2UIP9M9Y
-wtiIIans5i11qmDtZwqxcSYoqSjgz+03M6Dn0UPB1OQdHjOPx7GwHG8+6sVyr+8A
-9G8SlKWre2/qdDyZNdgxalOi5ManCwWSURJRuY7s858qFUm0/5dLMAtWWEbYEmYc
-EUxbxQM2jPEaDmvvauZNup+a5DZXpRjpWcg19c0AEQEAAYkBHwQYAQIACQUCWSDc
-IQIbDAAKCRCX23RD1e3rdG0dB/9EWT8sTVPOlgFAF2WVZT3bFiqiIC9Dg6Wblt/K
-Id/p73gbDNTkeeTvGErAPPQwsKkbD1w2rIYoRzEJ1zVrLgaAbeH/frbQaYNu7c+3
-Wm93gxBxjL9Jyrs3jq5jwR4kJ5j+a/GEPtTDqtXzZHvyCP2PWDoQWANNAQDuTpYE
-LGHfDF9pmTVwuhkh2IFcH/ZBZUvcxP/w3jXqEiPti/rFN8wKSQtBgWI0pBpXGdrJ
-Tl3mIE4jLbPmkxidP1yUFx9wzEVu3soXViehMua9nOeotGOKF4DgekzCnFuXNnd3
-h2EiDJbMKk+QJcMPliIePZCP9JWj7n0ok9ccLg5XcNwiFEtn
-=U4Wk
------END PGP PUBLIC KEY BLOCK-----"""
 
 # Unit test is not valuable as the module is closely coupled with nginx.
 # This should be tested with integration tests.
@@ -116,35 +77,35 @@ def initialize() -> None:  # pragma: no cover
     """
     logger.info("Installing and enabling nginx")
     # The install, systemctl enable, and systemctl start are idempotent.
-    try:
-        import_key(OPENRESTY_PUBLIC_KEY)
-    except GPGKeyError as e:
-        raise NginxSetupError("Failed to load openresty repository key.") from e
+    return_code, _, stderr = execute_command(
+        ["sudo", "apt", "install", "nginx", "lua-resty-core", "-yq"]
+    )
+    if return_code != 0:
+        raise NginxSetupError(f"Failed to install nginx: {stderr}")
 
-    if os.path.exists(
-        "/etc/apt/sources.list"
-    ):  # FIX ME: apt libs raise an error on empty source list
-        os.unlink("/etc/apt/sources.list")
-    repositories = RepositoryMapping()
+    return_code, _, stderr = execute_command(
+        [
+            "cp",
+            "-f",
+            "ngx_http_lua_upstream_module.so",
+            "/usr/lib/nginx/modules",
+        ]
+    )
+    if return_code != 0:
+        raise NginxSetupError(f"Failed to install nginx upstream module: {stderr}")
 
-    if "openresty" not in repositories:
-        repositories.add(
-            DebianRepository(
-                enabled=True,
-                repotype="deb",
-                uri="http://openresty.org/package/ubuntu",
-                release="noble",
-                groups=["main"],
-            )
-        )  # FIX ME
-        update()
+    return_code, _, stderr = execute_command(
+        [
+            "cp",
+            "-f",
+            "healthcheck.lua",
+            "/usr/share/lua/5.1/",
+        ]
+    )
+    if return_code != 0:
+        raise NginxSetupError(f"Failed to install nginx healthcheck plugin: {stderr}")
 
-    try:
-        add_package(NGINX_PACKAGE)
-    except (PackageError, PackageNotFoundError) as e:
-        raise NginxSetupError("Failed to install nginx.") from e
-
-    logger.info("Clean up default configurati&on files")
+    logger.info("Clean up default configuration files")
     _reset_nginx_files()
     return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", NGINX_SERVICE])
     if return_code != 0:
@@ -259,9 +220,6 @@ def _reset_nginx_files() -> None:
         NginxFileError: File operation errors resetting Nginx files.
     """
     try:
-        logger.info("Init nginx config")
-        # if not NGINX_MAIN_CONF_PATH.exists():
-        _init_nginx_main_conf()
         logger.info("Resetting the nginx sites configuration files directories.")
         if NGINX_SITES_AVAILABLE_PATH.exists():
             shutil.rmtree(NGINX_SITES_AVAILABLE_PATH)
@@ -276,9 +234,6 @@ def _reset_nginx_files() -> None:
         NGINX_PROXY_CACHE_DIR_PATH.mkdir(mode=0o755, parents=True, exist_ok=True)
         user = pwd.getpwnam(NGINX_USER)
         os.chown(NGINX_PROXY_CACHE_DIR_PATH, user.pw_uid, user.pw_gid)
-        logger.info("Create log path.")
-        NGINX_LOG_PATH.mkdir(parents=True, exist_ok=True)
-        os.chown(NGINX_LOG_PATH, user.pw_uid, user.pw_gid)
     except (PermissionError, OSError, IOError) as err:
         logger.exception("Failed to reset the nginx files.")
         raise NginxFileError("Failed to reset nginx files") from err
@@ -370,10 +325,6 @@ def _create_server_config(
             location_keys = _get_location_config_keys(config, upstream, host)
             server_config.add(nginx.Location(path, *location_keys))
 
-        # local hc = require "resty.upstream.healthcheck"}
-        #                       """
-        #     )
-
         nginx_config.add(server_config)
     except nginx.ParseError as err:
         logger.exception(
@@ -415,7 +366,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
     Returns:
         A string with the lua script for the healthcheck workers.
     """
-    return rf"""local hc = require "resty.upstream.healthcheck"
+    return rf"""local hc = require "healthcheck"
 
         local ok, err = hc.spawn_checker{{
             shm = "healthcheck",
@@ -533,30 +484,3 @@ def _get_error_log_path(host: str) -> Path:
         The path.
     """
     return NGINX_LOG_PATH / f"{host}-error.log"
-
-
-def _init_nginx_main_conf() -> None:
-    """Generate the main nginx configuration."""
-    NGINX_MAIN_CONF_PATH.write_text(
-        """user www-data;
-worker_processes auto;
-pid /usr/local/openresty/nginx/logs/nginx.pid;
-error_log /var/log/nginx/error.log;
-include /etc/nginx/modules-enabled/*.conf;
-events {
-worker_connections 768;
-}
-http {
-sendfile on;
-tcp_nopush on;
-types_hash_max_size 2048;
-include /usr/local/openresty/nginx/conf/mime.types;
-default_type application/octet-stream;
-ssl_prefer_server_ciphers on;
-access_log /var/log/nginx/access.log;
-gzip on;
-include /etc/nginx/conf.d/*.conf;
-include /etc/nginx/sites-enabled/*;
-}
-"""
-    )
