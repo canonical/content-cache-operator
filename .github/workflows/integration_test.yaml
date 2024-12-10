@@ -10,7 +10,7 @@ jobs:
     with:
       juju-channel: 3.6/stable
       provider: lxd
-      modules: '["test_charm", "test_tls_cert", "test_metric"]'
+      modules: '["test_basic", "test_tls_cert", "test_metric"]'
       working-directory: ./content-cache
       self-hosted-runner: true
       self-hosted-runner-label: "edge"

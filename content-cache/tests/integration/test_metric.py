@@ -27,7 +27,7 @@ COS_AGENT_INTEGRATION_NAME = "cos-agent"
 
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
-async def test_charm_metric_log(
+async def test_metric_log(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
@@ -84,7 +84,7 @@ async def test_charm_metric_log(
 
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
-async def test_charm_integrate_with_cos(
+async def test_integrate_with_cos(
     app: Application,
     config_app: Application,
     metric_app: Application,
@@ -122,9 +122,7 @@ async def test_charm_integrate_with_cos(
         f"{app.name}:{COS_AGENT_INTEGRATION_NAME}",
     )
 
-    await model.wait_for_idle(
-        [app.name, config_app.name, metric_app.name], status="active", timeout=10 * 60
-    )
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
     # 2.
     await app.remove_relation(COS_AGENT_INTEGRATION_NAME, metric_app.name, True)
