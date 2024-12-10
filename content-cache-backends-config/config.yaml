@@ -44,7 +44,7 @@ options:
     default: /
   healthcheck-interval:
     description: |
-      The time between to health checks (in milliseconds)
+      The time between two health checks (in milliseconds)
     type: int
     default: 2000
   proxy-cache-valid:
