@@ -266,7 +266,7 @@ def _create_status_page_config() -> None:
             ),
         )
     )
-    _create_and_enable_config("nginx_status", nginx_config)
+    _create_and_enable_site_config("nginx_status", nginx_config)
 
 
 def _create_server_config(
@@ -334,7 +334,7 @@ def _create_server_config(
             f"Unable to convert {host} configuration to nginx format: {configuration}"
         ) from err
 
-    _create_and_enable_config(host, nginx_config)
+    _create_and_enable_site_config(host, nginx_config)
 
 
 def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
@@ -414,7 +414,7 @@ def _get_location_config_keys(
     return tuple(keys)
 
 
-def _create_and_enable_config(host: str, nginx_config: nginx.Conf) -> None:
+def _create_and_enable_site_config(host: str, nginx_config: nginx.Conf) -> None:
     """Store the nginx configuration and enable it.
 
     Nginx configuration files are usually stored in the sites-available path.
