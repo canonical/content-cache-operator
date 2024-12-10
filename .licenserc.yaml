@@ -20,4 +20,6 @@ header:
     - 'trivy.yaml'
     - 'pyproject.toml'
     - 'zap_rules.tsv'
+    # Ignore charm libraries.
+    - "**/lib/charms/**"
   comment: on-failure

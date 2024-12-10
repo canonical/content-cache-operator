@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 CONFIG_CHARM_NAME = "content-cache-backends-config"
 CERT_CHARM_NAME = "self-signed-certificates"
+METRIC_CHARM_NAME = "grafana-agent"
 
 
 @pytest.fixture(name="app_name", scope="module")
@@ -39,6 +40,12 @@ def config_app_name_fixture() -> str:
 def cert_app_name_fixture() -> str:
     """The application name for the TLS certificate charm."""
     return "cert"
+
+
+@pytest.fixture(name="metric_app_name", scope="module")
+def metric_app_name_fixture() -> str:
+    """The application name of the metric export charm."""
+    return "metric"
 
 
 @pytest.fixture(name="charm_file", scope="module")
@@ -77,6 +84,7 @@ async def deploy_applications_fixture(
     app_name: str,
     config_app_name: str,
     cert_app_name: str,
+    metric_app_name: str,
     pytestconfig: pytest.Config,
 ) -> AsyncIterator[dict[str, Application]]:
     """Deploy all applications in parallel."""
@@ -86,21 +94,42 @@ async def deploy_applications_fixture(
                 app_name: model.applications[app_name],
                 config_app_name: model.applications[config_app_name],
                 cert_app_name: model.applications[cert_app_name],
+                metric_app_name: model.applications[metric_app_name],
             }
         except KeyError:
             raise RuntimeError("At least one app is missing, you cannot use --no-deploy.")
         yield res
         return
 
-    app_task = model.deploy(charm_file, app_name, base="ubuntu@24.04")
-    config_app_task = model.deploy(config_charm_file, config_app_name, num_units=0)
-    cert_app_task = model.deploy(
-        CERT_CHARM_NAME, cert_app_name, base="ubuntu@22.04", channel="latest/edge"
+    app_deploy = model.deploy(charm_file, app_name, base="ubuntu@24.04")
+    config_app_deploy = model.deploy(
+        config_charm_file, config_app_name, base="ubuntu@24.04", num_units=0
     )
-    app, config_app, cert_app = await asyncio.gather(app_task, config_app_task, cert_app_task)
+    cert_app_deploy = model.deploy(
+        CERT_CHARM_NAME, cert_app_name, channel="latest/edge", base="ubuntu@22.04"
+    )
+    # The pinning to revision 319 due to a `model.deploy` issue. Ideally, the revision is not
+    # pinned. The `model.deploy` is unable to resolve to a workable revision, hence hardcoding to
+    # revision 319.
+    metric_app_deploy = model.deploy(
+        METRIC_CHARM_NAME,
+        metric_app_name,
+        channel="latest/edge",
+        base="ubuntu@24.04",
+        revision=319,
+        num_units=0,
+    )
+    app, config_app, cert_app, metric_app = await asyncio.gather(
+        app_deploy, config_app_deploy, cert_app_deploy, metric_app_deploy
+    )
     await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
     await model.wait_for_idle([cert_app.name], status="active", timeout=15 * 60)
-    yield {app_name: app, config_app_name: config_app, cert_app_name: cert_app}
+    yield {
+        app_name: app,
+        config_app_name: config_app,
+        cert_app_name: cert_app,
+        metric_app_name: metric_app,
+    }
 
 
 @pytest_asyncio.fixture(name="app", scope="module")
@@ -125,6 +154,14 @@ async def cert_app_fixture(
 ) -> AsyncIterator[Application]:
     """The TLS certificate charm application for testing."""
     yield applications[cert_app_name]
+
+
+@pytest_asyncio.fixture(name="metric_app", scope="module")
+async def metric_app_fixture(
+    metric_app_name: str, applications: dict[str, Application]
+) -> AsyncIterator[Application]:
+    """The metric agent charm application for testing."""
+    yield applications[metric_app_name]
 
 
 @pytest.fixture(name="http_ok_path", scope="module")

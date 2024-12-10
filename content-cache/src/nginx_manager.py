@@ -35,6 +35,22 @@ NGINX_USER = "www-data"
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_HEALTH_CHECK_TIMEOUT = 300
+NGINX_CACHE_LOG_FORMAT_NAME = "cache"
+NGINX_CACHE_LOG_FORMAT = (
+    "{"
+    '"time": "$time_iso8601",'
+    '"connection_number": "$connection",'
+    '"hostname": "$hostname",'
+    '"client_address": "$remote_addr",'
+    '"request_method": "$request_method",'
+    '"protocol": "$server_protocol",'
+    '"status_code": "$status",'
+    '"cache_status": "$upstream_cache_status",'
+    '"request_time": "$request_time",'
+    '"bytes_sent": "$bytes_sent",'
+    '"body_bytes_sent": "$body_bytes_sent"'
+    "}"
+)
 
 
 # Unit test is not valuable as the module is closely coupled with nginx.
@@ -88,8 +104,8 @@ def health_check() -> bool:
             timeout=NGINX_HEALTH_CHECK_TIMEOUT,
         )
         response.raise_for_status()
-    except requests.RequestException:
-        logger.exception("Failed nginx health check.")
+    except requests.RequestException as err:
+        logger.warning("Failed nginx health check: %s", err)
         return False
     return True
 
@@ -223,12 +239,14 @@ def _create_server_config(
             nginx.Key(
                 "proxy_cache_path",
                 f"{NGINX_PROXY_CACHE_DIR_PATH} use_temp_path=off levels=1:2 keys_zone={host}:10m",
-            )
+            ),
+            nginx.Key("log_format", f"{NGINX_CACHE_LOG_FORMAT_NAME} '{NGINX_CACHE_LOG_FORMAT}'"),
         )
         server_config = nginx.Server(
             nginx.Key("proxy_cache", host),
             nginx.Key("server_name", host),
             nginx.Key("access_log", _get_access_log_path(host)),
+            nginx.Key("access_log", f"{_get_cache_log_path(host)} {NGINX_CACHE_LOG_FORMAT_NAME}"),
             nginx.Key("error_log", _get_error_log_path(host)),
         )
 
@@ -362,7 +380,19 @@ def _get_access_log_path(host: str) -> Path:
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / f"{host}-access.log"
+    return NGINX_LOG_PATH / f"{host}.access.log"
+
+
+def _get_cache_log_path(host: str) -> Path:
+    """Get the cache log path for a host.
+
+    Args:
+        host: The name of the host.
+
+    Returns:
+        The path.
+    """
+    return NGINX_LOG_PATH / f"{host}.cache.log"
 
 
 def _get_error_log_path(host: str) -> Path:
@@ -374,4 +404,4 @@ def _get_error_log_path(host: str) -> Path:
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / f"{host}-error.log"
+    return NGINX_LOG_PATH / f"{host}.error.log"

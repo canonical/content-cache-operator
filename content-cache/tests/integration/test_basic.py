@@ -25,7 +25,11 @@ from tests.integration.helpers import (
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
 async def test_charm_start(
-    app: Application, config_app: Application, cert_app: Application, model: Model
+    app: Application,
+    config_app: Application,
+    cert_app: Application,
+    metric_app: Application,
+    model: Model,
 ) -> None:
     """
     arrange: The applications deployed.
