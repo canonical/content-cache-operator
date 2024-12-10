@@ -57,8 +57,8 @@ class MockCharmFactory(factory.Factory):
             PROTOCOL_CONFIG_NAME: "https",
             FAIL_TIMEOUT_CONFIG_NAME: "30s",
             BACKENDS_PATH_CONFIG_NAME: "/",
-            HEALTHCHECK_PATH_CONFIG_NAME: "/health",
-            HEALTHCHECK_INTERVAL_CONFIG_NAME: 2000,
+            HEALTHCHECK_PATH_CONFIG_NAME: "/healthz",
+            HEALTHCHECK_INTERVAL_CONFIG_NAME: 2123,
             PROXY_CACHE_VALID_CONFIG_NAME: "[]",
         }
     )

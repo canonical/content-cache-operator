@@ -12,10 +12,10 @@ from factories import MockCharmFactory  # pylint: disable=import-error
 
 from errors import ConfigurationError
 
-# TO DO:     #    HEALTHCHECK_INTERVAL_CONFIG_NAME,
 from src.state import (
     BACKENDS_CONFIG_NAME,
     BACKENDS_PATH_CONFIG_NAME,
+    HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
     HOSTNAME_CONFIG_NAME,
     PATH_CONFIG_NAME,
@@ -59,8 +59,8 @@ def test_valid_config():
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_path == "/health"
-    assert config.healthcheck_interval == 2000
+    assert config.healthcheck_path == "/healthz"
+    assert config.healthcheck_interval == 2123
     assert config.proxy_cache_valid == ()
 
 
@@ -81,8 +81,8 @@ def test_hostname_with_subdomain():
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_path == "/health"
-    assert config.healthcheck_interval == 2000
+    assert config.healthcheck_path == "/healthz"
+    assert config.healthcheck_interval == 2123
 
     assert config.proxy_cache_valid == ()
 
@@ -156,7 +156,6 @@ def test_longer_path():
     assert config.proxy_cache_valid == ()
 
 
-# TO DO: healthcheck through params
 def test_empty_path():
     """
     arrange: Mock charm with empty path.
@@ -172,7 +171,6 @@ def test_empty_path():
     assert str(err.value) == "Config error: ['path = : String should have at least 1 character']"
 
 
-# TO DO: healthcheck through params
 def test_invalid_path():
     """
     arrange: Mock charm with path with invalid character.
@@ -204,23 +202,6 @@ def test_invalid_backends_path():
         Configuration.from_charm(charm)
 
     assert "backends_path = /path/{: Value error, Path contains non-allowed character" in str(
-        err.value
-    )
-
-
-def test_invalid_healthcheck_path():
-    """
-    arrange: Mock charm with path with invalid character.
-    act: Create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
-    """
-    charm = MockCharmFactory()
-    charm.config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health/{"
-
-    with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
-
-    assert "healthcheck_path = /health/{: Value error, Path contains non-allowed character" in str(
         err.value
     )
 
@@ -273,7 +254,8 @@ def test_http_protocol():
     assert config.protocol == "http"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    # TO DO
+    assert config.healthcheck_path == "/healthz"
+    assert config.healthcheck_interval == 2123
     assert config.proxy_cache_valid == ()
 
 
@@ -405,7 +387,8 @@ def test_valid_proxy_cache_valid(proxy_cache_valid: str):
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    # TO DO
+    assert config.healthcheck_path == "/healthz"
+    assert config.healthcheck_interval == 2123
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
 
 
@@ -427,8 +410,8 @@ def test_configuration_to_data():
         "protocol": "https",
         "fail_timeout": "30s",
         "backends_path": "/",
-        "healthcheck_path": "/health",
-        "healthcheck_interval": "2000",
+        "healthcheck_path": "/healthz",
+        "healthcheck_interval": "2123",
         "proxy_cache_valid": "[]",
     }
 
@@ -467,4 +450,51 @@ def test_configuration_to_json_dumps_error(monkeypatch):
     assert "Unable to convert configuration to integration data format" in str(err.value)
 
 
-# TO DO: healthcheck interval
+@pytest.mark.parametrize(
+    "bad_value,error_msg",
+    [
+        ("  ", "String should have at least 1 character"),
+        ("{", "Value error, Path contains non-allowed character"),
+    ],
+    ids=["empty", "bad_character"],
+)
+def test_invalid_healthcheck_path(bad_value, error_msg):
+    """
+    arrange: Mock charm with invalid healthcheck path.
+    act: Create the configuration from the charm.
+    assert: Configuration error is raised.
+    """
+    charm = MockCharmFactory()
+    charm.config[HEALTHCHECK_PATH_CONFIG_NAME] = bad_value
+
+    with pytest.raises(ConfigurationError) as err:
+        Configuration.from_charm(charm)
+
+    assert (
+        str(err.value) == f"Config error: ['healthcheck_path = {bad_value.strip()}: {error_msg}']"
+    )
+
+
+@pytest.mark.parametrize(
+    "bad_value,error_msg",
+    [
+        ("  ", "Input should be a valid integer, unable to parse string as an integer"),
+        ("-1", "Input should be greater than 0"),
+        ("0", "Input should be greater than 0"),
+    ],
+    ids=["empty", "negative", "zero"],
+)
+def test_invalid_healthcheck_interval(bad_value, error_msg):
+    """
+    arrange: Mock charm with invalid healthcheck interval.
+    act: Create the configuration from the charm.
+    assert: Configuration error is raised.
+    """
+    charm = MockCharmFactory()
+
+    charm.config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = bad_value
+
+    with pytest.raises(ConfigurationError) as err:
+        Configuration.from_charm(charm)
+
+    assert str(err.value) == f"Config error: ['healthcheck_interval = {bad_value}: {error_msg}']"

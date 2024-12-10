@@ -135,7 +135,7 @@ class Configuration(pydantic.BaseModel):
         pydantic.StringConstraints(min_length=1),
         pydantic.AfterValidator(_validate_path_value),
     ]
-    healthcheck_interval: int
+    healthcheck_interval: pydantic.PositiveInt
     proxy_cache_valid: tuple[str, ...]
 
     @pydantic.field_validator("hostname")
