@@ -15,6 +15,8 @@ from src import nginx_manager
 from tests.integration.helpers import (
     BACKENDS_CONFIG_NAME,
     BACKENDS_PATH_CONFIG_NAME,
+    HEALTHCHECK_INTERVAL_CONFIG_NAME,
+    HEALTHCHECK_PATH_CONFIG_NAME,
     HOSTNAME_CONFIG_NAME,
     PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
@@ -47,6 +49,8 @@ async def test_metric_log(
     config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2000"
     config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
@@ -108,6 +112,8 @@ async def test_integrate_with_cos(
     config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2000"
     config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
