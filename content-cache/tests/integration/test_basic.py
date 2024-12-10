@@ -26,10 +26,6 @@ from tests.integration.helpers import (
 @pytest.mark.asyncio
 async def test_charm_start(
     app: Application,
-    config_app: Application,
-    cert_app: Application,
-    metric_app: Application,
-    model: Model,
 ) -> None:
     """
     arrange: The applications deployed.
@@ -46,6 +42,7 @@ async def test_charm_start(
 async def test_charm_integrate_with_no_data(
     app: Application,
     config_app: Application,
+    cache_tester: CacheTester,
     http_ok_path: str,
     http_ok_message: str,
     http_ok_ip: str,
@@ -61,9 +58,6 @@ async def test_charm_integrate_with_no_data(
         1. The application in blocked status waiting for integration.
         2. The request to the cache should succeed.
     """
-    cache_tester = CacheTester(model, app, config_app)
-    await cache_tester.reset()
-
     # 1.
     await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="blocked", timeout=10 * 60)
@@ -107,7 +101,7 @@ async def test_charm_integrate_with_data(
     act:
         1. Integrate with the configuration charm with configuration set.
         2. Wait for a while, then query again.
-        3. Wait until the cache expires ang query again.
+        3. Wait until the cache expires, then query again.
         4. Remove the configuration on the configuration charm.
         5. Remove the integration between the charms.
     assert:
@@ -163,6 +157,60 @@ async def test_charm_integrate_with_data(
     response = await cache_tester.query_cache(path="/", hostname=hostname)
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
+
+
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_charm_with_two_config_app(
+    app: Application,
+    config_app: Application,
+    config_alt_app: Application,
+    cache_tester: CacheTester,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ip: str,
+    model: Model,
+) -> None:
+    """
+    arrange: A working charm with integration with two configuration charms.
+    act: Make query to content cache for both configurations.
+    assert: Both request should succeed.
+    """
+    hostname = f"test.{secrets.token_hex(2)}.local"
+    config = dict(CacheTester.BASE_CONFIG)
+    config[HOSTNAME_CONFIG_NAME] = hostname
+    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[PROTOCOL_CONFIG_NAME] = "http"
+    config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
+    await cache_tester.setup_config(config)
+
+    hostname_alt = f"test.{secrets.token_hex(2)}.local"
+    config_alt = dict(CacheTester.BASE_CONFIG)
+    config_alt[HOSTNAME_CONFIG_NAME] = hostname_alt
+    config_alt[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config_alt[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config_alt[PROTOCOL_CONFIG_NAME] = "http"
+    config_alt[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
+    await cache_tester.setup_config_alt(config_alt)
+
+    await cache_tester.integrate_config()
+    await cache_tester.integrate_config_alt()
+
+    # TODO
+    pytest.set_trace()
+    await model.wait_for_idle(
+        [app.name, config_app.name, config_alt_app.name], status="active", timeout=10 * 60
+    )
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    response_alt = await cache_tester.query_cache(path="/", hostname=hostname_alt)
+    # TODO
+    pytest.set_trace()
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
+    assert response_alt.status_code == 200
+    assert http_ok_message in response_alt.content.decode("utf-8")
 
 
 @pytest.mark.abort_on_fail
