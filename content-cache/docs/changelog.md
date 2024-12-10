@@ -1,5 +1,11 @@
 # Changelog
 
+## 2024-12-05
+
+### **Added**
+
+- Support for COS integration. Integrating with charms that provides cos-agent will cause the charm to forward logs to COS.
+
 ## 2024-11-28
 
 ### **Added**

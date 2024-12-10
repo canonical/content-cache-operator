@@ -44,10 +44,10 @@ def test_config_subdomain_integration_data():
     assert: The configurations are correctly parsed.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_FIELD_NAME] = "hello.example.com"
+    data[HOSTNAME_FIELD_NAME] = "hello.example.8d8c.com"
     config = LocationConfig.from_integration_data(data)
 
-    assert config.hostname == "hello.example.com"
+    assert config.hostname == "hello.example.8d8c.com"
     assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
     assert config.protocol == "https"

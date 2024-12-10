@@ -23,7 +23,7 @@ from tests.integration.helpers import (
 
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
-async def test_charm_integrate_with_data_then_cert(
+async def test_integrate_with_data_then_cert(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
@@ -61,7 +61,7 @@ async def test_charm_integrate_with_data_then_cert(
 
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
-async def test_charm_integrate_with_cert_then_data(
+async def test_integrate_with_cert_then_data(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
