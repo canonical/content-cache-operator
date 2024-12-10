@@ -80,27 +80,36 @@ async def deploy_applications_fixture(
     pytestconfig: pytest.Config,
 ) -> AsyncIterator[dict[str, Application]]:
     """Deploy all applications in parallel."""
-    if pytestconfig.getoption("--no-deploy"):
-        try:
-            res = {
-                app_name: model.applications[app_name],
-                config_app_name: model.applications[config_app_name],
-                cert_app_name: model.applications[cert_app_name],
-            }
-        except KeyError:
-            raise RuntimeError("At least one app is missing, you cannot use --no-deploy.")
-        yield res
-        return
+    to_deploy = {app_name, config_app_name, cert_app_name}
+    deployed = set(model.applications.keys())
+    to_deploy -= deployed
+    logger.info(f"Deploying: {to_deploy}")
 
-    app_task = model.deploy(charm_file, app_name, base="ubuntu@24.04")
-    config_app_task = model.deploy(config_charm_file, config_app_name, num_units=0)
-    cert_app_task = model.deploy(
-        CERT_CHARM_NAME, cert_app_name, base="ubuntu@22.04", channel="latest/edge"
-    )
-    app, config_app, cert_app = await asyncio.gather(app_task, config_app_task, cert_app_task)
-    await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
-    await model.wait_for_idle([cert_app.name], status="active", timeout=15 * 60)
-    yield {app_name: app, config_app_name: config_app, cert_app_name: cert_app}
+    to_wait = []
+    if app_name in to_deploy:
+        app_task = model.deploy(charm_file, app_name, base="ubuntu@24.04")
+        to_wait.append(app_task)
+
+    if config_app_name in to_deploy:
+        config_app_task = model.deploy(config_charm_file, config_app_name, num_units=0)
+        to_wait.append(config_app_task)
+
+    if cert_app_name in to_deploy:
+        cert_app_task = model.deploy(
+            CERT_CHARM_NAME, cert_app_name, base="ubuntu@22.04", channel="latest/edge"
+        )
+        to_wait.append(cert_app_task)
+
+    if to_wait:
+        await asyncio.gather(*to_wait)
+
+    await model.wait_for_idle([app_name], status="blocked", timeout=15 * 60)
+    await model.wait_for_idle([cert_app_name], status="active", timeout=15 * 60)
+    yield {
+        app_name: model.applications[app_name],
+        config_app_name: model.applications[config_app_name],
+        cert_app_name: model.applications[cert_app_name],
+    }
 
 
 @pytest_asyncio.fixture(name="app", scope="module")
