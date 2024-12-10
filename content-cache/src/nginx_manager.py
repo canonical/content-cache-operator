@@ -33,6 +33,8 @@ NGINX_MAIN_CONF_PATH = Path("/etc/nginx/nginx.conf")
 NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
+NGINX_MODULES_ENABLED_PATH = Path("/etc/nginx/modules-enabled")
+NGINX_CONFD_PATH = Path("/etc/nginx/conf.d")
 NGINX_LOG_PATH = Path("/var/log/nginx")
 NGINX_PROXY_CACHE_DIR_PATH = Path("/data/nginx/cache")
 NGINX_USER = "www-data"
@@ -186,7 +188,7 @@ def update_and_load_config(
         if host in hostname_to_cert:
             cert_path = hostname_to_cert[host]
         try:
-            _create_server_config(host, config, cert_path)
+            _create_virtualhost_config(host, config, cert_path)
         except NginxConfigurationError as err:
             errored_hosts.append(host)
             configuration_errors.append(err)
@@ -221,15 +223,21 @@ def _reset_nginx_files() -> None:
     """
     try:
         logger.info("Resetting the nginx sites configuration files directories.")
-        if NGINX_SITES_AVAILABLE_PATH.exists():
-            shutil.rmtree(NGINX_SITES_AVAILABLE_PATH)
-        if NGINX_SITES_ENABLED_PATH.exists():
-            shutil.rmtree(NGINX_SITES_ENABLED_PATH)
-        # The default permission for nginx configuration files are 755.
-        NGINX_SITES_AVAILABLE_PATH.mkdir(mode=0o755, parents=True, exist_ok=True)
-        NGINX_SITES_ENABLED_PATH.mkdir(mode=0o755, parents=True, exist_ok=True)
-        NGINX_SITES_AVAILABLE_PATH.chmod(mode=0o755)
-        NGINX_SITES_ENABLED_PATH.chmod(mode=0o755)
+        for conf_dir in (
+            NGINX_SITES_AVAILABLE_PATH,
+            NGINX_SITES_ENABLED_PATH,
+            NGINX_MODULES_ENABLED_PATH,
+            NGINX_CONFD_PATH,
+        ):
+            if conf_dir.exists():
+                shutil.rmtree(conf_dir)
+
+            # The default permission for nginx configuration files are 755.
+            conf_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
+
+        logger.info("Init module config.")
+        _create_healthcheck_module_config()
+
         logger.info("Ensure nginx cache directory is present.")
         NGINX_PROXY_CACHE_DIR_PATH.mkdir(mode=0o755, parents=True, exist_ok=True)
         user = pwd.getpwnam(NGINX_USER)
@@ -237,6 +245,34 @@ def _reset_nginx_files() -> None:
     except (PermissionError, OSError, IOError) as err:
         logger.exception("Failed to reset the nginx files.")
         raise NginxFileError("Failed to reset nginx files") from err
+
+
+def _create_healthcheck_module_config() -> None:
+    """Create the nginx configuration file to enable healthcheck module."""
+    logger.info("Creating the nginx configuration files for healthcheck")
+
+    # From: https://github.com/openresty/lua-resty-upstream-healthcheck
+    load_module_config = nginx.Conf(
+        nginx.Key("load_module", "modules/ndk_http_module.so"),
+        nginx.Key("load_module", "modules/ngx_http_lua_module.so"),
+        nginx.Key("load_module", "modules/ngx_http_lua_upstream_module.so"),
+    )
+
+    healthcheck_config = nginx.Conf(
+        nginx.Key("lua_package_path", "/usr/share/lua/5.1/?.lua;;"),
+        nginx.Key("lua_shared_dict", "healthcheck 1m"),
+        nginx.Key("lua_socket_log_errors", "off"),
+    )
+
+    try:
+        nginx.dumpf(load_module_config, NGINX_MODULES_ENABLED_PATH / "lua_upstream.conf")
+        nginx.dumpf(healthcheck_config, NGINX_CONFD_PATH / "lua_healthcheck.conf")
+    except (PermissionError, FileNotFoundError) as err:
+        logger.exception("Issue with configuration directories")
+        raise NginxFileError("Issue with configuration directories") from err
+    except (OSError, IOError) as err:
+        logger.exception("File write issue with configuration file")
+        raise NginxFileError("File write issue with configuration file") from err
 
 
 def _create_status_page_config() -> None:
@@ -258,7 +294,7 @@ def _create_status_page_config() -> None:
                 nginx.Key("default_type", "text/plain"),
                 NginxLuaSection(
                     "content_by_lua_block",
-                    """local hc = require "resty.upstream.healthcheck"
+                    """local hc = require "healthcheck"
                 ngx.say("Nginx Worker PID: ", ngx.worker.pid())
                 ngx.print(hc.status_page())
                 """,
@@ -266,10 +302,10 @@ def _create_status_page_config() -> None:
             ),
         )
     )
-    _create_and_enable_site_config("nginx_status", nginx_config)
+    _write_and_enable_virtualhost_config("nginx_status", nginx_config)
 
 
-def _create_server_config(
+def _create_virtualhost_config(
     host: str, configuration: HostConfig, certificate_path: Path | None
 ) -> None:
     """Create the nginx configuration file for a virtual host.
@@ -289,9 +325,6 @@ def _create_server_config(
                 "proxy_cache_path",
                 f"{NGINX_PROXY_CACHE_DIR_PATH} use_temp_path=off levels=1:2 keys_zone={host}:10m",
             ),
-            # From: https://github.com/openresty/lua-resty-upstream-healthcheck
-            nginx.Key("lua_shared_dict", "healthcheck 1m"),
-            nginx.Key("lua_socket_log_errors", "off"),
         )
         server_config = nginx.Server(
             nginx.Key("proxy_cache", host),
@@ -334,7 +367,7 @@ def _create_server_config(
             f"Unable to convert {host} configuration to nginx format: {configuration}"
         ) from err
 
-    _create_and_enable_site_config(host, nginx_config)
+    _write_and_enable_virtualhost_config(host, nginx_config)
 
 
 def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
@@ -414,7 +447,7 @@ def _get_location_config_keys(
     return tuple(keys)
 
 
-def _create_and_enable_site_config(host: str, nginx_config: nginx.Conf) -> None:
+def _write_and_enable_virtualhost_config(host: str, nginx_config: nginx.Conf) -> None:
     """Store the nginx configuration and enable it.
 
     Nginx configuration files are usually stored in the sites-available path.

@@ -122,17 +122,17 @@ def test_health_check_failure(monkeypatch, patch_nginx_manager: None):
 def test_file_errors(monkeypatch, patch_nginx_manager: None):
     """
     arrange: Patch nginx.dumpf to raise file errors.
-    act: Run _create_and_enable_config.
+    act: Run _write_and_enable_virtualhost_config.
     assert: NginxFileError raised.
     """
     monkeypatch.setattr("nginx_manager.nginx.dumpf", MagicMock(side_effect=OSError("Mock error")))
 
     with pytest.raises(NginxFileError):
-        nginx_manager._create_and_enable_config("mock-host", {})
+        nginx_manager._write_and_enable_virtualhost_config("mock-host", {})
 
     monkeypatch.setattr(
         "nginx_manager.nginx.dumpf", MagicMock(side_effect=PermissionError("Mock error"))
     )
 
     with pytest.raises(NginxFileError):
-        nginx_manager._create_and_enable_config("mock-host", {})
+        nginx_manager._write_and_enable_virtualhost_config("mock-host", {})
