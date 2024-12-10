@@ -24,6 +24,8 @@ HOSTNAME_CONFIG_NAME = "hostname"
 PATH_CONFIG_NAME = "path"
 BACKENDS_CONFIG_NAME = "backends"
 BACKENDS_PATH_CONFIG_NAME = "backends-path"
+HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
+HEALTHCHECK_INTERVAL_CONFIG_NAME = "healthcheck-interval"
 PROTOCOL_CONFIG_NAME = "protocol"
 FAIL_TIMEOUT_CONFIG_NAME = "fail-timeout"
 PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
@@ -69,6 +71,7 @@ class CacheTester:
         self._app = app
         self._config_app = config_app
         self._cert_app = cert_app
+        self._reset_after_run = True
 
     async def integrate_config(self) -> None:
         """Integrate the configuration application."""
@@ -112,9 +115,11 @@ class CacheTester:
             Whether the cache is working.
         """
         ip = await get_app_ip(self._app)
+        url = f"{protocol}://{ip}{path}"
+        logger.info(f"Querying cache on {url} with Host: {hostname}")
 
         response = requests.get(
-            f"{protocol}://{ip}{path}",
+            url,
             headers={"Host": hostname},
             allow_redirects=False,
             verify=False,
@@ -158,6 +163,7 @@ async def deploy_http_app(
     test_server_content = TEST_SERVER_PATH.read_text()
     any_charm_content = textwrap.dedent(
         f'''
+    import logging
     import os
     import subprocess
     import textwrap
@@ -168,9 +174,15 @@ async def deploy_http_app(
     SERVICE_NAME = "test-http"
     SERVICE_PATH = Path("/etc/systemd/system/" + SERVICE_NAME + ".service")
 
+    logger = logging.getLogger(__name__)
 
     class AnyCharm(AnyCharmBase):
-        def _on_start_(self, event):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.framework.observe(self.on.config_changed, self._on_config_changed)
+
+        def generate_config(self):
+            logger.info(f"Configuring {{SERVICE_NAME}} to answer on {path}")
             test_server_path = Path(os.getcwd()) / "src" / "test_server.py"
             SERVICE_PATH.write_text(
                 textwrap.dedent(
@@ -192,10 +204,19 @@ async def deploy_http_app(
                     """
                 )
             )
+
+        def _on_start_(self, event):
+            self.generate_config()
+
             subprocess.run(["systemctl", "enable", SERVICE_NAME])
             subprocess.run(["systemctl", "start", SERVICE_NAME])
 
             super()._on_start_(event)
+
+        def _on_config_changed(self, event):
+            self.generate_config()
+            subprocess.run(["systemctl", "daemon-reload"])
+            subprocess.run(["systemctl", "restart", SERVICE_NAME])
     '''
     )
 
@@ -204,12 +225,18 @@ async def deploy_http_app(
         "any_charm.py": any_charm_content,
     }
 
-    app: Application = await model.deploy(
-        "any-charm",
-        application_name=app_name,
-        channel="beta",
-        config={"src-overwrite": json.dumps(src_overwrite)},
-    )
+    app: Application
+    if app_name in model.applications:
+        logging.info(f"Found existing {app_name} application. Reconfiguring it.")
+        app = model.applications[app_name]
+        await app.set_config({"src-overwrite": json.dumps(src_overwrite)})
+    else:
+        app = await model.deploy(
+            "any-charm",
+            application_name=app_name,
+            channel="beta",
+            config={"src-overwrite": json.dumps(src_overwrite)},
+        )
 
     return app
 

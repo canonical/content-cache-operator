@@ -74,6 +74,8 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
                 protocol="https",
                 fail_timeout="30s",
                 backends_path="/backend",
+                healthcheck_path="/health",
+                healthcheck_interval=2123,
                 proxy_cache_valid=("200 302 30m", "404 1m"),
             )
         }
@@ -90,6 +92,8 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert "server_name example.com" in config_file_content
     assert "access_log" in config_file_content
     assert "error_log" in config_file_content
+    assert "GET /health" in config_file_content
+    assert "interval = 2123" in config_file_content
 
 
 def test_health_check(monkeypatch, patch_nginx_manager: None):
@@ -118,17 +122,17 @@ def test_health_check_failure(monkeypatch, patch_nginx_manager: None):
 def test_file_errors(monkeypatch, patch_nginx_manager: None):
     """
     arrange: Patch nginx.dumpf to raise file errors.
-    act: Run _create_and_enable_config.
+    act: Run _write_and_enable_virtualhost_config.
     assert: NginxFileError raised.
     """
     monkeypatch.setattr("nginx_manager.nginx.dumpf", MagicMock(side_effect=OSError("Mock error")))
 
     with pytest.raises(NginxFileError):
-        nginx_manager._create_and_enable_config("mock-host", {})
+        nginx_manager._write_and_enable_virtualhost_config("mock-host", {})
 
     monkeypatch.setattr(
         "nginx_manager.nginx.dumpf", MagicMock(side_effect=PermissionError("Mock error"))
     )
 
     with pytest.raises(NginxFileError):
-        nginx_manager._create_and_enable_config("mock-host", {})
+        nginx_manager._write_and_enable_virtualhost_config("mock-host", {})

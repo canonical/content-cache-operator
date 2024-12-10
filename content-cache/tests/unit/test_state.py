@@ -303,4 +303,6 @@ def test_config_valid_proxy_cache_valid_integration_data(proxy_cache_valid: str)
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
+    assert config.healthcheck_path == "/"
+    assert config.healthcheck_interval == 2000
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))

@@ -7,7 +7,7 @@
 import asyncio
 import logging
 import secrets
-from typing import AsyncIterator
+from typing import AsyncIterator, List
 
 import pytest
 import pytest_asyncio
@@ -178,9 +178,14 @@ def http_ok_message_fixture() -> str:
 
 @pytest_asyncio.fixture(name="http_ok_app", scope="module")
 async def http_ok_app_fixture(
-    model: Model, http_ok_path: str, http_ok_message: str
+    model: Model, http_ok_path: str, http_ok_message: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The test HTTP application that returns OK."""
+    use_existing = pytestconfig.getoption("--use-existing-app", default=[])
+    if use_existing and "http-ok" in use_existing:
+        yield model.applications["http-ok"]
+        return
+
     app = await deploy_http_app(
         app_name="http-ok", path=http_ok_path, status=200, message=http_ok_message, model=model
     )
@@ -195,6 +200,20 @@ async def http_ok_ip_fixture(http_ok_app: Application) -> str:
     return await get_app_ip(http_ok_app)
 
 
+@pytest_asyncio.fixture(name="http_ok_ips", scope="module")
+async def http_ok_ips_fixture(model: Model, http_ok_app: Application) -> List[str]:
+    """The IPs of the test HTTP applications (2 units expected)"""
+    if len(http_ok_app.units) < 2:
+        await http_ok_app.add_unit(1)
+        await model.wait_for_idle([http_ok_app.name], status="active", timeout=10 * 60)
+
+    ips = []
+    for unit in http_ok_app.units:
+        ips.append(await unit.get_public_address())
+
+    return ips
+
+
 @pytest_asyncio.fixture(name="cache_tester", scope="function")
 async def cache_tester_fixture(
     model: Model, app: Application, config_app: Application, cert_app: Application
@@ -204,6 +223,9 @@ async def cache_tester_fixture(
     tester = CacheTester(model, app, config_app, cert_app)
 
     yield tester
+
+    if not tester._reset_after_run:
+        return
 
     # This removes the integration and configurations.
     await tester.reset()
