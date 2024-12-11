@@ -57,20 +57,23 @@ class ContentCacheCharm(ops.CharmBase):
 
         COSAgentProvider(charm=self)
 
-        # Get the hostname from the integration data.
-        hostnames = []
-        try:
-            hostnames = get_hostnames(self)
-        except IntegrationDataError as err:
-            logger.warning("Issues with integration data: %s", err)
-            # Unable to do anything about the error, therefore continue with setup.
+        # The order of the `framework.observe` calls and the `TLSCertificatesRequiresV4` matters.
+        # The following three events are observed by `TLSCertificatesRequiresV4`, the
+        # `_inject_certificate_requests` must be called prior in order to inject the certificate requests.
+        framework.observe(
+            self.on[CERTIFICATE_INTEGRATION_NAME].relation_created,
+            self._inject_certificate_requests,
+        )
+        framework.observe(
+            self.on[CERTIFICATE_INTEGRATION_NAME].relation_changed,
+            self._inject_certificate_requests,
+        )
+        framework.observe(self.on.secret_expired, self._inject_certificate_requests)
 
         self.certificates = TLSCertificatesRequiresV4(
             charm=self,
             relationship_name=CERTIFICATE_INTEGRATION_NAME,
-            certificate_requests=[
-                CertificateRequestAttributes(common_name=name) for name in hostnames
-            ],
+            certificate_requests=[],
             mode=Mode.UNIT,
             refresh_events=[
                 self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_changed,
@@ -93,6 +96,19 @@ class ContentCacheCharm(ops.CharmBase):
             self.certificates.on.certificate_available,
             self._on_certificate_available,
         )
+
+    def _inject_certificate_requests(self, _: ops.EventBase) -> None:
+        # Get the hostname from the integration data.
+        hostnames = []
+        try:
+            hostnames = get_hostnames(self)
+        except IntegrationDataError as err:
+            logger.warning("Issues with integration data: %s", err)
+            # Unable to do anything about the error, therefore continue with setup.
+
+        self.certificates.certificate_requests = [
+            CertificateRequestAttributes(common_name=name) for name in hostnames
+        ]
 
     def _on_start(self, _: ops.StartEvent) -> None:
         """Handle start event."""
