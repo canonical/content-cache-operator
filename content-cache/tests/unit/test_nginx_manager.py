@@ -124,11 +124,11 @@ def test_file_errors(monkeypatch, patch_nginx_manager: None):
     monkeypatch.setattr("nginx_manager.nginx.dumpf", MagicMock(side_effect=OSError("Mock error")))
 
     with pytest.raises(NginxFileError):
-        nginx_manager._create_and_enable_config("mock-host", {})
+        nginx_manager._store_and_enable_site_config("mock-host", {})
 
     monkeypatch.setattr(
         "nginx_manager.nginx.dumpf", MagicMock(side_effect=PermissionError("Mock error"))
     )
 
     with pytest.raises(NginxFileError):
-        nginx_manager._create_and_enable_config("mock-host", {})
+        nginx_manager._store_and_enable_site_config("mock-host", {})
