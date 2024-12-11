@@ -1,5 +1,11 @@
 # Changelog
 
+## 2024-12-11
+
+### **Fixed**
+
+- A issue when content-cache charm integrated with multiple content-cache-backends-config charm causing the configuration for the additional content-cache-backends-config charm was not being correctly included in nginx configuration.
+
 ## 2024-12-05
 
 ### **Added**
