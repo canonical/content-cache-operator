@@ -27,7 +27,7 @@ from utilities import execute_command
 logger = logging.getLogger(__name__)
 
 NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
-NGINX_CONF_PATH = Path("/etc/nginx/conf.d")
+NGINX_CONFD_PATH = Path("/etc/nginx/conf.d")
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
 NGINX_LOG_PATH = Path("/var/log/nginx")
@@ -152,7 +152,7 @@ def update_and_load_config(
         if host in hostname_to_cert:
             cert_path = hostname_to_cert[host]
         try:
-            _create_server_config(host, config, cert_path)
+            _create_virtualhost_config(host, config, cert_path)
         except NginxConfigurationError as err:
             errored_hosts.append(host)
             configuration_errors.append(err)
@@ -182,7 +182,7 @@ def _load_config() -> None:  # pragma: no cover
 def _reset_nginx_files() -> None:
     """Reset the Nginx files."""
     logger.info("Resetting the nginx conf files directories.")
-    _reset_config_directory(NGINX_CONF_PATH)
+    _reset_config_directory(NGINX_CONFD_PATH)
     logger.info("Resetting the nginx sites configuration files directories.")
     _reset_config_directory(NGINX_SITES_AVAILABLE_PATH)
     _reset_config_directory(NGINX_SITES_ENABLED_PATH)
@@ -251,7 +251,7 @@ def _create_status_page_config() -> None:
     _store_and_enable_site_config("nginx_status", nginx_config)
 
 
-def _create_server_config(
+def _create_virtualhost_config(
     host: str, configuration: HostConfig, certificate_path: Path | None
 ) -> None:
     """Create the nginx configuration file for a virtual host.
@@ -412,7 +412,7 @@ def _get_http_config_path(name: str) -> Path:
     Returns:
         The path.
     """
-    return NGINX_CONF_PATH / f"{name}.conf"
+    return NGINX_CONFD_PATH / f"{name}.conf"
 
 
 def _get_sites_available_path(host: str) -> Path:
