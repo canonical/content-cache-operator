@@ -104,8 +104,11 @@ async def deploy_applications_fixture(
                 cert_app_name: model.applications[cert_app_name],
                 metric_app_name: model.applications[metric_app_name],
             }
-        except KeyError:
-            raise RuntimeError("At least one app is missing, you cannot use --no-deploy.")
+        except KeyError as e:
+            missing_app = e.args[0]
+            raise RuntimeError(
+                f"At least one app is missing ({missing_app}), you cannot use --no-deploy."
+            )
         yield res
         return
 

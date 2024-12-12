@@ -40,6 +40,9 @@ SAMPLE_INTEGRATION_DATA = {
 def patch_nginx_manager_fixture(monkeypatch, tmp_path: Path) -> None:
     """Patch the nginx_manager module."""
     monkeypatch.setattr("nginx_manager.NGINX_CONFD_PATH", tmp_path / "conf.d")
+    monkeypatch.setattr(
+        "nginx_manager.NGINX_HEALTHCHECKS_CONF_PATH", tmp_path / "conf.d" / "lua_healthchecks.conf"
+    )
     monkeypatch.setattr("nginx_manager.NGINX_SITES_ENABLED_PATH", tmp_path / "sites-enabled")
     monkeypatch.setattr("nginx_manager.NGINX_MODULES_ENABLED_PATH", tmp_path / "modules-enabled")
     monkeypatch.setattr("nginx_manager.NGINX_SITES_AVAILABLE_PATH", tmp_path / "sites-available")

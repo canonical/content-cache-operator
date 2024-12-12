@@ -32,10 +32,10 @@ NGINX_SERVICE = "nginx"
 NGINX_MAIN_CONF_PATH = Path("/etc/nginx/nginx.conf")
 NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
 NGINX_CONFD_PATH = Path("/etc/nginx/conf.d")
+NGINX_HEALTHCHECKS_CONF_PATH = NGINX_CONFD_PATH / "lua_healthchecks.conf"
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
 NGINX_MODULES_ENABLED_PATH = Path("/etc/nginx/modules-enabled")
-NGINX_CONFD_PATH = Path("/etc/nginx/conf.d")
 NGINX_LOG_PATH = Path("/var/log/nginx")
 NGINX_PROXY_CACHE_DIR_PATH = Path("/data/nginx/cache")
 NGINX_USER = "www-data"
@@ -192,21 +192,16 @@ def update_and_load_config(
     # This will reset the file permissions.
     _reset_nginx_files()
 
-    try:
-        _create_http_config()
-        _create_status_page_config()
-    except NginxFileError:
-        logger.info("Stop updating configuration file due to file write issues")
-        raise
-
     errored_hosts: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
+    healthcheck_workers_lua_code = ""
     for host, config in configuration.items():
         cert_path = None
         if host in hostname_to_cert:
             cert_path = hostname_to_cert[host]
         try:
-            _create_virtualhost_config(host, config, cert_path)
+            vhost_healtcheck_worker_lua_code = _create_virtualhost_config(host, config, cert_path)
+            healthcheck_workers_lua_code += vhost_healtcheck_worker_lua_code
         except NginxConfigurationError as err:
             errored_hosts.append(host)
             configuration_errors.append(err)
@@ -214,6 +209,13 @@ def update_and_load_config(
         except NginxFileError:
             logger.info("Stop updating configuration file due to file write issues")
             raise
+
+    try:
+        _create_http_config(healthcheck_workers_lua_code)
+        _create_status_page_config()
+    except NginxFileError:
+        logger.info("Stop updating configuration file due to file write issues")
+        raise
 
     if errored_hosts:
         raise NginxConfigurationAggregateError(errored_hosts, configuration_errors)
@@ -237,6 +239,8 @@ def _reset_nginx_files() -> None:
     """Reset the Nginx files."""
     logger.info("Resetting the nginx conf files directories.")
     _reset_config_directory(NGINX_CONFD_PATH)
+    logger.info("Resetting the nginx module files directories.")
+    _reset_config_directory(NGINX_MODULES_ENABLED_PATH)
     logger.info("Resetting the nginx sites configuration files directories.")
     _reset_config_directory(NGINX_SITES_AVAILABLE_PATH)
     _reset_config_directory(NGINX_SITES_ENABLED_PATH)
@@ -278,7 +282,7 @@ def _ensure_directory_exist_with_ownership(path: Path) -> None:
         raise NginxFileError(f"Failed to create and/or own directory {path}") from err
 
 
-def _create_http_config() -> None:
+def _create_http_config(healthcheck_workers_lua_code: str) -> None:
     """Create nginx HTTP configuration files."""
     logger.info("Creating the cache log format configuration")
     # The following should not throw any nginx.ParseError as it is static.
@@ -287,8 +291,10 @@ def _create_http_config() -> None:
     )
     _store_http_config("cache_log_format", cache_log_format_config)
 
+    _create_healthcheck_module_config(healthcheck_workers_lua_code)
 
-def _create_healthcheck_module_config() -> None:
+
+def _create_healthcheck_module_config(healthcheck_workers_lua_code: str) -> None:
     """Create the nginx configuration file to enable healthcheck module."""
     logger.info("Creating the nginx configuration files for healthcheck")
 
@@ -299,15 +305,20 @@ def _create_healthcheck_module_config() -> None:
         nginx.Key("load_module", "modules/ngx_http_lua_upstream_module.so"),
     )
 
+    lua_variables = """local hc = require "healthcheck"
+        local ok, err
+        """
+
     healthcheck_config = nginx.Conf(
         nginx.Key("lua_package_path", "/usr/share/lua/5.1/?.lua;;"),
         nginx.Key("lua_shared_dict", "healthcheck 1m"),
         nginx.Key("lua_socket_log_errors", "off"),
+        NginxLuaSection("init_worker_by_lua_block", lua_variables + healthcheck_workers_lua_code),
     )
 
     try:
         nginx.dumpf(load_module_config, NGINX_MODULES_ENABLED_PATH / "lua_upstream.conf")
-        nginx.dumpf(healthcheck_config, NGINX_CONFD_PATH / "lua_healthcheck.conf")
+        nginx.dumpf(healthcheck_config, NGINX_HEALTHCHECKS_CONF_PATH)
     except (PermissionError, FileNotFoundError) as err:
         logger.exception("Issue with configuration directories")
         raise NginxFileError("Issue with configuration directories") from err
@@ -348,7 +359,7 @@ def _create_status_page_config() -> None:
 
 def _create_virtualhost_config(
     host: str, configuration: HostConfig, certificate_path: Path | None
-) -> None:
+) -> str:
     """Create the nginx configuration file for a virtual host.
 
     Args:
@@ -361,6 +372,7 @@ def _create_virtualhost_config(
     """
     logger.info("Creating the nginx site configuration file for hosts %s", host)
 
+    lua_healthcheck_workers = ""
     server_cache_dir = NGINX_PROXY_CACHE_DIR_PATH / host
     _ensure_directory_exist_with_ownership(server_cache_dir)
     try:
@@ -393,15 +405,11 @@ def _create_virtualhost_config(
             upstream_keys = _get_upstream_config_keys(config)
             upstream_config = nginx.Upstream(upstream, *upstream_keys)
             nginx_config.add(upstream_config)
-            nginx_config.add(
-                NginxLuaSection(
-                    "init_worker_by_lua_block",
-                    _get_upstream_healthchecks_worker(upstream, config),
-                )
-            )
 
             location_keys = _get_location_config_keys(config, upstream, host)
             server_config.add(nginx.Location(path, *location_keys))
+
+            lua_healthcheck_workers += _get_upstream_healthchecks_worker(upstream, config)
 
         nginx_config.add(server_config)
     except nginx.ParseError as err:
@@ -413,6 +421,8 @@ def _create_virtualhost_config(
         ) from err
 
     _store_and_enable_site_config(host, nginx_config)
+
+    return lua_healthcheck_workers
 
 
 def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
@@ -444,9 +454,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
     Returns:
         A string with the lua script for the healthcheck workers.
     """
-    return rf"""local hc = require "healthcheck"
-
-        local ok, err = hc.spawn_checker{{
+    return rf"""ok, err = hc.spawn_checker{{
             shm = "healthcheck",
             upstream = "{upstream}",
             type = "{config.protocol.value}",
