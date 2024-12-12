@@ -31,6 +31,7 @@ NGINX_PACKAGE = "nginx"
 NGINX_SERVICE = "nginx"
 NGINX_MAIN_CONF_PATH = Path("/etc/nginx/nginx.conf")
 NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
+NGINX_CONFD_PATH = Path("/etc/nginx/conf.d")
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
 NGINX_MODULES_ENABLED_PATH = Path("/etc/nginx/modules-enabled")
@@ -192,6 +193,7 @@ def update_and_load_config(
     _reset_nginx_files()
 
     try:
+        _create_http_config()
         _create_status_page_config()
     except NginxFileError:
         logger.info("Stop updating configuration file due to file write issues")
@@ -232,35 +234,58 @@ def _load_config() -> None:  # pragma: no cover
 
 
 def _reset_nginx_files() -> None:
-    """Reset the Nginx files.
+    """Reset the Nginx files."""
+    logger.info("Resetting the nginx conf files directories.")
+    _reset_config_directory(NGINX_CONFD_PATH)
+    logger.info("Resetting the nginx sites configuration files directories.")
+    _reset_config_directory(NGINX_SITES_AVAILABLE_PATH)
+    _reset_config_directory(NGINX_SITES_ENABLED_PATH)
+    logger.info("Ensure nginx cache directory is present.")
+    _ensure_directory_exist_with_ownership(NGINX_PROXY_CACHE_DIR_PATH)
 
-    Raises:
-        NginxFileError: File operation errors resetting Nginx files.
+
+def _reset_config_directory(path: Path) -> None:
+    """Reset a nginx configuration directory.
+
+    Args:
+        path: The path to the directory.
     """
     try:
-        logger.info("Resetting the nginx sites configuration files directories.")
-        for conf_dir in (
-            NGINX_SITES_AVAILABLE_PATH,
-            NGINX_SITES_ENABLED_PATH,
-            NGINX_MODULES_ENABLED_PATH,
-            NGINX_CONFD_PATH,
-        ):
-            if conf_dir.exists():
-                shutil.rmtree(conf_dir)
-
-            # The default permission for nginx configuration files are 755.
-            conf_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
-
-        logger.info("Init module config.")
-        _create_healthcheck_module_config()
-
-        logger.info("Ensure nginx cache directory is present.")
-        NGINX_PROXY_CACHE_DIR_PATH.mkdir(mode=0o755, parents=True, exist_ok=True)
-        user = pwd.getpwnam(NGINX_USER)
-        os.chown(NGINX_PROXY_CACHE_DIR_PATH, user.pw_uid, user.pw_gid)
+        if path.exists():
+            shutil.rmtree(path)
+        # The default permission for nginx configuration files are 755.
+        path.mkdir(mode=0o755, parents=True, exist_ok=True)
     except (PermissionError, OSError, IOError) as err:
-        logger.exception("Failed to reset the nginx files.")
-        raise NginxFileError("Failed to reset nginx files") from err
+        logger.exception("Failed to reset directory %s", path)
+        raise NginxFileError(f"Failed to reset directory {path}") from err
+
+
+def _ensure_directory_exist_with_ownership(path: Path) -> None:
+    """Ensure directory exist with nginx owning the directory.
+
+    Args:
+        path: The path to the directory.
+
+    Raises:
+        NginxFileError: File operation errors creating and/or owning the directory.
+    """
+    try:
+        path.mkdir(mode=0o755, parents=True, exist_ok=True)
+        user = pwd.getpwnam(NGINX_USER)
+        os.chown(path, user.pw_uid, user.pw_gid)
+    except (PermissionError, OSError, IOError) as err:
+        logger.exception("Failed to create and/or own directory %s", path)
+        raise NginxFileError(f"Failed to create and/or own directory {path}") from err
+
+
+def _create_http_config() -> None:
+    """Create nginx HTTP configuration files."""
+    logger.info("Creating the cache log format configuration")
+    # The following should not throw any nginx.ParseError as it is static.
+    cache_log_format_config = nginx.Conf(
+        nginx.Key("log_format", f"{NGINX_CACHE_LOG_FORMAT_NAME} '{NGINX_CACHE_LOG_FORMAT}'"),
+    )
+    _store_http_config("cache_log_format", cache_log_format_config)
 
 
 def _create_healthcheck_module_config() -> None:
@@ -318,7 +343,7 @@ def _create_status_page_config() -> None:
             ),
         )
     )
-    _write_and_enable_virtualhost_config("nginx_status", nginx_config)
+    _store_and_enable_site_config("nginx_status", nginx_config)
 
 
 def _create_virtualhost_config(
@@ -335,13 +360,15 @@ def _create_virtualhost_config(
         NginxConfigurationError: Failed to convert the configuration to nginx format.
     """
     logger.info("Creating the nginx site configuration file for hosts %s", host)
+
+    server_cache_dir = NGINX_PROXY_CACHE_DIR_PATH / host
+    _ensure_directory_exist_with_ownership(server_cache_dir)
     try:
         nginx_config = nginx.Conf(
             nginx.Key(
                 "proxy_cache_path",
-                f"{NGINX_PROXY_CACHE_DIR_PATH} use_temp_path=off levels=1:2 keys_zone={host}:10m",
+                f"{server_cache_dir} use_temp_path=off levels=1:2 keys_zone={host}:10m",
             ),
-            nginx.Key("log_format", f"{NGINX_CACHE_LOG_FORMAT_NAME} '{NGINX_CACHE_LOG_FORMAT}'"),
         )
         server_config = nginx.Server(
             nginx.Key("proxy_cache", host),
@@ -385,7 +412,7 @@ def _create_virtualhost_config(
             f"Unable to convert {host} configuration to nginx format: {configuration}"
         ) from err
 
-    _write_and_enable_virtualhost_config(host, nginx_config)
+    _store_and_enable_site_config(host, nginx_config)
 
 
 def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
@@ -465,10 +492,31 @@ def _get_location_config_keys(
     return tuple(keys)
 
 
-def _write_and_enable_virtualhost_config(host: str, nginx_config: nginx.Conf) -> None:
-    """Store the nginx configuration and enable it.
+def _store_http_config(name: str, nginx_config: nginx.Conf) -> None:
+    """Store the nginx http configuration.
 
-    Nginx configuration files are usually stored in the sites-available path.
+    The nginx http configurations are usually stored in the conf.d path.
+    The default and common nginx settings generally will load the conf.d path as HTTP
+    configurations.
+
+    Args:
+        name: The name of the file.
+        nginx_config: The configuration to store as file.
+    """
+    try:
+        nginx.dumpf(nginx_config, _get_http_config_path(name))
+    except (PermissionError, FileNotFoundError) as err:
+        logger.exception("Issue with http configuration directories")
+        raise NginxFileError("Issue with http configuration directories") from err
+    except (OSError, IOError) as err:
+        logger.exception("File write issue with http configuration file %s", name)
+        raise NginxFileError(f"File write issue with http configuration file {name}") from err
+
+
+def _store_and_enable_site_config(host: str, nginx_config: nginx.Conf) -> None:
+    """Store the nginx site configuration and enable it.
+
+    The nginx configuration files are usually stored in the sites-available path.
     The configurations that are enabled are usually symlink to the sites-enabled path.
 
     Args:
@@ -482,11 +530,25 @@ def _write_and_enable_virtualhost_config(host: str, nginx_config: nginx.Conf) ->
         nginx.dumpf(nginx_config, _get_sites_available_path(host))
         _get_sites_enabled_path(host).symlink_to(_get_sites_available_path(host))
     except (PermissionError, FileNotFoundError) as err:
-        logger.exception("Issue with configuration directories")
-        raise NginxFileError("Issue with configuration directories") from err
+        logger.exception("Issue with site configuration directories")
+        raise NginxFileError("Issue with site configuration directories") from err
     except (OSError, IOError) as err:
-        logger.exception("File write issue with configuration file")
-        raise NginxFileError("File write issue with configuration file") from err
+        logger.exception("File write issue with site configuration file for host %s", host)
+        raise NginxFileError(
+            f"File write issue with site configuration file for host {host}"
+        ) from err
+
+
+def _get_http_config_path(name: str) -> Path:
+    """Get the http configuration file path.
+
+    Args:
+        name: The name of the configuration.
+
+    Returns:
+        The path.
+    """
+    return NGINX_CONFD_PATH / f"{name}.conf"
 
 
 def _get_sites_available_path(host: str) -> Path:

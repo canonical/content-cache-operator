@@ -1,5 +1,11 @@
 # Changelog
 
+## 2024-12-11
+
+### **Fixed**
+
+- A issue where content-cache charm integrated with multiple content-cache-backends-config charms causing some configuration to not work correctly.
+
 ## 2024-12-05
 
 ### **Added**

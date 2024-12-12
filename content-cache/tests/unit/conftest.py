@@ -39,7 +39,6 @@ SAMPLE_INTEGRATION_DATA = {
 @pytest.fixture(name="patch_nginx_manager", scope="function")
 def patch_nginx_manager_fixture(monkeypatch, tmp_path: Path) -> None:
     """Patch the nginx_manager module."""
-    monkeypatch.setattr("nginx_manager.NGINX_MAIN_CONF_PATH", tmp_path / "nginx.conf")
     monkeypatch.setattr("nginx_manager.NGINX_CONFD_PATH", tmp_path / "conf.d")
     monkeypatch.setattr("nginx_manager.NGINX_SITES_ENABLED_PATH", tmp_path / "sites-enabled")
     monkeypatch.setattr("nginx_manager.NGINX_MODULES_ENABLED_PATH", tmp_path / "modules-enabled")

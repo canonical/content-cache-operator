@@ -36,6 +36,12 @@ def config_app_name_fixture() -> str:
     return "config"
 
 
+@pytest.fixture(name="config_alt_app_name", scope="module")
+def config_alt_app_name_fixture() -> str:
+    """The application name for the alternative configuration charm."""
+    return "config-alt"
+
+
 @pytest.fixture(name="cert_app_name", scope="module")
 def cert_app_name_fixture() -> str:
     """The application name for the TLS certificate charm."""
@@ -83,6 +89,7 @@ async def deploy_applications_fixture(
     config_charm_file: str,
     app_name: str,
     config_app_name: str,
+    config_alt_app_name: str,
     cert_app_name: str,
     metric_app_name: str,
     pytestconfig: pytest.Config,
@@ -93,6 +100,7 @@ async def deploy_applications_fixture(
             res = {
                 app_name: model.applications[app_name],
                 config_app_name: model.applications[config_app_name],
+                config_alt_app_name: model.applications[config_alt_app_name],
                 cert_app_name: model.applications[cert_app_name],
                 metric_app_name: model.applications[metric_app_name],
             }
@@ -104,6 +112,9 @@ async def deploy_applications_fixture(
     app_deploy = model.deploy(charm_file, app_name, base="ubuntu@24.04")
     config_app_deploy = model.deploy(
         config_charm_file, config_app_name, base="ubuntu@24.04", num_units=0
+    )
+    config_alt_app_deploy = model.deploy(
+        config_charm_file, config_alt_app_name, base="ubuntu@24.04", num_units=0
     )
     cert_app_deploy = model.deploy(
         CERT_CHARM_NAME, cert_app_name, channel="latest/edge", base="ubuntu@22.04"
@@ -119,14 +130,15 @@ async def deploy_applications_fixture(
         revision=319,
         num_units=0,
     )
-    app, config_app, cert_app, metric_app = await asyncio.gather(
-        app_deploy, config_app_deploy, cert_app_deploy, metric_app_deploy
+    app, config_app, config_alt_app, cert_app, metric_app = await asyncio.gather(
+        app_deploy, config_app_deploy, config_alt_app_deploy, cert_app_deploy, metric_app_deploy
     )
     await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
     await model.wait_for_idle([cert_app.name], status="active", timeout=15 * 60)
     yield {
         app_name: app,
         config_app_name: config_app,
+        config_alt_app_name: config_alt_app,
         cert_app_name: cert_app,
         metric_app_name: metric_app,
     }
@@ -146,6 +158,14 @@ async def config_app_fixture(
 ) -> AsyncIterator[Application]:
     """The configuration charm application for testing."""
     yield applications[config_app_name]
+
+
+@pytest_asyncio.fixture(name="config_alt_app", scope="module")
+async def config_alt_app_fixture(
+    config_alt_app_name: str, applications: dict[str, Application]
+) -> AsyncIterator[Application]:
+    """The alternative configuration charm application for testing."""
+    yield applications[config_alt_app_name]
 
 
 @pytest_asyncio.fixture(name="cert_app", scope="module")
@@ -216,11 +236,15 @@ async def http_ok_ips_fixture(model: Model, http_ok_app: Application) -> List[st
 
 @pytest_asyncio.fixture(name="cache_tester", scope="function")
 async def cache_tester_fixture(
-    model: Model, app: Application, config_app: Application, cert_app: Application
+    model: Model,
+    app: Application,
+    config_app: Application,
+    config_alt_app: Application,
+    cert_app: Application,
 ) -> AsyncIterator[CacheTester]:
     """Get the cache tester."""
     unit = app.units[0]
-    tester = CacheTester(model, app, config_app, cert_app)
+    tester = CacheTester(model, app, config_app, config_alt_app, cert_app)
 
     yield tester
 
