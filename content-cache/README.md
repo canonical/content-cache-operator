@@ -8,7 +8,7 @@ Avoid using this README file for information that is maintained or published els
 Use links instead.
 -->
 
-# Content Cache Backends Config Operator
+# Content Cache Operator
 
 A [Juju](https://juju.is/) [charm](https://juju.is/docs/olm/charmed-operators) deploying and managing a static web content cache with nginx.
 
@@ -17,6 +17,8 @@ This machine charm manages a nginx instance configured as a content cache. The c
 This charm should be used for caching static web content. When a client makes a request, this charm checks if the requested content is cached and valid. If not this charm will query the backends hosts for the content to refresh the cache. This process works well for static content that does not change based on the client. For these type of content, the cache can greatly reduce the load on the backend hosts.
 
 The charm simplifies the operation of an nginx server as a static web content cache. This makes the charm suitable for users looking for a low maintenance way to reduce load on static websites.
+
+For more information see the [Content Cache charm](https://charmhub.io/content-cache).
 
 ## Get Started
 
@@ -29,7 +31,7 @@ You can find the full list of integrations in [the Charmhub documentation](https
 
 ## Learn more
 
-- [Read more](https://charmhub.io/content-cache-backends-config)
+- [Read more](https://charmhub.io/content-cache/)
 - [Developer documentation](https://nginx.org/en/docs/dev/development_guide.html)
 - [Official webpage](https://www.nginx.com/)
 - [Troubleshooting](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)
