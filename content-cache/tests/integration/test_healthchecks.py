@@ -83,7 +83,7 @@ async def test_healthchecks_healthy(
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
-    # Here is a typical content for the backends_status page tested bellow.
+    # Here is a typical content for the backends_status page tested below.
     # In the test we're checking that both backends are seen as "UP"
     #
     # Nginx Worker PID: 7905
