@@ -8,6 +8,7 @@ import os
 import pwd
 import shutil
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
@@ -65,22 +66,18 @@ NGINX_CACHE_LOG_FORMAT = (
 # This should be tested with integration tests.
 
 
-class NginxLuaSection:  # pylint: disable=R0903
-    """Simple class to insert Lua code in Nginx conf.
+@dataclass
+class NginxLuaSection:
+    """Simple class to be used by python-nginx to insert Lua code in Nginx conf.
 
     Attrs:
-        as_strings: a string to be dumped in the nginx configuration file
+        name: the name of the Lua code section to generate (for instance: "content_by_lua_block")
+        content: the content to put in this section
+        as_strings: string to be dumped in the nginx configuration file (standard in python-nginx)
     """
 
-    def __init__(self, name: str, content: str) -> None:
-        """Initialize with section's name and content.
-
-        Args:
-            name: name of the lua section
-            content: content of the lua section
-        """
-        self.name = name
-        self.content = content
+    name: str
+    content: str
 
     @property
     def as_strings(self) -> str:
