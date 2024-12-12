@@ -83,12 +83,14 @@ async def test_healthchecks_healthy(
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
-    # Sample status page
+    # Here is a typical content for the backends_status page tested bellow.
+    # In the test we're checking that both backends are seen as "UP"
     #
     # Nginx Worker PID: 7905
     # Upstream 88c26973-5726-4745-ab4a-d3addea80d82
     # Primary Peers
     #    10.14.1.77:80 UP
+    #    10.14.1.78:80 DOWN
     # Backup Peers
 
     status = await get_nginx_status(app, path=NGINX_BACKENDS_STATUS_URL_PATH)

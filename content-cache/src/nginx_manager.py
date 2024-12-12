@@ -330,12 +330,15 @@ def _create_status_page_config() -> None:
     # The following should not throw any nginx.ParseError as it is static.
     nginx_config = nginx.Conf(
         nginx.Server(
+            # The standard nginx status page
             nginx.Location(
                 NGINX_STATUS_URL_PATH,
                 nginx.Key("stub_status", "on"),
                 nginx.Key("allow", "127.0.0.1"),
                 nginx.Key("deny", "all"),
             ),
+            # A status page specific to the active healthchecks.
+            # This page will report the status of the different backends.
             nginx.Location(
                 NGINX_BACKENDS_STATUS_URL_PATH,
                 nginx.Key("allow", "127.0.0.1"),
