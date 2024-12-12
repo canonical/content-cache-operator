@@ -192,7 +192,7 @@ class LocationConfig(pydantic.BaseModel):
         fail_timeout = data.get(FAIL_TIMEOUT_FIELD_NAME, "").strip()
         backends_path = data.get(BACKENDS_PATH_FIELD_NAME, "").strip()
         healthcheck_path = data.get(HEALTHCHECK_PATH_FIELD_NAME, "").strip()
-        healthcheck_interval = int(data.get(HEALTHCHECK_INTERVAL_FIELD_NAME, "2000").strip())
+        healthcheck_interval = int(data.get(HEALTHCHECK_INTERVAL_FIELD_NAME, "-1").strip())
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
 
         try:
