@@ -8,7 +8,6 @@ Build-Depends: debhelper-compat (= 13),
                nginx-dev (>=1.22.0),
                liblua5.4-dev,
                dh-lua
-Standards-Version: master
 Rules-Requires-Root: no
 
 Package: libnginx-mod-http-upstream
