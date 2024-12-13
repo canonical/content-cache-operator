@@ -41,7 +41,7 @@ You can find the full list of integrations in [the Charmhub documentation](https
 The Content Cache Backends Config Operator is a member of the Ubuntu family. It is an
 open source project that warmly welcomes community projects, contributions,
 suggestions, fixes and constructive feedback.
-* [Code of conduct](https://ubuntu.com/community/code-of-conduct)~
+* [Code of conduct](https://ubuntu.com/community/code-of-conduct)
 * [Get support](https://discourse.charmhub.io/)
 * [Issues](https://github.com/canonical/content-cache-operator/issues)
 * [Contribute](https://github.com/canonical/content-cache-operator/blob/main/content-cache/CONTRIBUTING.md)
