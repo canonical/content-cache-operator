@@ -1,0 +1,13 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/openresty/lua-resty-upstream-healthcheck
+
+Files: *
+Copyright: 2014-2017, by Yichun "agentzh" Zhang, OpenResty Inc.
+License: BSD
+
+Files: debian/*
+Copyright: 2024 Sebastien Georget <sebastien.georget@canonical.com>
+License: Apache
+
+License: Apache
+ /usr/share/common-licenses
