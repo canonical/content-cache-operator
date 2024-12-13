@@ -12,7 +12,7 @@ Use links instead.
 
 A [Juju](https://juju.is/) [subordinate](https://juju.is/docs/sdk/charm-taxonomy#heading--subordinate-charms) [charm](https://juju.is/docs/olm/charmed-operators) to the [Content Cache charm](https://charmhub.io/content-cache) which provides the Content Cache charm with the configuration required to expose a set of backend services behind caching capabilities of the Content Cache charm.
 
-This charm should be integrated with the Content Cache charm to inject the correct configurations into this charm. For more information see the [Content Cache charm](https://charmhub.io/content-cache).
+This charm should be integrated with the Content Cache charm to inject the correct configurations into the content cache charm. For more information see the [Content Cache charm](https://charmhub.io/content-cache).
 
 ## Get started
 
