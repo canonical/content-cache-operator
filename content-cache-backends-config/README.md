@@ -10,15 +10,15 @@ Use links instead.
 
 # Content Cache Backends Config Operator
 
-A [Juju](https://juju.is/) [subordinate](https://juju.is/docs/sdk/charm-taxonomy#heading--subordinate-charms) [charm](https://juju.is/docs/olm/charmed-operators) to the [Content Cache charm](https://charmhub.io/content-cache) which provides the Content Cache charm with the configuration required to expose a set of backend service behind caching capabilities of the Content Cache charm
+A [Juju](https://juju.is/) [subordinate](https://juju.is/docs/sdk/charm-taxonomy#heading--subordinate-charms) [charm](https://juju.is/docs/olm/charmed-operators) to the [Content Cache charm](https://charmhub.io/content-cache) which provides the Content Cache charm with the configuration required to expose a set of backend services behind caching capabilities of the Content Cache charm.
 
-This charm should be integrated with the Content Cache charm to inject the charm configuration of this charm. For more information see the [Content Cache charm](https://charmhub.io/content-cache).
+This charm should be integrated with the Content Cache charm to inject the correct configurations into this charm. For more information see the [Content Cache charm](https://charmhub.io/content-cache).
 
-## Get Started
+## Get started
 
 The Content Cache Backends Config Charm requires the deployment of the Content Cache charm. To begin, refer to the [Content Cache tutorial](https://github.com/canonical/content-cache-operator/blob/main/content-cache/docs/tutorial/quick-start.md) for step-by-step instructions.
 
-### Basic Operations
+### Basic operations
 
 Some of the Content Cache Backends Config Charm configurations include:
 
@@ -45,5 +45,6 @@ open source project that warmly welcomes community projects, contributions,
 suggestions, fixes and constructive feedback.
 * [Code of conduct](https://ubuntu.com/community/code-of-conduct)
 * [Get support](https://discourse.charmhub.io/)
+* [Issues](https://github.com/canonical/content-cache-operator/issues)
 * [Contribute](https://github.com/canonical/content-cache-operator/blob/main/content-cache-backends-config/CONTRIBUTING.md)
 * [Matrix](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)
