@@ -1,5 +1,11 @@
 # Changelog
 
+## 2024-12-16
+
+### **Added**
+
+- Support for healthcheck-path and healthcheck-interval.
+
 ## 2024-10-15
 
 ### **Added**
