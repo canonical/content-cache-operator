@@ -9,6 +9,7 @@ import textwrap
 from pathlib import Path
 
 import requests
+from juju.action import Action
 from juju.application import Application
 from juju.model import Model
 from juju.unit import Unit
@@ -54,6 +55,7 @@ class CacheTester:
         model: Model,
         app: Application,
         config_app: Application,
+        config_alt_app: Application,
         cert_app: Application | None = None,
     ):
         """Initialize the object.
@@ -62,17 +64,26 @@ class CacheTester:
             model: The juju model containing the applications.
             app: The content-cache application.
             config_app: The configuration charm application.
+            config_alt_app: The alternative configuration charm application.
             cert_app: The TLS certification charm application.
         """
         self._model = model
         self._app = app
         self._config_app = config_app
+        self._config_alt_app = config_alt_app
         self._cert_app = cert_app
 
     async def integrate_config(self) -> None:
         """Integrate the configuration application."""
         await self._model.integrate(
             f"{self._config_app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
+            f"{self._app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
+        )
+
+    async def integrate_config_alt(self) -> None:
+        """Integrate the alternative configuration application."""
+        await self._model.integrate(
+            f"{self._config_alt_app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
             f"{self._app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
         )
 
@@ -90,12 +101,20 @@ class CacheTester:
         )
 
     async def setup_config(self, configuration: dict[str, str]) -> None:
-        """Set up configuration.
+        """Set up configuration on the configuration charm.
 
         Args:
             configuration: The configuration for the configuration charm.
         """
         await self._config_app.set_config(configuration)
+
+    async def setup_config_alt(self, configuration: dict[str, str]) -> None:
+        """Set up configuration on the alternative configuration charm.
+
+        Args:
+            configuration: The configuration for the alternative configuration charm.
+        """
+        await self._config_alt_app.set_config(configuration)
 
     async def query_cache(
         self, path: str, hostname: str, protocol: str = "http"
@@ -124,9 +143,13 @@ class CacheTester:
 
     async def reset(self) -> None:
         """Reset the state of the applications."""
-        if self._app.related_applications(CACHE_CONFIG_INTEGRATION_NAME):
-            await self._app.remove_relation(
-                CACHE_CONFIG_INTEGRATION_NAME, self._config_app.name, True
+        if self._config_app.related_applications(CACHE_CONFIG_INTEGRATION_NAME):
+            await self._config_app.remove_relation(
+                CACHE_CONFIG_INTEGRATION_NAME, self._app.name, True
+            )
+        if self._config_alt_app.related_applications(CACHE_CONFIG_INTEGRATION_NAME):
+            await self._config_alt_app.remove_relation(
+                CACHE_CONFIG_INTEGRATION_NAME, self._app.name, True
             )
         if self._app.related_applications(CERTIFICATE_INTEGRATION_NAME):
             await self._app.remove_relation(CERTIFICATE_INTEGRATION_NAME, self._app.name, True)
@@ -225,3 +248,45 @@ async def get_app_ip(app: Application) -> str:
     assert app.units
     unit: Unit = app.units[0]
     return await unit.get_public_address()
+
+
+async def read_file(unit: Unit, path: Path) -> str:
+    """Read a file on the Juju unit.
+
+    Args:
+        unit: The Juju unit to read file on.
+        path: The path of the file to read.
+
+    Returns:
+        The file content.
+    """
+    return_code, stdout, stderr = await run_in_unit(
+        unit=unit,
+        command=f"if [ -f {path} ]; then cat {path}; else echo ''; fi",
+    )
+    assert return_code == 0, f"Failed to read file {path}: {stderr}"
+    assert stdout is not None, f"Failed to read file {path} to stdout: {stderr}"
+    logging.debug("File content of %s: %s", path, stdout)
+    return stdout.strip()
+
+
+async def run_in_unit(
+    unit: Unit, command: str, timeout=None
+) -> tuple[int, str | None, str | None]:
+    """Run a command in the Juju unit.
+
+    Args:
+        unit:The Juju unit to run the command in.
+        command: The command to run.
+        timeout: The time in seconds for the command run to be consider as failure.
+
+    Returns:
+        The return code, stdout, and stderr.
+    """
+    run: Action = await unit.run(command, timeout)
+    await run.wait()
+    return (
+        run.results["return-code"],
+        run.results.get("stdout", None),
+        run.results.get("stderr", None),
+    )

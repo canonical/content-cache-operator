@@ -14,3 +14,8 @@ def pytest_addoption(parser: Parser):
         parser: The pytest argument parser.
     """
     parser.addoption("--charm-file", action="store", help="The prebuilt content-cache charm file.")
+    parser.addoption(
+        "--config-charm-file",
+        action="store",
+        help="The prebuilt content-cache-backends-config charm file.",
+    )

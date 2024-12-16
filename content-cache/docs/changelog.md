@@ -1,5 +1,17 @@
 # Changelog
 
+## 2024-12-11
+
+### **Fixed**
+
+- A issue where content-cache charm integrated with multiple content-cache-backends-config charms causing some configuration to not work correctly.
+
+## 2024-12-05
+
+### **Added**
+
+- Support for COS integration. Integrating with charms that provides cos-agent will cause the charm to forward logs to COS.
+
 ## 2024-11-28
 
 ### **Added**
