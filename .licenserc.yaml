@@ -17,7 +17,7 @@ header:
     - '.licenserc.yaml'
     - 'CODEOWNERS'
     - 'LICENSE'
-    - 'content-cache/lua-upstream-nginx-module-packaging/changelog'
+    - 'content-cache/lua-upstream-nginx-module-packaging/debian/changelog'
     - 'trivy.yaml'
     - 'pyproject.toml'
     - 'zap_rules.tsv'
