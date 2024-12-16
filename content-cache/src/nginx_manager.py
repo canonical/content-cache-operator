@@ -101,10 +101,10 @@ def initialize() -> None:  # pragma: no cover
 
     return_code, _, stderr = execute_command(
         [
-            "cp",
-            "-f",
-            "ngx_http_lua_upstream_module.so",
-            "/usr/lib/nginx/modules",
+            "sudo",
+            "dpkg",
+            "-i",
+            "libnginx-mod-http-upstream_0.1_amd64.deb",
         ]
     )
     if return_code != 0:
