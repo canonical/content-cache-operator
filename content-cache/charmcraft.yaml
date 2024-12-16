@@ -33,7 +33,7 @@ parts:
 
       # Build package
       cp -R ../debian .
-      curl https://raw.githubusercontent.com/openresty/lua-nginx-module/f44c18859050be5af314bae8f05660478af5e31d/src/api/ngx_http_lua_api.h -O --output-dir debian/include
+      curl https://raw.githubusercontent.com/openresty/lua-nginx-module/f44c18859050be5af314bae8f05660478af5e31d/src/api/ngx_http_lua_api.h -O --output-dir debian/
       dpkg-buildpackage -us -uc
       cp ../libnginx-mod-http-upstream_0.1_amd64.deb /root/stage
     prime:

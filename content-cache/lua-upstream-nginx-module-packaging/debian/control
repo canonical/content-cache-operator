@@ -1,8 +1,10 @@
+# Copyright 2024 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 Source: libnginx-mod-http-upstream
 Section: httpd
 Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-Uploaders: Sebastien Georget <sebastien.georget@canonical.com>
 Build-Depends: debhelper-compat (= 13),
                libnginx-mod-http-ndk-dev,
                nginx-dev (>=1.22.0),
