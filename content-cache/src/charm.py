@@ -163,7 +163,9 @@ class ContentCacheCharm(ops.CharmBase):
 
         status_message = ""
         try:
-            nginx_manager.update_and_load_config(nginx_config, hostname_to_cert)
+            nginx_manager.update_and_load_config(
+                nginx_config, hostname_to_cert, self.unit.name.replace("/", "-")
+            )
         except NginxFileError:
             logger.exception(
                 "Failed to update nginx config file, going to error state for retries"

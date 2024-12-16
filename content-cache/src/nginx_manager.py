@@ -123,13 +123,15 @@ def _systemctl_status_check() -> bool:  # pragma: no cover
 
 
 def update_and_load_config(
-    configuration: NginxConfig, hostname_to_cert: Mapping[str, Path]
+    configuration: NginxConfig, hostname_to_cert: Mapping[str, Path], instance_name: str
 ) -> None:
     """Update the nginx configuration files and load them.
 
     Args:
         configuration: The nginx locations configurations.
         hostname_to_cert: The mapping of hostname to the TLS certificates filepath.
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics.
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
@@ -152,7 +154,7 @@ def update_and_load_config(
         if host in hostname_to_cert:
             cert_path = hostname_to_cert[host]
         try:
-            _create_virtualhost_config(host, config, cert_path)
+            _create_virtualhost_config(host, config, cert_path, instance_name)
         except NginxConfigurationError as err:
             errored_hosts.append(host)
             configuration_errors.append(err)
@@ -252,7 +254,7 @@ def _create_status_page_config() -> None:
 
 
 def _create_virtualhost_config(
-    host: str, configuration: HostConfig, certificate_path: Path | None
+    host: str, configuration: HostConfig, certificate_path: Path | None, instance_name: str
 ) -> None:
     """Create the nginx configuration file for a virtual host.
 
@@ -260,6 +262,8 @@ def _create_virtualhost_config(
         host: The name of the virtual host.
         configuration: The configurations of the host.
         certificate_path: The filepath to the TLS certificate for the host.
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics.
 
     Raises:
         NginxConfigurationError: Failed to convert the configuration to nginx format.
@@ -278,9 +282,12 @@ def _create_virtualhost_config(
         server_config = nginx.Server(
             nginx.Key("proxy_cache", host),
             nginx.Key("server_name", host),
-            nginx.Key("access_log", _get_access_log_path(host)),
-            nginx.Key("access_log", f"{_get_cache_log_path(host)} {NGINX_CACHE_LOG_FORMAT_NAME}"),
-            nginx.Key("error_log", _get_error_log_path(host)),
+            nginx.Key("access_log", _get_access_log_path(host, instance_name)),
+            nginx.Key(
+                "access_log",
+                f"{_get_cache_log_path(host, instance_name)} {NGINX_CACHE_LOG_FORMAT_NAME}",
+            ),
+            nginx.Key("error_log", _get_error_log_path(host, instance_name)),
         )
 
         if certificate_path is not None:
@@ -439,37 +446,43 @@ def _get_sites_enabled_path(host: str) -> Path:
     return NGINX_SITES_ENABLED_PATH / f"{host}.conf"
 
 
-def _get_access_log_path(host: str) -> Path:
+def _get_access_log_path(host: str, instance_name: str) -> Path:
     """Get the access log path for a host.
 
     Args:
         host: The name of the host.
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics.
 
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / f"{host}.access.log"
+    return NGINX_LOG_PATH / instance_name / f"{host}.access.log"
 
 
-def _get_cache_log_path(host: str) -> Path:
+def _get_cache_log_path(host: str, instance_name: str) -> Path:
     """Get the cache log path for a host.
 
     Args:
         host: The name of the host.
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics.
 
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / f"{host}.cache.log"
+    return NGINX_LOG_PATH / instance_name / f"{host}.cache.log"
 
 
-def _get_error_log_path(host: str) -> Path:
+def _get_error_log_path(host: str, instance_name: str) -> Path:
     """Get the error log path for a host.
 
     Args:
         host: The name of the host.
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics.
 
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / f"{host}.error.log"
+    return NGINX_LOG_PATH / instance_name / f"{host}.error.log"
