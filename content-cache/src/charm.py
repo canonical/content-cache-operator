@@ -164,7 +164,7 @@ class ContentCacheCharm(ops.CharmBase):
         status_message = ""
         try:
             nginx_manager.update_and_load_config(
-                nginx_config, hostname_to_cert, self._get_unit_name()
+                nginx_config, hostname_to_cert, self._get_instance_name()
             )
         except NginxFileError:
             logger.exception(
@@ -206,7 +206,7 @@ class ContentCacheCharm(ops.CharmBase):
             NginxSetupError: Failure to setup nginx.
         """
         try:
-            nginx_manager.initialize(self._get_unit_name())
+            nginx_manager.initialize(self._get_instance_name())
         except NginxSetupError:
             logger.exception("Failed to initialize nginx, going to error state for retries")
             raise
@@ -223,7 +223,7 @@ class ContentCacheCharm(ops.CharmBase):
             logger.exception("Failed to stop nginx, going to error state for retries")
             raise
 
-    def _get_unit_name(self) -> str:
+    def _get_instance_name(self) -> str:
         """Get a name to identify this unit.
 
         The nginx_manager module needs a name that can be used in file path.
@@ -231,8 +231,22 @@ class ContentCacheCharm(ops.CharmBase):
         Returns:
             The name.
         """
-        # Replace "/" as it has meaning in a file path.
-        return self.unit.name.replace("/", "_")
+        return unit_name_to_instance_name(self.unit.name)
+
+
+def unit_name_to_instance_name(unit_name: str) -> str:
+    """Transform the unit name to be filepath friendly instance name.
+
+    This logic is in a separate function, to make testing not duplicate logic/code.
+
+    Args:
+        unit_name: The unit name.
+
+    Returns:
+        The instance name.
+    """
+    # Replace "/" as it has meaning in a file path.
+    return unit_name.replace("/", "_")
 
 
 if __name__ == "__main__":  # pragma: nocover
