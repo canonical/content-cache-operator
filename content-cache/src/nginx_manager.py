@@ -498,4 +498,4 @@ def _get_error_log_path(host: str, instance_name: str) -> Path:
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / instance_name / f"{host}.cache.log"
+    return NGINX_LOG_PATH / instance_name / f"{host}.error.log"
