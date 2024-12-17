@@ -41,7 +41,7 @@ parts:
   nginx-upstream-healthcheck:
     plugin: dump
     source: https://github.com/openresty/lua-resty-upstream-healthcheck.git
-      # source-commit: 7924b2abbcc3269423611e6d7aa66be28f4076f0
+    source-commit: 7924b2abbcc3269423611e6d7aa66be28f4076f0
     override-build:
       cp /root/parts/nginx-upstream-healthcheck/src/lib/resty/upstream/healthcheck.lua /root/stage/
     prime:
