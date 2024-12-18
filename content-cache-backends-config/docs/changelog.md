@@ -4,7 +4,7 @@
 
 ### **Added**
 
-- Support for healthcheck-path and healthcheck-interval.
+- Support for healthcheck-path and healthcheck-interval charm configurations.
 
 ## 2024-10-15
 
