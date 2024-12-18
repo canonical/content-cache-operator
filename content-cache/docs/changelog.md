@@ -4,7 +4,7 @@
 
 ### **Added**
 
-- Support for active healthchecks using LUA scripts. Confofigured through healthcheck-interval and healthcheck-path.
+- Support for active healthchecks using LUA scripts. Configured through healthcheck-interval and healthcheck-path.
 
 ## 2024-12-11
 
