@@ -46,7 +46,7 @@ options:
     description: |
       The time between two health checks (in milliseconds)
     type: int
-    default: 2000
+    default: 10000
   proxy-cache-valid:
     description: |
       A list of HTTP response code(s) followed by a cache valid duration. For example ["200 302 1h

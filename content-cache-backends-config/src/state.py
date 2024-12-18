@@ -187,7 +187,7 @@ class Configuration(pydantic.BaseModel):
             str, charm.config.get(HEALTHCHECK_PATH_CONFIG_NAME, "")
         ).strip()
         healthcheck_interval = typing.cast(
-            int, charm.config.get(HEALTHCHECK_INTERVAL_CONFIG_NAME, 2000)
+            int, charm.config.get(HEALTHCHECK_INTERVAL_CONFIG_NAME, -1)
         )
         proxy_cache_valid_str = typing.cast(
             str, charm.config.get(PROXY_CACHE_VALID_CONFIG_NAME, "")
