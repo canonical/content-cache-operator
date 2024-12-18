@@ -73,7 +73,7 @@ class NginxLuaSection:
     Attrs:
         name: The name of the Lua code section to generate (for instance: "content_by_lua_block").
         content: The content to put in this section.
-        as_strings: The string to be dumped in the nginx configuration file (standard in python-nginx).
+        as_strings: The string to be dumped in the nginx configuration file by python-nginx.
     """
 
     name: str
