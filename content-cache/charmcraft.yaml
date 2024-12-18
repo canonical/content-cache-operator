@@ -19,7 +19,7 @@ parts:
       - dpkg-dev
       - libnginx-mod-http-ndk-dev
       - nginx-dev
-      - liblua5.4-dev
+      - liblua5.1-dev
       - dh-lua
     override-build: |
       set -eux
