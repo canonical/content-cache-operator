@@ -12,6 +12,7 @@ from juju.model import Model
 from juju.unit import Unit
 
 from src import nginx_manager
+from src.charm import unit_name_to_instance_name
 from tests.integration.helpers import (
     BACKENDS_CONFIG_NAME,
     BACKENDS_PATH_CONFIG_NAME,
@@ -58,7 +59,9 @@ async def test_metric_log(
     response = await cache_tester.query_cache(path="/", hostname=hostname)
     assert response.status_code == 200
 
-    content = await read_file(unit, nginx_manager._get_cache_log_path(hostname))
+    content = await read_file(
+        unit, nginx_manager._get_cache_log_path(hostname, unit_name_to_instance_name(unit.name))
+    )
     assert content
     lines = content.split("\n")
     first_request: dict = json.loads(lines[0])

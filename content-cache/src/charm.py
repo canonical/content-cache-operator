@@ -96,12 +96,12 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_start(self, _: ops.StartEvent) -> None:
         """Handle start event."""
-        _nginx_initialize()
+        self._nginx_initialize()
         self._load_nginx_config()
 
     def _on_stop(self, _: ops.StopEvent) -> None:
         """Handle the stop event."""
-        _nginx_stop()
+        self._nginx_stop()
 
     def _on_update_status(self, _: ops.UpdateStatusEvent) -> None:
         """Handle update status event."""
@@ -163,7 +163,9 @@ class ContentCacheCharm(ops.CharmBase):
 
         status_message = ""
         try:
-            nginx_manager.update_and_load_config(nginx_config, hostname_to_cert)
+            nginx_manager.update_and_load_config(
+                nginx_config, hostname_to_cert, self._get_instance_name()
+            )
         except NginxFileError:
             logger.exception(
                 "Failed to update nginx config file, going to error state for retries"
@@ -197,31 +199,54 @@ class ContentCacheCharm(ops.CharmBase):
         self.unit.status = ops.MaintenanceStatus(RECEIVED_NGINX_CONFIG_MESSAGE)
         return nginx_config
 
+    def _nginx_initialize(self) -> None:
+        """Initialize the nginx instance.
 
-def _nginx_initialize() -> None:
-    """Initialize the nginx instance.
+        Raises:
+            NginxSetupError: Failure to setup nginx.
+        """
+        try:
+            nginx_manager.initialize(self._get_instance_name())
+        except NginxSetupError:
+            logger.exception("Failed to initialize nginx, going to error state for retries")
+            raise
 
-    Raises:
-        NginxSetupError: Failure to setup nginx.
+    def _nginx_stop(self) -> None:
+        """Stop the nginx instance.
+
+        Raises:
+            NginxStopError: Failure to stop nginx.
+        """
+        try:
+            nginx_manager.stop()
+        except NginxStopError:
+            logger.exception("Failed to stop nginx, going to error state for retries")
+            raise
+
+    def _get_instance_name(self) -> str:
+        """Get a name to identify this unit.
+
+        The nginx_manager module needs a name that can be used in file path.
+
+        Returns:
+            The name.
+        """
+        return unit_name_to_instance_name(self.unit.name)
+
+
+def unit_name_to_instance_name(unit_name: str) -> str:
+    """Transform the unit name to be filepath friendly instance name.
+
+    This logic is in a separate function, to make testing not duplicate logic/code.
+
+    Args:
+        unit_name: The unit name.
+
+    Returns:
+        The instance name.
     """
-    try:
-        nginx_manager.initialize()
-    except NginxSetupError:
-        logger.exception("Failed to initialize nginx, going to error state for retries")
-        raise
-
-
-def _nginx_stop() -> None:
-    """Stop the nginx instance.
-
-    Raises:
-        NginxStopError: Failure to stop nginx.
-    """
-    try:
-        nginx_manager.stop()
-    except NginxStopError:
-        logger.exception("Failed to stop nginx, going to error state for retries")
-        raise
+    # Replace "/" as it has meaning in a file path.
+    return unit_name.replace("/", "_")
 
 
 if __name__ == "__main__":  # pragma: nocover

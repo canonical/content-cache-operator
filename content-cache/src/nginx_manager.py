@@ -58,8 +58,12 @@ NGINX_CACHE_LOG_FORMAT = (
 # This should be tested with integration tests.
 
 
-def initialize() -> None:  # pragma: no cover
+def initialize(instance_name: str) -> None:  # pragma: no cover
     """Initialize the nginx server.
+
+    Args:
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics. The name will be used in filenames.
 
     Raises:
         NginxSetupError: Failure to set up nginx.
@@ -71,7 +75,7 @@ def initialize() -> None:  # pragma: no cover
         raise NginxSetupError(f"Failed to install nginx: {stderr}")
 
     logger.info("Clean up default configuration files")
-    _reset_nginx_files()
+    _reset_nginx_files(instance_name)
     return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", "nginx"])
     if return_code != 0:
         raise NginxSetupError(f"Failed to enable nginx: {stderr}")
@@ -123,20 +127,24 @@ def _systemctl_status_check() -> bool:  # pragma: no cover
 
 
 def update_and_load_config(
-    configuration: NginxConfig, hostname_to_cert: Mapping[str, Path]
+    configuration: NginxConfig,
+    hostname_to_cert: Mapping[str, Path],
+    instance_name: str,
 ) -> None:
     """Update the nginx configuration files and load them.
 
     Args:
         configuration: The nginx locations configurations.
         hostname_to_cert: The mapping of hostname to the TLS certificates filepath.
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics. The name will be used in filenames.
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
         NginxFileError: File operation errors while updating nginx configuration files.
     """
     # This will reset the file permissions.
-    _reset_nginx_files()
+    _reset_nginx_files(instance_name)
 
     try:
         _create_http_config()
@@ -152,7 +160,7 @@ def update_and_load_config(
         if host in hostname_to_cert:
             cert_path = hostname_to_cert[host]
         try:
-            _create_virtualhost_config(host, config, cert_path)
+            _create_virtualhost_config(host, config, cert_path, instance_name)
         except NginxConfigurationError as err:
             errored_hosts.append(host)
             configuration_errors.append(err)
@@ -179,8 +187,13 @@ def _load_config() -> None:  # pragma: no cover
     execute_command(["sudo", "systemctl", "restart", "nginx"])
 
 
-def _reset_nginx_files() -> None:
-    """Reset the Nginx files."""
+def _reset_nginx_files(instance_name: str) -> None:
+    """Reset the Nginx files.
+
+    Args:
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics. The name will be used in filenames.
+    """
     logger.info("Resetting the nginx conf files directories.")
     _reset_config_directory(NGINX_CONFD_PATH)
     logger.info("Resetting the nginx sites configuration files directories.")
@@ -188,6 +201,8 @@ def _reset_nginx_files() -> None:
     _reset_config_directory(NGINX_SITES_ENABLED_PATH)
     logger.info("Ensure nginx cache directory is present.")
     _ensure_directory_exist_with_ownership(NGINX_PROXY_CACHE_DIR_PATH)
+    logger.info("Ensure nginx log directory is present.")
+    _ensure_directory_exist_with_ownership(NGINX_LOG_PATH / instance_name)
 
 
 def _reset_config_directory(path: Path) -> None:
@@ -252,7 +267,7 @@ def _create_status_page_config() -> None:
 
 
 def _create_virtualhost_config(
-    host: str, configuration: HostConfig, certificate_path: Path | None
+    host: str, configuration: HostConfig, certificate_path: Path | None, instance_name: str
 ) -> None:
     """Create the nginx configuration file for a virtual host.
 
@@ -260,6 +275,8 @@ def _create_virtualhost_config(
         host: The name of the virtual host.
         configuration: The configurations of the host.
         certificate_path: The filepath to the TLS certificate for the host.
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics. The name will be used in filenames.
 
     Raises:
         NginxConfigurationError: Failed to convert the configuration to nginx format.
@@ -278,9 +295,12 @@ def _create_virtualhost_config(
         server_config = nginx.Server(
             nginx.Key("proxy_cache", host),
             nginx.Key("server_name", host),
-            nginx.Key("access_log", _get_access_log_path(host)),
-            nginx.Key("access_log", f"{_get_cache_log_path(host)} {NGINX_CACHE_LOG_FORMAT_NAME}"),
-            nginx.Key("error_log", _get_error_log_path(host)),
+            nginx.Key("access_log", _get_access_log_path(host, instance_name)),
+            nginx.Key(
+                "access_log",
+                f"{_get_cache_log_path(host, instance_name)} {NGINX_CACHE_LOG_FORMAT_NAME}",
+            ),
+            nginx.Key("error_log", _get_error_log_path(host, instance_name)),
         )
 
         if certificate_path is not None:
@@ -439,37 +459,43 @@ def _get_sites_enabled_path(host: str) -> Path:
     return NGINX_SITES_ENABLED_PATH / f"{host}.conf"
 
 
-def _get_access_log_path(host: str) -> Path:
+def _get_access_log_path(host: str, instance_name: str) -> Path:
     """Get the access log path for a host.
 
     Args:
         host: The name of the host.
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics. The name will be used in filenames.
 
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / f"{host}.access.log"
+    return NGINX_LOG_PATH / instance_name / f"{host}.access.log"
 
 
-def _get_cache_log_path(host: str) -> Path:
+def _get_cache_log_path(host: str, instance_name: str) -> Path:
     """Get the cache log path for a host.
 
     Args:
         host: The name of the host.
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics. The name will be used in filenames.
 
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / f"{host}.cache.log"
+    return NGINX_LOG_PATH / instance_name / f"{host}.cache.log"
 
 
-def _get_error_log_path(host: str) -> Path:
+def _get_error_log_path(host: str, instance_name: str) -> Path:
     """Get the error log path for a host.
 
     Args:
         host: The name of the host.
+        instance_name: The name of this instance. This is to uniquely identify this instance in
+            logs and metrics. The name will be used in filenames.
 
     Returns:
         The path.
     """
-    return NGINX_LOG_PATH / f"{host}.error.log"
+    return NGINX_LOG_PATH / instance_name / f"{host}.error.log"
