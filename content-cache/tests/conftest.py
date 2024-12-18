@@ -19,3 +19,10 @@ def pytest_addoption(parser: Parser):
         action="store",
         help="The prebuilt content-cache-backends-config charm file.",
     )
+
+    parser.addoption(
+        "--use-existing-app",
+        action="append",
+        default=[],
+        help="List of apps to use instead of deploying them.",
+    )

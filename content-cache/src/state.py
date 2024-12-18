@@ -26,6 +26,8 @@ BACKENDS_FIELD_NAME = "backends"
 PROTOCOL_FIELD_NAME = "protocol"
 FAIL_TIMEOUT_FIELD_NAME = "fail_timeout"
 BACKENDS_PATH_FIELD_NAME = "backends_path"
+HEALTHCHECK_PATH_FIELD_NAME = "healthcheck_path"
+HEALTHCHECK_INTERVAL_FIELD_NAME = "healthcheck_interval"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
 
 
@@ -108,6 +110,8 @@ class LocationConfig(pydantic.BaseModel):
         protocol: The protocol to request the backends with. Can be http or https.
         fail_timeout: The time to wait before using a backend after failure.
         backends_path: The path to request the backends.
+        healthcheck_path: The path to check on the backeds for health.
+        healthcheck_interval: The time between two healthchecks, in milliseconds.
         proxy_cache_valid: The cache valid duration.
     """
 
@@ -129,6 +133,12 @@ class LocationConfig(pydantic.BaseModel):
         pydantic.StringConstraints(min_length=1),
         pydantic.AfterValidator(_validate_path_value),
     ]
+    healthcheck_path: typing.Annotated[
+        str,
+        pydantic.StringConstraints(min_length=1),
+        pydantic.AfterValidator(_validate_path_value),
+    ]
+    healthcheck_interval: int
     proxy_cache_valid: tuple[str, ...]
 
     @pydantic.field_validator("proxy_cache_valid")
@@ -181,6 +191,8 @@ class LocationConfig(pydantic.BaseModel):
         backends_str = data.get(BACKENDS_FIELD_NAME, "").strip()
         fail_timeout = data.get(FAIL_TIMEOUT_FIELD_NAME, "").strip()
         backends_path = data.get(BACKENDS_PATH_FIELD_NAME, "").strip()
+        healthcheck_path = data.get(HEALTHCHECK_PATH_FIELD_NAME, "").strip()
+        healthcheck_interval = int(data.get(HEALTHCHECK_INTERVAL_FIELD_NAME, "-1").strip())
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
 
         try:
@@ -214,6 +226,8 @@ class LocationConfig(pydantic.BaseModel):
                 protocol=protocol,  # type: ignore
                 fail_timeout=fail_timeout,
                 backends_path=backends_path,
+                healthcheck_path=healthcheck_path,
+                healthcheck_interval=healthcheck_interval,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
             )
         except pydantic.ValidationError as err:

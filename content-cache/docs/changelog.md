@@ -1,5 +1,11 @@
 # Changelog
 
+## 2024-12-16
+
+### **Added**
+
+- Support for active healthchecks using LUA scripts. Configured through healthcheck-interval and healthcheck-path.
+
 ## 2024-12-11
 
 ### **Fixed**

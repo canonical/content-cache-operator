@@ -8,6 +8,7 @@ import os
 import pwd
 import shutil
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
@@ -26,15 +27,22 @@ from utilities import execute_command
 
 logger = logging.getLogger(__name__)
 
+NGINX_BIN = "/usr/sbin/nginx"
+NGINX_PACKAGE = "nginx"
+NGINX_SERVICE = "nginx"
+NGINX_MAIN_CONF_PATH = Path("/etc/nginx/nginx.conf")
 NGINX_CERTIFICATES_PATH = Path("/etc/nginx/certs")
 NGINX_CONFD_PATH = Path("/etc/nginx/conf.d")
+NGINX_HEALTHCHECKS_CONF_PATH = NGINX_CONFD_PATH / "lua_healthchecks.conf"
 NGINX_SITES_ENABLED_PATH = Path("/etc/nginx/sites-enabled")
 NGINX_SITES_AVAILABLE_PATH = Path("/etc/nginx/sites-available")
+NGINX_MODULES_ENABLED_PATH = Path("/etc/nginx/modules-enabled")
 NGINX_LOG_PATH = Path("/var/log/nginx")
 NGINX_PROXY_CACHE_DIR_PATH = Path("/data/nginx/cache")
 NGINX_USER = "www-data"
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
+NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
 NGINX_HEALTH_CHECK_TIMEOUT = 300
 NGINX_CACHE_LOG_FORMAT_NAME = "cache"
 NGINX_CACHE_LOG_FORMAT = (
@@ -58,6 +66,25 @@ NGINX_CACHE_LOG_FORMAT = (
 # This should be tested with integration tests.
 
 
+@dataclass
+class NginxLuaSection:
+    """Simple class to be used by python-nginx to insert Lua code in Nginx conf.
+
+    Attrs:
+        name: The name of the Lua code section to generate (for instance: "content_by_lua_block").
+        content: The content to put in this section.
+        as_strings: The string to be dumped in the nginx configuration file by python-nginx.
+    """
+
+    name: str
+    content: str
+
+    @property
+    def as_strings(self) -> str:
+        """Return a string to be dumped in nginx conf."""
+        return f"{self.name} {{{self.content}}}\n"
+
+
 def initialize(instance_name: str) -> None:  # pragma: no cover
     """Initialize the nginx server.
 
@@ -70,16 +97,40 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
     """
     logger.info("Installing and enabling nginx")
     # The install, systemctl enable, and systemctl start are idempotent.
-    return_code, _, stderr = execute_command(["sudo", "apt", "install", "nginx", "-yq"])
+    return_code, _, stderr = execute_command(
+        ["sudo", "apt", "install", "nginx", "lua-resty-core", "-yq"]
+    )
     if return_code != 0:
         raise NginxSetupError(f"Failed to install nginx: {stderr}")
 
+    return_code, _, stderr = execute_command(
+        [
+            "sudo",
+            "dpkg",
+            "-i",
+            "libnginx-mod-http-upstream_0.1_amd64.deb",
+        ]
+    )
+    if return_code != 0:
+        raise NginxSetupError(f"Failed to install nginx upstream module: {stderr}")
+
+    return_code, _, stderr = execute_command(
+        [
+            "cp",
+            "-f",
+            "healthcheck.lua",
+            "/usr/share/lua/5.1/",
+        ]
+    )
+    if return_code != 0:
+        raise NginxSetupError(f"Failed to install nginx healthcheck plugin: {stderr}")
+
     logger.info("Clean up default configuration files")
     _reset_nginx_files(instance_name)
-    return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", "nginx"])
+    return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", NGINX_SERVICE])
     if return_code != 0:
         raise NginxSetupError(f"Failed to enable nginx: {stderr}")
-    return_code, _, stderr = execute_command(["sudo", "systemctl", "start", "nginx"])
+    return_code, _, stderr = execute_command(["sudo", "systemctl", "start", NGINX_SERVICE])
     if return_code != 0:
         raise NginxSetupError(f"Failed to start nginx: {stderr}")
 
@@ -91,7 +142,7 @@ def stop() -> None:  # pragma: no cover
         NginxStopError: Failed to stop nginx.
     """
     logger.info("Stopping nginx")
-    return_code, _, stderr = execute_command(["sudo", "systemctl", "stop", "nginx"])
+    return_code, _, stderr = execute_command(["sudo", "systemctl", "stop", NGINX_SERVICE])
     if return_code != 0:
         raise NginxStopError(f"Failed to stop nginx: {stderr}")
 
@@ -122,7 +173,7 @@ def _systemctl_status_check() -> bool:  # pragma: no cover
         True if process is running, else false.
     """
     # The return code is 0 for active and 3 for failed or inactive.
-    return_code, _, _ = execute_command(["systemctl", "status", "nginx"])
+    return_code, _, _ = execute_command(["systemctl", "status", NGINX_SERVICE])
     return return_code == 0
 
 
@@ -146,21 +197,18 @@ def update_and_load_config(
     # This will reset the file permissions.
     _reset_nginx_files(instance_name)
 
-    try:
-        _create_http_config()
-        _create_status_page_config()
-    except NginxFileError:
-        logger.info("Stop updating configuration file due to file write issues")
-        raise
-
     errored_hosts: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
+    healthcheck_workers_lua_code = ""
     for host, config in configuration.items():
         cert_path = None
         if host in hostname_to_cert:
             cert_path = hostname_to_cert[host]
         try:
-            _create_virtualhost_config(host, config, cert_path, instance_name)
+            vhost_healtcheck_worker_lua_code = _create_virtualhost_config(
+                host, config, cert_path, instance_name
+            )
+            healthcheck_workers_lua_code += vhost_healtcheck_worker_lua_code
         except NginxConfigurationError as err:
             errored_hosts.append(host)
             configuration_errors.append(err)
@@ -168,6 +216,13 @@ def update_and_load_config(
         except NginxFileError:
             logger.info("Stop updating configuration file due to file write issues")
             raise
+
+    try:
+        _create_http_config(healthcheck_workers_lua_code)
+        _create_status_page_config()
+    except NginxFileError:
+        logger.info("Stop updating configuration file due to file write issues")
+        raise
 
     if errored_hosts:
         raise NginxConfigurationAggregateError(errored_hosts, configuration_errors)
@@ -180,11 +235,11 @@ def _load_config() -> None:  # pragma: no cover
     if _systemctl_status_check():
         logger.info("Loading nginx configuration files")
         # This is reload the configuration files without interrupting service.
-        execute_command(["sudo", "nginx", "-s", "reload"])
+        execute_command(["sudo", NGINX_BIN, "-s", "reload"])
         return
 
     logger.info("Restarting nginx to load the configuration files.")
-    execute_command(["sudo", "systemctl", "restart", "nginx"])
+    execute_command(["sudo", "systemctl", "restart", NGINX_SERVICE])
 
 
 def _reset_nginx_files(instance_name: str) -> None:
@@ -196,6 +251,8 @@ def _reset_nginx_files(instance_name: str) -> None:
     """
     logger.info("Resetting the nginx conf files directories.")
     _reset_config_directory(NGINX_CONFD_PATH)
+    logger.info("Resetting the nginx module files directories.")
+    _reset_config_directory(NGINX_MODULES_ENABLED_PATH)
     logger.info("Resetting the nginx sites configuration files directories.")
     _reset_config_directory(NGINX_SITES_AVAILABLE_PATH)
     _reset_config_directory(NGINX_SITES_ENABLED_PATH)
@@ -239,7 +296,7 @@ def _ensure_directory_exist_with_ownership(path: Path) -> None:
         raise NginxFileError(f"Failed to create and/or own directory {path}") from err
 
 
-def _create_http_config() -> None:
+def _create_http_config(healthcheck_workers_lua_code: str) -> None:
     """Create nginx HTTP configuration files."""
     logger.info("Creating the cache log format configuration")
     # The following should not throw any nginx.ParseError as it is static.
@@ -248,6 +305,41 @@ def _create_http_config() -> None:
     )
     _store_http_config("cache_log_format", cache_log_format_config)
 
+    _create_healthcheck_module_config(healthcheck_workers_lua_code)
+
+
+def _create_healthcheck_module_config(healthcheck_workers_lua_code: str) -> None:
+    """Create the nginx configuration file to enable healthcheck module."""
+    logger.info("Creating the nginx configuration files for healthcheck")
+
+    # From: https://github.com/openresty/lua-resty-upstream-healthcheck
+    load_module_config = nginx.Conf(
+        nginx.Key("load_module", "modules/ndk_http_module.so"),
+        nginx.Key("load_module", "modules/ngx_http_lua_module.so"),
+        nginx.Key("load_module", "modules/ngx_http_lua_upstream_module.so"),
+    )
+
+    lua_variables = """local hc = require "healthcheck"
+        local ok, err
+        """
+
+    healthcheck_config = nginx.Conf(
+        nginx.Key("lua_package_path", "/usr/share/lua/5.1/?.lua;;"),
+        nginx.Key("lua_shared_dict", "healthcheck 1m"),
+        nginx.Key("lua_socket_log_errors", "off"),
+        NginxLuaSection("init_worker_by_lua_block", lua_variables + healthcheck_workers_lua_code),
+    )
+
+    try:
+        nginx.dumpf(load_module_config, NGINX_MODULES_ENABLED_PATH / "lua_upstream.conf")
+        nginx.dumpf(healthcheck_config, NGINX_HEALTHCHECKS_CONF_PATH)
+    except (PermissionError, FileNotFoundError) as err:
+        logger.exception("Issue with configuration directories")
+        raise NginxFileError("Issue with configuration directories") from err
+    except (OSError, IOError) as err:
+        logger.exception("File write issue with configuration file")
+        raise NginxFileError("File write issue with configuration file") from err
+
 
 def _create_status_page_config() -> None:
     """Create the nginx configuration file for status page."""
@@ -255,12 +347,28 @@ def _create_status_page_config() -> None:
     # The following should not throw any nginx.ParseError as it is static.
     nginx_config = nginx.Conf(
         nginx.Server(
+            # The standard nginx status page
             nginx.Location(
                 NGINX_STATUS_URL_PATH,
                 nginx.Key("stub_status", "on"),
                 nginx.Key("allow", "127.0.0.1"),
                 nginx.Key("deny", "all"),
-            )
+            ),
+            # A status page specific to the active healthchecks.
+            # This page will report the status of the different backends.
+            nginx.Location(
+                NGINX_BACKENDS_STATUS_URL_PATH,
+                nginx.Key("allow", "127.0.0.1"),
+                nginx.Key("deny", "all"),
+                nginx.Key("default_type", "text/plain"),
+                NginxLuaSection(
+                    "content_by_lua_block",
+                    """local hc = require "healthcheck"
+                ngx.say("Nginx Worker PID: ", ngx.worker.pid())
+                ngx.print(hc.status_page())
+                """,
+                ),
+            ),
         )
     )
     _store_and_enable_site_config("nginx_status", nginx_config)
@@ -268,7 +376,7 @@ def _create_status_page_config() -> None:
 
 def _create_virtualhost_config(
     host: str, configuration: HostConfig, certificate_path: Path | None, instance_name: str
-) -> None:
+) -> str:
     """Create the nginx configuration file for a virtual host.
 
     Args:
@@ -283,6 +391,7 @@ def _create_virtualhost_config(
     """
     logger.info("Creating the nginx site configuration file for hosts %s", host)
 
+    lua_healthcheck_workers = ""
     server_cache_dir = NGINX_PROXY_CACHE_DIR_PATH / host
     _ensure_directory_exist_with_ownership(server_cache_dir)
     try:
@@ -321,6 +430,9 @@ def _create_virtualhost_config(
 
             location_keys = _get_location_config_keys(config, upstream, host)
             server_config.add(nginx.Location(path, *location_keys))
+
+            lua_healthcheck_workers += _get_upstream_healthchecks_worker(upstream, config)
+
         nginx_config.add(server_config)
     except nginx.ParseError as err:
         logger.exception(
@@ -331,6 +443,8 @@ def _create_virtualhost_config(
         ) from err
 
     _store_and_enable_site_config(host, nginx_config)
+
+    return lua_healthcheck_workers
 
 
 def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
@@ -350,6 +464,38 @@ def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
         for ip in config.backends
     ]
     return tuple(keys)
+
+
+def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> str:
+    """Create the lua script to perform the healthchecks on backends.
+
+    Args:
+        upstream: The upstream name.
+        config: The virtualhost config.
+
+    Returns:
+        A string with the lua script for the healthcheck workers.
+    """
+    return rf"""ok, err = hc.spawn_checker{{
+            shm = "healthcheck",
+            upstream = "{upstream}",
+            type = "{config.protocol.value}",
+
+            http_req = "GET {config.healthcheck_path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",
+
+            port = {433 if config.protocol.value == "https" else 80},
+            interval = {config.healthcheck_interval},
+            timeout = 1000,
+            fall = 3,
+            rise = 2,
+            valid_statuses = {{200}},
+            concurrency = 10,
+        }}
+        if not ok then
+            ngx.log(ngx.ERR, "failed to spawn health checker: ", err)
+            return
+        end
+    """
 
 
 def _get_location_config_keys(

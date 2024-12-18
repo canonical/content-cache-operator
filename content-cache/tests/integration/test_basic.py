@@ -15,6 +15,8 @@ from tests.integration.helpers import (
     BACKENDS_CONFIG_NAME,
     BACKENDS_PATH_CONFIG_NAME,
     FAIL_TIMEOUT_CONFIG_NAME,
+    HEALTHCHECK_INTERVAL_CONFIG_NAME,
+    HEALTHCHECK_PATH_CONFIG_NAME,
     HOSTNAME_CONFIG_NAME,
     PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
@@ -74,6 +76,8 @@ async def test_charm_integrate_with_no_data(
     config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[PROTOCOL_CONFIG_NAME] = "http"
     await cache_tester.setup_config(config)
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
@@ -117,6 +121,8 @@ async def test_charm_integrate_with_data(
     config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
@@ -181,6 +187,8 @@ async def test_charm_with_two_config_app(
     config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
@@ -190,6 +198,8 @@ async def test_charm_with_two_config_app(
     config_alt[HOSTNAME_CONFIG_NAME] = hostname_alt
     config_alt[BACKENDS_CONFIG_NAME] = http_ok_ip
     config_alt[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config_alt[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config_alt[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config_alt[PROTOCOL_CONFIG_NAME] = "http"
     config_alt[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config_alt(config_alt)
@@ -234,6 +244,8 @@ async def test_charm_with_failover(
     config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = f"{fake_ip},{http_ok_ip}"
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     config[FAIL_TIMEOUT_CONFIG_NAME] = "5s"
