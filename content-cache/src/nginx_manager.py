@@ -71,9 +71,9 @@ class NginxLuaSection:
     """Simple class to be used by python-nginx to insert Lua code in Nginx conf.
 
     Attrs:
-        name: the name of the Lua code section to generate (for instance: "content_by_lua_block")
-        content: the content to put in this section
-        as_strings: string to be dumped in the nginx configuration file (standard in python-nginx)
+        name: The name of the Lua code section to generate (for instance: "content_by_lua_block").
+        content: The content to put in this section.
+        as_strings: The string to be dumped in the nginx configuration file (standard in python-nginx).
     """
 
     name: str
