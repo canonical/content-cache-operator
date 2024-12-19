@@ -15,6 +15,7 @@
       }
     ]
   },
+  "description": "Metrics for the content cache filter by sites and/or juju units.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -27,41 +28,11 @@
         "type": "loki",
         "uid": "${lokids}"
       },
-      "description": "The number of requests from clients to content cache over time.",
+      "description": "The HTTP status code of the responses from content cache to clients.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "mode": "thresholds"
           },
           "mappings": [],
           "thresholds": {
@@ -78,7 +49,38 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "500s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "400s"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -86,19 +88,22 @@
         "x": 0,
         "y": 0
       },
-      "id": 1,
+      "id": 11,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "textMode": "auto"
       },
+      "pluginVersion": "9.5.3",
       "targets": [
         {
           "datasource": {
@@ -106,107 +111,51 @@
             "uid": "${lokids}"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json [2m])) or vector(0)",
-          "legendFormat": "Requests",
+          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | status_code >= 200 | status_code < 300 [2m])) or vector(0)",
+          "legendFormat": "200s",
           "queryType": "range",
-          "refId": "requests"
-        }
-      ],
-      "title": "Requests",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "${lokids}"
-      },
-      "description": "The number of requests with status code greater than or equal to 400.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
+          "refId": "200s"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "id": 5,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
         {
           "datasource": {
             "type": "loki",
             "uid": "${lokids}"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | status_code >= 400 [2m])) or vector(0)",
-          "legendFormat": "Failed requests",
+          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | status_code >= 300 | status_code < 400 [2m])) or vector(0)",
+          "hide": false,
+          "legendFormat": "300s",
           "queryType": "range",
-          "refId": "A"
+          "refId": "300s"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${lokids}"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | status_code >= 400 | status_code < 500 [2m])) or vector(0)",
+          "hide": false,
+          "legendFormat": "400s",
+          "queryType": "range",
+          "refId": "400s"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${lokids}"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | status_code >= 500 | status_code < 600 [2m])) or vector(0)",
+          "hide": false,
+          "legendFormat": "500s",
+          "queryType": "range",
+          "refId": "500s",
+          "resolution": 1
         }
       ],
-      "title": "Failed Requests",
-      "type": "timeseries"
+      "title": "Status Codes",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -262,15 +211,16 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "ms"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 8
+        "x": 12,
+        "y": 0
       },
       "id": 7,
       "options": {
@@ -292,9 +242,21 @@
             "uid": "${lokids}"
           },
           "editorMode": "code",
-          "expr": "avg(avg_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json  | unwrap request_time [2m])) or vector(0)",
+          "expr": "avg(avg_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json  | unwrap request_time [2m]))",
           "hide": false,
-          "legendFormat": "Response time (ms)",
+          "legendFormat": "mean",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${lokids}"
+          },
+          "editorMode": "code",
+          "expr": "max(avg_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json  | unwrap request_time [2m]))",
+          "hide": false,
+          "legendFormat": "max",
           "queryType": "range",
           "refId": "B"
         }
@@ -307,7 +269,7 @@
         "type": "loki",
         "uid": "${lokids}"
       },
-      "description": "The percentage of failed requests over total requests.",
+      "description": "The number of total requests and failed requests.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -363,7 +325,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 8
       },
       "id": 6,
@@ -386,13 +348,25 @@
             "uid": "${lokids}"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | status_code >= 400 [2m])) / sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | cache_status = `HIT` [2m])) or vector(0)",
-          "legendFormat": "Failure rate",
+          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json [2m]))",
+          "legendFormat": "Total requests",
           "queryType": "range",
-          "refId": "A"
+          "refId": "Total requests"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${lokids}"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | status_code >= 400 [2m]))",
+          "hide": false,
+          "legendFormat": "Failed",
+          "queryType": "range",
+          "refId": "Failed requests"
         }
       ],
-      "title": "Failed Requests %",
+      "title": "Requests status",
       "type": "timeseries"
     },
     {
@@ -400,7 +374,7 @@
         "type": "loki",
         "uid": "${lokids}"
       },
-      "description": "The total bytes sent from content cache to clients over time.",
+      "description": "The percent of failed requests.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -437,6 +411,8 @@
             }
           },
           "mappings": [],
+          "max": 1,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -449,7 +425,103 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${lokids}"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | status_code >= 400 [2m]))  / sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json [2m]))",
+          "legendFormat": "Failure rate %",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Failed Requests %",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${lokids}"
+      },
+      "description": "The bytes sent from content cache to clients over time.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -479,199 +551,25 @@
             "uid": "${lokids}"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | unwrap bytes_sent [2m])) or vector(0)",
-          "legendFormat": "Bytes",
+          "expr": "sum(sum_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | unwrap bytes(bytes_sent) [2m]))",
+          "legendFormat": "Total bandwidth",
           "queryType": "range",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${lokids}"
+          },
+          "editorMode": "builder",
+          "expr": "sum(sum_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | cache_status = `HIT` | unwrap bytes(body_bytes_sent) [1m]))",
+          "hide": false,
+          "legendFormat": "Saved bandwidth",
+          "queryType": "range",
+          "refId": "B"
         }
       ],
       "title": "Bandwidth",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "${lokids}"
-      },
-      "description": "The number of cache hit over total requests.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 16
-      },
-      "id": 4,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${lokids}"
-          },
-          "editorMode": "code",
-          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | cache_status = `HIT` [2m])) / sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} [2m])) or vector(0)",
-          "legendFormat": "Cache hit rate",
-          "queryType": "range",
-          "refId": "A"
-        }
-      ],
-      "title": "Cache Hit %",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "${lokids}"
-      },
-      "description": "The total bytes from content cache to client of response body with cache hits.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 24
-      },
-      "id": 9,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${lokids}"
-          },
-          "editorMode": "code",
-          "expr": "sum(sum_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | cache_status=\"HIT\" | unwrap body_bytes_sent [1m])) or vector(0)",
-          "legendFormat": "Bytes saved",
-          "queryType": "range",
-          "refId": "A"
-        }
-      ],
-      "title": "Bandwidth Saved",
       "type": "timeseries"
     },
     {
@@ -716,6 +614,9 @@
             }
           },
           "mappings": [],
+          "max": 1,
+          "min": 0,
+          "noValue": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -728,7 +629,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -736,7 +638,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 16
       },
       "id": 10,
       "options": {
@@ -758,7 +660,7 @@
             "uid": "${lokids}"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | cache_status=\"HIT\" | unwrap body_bytes_sent [2m])) / sum(sum_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | unwrap bytes_sent [2m])) or vector(0)",
+          "expr": "sum(sum_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | cache_status=\"HIT\" | unwrap body_bytes_sent [2m])) / sum(sum_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | unwrap bytes_sent [2m]))",
           "legendFormat": "Saving rate",
           "queryType": "range",
           "refId": "A"
@@ -809,6 +711,7 @@
             }
           },
           "mappings": [],
+          "noValue": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -829,7 +732,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 32
+        "y": 24
       },
       "id": 3,
       "options": {
@@ -851,10 +754,22 @@
             "uid": "${lokids}"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | cache_status = `HIT` [1m])) or vector(0)",
-          "legendFormat": "Hits",
+          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json [2m]))",
+          "hide": false,
+          "legendFormat": "Total requests",
           "queryType": "range",
-          "refId": "A"
+          "refId": "Total requests"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${lokids}"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | cache_status = `HIT` [1m]))",
+          "legendFormat": "Cache hits",
+          "queryType": "range",
+          "refId": "Cache hits"
         }
       ],
       "title": "Cache Hits",
@@ -865,7 +780,7 @@
         "type": "loki",
         "uid": "${lokids}"
       },
-      "description": "The number of cache miss",
+      "description": "The number of cache hit over total requests.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -902,6 +817,9 @@
             }
           },
           "mappings": [],
+          "max": 1,
+          "min": 0,
+          "noValue": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -914,7 +832,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -922,9 +841,9 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 24
       },
-      "id": 2,
+      "id": 4,
       "options": {
         "legend": {
           "calcs": [],
@@ -944,13 +863,13 @@
             "uid": "${lokids}"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | cache_status = `MISS` [1m])) or vector(0)",
-          "legendFormat": "Misses",
+          "expr": "sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} | json | cache_status = `HIT` [2m])) / sum(count_over_time({filename=~\"/var/log/nginx/${juju_unit}/${site}\\\\.cache\\\\.log\"} [2m]))",
+          "legendFormat": "Cache hit rate",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Cache Misses",
+      "title": "Cache Hit %",
       "type": "timeseries"
     }
   ],
@@ -963,7 +882,7 @@
       {
         "allValue": ".*",
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "All",
           "value": "$__all"
         },
@@ -994,8 +913,8 @@
         "allValue": ".*",
         "current": {
           "selected": true,
-          "text": "cache_21",
-          "value": "cache_21"
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": {
           "type": "loki",
@@ -1024,13 +943,13 @@
     ]
   },
   "time": {
-    "from": "now-12h",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
-  "title": "content cache",
+  "title": "Content Cache",
   "uid": "ac237100-8182-44db-9655-a65d8755403a",
-  "version": 49,
+  "version": 72,
   "weekStart": ""
 }
