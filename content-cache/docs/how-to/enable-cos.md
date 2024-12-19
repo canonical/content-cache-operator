@@ -15,3 +15,4 @@ juju integrate cos-agent cache
 ```
 
 Then the Grafana Agent charm should be integrated with your COS instance.
+Once integrated a grafana dashboard named "Content Cache" should be imported. The metrics of content cache should appear in the dashboard.
