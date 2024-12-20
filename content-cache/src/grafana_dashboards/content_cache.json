@@ -261,7 +261,7 @@
           "refId": "B"
         }
       ],
-      "title": "Repsonse Time",
+      "title": "Response Time",
       "type": "timeseries"
     },
     {
