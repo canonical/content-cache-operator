@@ -34,3 +34,5 @@ projects, contributions, suggestions, fixes, and constructive feedback.
 
 Thinking about using the Content Cache Backends Config Operator for your next project? 
 [Get in touch](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)!
+
+# Contents
