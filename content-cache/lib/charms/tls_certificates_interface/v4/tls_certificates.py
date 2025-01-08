@@ -1,4 +1,4 @@
-# Copyright 2024 Canonical Ltd.
+# Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 """Charm library for managing TLS certificates (V4).
@@ -154,9 +154,11 @@ class _Certificate(BaseModel):
                 self.certificate_signing_request
             ),
             ca=Certificate.from_string(self.ca),
-            chain=[Certificate.from_string(certificate) for certificate in self.chain]
-            if self.chain
-            else [],
+            chain=(
+                [Certificate.from_string(certificate) for certificate in self.chain]
+                if self.chain
+                else []
+            ),
             revoked=self.revoked,
         )
 
@@ -291,9 +293,9 @@ class Certificate:
             common_name=str(common_name[0].value),
             is_ca=is_ca,
             country_name=str(country_name[0].value) if country_name else None,
-            state_or_province_name=str(state_or_province_name[0].value)
-            if state_or_province_name
-            else None,
+            state_or_province_name=(
+                str(state_or_province_name[0].value) if state_or_province_name else None
+            ),
             locality_name=str(locality_name[0].value) if locality_name else None,
             organization=str(organization_name[0].value) if organization_name else None,
             organizational_unit=str(organizational_unit[0].value) if organizational_unit else None,
@@ -362,9 +364,9 @@ class CertificateSigningRequest:
             raw=csr.strip(),
             common_name=str(common_name[0].value),
             country_name=str(country_name[0].value) if country_name else None,
-            state_or_province_name=str(state_or_province_name[0].value)
-            if state_or_province_name
-            else None,
+            state_or_province_name=(
+                str(state_or_province_name[0].value) if state_or_province_name else None
+            ),
             locality_name=str(locality_name[0].value) if locality_name else None,
             organization=str(organization_name[0].value) if organization_name else None,
             email_address=str(email_address[0].value) if email_address else None,
