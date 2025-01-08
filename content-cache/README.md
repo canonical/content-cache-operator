@@ -26,7 +26,7 @@ To begin, refer to the [Content Cache tutorial](https://github.com/canonical/con
 
 ## Integrations
 
-You can find the full list of integrations in [the Charmhub documentation](https://charmhub.io/content-cache/integrations).
+You can find the full list of integrations in the [Charmhub documentation](https://charmhub.io/content-cache/integrations).
 
 
 ## Learn more
