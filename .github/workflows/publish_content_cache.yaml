@@ -1,4 +1,4 @@
-name: Publish to edge content-cache-backends-config
+name: Publish to edge content-cache
 
 on:
   workflow_dispatch:
@@ -12,4 +12,4 @@ jobs:
     secrets: inherit
     with:
       channel: 1/edge
-      working-directory: ./content-cache-backends-config
+      working-directory: ./content-cache
