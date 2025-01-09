@@ -1,5 +1,11 @@
 # Changelog
 
+## 2024-12-18
+
+### **Added**
+
+- Add grafana dashboard for the displaying metrics from COS integration.
+
 ## 2024-12-16
 
 ### **Added**

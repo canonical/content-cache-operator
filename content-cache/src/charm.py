@@ -55,7 +55,7 @@ class ContentCacheCharm(ops.CharmBase):
         """
         super().__init__(framework)
 
-        COSAgentProvider(charm=self)
+        self._cos_agent = COSAgentProvider(charm=self)
 
         # Get the hostname from the integration data.
         hostnames = []
