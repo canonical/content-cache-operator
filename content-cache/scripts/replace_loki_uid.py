@@ -1,4 +1,4 @@
-# Copyright 2024 Canonical Ltd.
+# Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 """Replace the uid for all loki datasources in the grafana JSON model file.
