@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+      # DEBUG
+      - fix/publish-promote-charm
 
 jobs:
   publish-to-edge:
