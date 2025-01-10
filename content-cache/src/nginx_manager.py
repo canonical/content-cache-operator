@@ -483,7 +483,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
 
             http_req = "GET {config.healthcheck_path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",
 
-            port = {433 if config.protocol.value == "https" else 80},
+            port = {443 if config.protocol.value == "https" else 80},
             interval = {config.healthcheck_interval},
             timeout = 1000,
             fall = 3,
