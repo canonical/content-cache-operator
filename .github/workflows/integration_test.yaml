@@ -4,6 +4,7 @@ on:
   pull_request:
 
 jobs:
+  # This test the content-cache and content-cache-backends-config charms together.
   integration-tests:
     uses: canonical/operator-workflows/.github/workflows/integration_test.yaml@main
     secrets: inherit
@@ -14,3 +15,13 @@ jobs:
       working-directory: ./content-cache
       self-hosted-runner: true
       self-hosted-runner-label: "edge"
+  # This is for building the content-cache-backends-config charm for the publish charm workflow.
+  build-content-cache-backends-config:
+    # Only build if the integration test succeeds.
+    needs: integration-tests
+    uses: canonical/operator-workflows/.github/workflows/integration_test.yaml@main
+    secrets: inherit
+    with:
+      juju-channel: 3.6/stable
+      provider: lxd
+      working-directory: ./content-cache-backends-config
