@@ -71,6 +71,9 @@ def create_request_handler(
                 else:
                     self.send_response(500)
 
+            if self.path == "/teapot":
+                self.send_response(418)
+
             elif self.path == "/turn-healthy":
                 server.healthy = True
                 self.send_response(200)

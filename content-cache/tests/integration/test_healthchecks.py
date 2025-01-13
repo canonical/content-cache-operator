@@ -196,3 +196,82 @@ async def test_healthchecks_all_unhealthy(
 
     response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
     assert response.status_code == 502
+
+
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_healthchecks_custom_status_unhealthy(
+    app: Application,
+    config_app: Application,
+    cache_tester: CacheTester,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ips: List[str],
+    model: Model,
+) -> None:
+    """
+    arrange: One backend responding 200 on its healthchecks. And valid status configured to 418.
+    act: Nothing.
+    assert: HTTP request should fail as 200 is not a valid status here.
+    """
+    hostname = "test.healthchecks.local"
+    config = dict(CacheTester.BASE_CONFIG)
+    config[HOSTNAME_CONFIG_NAME] = hostname
+    config[BACKENDS_CONFIG_NAME] = ",".join(http_ok_ips)
+    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
+    config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
+    config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "418"
+    config[PROTOCOL_CONFIG_NAME] = "http"
+    config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
+    await cache_tester.setup_config(config)
+    await cache_tester.integrate_config()
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+
+    await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    assert response.status_code == 502
+
+    cache_tester._reset_after_run = False
+
+
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_healthchecks_custom_status_healthy(
+    app: Application,
+    config_app: Application,
+    cache_tester: CacheTester,
+    http_ok_path: str,
+    http_ok_message: str,
+    http_ok_ips: List[str],
+    model: Model,
+) -> None:
+    """
+    arrange: Two backends responding 200 on their healthchecks.
+    act: Nothing.
+    assert: HTTP request should succeed and two backends are reported up in the status page.
+    """
+    hostname = "test.healthchecks.local"
+    config = dict(CacheTester.BASE_CONFIG)
+    config[HOSTNAME_CONFIG_NAME] = hostname
+    config[BACKENDS_CONFIG_NAME] = ",".join(http_ok_ips)
+    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/teapot"
+    config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
+    config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
+    config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "418"
+    config[PROTOCOL_CONFIG_NAME] = "http"
+    config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
+    await cache_tester.setup_config(config)
+    await cache_tester.integrate_config()
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+
+    await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
+
+    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    assert response.status_code == 200
+    assert http_ok_message in response.content.decode("utf-8")
+
+    cache_tester._reset_after_run = False

@@ -409,8 +409,10 @@ def test_configuration_to_data():
         "protocol": "https",
         "fail_timeout": "30s",
         "backends_path": "/",
-        "healthcheck_path": "/healthz",
         "healthcheck_interval": "2123",
+        "healthcheck_path": "/healthz",
+        "healthcheck_ssl_verify": "false",
+        "healthcheck_valid_status": "[200]",
         "proxy_cache_valid": "[]",
     }
 

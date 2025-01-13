@@ -219,7 +219,7 @@ class Configuration(pydantic.BaseModel):
             )
 
         healthcheck_valid_status = tuple(
-            int(status.strip()) for status in healthcheck_valid_status_str.split(",")
+            int(status) for status in healthcheck_valid_status_str.split(",")
         )
 
         try:

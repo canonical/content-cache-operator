@@ -26,8 +26,10 @@ BACKENDS_FIELD_NAME = "backends"
 PROTOCOL_FIELD_NAME = "protocol"
 FAIL_TIMEOUT_FIELD_NAME = "fail_timeout"
 BACKENDS_PATH_FIELD_NAME = "backends_path"
-HEALTHCHECK_PATH_FIELD_NAME = "healthcheck_path"
 HEALTHCHECK_INTERVAL_FIELD_NAME = "healthcheck_interval"
+HEALTHCHECK_PATH_FIELD_NAME = "healthcheck_path"
+HEALTHCHECK_SSL_VERIFY_FIELD_NAME = "healthcheck_ssl_verify"
+HEALTHCHECK_VALID_STATUS_FIELD_NAME = "healthcheck_valid_status"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
 
 
@@ -110,8 +112,10 @@ class LocationConfig(pydantic.BaseModel):
         protocol: The protocol to request the backends with. Can be http or https.
         fail_timeout: The time to wait before using a backend after failure.
         backends_path: The path to request the backends.
-        healthcheck_path: The path to check on the backeds for health.
         healthcheck_interval: The time between two healthchecks, in milliseconds.
+        healthcheck_path: The path to check on the backeds for health.
+        healthcheck_valid_status: HTTP status codes considered as valid during health checks.
+        healthcheck_ssl_verify: Should we check SSL certificates during health checks.
         proxy_cache_valid: The cache valid duration.
     """
 
@@ -133,12 +137,14 @@ class LocationConfig(pydantic.BaseModel):
         pydantic.StringConstraints(min_length=1),
         pydantic.AfterValidator(_validate_path_value),
     ]
+    healthcheck_interval: int
     healthcheck_path: typing.Annotated[
         str,
         pydantic.StringConstraints(min_length=1),
         pydantic.AfterValidator(_validate_path_value),
     ]
-    healthcheck_interval: int
+    healthcheck_valid_status: tuple[int, ...]
+    healthcheck_ssl_verify: bool
     proxy_cache_valid: tuple[str, ...]
 
     @pydantic.field_validator("proxy_cache_valid")
@@ -173,6 +179,7 @@ class LocationConfig(pydantic.BaseModel):
         return value
 
     @classmethod
+    # pylint: disable=too-many-locals
     def from_integration_data(cls, data: ops.RelationDataContent) -> "LocationConfig":
         """Initialize object from the charm.
 
@@ -191,31 +198,19 @@ class LocationConfig(pydantic.BaseModel):
         backends_str = data.get(BACKENDS_FIELD_NAME, "").strip()
         fail_timeout = data.get(FAIL_TIMEOUT_FIELD_NAME, "").strip()
         backends_path = data.get(BACKENDS_PATH_FIELD_NAME, "").strip()
-        healthcheck_path = data.get(HEALTHCHECK_PATH_FIELD_NAME, "").strip()
         healthcheck_interval = int(data.get(HEALTHCHECK_INTERVAL_FIELD_NAME, "-1").strip())
+        healthcheck_path = data.get(HEALTHCHECK_PATH_FIELD_NAME, "").strip()
+        healthcheck_ssl_verify = bool(data.get(HEALTHCHECK_SSL_VERIFY_FIELD_NAME, "").strip())
+        healthcheck_valid_status_str = data.get(HEALTHCHECK_VALID_STATUS_FIELD_NAME, "").strip()
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
 
-        try:
-            proxy_cache_valid = json.loads(proxy_cache_valid_str)
-        except json.JSONDecodeError as err:
-            raise ConfigurationError(
-                f"Unable to parse proxy_cache_valid: {proxy_cache_valid_str}"
-            ) from err
-
-        if not isinstance(proxy_cache_valid, list):
-            raise ConfigurationError(
-                f"The proxy_cache_valid is not a list: {proxy_cache_valid_str}"
-            )
-
-        try:
-            backends = json.loads(backends_str)
-        except json.decoder.JSONDecodeError as err:
-            raise ConfigurationError("Unable to parse backends as json") from err
-
-        if not isinstance(backends, list):
-            raise ConfigurationError("Unable to convert backends to list")
-        if not backends:
-            raise ConfigurationError("Empty backends found")
+        proxy_cache_valid = _load_json_list_field(
+            PROXY_CACHE_VALID_FIELD_NAME, proxy_cache_valid_str, raise_if_empty=False
+        )
+        backends = _load_json_list_field(BACKENDS_FIELD_NAME, backends_str, raise_if_empty=True)
+        healthcheck_valid_status = _load_json_list_field(
+            HEALTHCHECK_VALID_STATUS_FIELD_NAME, healthcheck_valid_status_str, raise_if_empty=True
+        )
 
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
@@ -226,8 +221,10 @@ class LocationConfig(pydantic.BaseModel):
                 protocol=protocol,  # type: ignore
                 fail_timeout=fail_timeout,
                 backends_path=backends_path,
-                healthcheck_path=healthcheck_path,
                 healthcheck_interval=healthcheck_interval,
+                healthcheck_path=healthcheck_path,
+                healthcheck_ssl_verify=healthcheck_ssl_verify,
+                healthcheck_valid_status=healthcheck_valid_status,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
             )
         except pydantic.ValidationError as err:
@@ -236,6 +233,35 @@ class LocationConfig(pydantic.BaseModel):
             ]
             logger.error("Found integration data error: %s", err_msg)
             raise ConfigurationError(f"Config error: {err_msg}") from err
+
+
+def _load_json_list_field(
+    field_name: str, json_str: str, raise_if_empty: bool = True
+) -> tuple[typing.Any]:
+    """Parse a json string to a list.
+
+    Args:
+        field_name: The field name parse to raise meaningful exception.
+        json_str: The json string to parse to a list.
+        raise_if_empty: Raise error if list is empty.
+
+    Raises:
+        ConfigurationError: The configuration is not valid.
+    """
+    try:
+        valid_list = json.loads(json_str)
+    except json.JSONDecodeError as err:
+        raise ConfigurationError(
+            f"Unable to parse {field_name} config as json: {json_str}"
+        ) from err
+
+    if not isinstance(valid_list, list):
+        raise ConfigurationError(f"Unable to convert {field_name} config to list: {json_str}")
+
+    if raise_if_empty and not valid_list:
+        raise ConfigurationError(f"{field_name} config cannot be empty.")
+
+    return tuple(valid_list)
 
 
 def _check_nginx_time_str(time_str: str) -> None:

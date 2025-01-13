@@ -160,10 +160,14 @@ def test_config_long_path_integration_data():
 @pytest.mark.parametrize(
     "invalid_backends, error_message",
     [
-        pytest.param("[]", "Empty backends found", id="empty backends"),
-        pytest.param("value", "Unable to parse backends as json", id="none json value"),
+        pytest.param("[]", "backends config cannot be empty.", id="empty backends"),
         pytest.param(
-            '{"value": 1}', "Unable to convert backends to list", id="incorrect backends format"
+            "value", "Unable to parse backends config as json: value", id="none json value"
+        ),
+        pytest.param(
+            '{"value": 1}',
+            'Unable to convert backends config to list: {"value": 1}',
+            id="incorrect backends format",
         ),
         pytest.param(
             '["10.10.1"]',
@@ -211,7 +215,7 @@ def test_config_http_protocol_integration_data():
     [
         pytest.param(
             "invalid",
-            "Unable to parse proxy_cache_valid: invalid",
+            "Unable to parse proxy_cache_valid config as json: invalid",
             id="invalid format",
         ),
         pytest.param(
@@ -221,7 +225,7 @@ def test_config_http_protocol_integration_data():
         ),
         pytest.param(
             '{"hello": 10}',
-            'The proxy_cache_valid is not a list: {"hello": 10}',
+            'Unable to convert proxy_cache_valid config to list: {"hello": 10}',
             id="non list",
         ),
         pytest.param(

@@ -137,8 +137,10 @@ def test_integration_data(charm: ContentCacheBackendsConfigCharm, harness: Harne
         "backends": '["10.10.1.1", "10.1.1.2"]',
         "protocol": "https",
         "backends_path": "/",
-        "healthcheck_path": "/health",
         "healthcheck_interval": "2000",
+        "healthcheck_path": "/health",
+        "healthcheck_ssl_verify": "true",
+        "healthcheck_valid_status": "[200]",
         "fail_timeout": "30s",
         "proxy_cache_valid": '["200 302 1h", "404 1m"]',
     }
