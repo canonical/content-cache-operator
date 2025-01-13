@@ -1,5 +1,12 @@
 # Changelog
 
+## 2025-01-13
+
+### ** Added**
+
+- Support for healthcheck-valid-status charm configurations.
+- Support for healthcheck-ssl-verify charm configurations.
+
 ## 2024-12-16
 
 ### **Added**
