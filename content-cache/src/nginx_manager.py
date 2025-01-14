@@ -10,6 +10,7 @@ import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from socket import getservbyname
 from typing import Mapping
 
 import nginx
@@ -483,7 +484,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
 
             http_req = "GET {config.healthcheck_path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",
 
-            port = {433 if config.protocol.value == "https" else 80},
+            port = {getservbyname(config.protocol.value)},
             interval = {config.healthcheck_interval},
             timeout = 1000,
             fall = 3,
