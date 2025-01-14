@@ -261,7 +261,7 @@ async def test_healthchecks_custom_status_healthy(
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/teapot"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
-    config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "418"
+    config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "301, 302,418"
     config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
@@ -273,5 +273,3 @@ async def test_healthchecks_custom_status_healthy(
     response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
-
-    cache_tester._reset_after_run = False
