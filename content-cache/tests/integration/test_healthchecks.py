@@ -165,8 +165,6 @@ async def test_healthchecks_one_recovery(
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
-    cache_tester._reset_after_run = False
-
 
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
@@ -233,8 +231,6 @@ async def test_healthchecks_custom_status_unhealthy(
 
     response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
     assert response.status_code == 502
-
-    cache_tester._reset_after_run = False
 
 
 @pytest.mark.abort_on_fail
