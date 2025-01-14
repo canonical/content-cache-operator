@@ -101,6 +101,7 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
 
     healthchecks_config_file_content = nginx_manager.NGINX_HEALTHCHECKS_CONF_PATH.read_text()
     assert "interval = 2123" in healthchecks_config_file_content
+    assert 'host = "example.com"' in healthchecks_config_file_content
     assert "GET /health" in healthchecks_config_file_content
     assert "ssl_verify = false" in healthchecks_config_file_content
     assert "valid_statuses = {200,301}" in healthchecks_config_file_content

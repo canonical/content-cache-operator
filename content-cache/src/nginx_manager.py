@@ -491,7 +491,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
             rise = 2,
             valid_statuses = {{{valid_status_str}}},
             concurrency = 10,
-            host = {config.hostname},
+            host = "{config.hostname}",
             ssl_verify = {str(config.healthcheck_ssl_verify).lower()}
         }}
         if not ok then
