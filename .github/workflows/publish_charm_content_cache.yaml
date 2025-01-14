@@ -1,4 +1,4 @@
-name: Publish to edge content-cache
+name: Publish to edge for content-cache
 
 on:
   workflow_dispatch:
