@@ -477,7 +477,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
     Returns:
         A string with the lua script for the healthcheck workers.
     """
-    valid_status_str = ",".join([str(status) for status in config.healthcheck_valid_status])
+    valid_status_str = ",".join(str(status) for status in config.healthcheck_valid_status)
     return rf"""ok, err = hc.spawn_checker{{
             shm = "healthcheck",
             upstream = "{upstream}",
