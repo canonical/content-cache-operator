@@ -11,7 +11,7 @@ import requests
 
 import nginx_manager
 from errors import NginxFileError
-from state import LocationConfig
+from state import HealthcheckConfig, LocationConfig
 
 
 def test_reset_files_with_missing_dir(patch_nginx_manager: None):
@@ -78,11 +78,13 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
                 protocol="https",
                 fail_timeout="30s",
                 backends_path="/backend",
-                healthcheck_interval=2123,
-                healthcheck_path="/health",
-                healthcheck_ssl_verify=False,
-                healthcheck_valid_status=(200, 301),
                 proxy_cache_valid=("200 302 30m", "404 1m"),
+                healthcheck_config=HealthcheckConfig(
+                    interval=2123,
+                    path="/health",
+                    ssl_verify=False,
+                    valid_status=(200, 301),
+                ),
             )
         }
     }

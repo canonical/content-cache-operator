@@ -477,23 +477,23 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
     Returns:
         A string with the lua script for the healthcheck workers.
     """
-    valid_status_str = ",".join(str(status) for status in config.healthcheck_valid_status)
+    valid_status_str = ",".join(str(status) for status in config.healthcheck_config.valid_status)
     return rf"""ok, err = hc.spawn_checker{{
             shm = "healthcheck",
             upstream = "{upstream}",
             type = "{config.protocol.value}",
 
-            http_req = "GET {config.healthcheck_path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",
+            http_req = "GET {config.healthcheck_config.path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",
 
             port = {getservbyname(config.protocol.value)},
-            interval = {config.healthcheck_interval},
+            interval = {config.healthcheck_config.interval},
             timeout = 1000,
             fall = 3,
             rise = 2,
             valid_statuses = {{{valid_status_str}}},
             concurrency = 10,
             host = "{config.hostname}",
-            ssl_verify = {str(config.healthcheck_ssl_verify).lower()}
+            ssl_verify = {str(config.healthcheck_config.ssl_verify).lower()}
         }}
         if not ok then
             ngx.log(ngx.ERR, "failed to spawn health checker: ", err)
