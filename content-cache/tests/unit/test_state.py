@@ -35,6 +35,7 @@ def test_config_from_integration_data():
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
+    assert config.healthcheck_ssl_verify is False
 
 
 def test_config_subdomain_integration_data():

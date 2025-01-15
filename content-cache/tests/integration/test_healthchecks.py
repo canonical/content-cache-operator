@@ -23,6 +23,7 @@ from tests.integration.helpers import (
     PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     CacheTester,
+    get_app_ip,
 )
 
 HEALTHCHECK_INTERVAL = 2000
@@ -196,31 +197,40 @@ async def test_healthchecks_all_unhealthy(
     assert response.status_code == 502
 
 
+@pytest.mark.parametrize(
+    ["valid_status", "expected_http_code"],
+    [
+        pytest.param("200", 502, id="unhealthy"),
+        pytest.param("200, 418", 200, id="healthy"),
+    ],
+)
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
-async def test_healthchecks_custom_status_unhealthy(
+async def test_healthchecks_custom_status(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
     http_ok_path: str,
     http_ok_message: str,
-    http_ok_ips: List[str],
+    http_ok_ip: str,
+    valid_status: str,
+    expected_http_code: int,
     model: Model,
 ) -> None:
     """
-    arrange: One backend responding 200 on its healthchecks. And valid status configured to 418.
+    arrange: One backend responding 418 on its healthcheck. And valid status to match it or not.
     act: Nothing.
     assert: HTTP request should fail as 200 is not a valid status here.
     """
     hostname = "test.healthchecks.local"
     config = dict(CacheTester.BASE_CONFIG)
     config[HOSTNAME_CONFIG_NAME] = hostname
-    config[BACKENDS_CONFIG_NAME] = ",".join(http_ok_ips)
+    config[BACKENDS_CONFIG_NAME] = http_ok_ip
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
-    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/teapot"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
-    config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "418"
+    config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = valid_status
     config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
@@ -230,35 +240,49 @@ async def test_healthchecks_custom_status_unhealthy(
     await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
     response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
-    assert response.status_code == 502
+    assert response.status_code == expected_http_code
+
+    if expected_http_code == 200:
+        assert http_ok_message in response.content.decode("utf-8")
 
 
+@pytest.mark.parametrize(
+    ["ssl_verify", "expected_http_code"],
+    [
+        pytest.param("false", 200, id="no_ssl_verify"),
+        pytest.param("true", 502, id="ssl_verify"),
+    ],
+)
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
-async def test_healthchecks_custom_status_healthy(
+async def test_healthchecks_ssl_verify(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
     http_ok_path: str,
     http_ok_message: str,
-    http_ok_ips: List[str],
+    https_ok_app: Application,
+    ssl_verify: bool,
+    expected_http_code: int,
     model: Model,
 ) -> None:
     """
-    arrange: Two backends responding 200 on their healthchecks.
+    arrange: One backend responding 418 on its healthcheck. And valid status to match it or not.
     act: Nothing.
-    assert: HTTP request should succeed and two backends are reported up in the status page.
+    assert: HTTP request should fail as 200 is not a valid status here.
     """
+    https_ok_ip = await get_app_ip(https_ok_app)
+
     hostname = "test.healthchecks.local"
     config = dict(CacheTester.BASE_CONFIG)
     config[HOSTNAME_CONFIG_NAME] = hostname
-    config[BACKENDS_CONFIG_NAME] = ",".join(http_ok_ips)
+    config[BACKENDS_CONFIG_NAME] = https_ok_ip
     config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
-    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/teapot"
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
-    config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
-    config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "301, 302,418"
-    config[PROTOCOL_CONFIG_NAME] = "http"
+    config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = ssl_verify
+    config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
+    config[PROTOCOL_CONFIG_NAME] = "https"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
@@ -267,5 +291,7 @@ async def test_healthchecks_custom_status_healthy(
     await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
     response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
-    assert response.status_code == 200
-    assert http_ok_message in response.content.decode("utf-8")
+    assert response.status_code == expected_http_code
+
+    if expected_http_code == 200:
+        assert http_ok_message in response.content.decode("utf-8")

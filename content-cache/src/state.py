@@ -200,7 +200,7 @@ class LocationConfig(pydantic.BaseModel):
         backends_path = data.get(BACKENDS_PATH_FIELD_NAME, "").strip()
         healthcheck_interval = int(data.get(HEALTHCHECK_INTERVAL_FIELD_NAME, "-1").strip())
         healthcheck_path = data.get(HEALTHCHECK_PATH_FIELD_NAME, "").strip()
-        healthcheck_ssl_verify = bool(data.get(HEALTHCHECK_SSL_VERIFY_FIELD_NAME, "").strip())
+        healthcheck_ssl_verify = data.get(HEALTHCHECK_SSL_VERIFY_FIELD_NAME, "").strip()
         healthcheck_valid_status_str = data.get(HEALTHCHECK_VALID_STATUS_FIELD_NAME, "").strip()
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
 

@@ -6,10 +6,12 @@
 
 import argparse
 import json
+import ssl
 from dataclasses import dataclass
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from ipaddress import IPv4Address
+import os
 from typing import Type, cast
 
 # Script for testing only.
@@ -23,6 +25,7 @@ class HTTPServerArgs:
     path: str
     status_code: int
     message: str
+    https: bool
 
 
 class SimpleServer(HTTPServer):
@@ -47,6 +50,7 @@ def get_args():
     parser.add_argument(
         "--message", type=str, default="Test message", help="The body of the response."
     )
+    parser.add_argument("--https", action="store_true", help="Enable HTTPS")
     args = parser.parse_args()
 
     return HTTPServerArgs(
@@ -55,11 +59,14 @@ def get_args():
         path=args.path,
         status_code=args.status,
         message=args.message,
+        https=args.https,
     )
 
 
 def create_request_handler(
-    path: str, status_code: int, message: str
+    path: str,
+    status_code: int,
+    message: str,
 ) -> Type[BaseHTTPRequestHandler]:
     class RequestHandler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -103,7 +110,14 @@ def create_request_handler(
 def main():
     args = get_args()
     request_handler = create_request_handler(args.path, args.status_code, args.message)
-    SimpleServer((args.ip, args.port), request_handler).serve_forever()
+    server = SimpleServer((args.ip, args.port), request_handler)
+    if args.https:
+        certfile = os.path.dirname(__file__) + "/certificate.pem"
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(certfile=certfile)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+
+    server.serve_forever()
 
 
 if __name__ == "__main__":
