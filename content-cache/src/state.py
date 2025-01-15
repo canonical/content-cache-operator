@@ -223,7 +223,7 @@ class LocationConfig(pydantic.BaseModel):
                 backends_path=backends_path,
                 healthcheck_interval=healthcheck_interval,
                 healthcheck_path=healthcheck_path,
-                healthcheck_ssl_verify=healthcheck_ssl_verify,
+                healthcheck_ssl_verify=healthcheck_ssl_verify,  # type: ignore
                 healthcheck_valid_status=healthcheck_valid_status,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
             )

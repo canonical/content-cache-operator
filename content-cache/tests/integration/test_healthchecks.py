@@ -262,7 +262,7 @@ async def test_healthchecks_ssl_verify(
     http_ok_path: str,
     http_ok_message: str,
     https_ok_app: Application,
-    ssl_verify: bool,
+    ssl_verify: str,
     expected_http_code: int,
     model: Model,
 ) -> None:

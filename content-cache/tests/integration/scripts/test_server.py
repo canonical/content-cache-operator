@@ -6,12 +6,12 @@
 
 import argparse
 import json
+import os
 import ssl
 from dataclasses import dataclass
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from ipaddress import IPv4Address
-import os
 from typing import Type, cast
 
 # Script for testing only.
