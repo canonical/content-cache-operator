@@ -204,11 +204,11 @@ class LocationConfig(pydantic.BaseModel):
         healthcheck_valid_status_str = data.get(HEALTHCHECK_VALID_STATUS_FIELD_NAME, "").strip()
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
 
-        proxy_cache_valid = _load_json_list_field(
+        proxy_cache_valid = _parse_list(
             PROXY_CACHE_VALID_FIELD_NAME, proxy_cache_valid_str, raise_if_empty=False
         )
-        backends = _load_json_list_field(BACKENDS_FIELD_NAME, backends_str, raise_if_empty=True)
-        healthcheck_valid_status = _load_json_list_field(
+        backends = _parse_list(BACKENDS_FIELD_NAME, backends_str, raise_if_empty=True)
+        healthcheck_valid_status = _parse_list(
             HEALTHCHECK_VALID_STATUS_FIELD_NAME, healthcheck_valid_status_str, raise_if_empty=True
         )
 
@@ -235,9 +235,7 @@ class LocationConfig(pydantic.BaseModel):
             raise ConfigurationError(f"Config error: {err_msg}") from err
 
 
-def _load_json_list_field(
-    field_name: str, json_str: str, raise_if_empty: bool = True
-) -> tuple[typing.Any]:
+def _parse_list(field_name: str, json_str: str, raise_if_empty: bool = True) -> tuple[typing.Any]:
     """Parse a json string to a list.
 
     Args:
