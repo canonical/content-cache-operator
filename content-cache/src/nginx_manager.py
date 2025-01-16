@@ -206,10 +206,10 @@ def update_and_load_config(
         if host in hostname_to_cert:
             cert_path = hostname_to_cert[host]
         try:
-            vhost_healtcheck_worker_lua_code = _create_virtualhost_config(
+            vhost_healthcheck_worker_lua_code = _create_virtualhost_config(
                 host, config, cert_path, instance_name
             )
-            healthcheck_workers_lua_code += vhost_healtcheck_worker_lua_code
+            healthcheck_workers_lua_code += vhost_healthcheck_worker_lua_code
         except NginxConfigurationError as err:
             errored_hosts.append(host)
             configuration_errors.append(err)

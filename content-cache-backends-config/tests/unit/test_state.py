@@ -459,7 +459,7 @@ def test_configuration_to_json_dumps_error(monkeypatch):
     ],
     ids=["empty", "bad_character"],
 )
-def test_invalid_heathcheck_path(bad_value, error_msg):
+def test_invalid_healthcheck_path(bad_value, error_msg):
     """
     arrange: Mock charm with invalid healthcheck path.
     act: Create the configuration from the charm.
@@ -483,7 +483,7 @@ def test_invalid_heathcheck_path(bad_value, error_msg):
     ],
     ids=["empty", "negative", "zero"],
 )
-def test_invalid_heathcheck_interval(bad_value, error_msg):
+def test_invalid_healthcheck_interval(bad_value, error_msg):
     """
     arrange: Mock charm with invalid healthcheck interval.
     act: Create the configuration from the charm.
