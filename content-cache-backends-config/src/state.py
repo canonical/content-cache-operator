@@ -23,6 +23,7 @@ BACKENDS_CONFIG_NAME = "backends"
 PROTOCOL_CONFIG_NAME = "protocol"
 FAIL_TIMEOUT_CONFIG_NAME = "fail-timeout"
 BACKENDS_PATH_CONFIG_NAME = "backends-path"
+HEALTHCHECK_CONFIG_KEY = "healthcheck_config"
 HEALTHCHECK_INTERVAL_CONFIG_NAME = "healthcheck-interval"
 HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
 HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
@@ -99,6 +100,63 @@ def _validate_path_value(value: str) -> str:
     return value
 
 
+class HealthcheckConfig(pydantic.BaseModel):
+    """Represents the configuration for healthchecks.
+
+    Attributes:
+        interval: The time between two healthchecks, in milliseconds.
+        path: The path to check on the backeds for health.
+        valid_status: HTTP status codes considered as valid during health checks.
+        ssl_verify: Should we check SSL certificates during health checks.
+    """
+
+    interval: pydantic.PositiveInt
+    path: typing.Annotated[
+        str,
+        pydantic.StringConstraints(min_length=1),
+        pydantic.AfterValidator(_validate_path_value),
+    ]
+    ssl_verify: bool
+    valid_status: tuple[int, ...]
+
+    @classmethod
+    def from_charm(cls, charm: ops.CharmBase) -> "HealthcheckConfig":
+        """Initialize object from the charm.
+
+        Args:
+            charm: The charm containing the configuration.
+
+        Raises:
+            ConfigurationError: Error with the charm configuration.
+
+        Returns:
+            The object.
+        """
+        interval = typing.cast(int, charm.config.get(HEALTHCHECK_INTERVAL_CONFIG_NAME, -1))
+        path = typing.cast(str, charm.config.get(HEALTHCHECK_PATH_CONFIG_NAME, "")).strip()
+        valid_status_str = typing.cast(
+            str, charm.config.get(HEALTHCHECK_VALID_STATUS_CONFIG_NAME, "")
+        ).strip()
+        ssl_verify = typing.cast(bool, charm.config.get(HEALTHCHECK_SSL_VERIFY_CONFIG_NAME, False))
+
+        valid_status = tuple(int(status) for status in valid_status_str.split(","))
+
+        try:
+            # Ignore type check and let pydantic handle the type with validation errors.
+            return cls(
+                interval=interval,
+                path=path,
+                ssl_verify=ssl_verify,  # type: ignore
+                valid_status=valid_status,
+            )
+        except pydantic.ValidationError as err:
+            err_msg = [
+                f'{error["loc"][0]} = {error["input"]}: {error["msg"]}' for error in err.errors()
+            ]
+            logger.error("Found config error: %s", err_msg)
+            raise ConfigurationError(f"Config error: {err_msg}") from err
+
+
 class Configuration(pydantic.BaseModel):
     """Represents the configuration.
 
@@ -109,11 +167,8 @@ class Configuration(pydantic.BaseModel):
         protocol: The protocol to request the backends with. Can be http or https.
         fail_timeout: The time to wait before using a backend after failure.
         backends_path: The path to request the backends.
-        healthcheck_interval: The time between two helthchecks, in milliseconds.
-        healthcheck_path: The path to request the healthcheck endpoint.
-        healthcheck_ssl_verify: Should we check SSL certificates during healthchecks.
-        healthcheck_valid_status: HTTP status considered as valid during healthchecks.
         proxy_cache_valid: The cache valid duration.
+        healthcheck_config: The healthcheck configuration.
     """
 
     hostname: typing.Annotated[
@@ -134,15 +189,8 @@ class Configuration(pydantic.BaseModel):
         pydantic.StringConstraints(min_length=1),
         pydantic.AfterValidator(_validate_path_value),
     ]
-    healthcheck_interval: pydantic.PositiveInt
-    healthcheck_path: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_path_value),
-    ]
-    healthcheck_ssl_verify: bool
-    healthcheck_valid_status: tuple[int, ...]
     proxy_cache_valid: tuple[str, ...]
+    healthcheck_config: HealthcheckConfig
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
@@ -169,7 +217,6 @@ class Configuration(pydantic.BaseModel):
         return value
 
     @classmethod
-    # pylint: disable=too-many-locals
     def from_charm(cls, charm: ops.CharmBase) -> "Configuration":
         """Initialize object from the charm.
 
@@ -190,18 +237,6 @@ class Configuration(pydantic.BaseModel):
             raise ConfigurationError("Empty backends configuration found")
         fail_timeout = typing.cast(str, charm.config.get(FAIL_TIMEOUT_CONFIG_NAME, "")).strip()
         backends_path = typing.cast(str, charm.config.get(BACKENDS_PATH_CONFIG_NAME, "")).strip()
-        healthcheck_interval = typing.cast(
-            int, charm.config.get(HEALTHCHECK_INTERVAL_CONFIG_NAME, -1)
-        )
-        healthcheck_path = typing.cast(
-            str, charm.config.get(HEALTHCHECK_PATH_CONFIG_NAME, "")
-        ).strip()
-        healthcheck_valid_status_str = typing.cast(
-            str, charm.config.get(HEALTHCHECK_VALID_STATUS_CONFIG_NAME, "")
-        ).strip()
-        healthcheck_ssl_verify = typing.cast(
-            bool, charm.config.get(HEALTHCHECK_SSL_VERIFY_CONFIG_NAME, False)
-        )
         proxy_cache_valid_str = typing.cast(
             str, charm.config.get(PROXY_CACHE_VALID_CONFIG_NAME, "")
         ).strip()
@@ -218,9 +253,7 @@ class Configuration(pydantic.BaseModel):
                 f"The proxy_cache_valid is not a list: {proxy_cache_valid_str}"
             )
 
-        healthcheck_valid_status = tuple(
-            int(status) for status in healthcheck_valid_status_str.split(",")
-        )
+        healthcheck_config = HealthcheckConfig.from_charm(charm)
 
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
@@ -231,11 +264,8 @@ class Configuration(pydantic.BaseModel):
                 protocol=protocol,  # type: ignore
                 fail_timeout=fail_timeout,
                 backends_path=backends_path,
-                healthcheck_interval=healthcheck_interval,
-                healthcheck_path=healthcheck_path,
-                healthcheck_ssl_verify=healthcheck_ssl_verify,
-                healthcheck_valid_status=healthcheck_valid_status,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
+                healthcheck_config=healthcheck_config,
             )
         except pydantic.ValidationError as err:
             err_msg = [
@@ -265,6 +295,8 @@ class Configuration(pydantic.BaseModel):
             ) from err
 
         for key, value in data.items():
+            if key == HEALTHCHECK_CONFIG_KEY:
+                continue
             if isinstance(value, str):
                 continue
             try:
@@ -274,6 +306,12 @@ class Configuration(pydantic.BaseModel):
                 raise ConfigurationError(
                     "Unable to convert configuration to integration data format"
                 ) from err
+
+        for key, value in data[HEALTHCHECK_CONFIG_KEY].items():
+            data["healthcheck_" + key] = str(value).lower()
+
+        data.pop(HEALTHCHECK_CONFIG_KEY)
+
         return data
 
 

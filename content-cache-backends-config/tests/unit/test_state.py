@@ -58,8 +58,8 @@ def test_valid_config():
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_path == "/healthz"
-    assert config.healthcheck_interval == 2123
+    assert config.healthcheck_config.path == "/healthz"
+    assert config.healthcheck_config.interval == 2123
     assert config.proxy_cache_valid == ()
 
 
@@ -80,8 +80,8 @@ def test_hostname_with_subdomain():
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_path == "/healthz"
-    assert config.healthcheck_interval == 2123
+    assert config.healthcheck_config.path == "/healthz"
+    assert config.healthcheck_config.interval == 2123
 
     assert config.proxy_cache_valid == ()
 
@@ -151,7 +151,7 @@ def test_longer_path():
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/path/to/destination/2"
-    assert config.healthcheck_path == "/path/to/health/2"
+    assert config.healthcheck_config.path == "/path/to/health/2"
     assert config.proxy_cache_valid == ()
 
 
@@ -253,8 +253,8 @@ def test_http_protocol():
     assert config.protocol == "http"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_path == "/healthz"
-    assert config.healthcheck_interval == 2123
+    assert config.healthcheck_config.path == "/healthz"
+    assert config.healthcheck_config.interval == 2123
     assert config.proxy_cache_valid == ()
 
 
@@ -386,8 +386,8 @@ def test_valid_proxy_cache_valid(proxy_cache_valid: str):
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_path == "/healthz"
-    assert config.healthcheck_interval == 2123
+    assert config.healthcheck_config.path == "/healthz"
+    assert config.healthcheck_config.interval == 2123
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
 
 
@@ -459,7 +459,7 @@ def test_configuration_to_json_dumps_error(monkeypatch):
     ],
     ids=["empty", "bad_character"],
 )
-def test_invalid_healthcheck_path(bad_value, error_msg):
+def test_invalid_heathcheck_path(bad_value, error_msg):
     """
     arrange: Mock charm with invalid healthcheck path.
     act: Create the configuration from the charm.
@@ -471,9 +471,7 @@ def test_invalid_healthcheck_path(bad_value, error_msg):
     with pytest.raises(ConfigurationError) as err:
         Configuration.from_charm(charm)
 
-    assert (
-        str(err.value) == f"Config error: ['healthcheck_path = {bad_value.strip()}: {error_msg}']"
-    )
+    assert str(err.value) == f"Config error: ['path = {bad_value.strip()}: {error_msg}']"
 
 
 @pytest.mark.parametrize(
@@ -485,7 +483,7 @@ def test_invalid_healthcheck_path(bad_value, error_msg):
     ],
     ids=["empty", "negative", "zero"],
 )
-def test_invalid_healthcheck_interval(bad_value, error_msg):
+def test_invalid_heathcheck_interval(bad_value, error_msg):
     """
     arrange: Mock charm with invalid healthcheck interval.
     act: Create the configuration from the charm.
@@ -498,4 +496,4 @@ def test_invalid_healthcheck_interval(bad_value, error_msg):
     with pytest.raises(ConfigurationError) as err:
         Configuration.from_charm(charm)
 
-    assert str(err.value) == f"Config error: ['healthcheck_interval = {bad_value}: {error_msg}']"
+    assert str(err.value) == f"Config error: ['interval = {bad_value}: {error_msg}']"
