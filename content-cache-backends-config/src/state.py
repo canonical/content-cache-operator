@@ -293,13 +293,15 @@ class Configuration(pydantic.BaseModel):
                 "Unable to convert configuration to integration data format"
             ) from err
 
-        to_expand = set()
+        to_expand = {key for key, value in data.items() if isinstance(value, dict)}
+        for key in to_expand:
+            data.update({f"{key}_{_key}": str(_value) for _key, _value in data[key].items()})
+            data.pop(key)
+
         for key, value in data.items():
             if isinstance(value, str):
-                continue
-
-            if isinstance(value, dict):
-                to_expand.add(key)
+                if value in ["True", "False"]:
+                    data[key] = value.lower()
                 continue
 
             try:
@@ -309,12 +311,6 @@ class Configuration(pydantic.BaseModel):
                 raise ConfigurationError(
                     "Unable to convert configuration to integration data format"
                 ) from err
-
-        for key in to_expand:
-            data.update(
-                {f"{key}_{_key}": str(_value).lower() for _key, _value in data[key].items()}
-            )
-            data.pop(key)
 
         return data
 
