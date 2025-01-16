@@ -58,8 +58,8 @@ def test_valid_config():
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_config.path == "/healthz"
-    assert config.healthcheck_config.interval == 2123
+    assert config.healthcheck.path == "/healthz"
+    assert config.healthcheck.interval == 2123
     assert config.proxy_cache_valid == ()
 
 
@@ -80,8 +80,8 @@ def test_hostname_with_subdomain():
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_config.path == "/healthz"
-    assert config.healthcheck_config.interval == 2123
+    assert config.healthcheck.path == "/healthz"
+    assert config.healthcheck.interval == 2123
 
     assert config.proxy_cache_valid == ()
 
@@ -151,7 +151,7 @@ def test_longer_path():
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/path/to/destination/2"
-    assert config.healthcheck_config.path == "/path/to/health/2"
+    assert config.healthcheck.path == "/path/to/health/2"
     assert config.proxy_cache_valid == ()
 
 
@@ -253,8 +253,8 @@ def test_http_protocol():
     assert config.protocol == "http"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_config.path == "/healthz"
-    assert config.healthcheck_config.interval == 2123
+    assert config.healthcheck.path == "/healthz"
+    assert config.healthcheck.interval == 2123
     assert config.proxy_cache_valid == ()
 
 
@@ -386,8 +386,8 @@ def test_valid_proxy_cache_valid(proxy_cache_valid: str):
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_config.path == "/healthz"
-    assert config.healthcheck_config.interval == 2123
+    assert config.healthcheck.path == "/healthz"
+    assert config.healthcheck.interval == 2123
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
 
 

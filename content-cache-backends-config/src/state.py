@@ -23,7 +23,6 @@ BACKENDS_CONFIG_NAME = "backends"
 PROTOCOL_CONFIG_NAME = "protocol"
 FAIL_TIMEOUT_CONFIG_NAME = "fail-timeout"
 BACKENDS_PATH_CONFIG_NAME = "backends-path"
-HEALTHCHECK_CONFIG_KEY = "healthcheck_config"
 HEALTHCHECK_INTERVAL_CONFIG_NAME = "healthcheck-interval"
 HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
 HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
@@ -168,7 +167,7 @@ class Configuration(pydantic.BaseModel):
         fail_timeout: The time to wait before using a backend after failure.
         backends_path: The path to request the backends.
         proxy_cache_valid: The cache valid duration.
-        healthcheck_config: The healthcheck configuration.
+        healthcheck: The healthcheck configuration.
     """
 
     hostname: typing.Annotated[
@@ -190,7 +189,7 @@ class Configuration(pydantic.BaseModel):
         pydantic.AfterValidator(_validate_path_value),
     ]
     proxy_cache_valid: tuple[str, ...]
-    healthcheck_config: HealthcheckConfig
+    healthcheck: HealthcheckConfig
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
@@ -265,7 +264,7 @@ class Configuration(pydantic.BaseModel):
                 fail_timeout=fail_timeout,
                 backends_path=backends_path,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
-                healthcheck_config=healthcheck_config,
+                healthcheck=healthcheck_config,
             )
         except pydantic.ValidationError as err:
             err_msg = [
@@ -294,11 +293,15 @@ class Configuration(pydantic.BaseModel):
                 "Unable to convert configuration to integration data format"
             ) from err
 
+        to_expand = set()
         for key, value in data.items():
-            if key == HEALTHCHECK_CONFIG_KEY:
-                continue
             if isinstance(value, str):
                 continue
+
+            if isinstance(value, dict):
+                to_expand.add(key)
+                continue
+
             try:
                 data[key] = json.dumps(value)
             except (ValueError, TypeError) as err:
@@ -307,10 +310,11 @@ class Configuration(pydantic.BaseModel):
                     "Unable to convert configuration to integration data format"
                 ) from err
 
-        for key, value in data[HEALTHCHECK_CONFIG_KEY].items():
-            data["healthcheck_" + key] = str(value).lower()
-
-        data.pop(HEALTHCHECK_CONFIG_KEY)
+        for key in to_expand:
+            data.update(
+                {f"{key}_{_key}": str(_value).lower() for _key, _value in data[key].items()}
+            )
+            data.pop(key)
 
         return data
 
