@@ -104,7 +104,7 @@ class HealthcheckConfig(pydantic.BaseModel):
 
     Attributes:
         interval: The time between two healthchecks, in milliseconds.
-        path: The path to check on the backeds for health.
+        path: The path to check on the backends for health.
         valid_status: HTTP status codes considered as valid during health checks.
         ssl_verify: Should we check SSL certificates during health checks.
     """
