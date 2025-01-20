@@ -35,6 +35,7 @@ def test_config_from_integration_data():
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
+    assert config.healthcheck_config.ssl_verify is False
 
 
 def test_config_subdomain_integration_data():
@@ -160,10 +161,14 @@ def test_config_long_path_integration_data():
 @pytest.mark.parametrize(
     "invalid_backends, error_message",
     [
-        pytest.param("[]", "Empty backends found", id="empty backends"),
-        pytest.param("value", "Unable to parse backends as json", id="none json value"),
+        pytest.param("[]", "backends config cannot be empty.", id="empty backends"),
         pytest.param(
-            '{"value": 1}', "Unable to convert backends to list", id="incorrect backends format"
+            "value", "Unable to parse backends config as json: value", id="none json value"
+        ),
+        pytest.param(
+            '{"value": 1}',
+            'Unable to convert backends config to list: {"value": 1}',
+            id="incorrect backends format",
         ),
         pytest.param(
             '["10.10.1"]',
@@ -211,7 +216,7 @@ def test_config_http_protocol_integration_data():
     [
         pytest.param(
             "invalid",
-            "Unable to parse proxy_cache_valid: invalid",
+            "Unable to parse proxy_cache_valid config as json: invalid",
             id="invalid format",
         ),
         pytest.param(
@@ -221,7 +226,7 @@ def test_config_http_protocol_integration_data():
         ),
         pytest.param(
             '{"hello": 10}',
-            'The proxy_cache_valid is not a list: {"hello": 10}',
+            'Unable to convert proxy_cache_valid config to list: {"hello": 10}',
             id="non list",
         ),
         pytest.param(
@@ -303,6 +308,6 @@ def test_config_valid_proxy_cache_valid_integration_data(proxy_cache_valid: str)
     assert config.protocol == "https"
     assert config.fail_timeout == "30s"
     assert config.backends_path == "/"
-    assert config.healthcheck_path == "/"
-    assert config.healthcheck_interval == 2000
+    assert config.healthcheck_config.path == "/"
+    assert config.healthcheck_config.interval == 2000
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))

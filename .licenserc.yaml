@@ -11,6 +11,7 @@ header:
     - '.github/**'
     - '**/*.json'
     - '**/*.md'
+    - '**/*.pem'
     - '**/*.txt'
     - '.jujuignore'
     - '.gitignore'

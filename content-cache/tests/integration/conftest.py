@@ -204,13 +204,26 @@ async def http_ok_app_fixture(
     model: Model, http_ok_path: str, http_ok_message: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The test HTTP application that returns OK."""
-    use_existing = pytestconfig.getoption("--use-existing-app", default=[])
-    if use_existing and "http-ok" in use_existing:
-        yield model.applications["http-ok"]
-        return
-
     app = await deploy_http_app(
         app_name="http-ok", path=http_ok_path, status=200, message=http_ok_message, model=model
+    )
+    await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
+
+    yield app
+
+
+@pytest_asyncio.fixture(name="https_ok_app", scope="module")
+async def https_ok_app_fixture(
+    model: Model, http_ok_path: str, http_ok_message: str, pytestconfig: pytest.Config
+) -> AsyncIterator[Application]:
+    """The test HTTPS application that returns OK."""
+    app = await deploy_http_app(
+        app_name="https-ok",
+        path=http_ok_path,
+        status=200,
+        message=http_ok_message,
+        model=model,
+        https=True,
     )
     await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
 

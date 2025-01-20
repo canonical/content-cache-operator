@@ -26,8 +26,10 @@ BACKENDS_FIELD_NAME = "backends"
 PROTOCOL_FIELD_NAME = "protocol"
 FAIL_TIMEOUT_FIELD_NAME = "fail_timeout"
 BACKENDS_PATH_FIELD_NAME = "backends_path"
-HEALTHCHECK_PATH_FIELD_NAME = "healthcheck_path"
 HEALTHCHECK_INTERVAL_FIELD_NAME = "healthcheck_interval"
+HEALTHCHECK_PATH_FIELD_NAME = "healthcheck_path"
+HEALTHCHECK_SSL_VERIFY_FIELD_NAME = "healthcheck_ssl_verify"
+HEALTHCHECK_VALID_STATUS_FIELD_NAME = "healthcheck_valid_status"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
 
 
@@ -100,6 +102,63 @@ def _validate_path_value(value: str) -> str:
     return value
 
 
+class HealthcheckConfig(pydantic.BaseModel):
+    """Represents the configuration for healthchecks.
+
+    Attributes:
+        interval: The time between two healthchecks, in milliseconds.
+        path: The path to check on the backends for health.
+        valid_status: HTTP status codes considered as valid during health checks.
+        ssl_verify: Should we check SSL certificates during health checks.
+    """
+
+    interval: int
+    path: typing.Annotated[
+        str,
+        pydantic.StringConstraints(min_length=1),
+        pydantic.AfterValidator(_validate_path_value),
+    ]
+    valid_status: tuple[int, ...]
+    ssl_verify: bool
+
+    @classmethod
+    def from_integration_data(cls, data: ops.RelationDataContent) -> "HealthcheckConfig":
+        """Initialize object from the charm.
+
+        Args:
+            data: One set of integration data.
+
+        Raises:
+            ConfigurationError: Invalid cache configurations in integration data.
+
+        Returns:
+            The object.
+        """
+        interval = int(data.get(HEALTHCHECK_INTERVAL_FIELD_NAME, "-1").strip())
+        path = data.get(HEALTHCHECK_PATH_FIELD_NAME, "").strip()
+        ssl_verify = data.get(HEALTHCHECK_SSL_VERIFY_FIELD_NAME, "").strip()
+        valid_status_str = data.get(HEALTHCHECK_VALID_STATUS_FIELD_NAME, "").strip()
+
+        valid_status = _parse_list(
+            HEALTHCHECK_VALID_STATUS_FIELD_NAME, valid_status_str, raise_if_empty=True
+        )
+
+        try:
+            # Ignore type check and let pydantic handle the type with validation errors.
+            return cls(
+                interval=interval,
+                path=path,
+                ssl_verify=ssl_verify,  # type: ignore
+                valid_status=valid_status,
+            )
+        except pydantic.ValidationError as err:
+            err_msg = [
+                f'{error["loc"][0]} = {error["input"]}: {error["msg"]}' for error in err.errors()
+            ]
+            logger.error("Found integration data error: %s", err_msg)
+            raise ConfigurationError(f"Config error: {err_msg}") from err
+
+
 class LocationConfig(pydantic.BaseModel):
     """Represents the configuration for a location.
 
@@ -110,9 +169,8 @@ class LocationConfig(pydantic.BaseModel):
         protocol: The protocol to request the backends with. Can be http or https.
         fail_timeout: The time to wait before using a backend after failure.
         backends_path: The path to request the backends.
-        healthcheck_path: The path to check on the backeds for health.
-        healthcheck_interval: The time between two healthchecks, in milliseconds.
         proxy_cache_valid: The cache valid duration.
+        healthcheck_config: The healthcheck configuration.
     """
 
     hostname: typing.Annotated[
@@ -133,13 +191,8 @@ class LocationConfig(pydantic.BaseModel):
         pydantic.StringConstraints(min_length=1),
         pydantic.AfterValidator(_validate_path_value),
     ]
-    healthcheck_path: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_path_value),
-    ]
-    healthcheck_interval: int
     proxy_cache_valid: tuple[str, ...]
+    healthcheck_config: HealthcheckConfig
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
@@ -191,31 +244,14 @@ class LocationConfig(pydantic.BaseModel):
         backends_str = data.get(BACKENDS_FIELD_NAME, "").strip()
         fail_timeout = data.get(FAIL_TIMEOUT_FIELD_NAME, "").strip()
         backends_path = data.get(BACKENDS_PATH_FIELD_NAME, "").strip()
-        healthcheck_path = data.get(HEALTHCHECK_PATH_FIELD_NAME, "").strip()
-        healthcheck_interval = int(data.get(HEALTHCHECK_INTERVAL_FIELD_NAME, "-1").strip())
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
 
-        try:
-            proxy_cache_valid = json.loads(proxy_cache_valid_str)
-        except json.JSONDecodeError as err:
-            raise ConfigurationError(
-                f"Unable to parse proxy_cache_valid: {proxy_cache_valid_str}"
-            ) from err
+        proxy_cache_valid = _parse_list(
+            PROXY_CACHE_VALID_FIELD_NAME, proxy_cache_valid_str, raise_if_empty=False
+        )
+        backends = _parse_list(BACKENDS_FIELD_NAME, backends_str, raise_if_empty=True)
 
-        if not isinstance(proxy_cache_valid, list):
-            raise ConfigurationError(
-                f"The proxy_cache_valid is not a list: {proxy_cache_valid_str}"
-            )
-
-        try:
-            backends = json.loads(backends_str)
-        except json.decoder.JSONDecodeError as err:
-            raise ConfigurationError("Unable to parse backends as json") from err
-
-        if not isinstance(backends, list):
-            raise ConfigurationError("Unable to convert backends to list")
-        if not backends:
-            raise ConfigurationError("Empty backends found")
+        healthcheck_config = HealthcheckConfig.from_integration_data(data)
 
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
@@ -226,9 +262,8 @@ class LocationConfig(pydantic.BaseModel):
                 protocol=protocol,  # type: ignore
                 fail_timeout=fail_timeout,
                 backends_path=backends_path,
-                healthcheck_path=healthcheck_path,
-                healthcheck_interval=healthcheck_interval,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
+                healthcheck_config=healthcheck_config,
             )
         except pydantic.ValidationError as err:
             err_msg = [
@@ -236,6 +271,33 @@ class LocationConfig(pydantic.BaseModel):
             ]
             logger.error("Found integration data error: %s", err_msg)
             raise ConfigurationError(f"Config error: {err_msg}") from err
+
+
+def _parse_list(field_name: str, json_str: str, raise_if_empty: bool = True) -> tuple[typing.Any]:
+    """Parse a json string to a list.
+
+    Args:
+        field_name: The field name parse to raise meaningful exception.
+        json_str: The json string to parse to a list.
+        raise_if_empty: Raise error if list is empty.
+
+    Raises:
+        ConfigurationError: The configuration is not valid.
+    """
+    try:
+        valid_list = json.loads(json_str)
+    except json.JSONDecodeError as err:
+        raise ConfigurationError(
+            f"Unable to parse {field_name} config as json: {json_str}"
+        ) from err
+
+    if not isinstance(valid_list, list):
+        raise ConfigurationError(f"Unable to convert {field_name} config to list: {json_str}")
+
+    if raise_if_empty and not valid_list:
+        raise ConfigurationError(f"{field_name} config cannot be empty.")
+
+    return tuple(valid_list)
 
 
 def _check_nginx_time_str(time_str: str) -> None:

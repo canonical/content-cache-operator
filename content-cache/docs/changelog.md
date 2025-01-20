@@ -1,5 +1,12 @@
 # Changelog
 
+## 2025-01-13
+
+### **Added**
+
+- Support for healthcheck-valid-status configuration.
+- Support for healthcheck-ssl-verify configuration.
+
 ## 2024-12-18
 
 ### **Added**

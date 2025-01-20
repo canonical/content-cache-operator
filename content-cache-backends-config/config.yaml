@@ -37,16 +37,27 @@ options:
       The path part of the URL to query the backends.
     type: string
     default: /
-  healthcheck-path:
-    description: |
-      The path part of the URL to query the healthcheck endpoint.
-    type: string
-    default: /
   healthcheck-interval:
     description: |
       The time between two health checks (in milliseconds)
     type: int
     default: 10000
+  healthcheck-path:
+    description: |
+      The path part of the URL to query the healthcheck endpoint.
+    type: string
+    default: /
+  healthcheck-ssl-verify:
+    description: |
+      A boolean to bypass ssl verification for healthchecks.
+    type: boolean
+    default: true
+  healthcheck-valid-status:
+    description: |
+      A comma-separated list of HTTP response code(s) which are considered as valid during 
+      health checks.
+    type: string
+    default: '200'
   proxy-cache-valid:
     description: |
       A list of HTTP response code(s) followed by a cache valid duration. For example ["200 302 1h

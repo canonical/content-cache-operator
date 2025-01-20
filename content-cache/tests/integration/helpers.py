@@ -19,13 +19,16 @@ from state import CACHE_CONFIG_INTEGRATION_NAME, CERTIFICATE_INTEGRATION_NAME
 logger = logging.getLogger(__name__)
 
 TEST_SERVER_PATH = Path("tests/integration/scripts/test_server.py")
+TEST_SERVER_CERTIFICATE = Path("tests/integration/scripts/certificate.pem")
 
 HOSTNAME_CONFIG_NAME = "hostname"
 PATH_CONFIG_NAME = "path"
 BACKENDS_CONFIG_NAME = "backends"
 BACKENDS_PATH_CONFIG_NAME = "backends-path"
-HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
 HEALTHCHECK_INTERVAL_CONFIG_NAME = "healthcheck-interval"
+HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
+HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
+HEALTHCHECK_VALID_STATUS_CONFIG_NAME = "healthcheck-valid-status"
 PROTOCOL_CONFIG_NAME = "protocol"
 FAIL_TIMEOUT_CONFIG_NAME = "fail-timeout"
 PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
@@ -166,7 +169,7 @@ class CacheTester:
 
 
 async def deploy_http_app(
-    app_name: str, path: str, status: int, message: str, model: Model
+    app_name: str, path: str, status: int, message: str, model: Model, https: bool = False
 ) -> Application:
     """Deploy a testing HTTP server application for testing.
 
@@ -178,11 +181,20 @@ async def deploy_http_app(
         status: The status code for the test response.
         message: The message in the test response.
         model: The model to deploy the any charm.
+        https: Run server in HTTPS mode on port 443.
 
     Returns:
         The juju application with the testing HTTP server.
     """
+    if https:
+        port = 443
+        flags = "--https"
+    else:
+        port = 80
+        flags = ""
+
     test_server_content = TEST_SERVER_PATH.read_text()
+    certificate_content = TEST_SERVER_CERTIFICATE.read_text()
     any_charm_content = textwrap.dedent(
         f'''
     import logging
@@ -218,7 +230,7 @@ async def deploy_http_app(
                     User=root
                     ExecStart=/usr/bin/env python3 """
                     + str(test_server_path)
-                    + """ --path {path} --status {status} --message {message}
+                    + """ --path {path} --status {status} --message {message} --port {port} {flags}
                     Restart=on-failure
 
                     [Install]
@@ -245,6 +257,7 @@ async def deploy_http_app(
     src_overwrite = {
         "test_server.py": test_server_content,
         "any_charm.py": any_charm_content,
+        "certificate.pem": certificate_content,
     }
 
     app: Application
