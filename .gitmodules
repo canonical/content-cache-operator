@@ -1,0 +1,6 @@
+[submodule "content-cache/vendor/lua-resty-upstream-healthcheck"]
+	path = content-cache/vendor/lua-resty-upstream-healthcheck
+	url = https://github.com/openresty/lua-resty-upstream-healthcheck.git
+[submodule "content-cache/vendor/lua-upstream-nginx-module"]
+	path = content-cache/vendor/lua-upstream-nginx-module
+	url = https://github.com/openresty/lua-upstream-nginx-module
