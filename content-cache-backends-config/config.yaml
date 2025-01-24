@@ -1,0 +1,68 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+# This file defines charm config options, and populates the Configure tab on Charmhub.
+# If your charm does not require configuration options, delete this file entirely.
+#
+# See https://juju.is/docs/config for guidance.
+
+options:
+  hostname:
+    description: |
+      The hostname for the virtual host for this set of backends.
+    type: string
+  path:
+    description: |
+      The location to serve with this set of backends. Does not support regex.
+    type: string
+    default: /
+  backends:
+    description: |
+      A comma-separated list of IPs. If multiple IPs are provided, the access to the backends will 
+      be load-balanced.
+    type: string
+  protocol:
+    description: |
+      The protocol to request the backends. Can be http or https.
+    type: string
+    default: https
+  fail-timeout:
+    description: |
+      The time to wait before using a backend after failure. The other backend will be used 
+      instead. No effect if only one backend is specified. The value should a positive int followed 
+      by s for seconds, m for minutes, or h for hours.
+    type: string
+    default: 30s
+  backends-path:
+    description: |
+      The path part of the URL to query the backends.
+    type: string
+    default: /
+  healthcheck-interval:
+    description: |
+      The time between two health checks (in milliseconds)
+    type: int
+    default: 10000
+  healthcheck-path:
+    description: |
+      The path part of the URL to query the healthcheck endpoint.
+    type: string
+    default: /
+  healthcheck-ssl-verify:
+    description: |
+      A boolean to bypass ssl verification for healthchecks.
+    type: boolean
+    default: true
+  healthcheck-valid-status:
+    description: |
+      A comma-separated list of HTTP response code(s) which are considered as valid during 
+      health checks.
+    type: string
+    default: '200'
+  proxy-cache-valid:
+    description: |
+      A list of HTTP response code(s) followed by a cache valid duration. For example ["200 302 1h
+      "", "404 1m"], which would mean 200 and 302 responses are cached for 1 hour and 404 responses
+      are cached for 1 minute. This configuration is passed to nginx proxy-cache-valid
+      (https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid).
+    type: string
+    default: '[]'

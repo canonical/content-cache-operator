@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+%:
+	dh $@ --with=nginx --with-lua --buildsystem=nginx_mod
+
+override_dh_auto_configure:
+	dh_auto_configure --buildsystem=nginx_mod -- --with-cc-opt="-I/usr/include/lua5.1 -I$(CURDIR)/debian/"
+
+override_dh_auto_test:

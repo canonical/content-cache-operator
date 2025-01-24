@@ -1,8 +1,0 @@
-1
-# be_id be_name srv_id srv_name srv_addr srv_op_state srv_admin_state srv_uweight srv_iweight srv_time_since_last_change srv_check_status srv_check_result srv_check_health srv_check_state srv_agent_state bk_f_forced_id srv_f_forced_id srv_fqdn srv_port srvrecord
-6 backend-cached-ubuntu-com 1 server_1 127.0.0.1 2 0 1 1 352503 15 3 6 6 0 0 0 - 6085 -
-7 backend-ubuntu-com 1 server_1 91.189.91.44 2 0 1 1 2529146 15 3 6 6 0 0 0 - 443 -
-7 backend-ubuntu-com 2 server_2 91.189.91.45 2 0 1 1 2529146 15 3 6 6 0 0 0 - 443 -
-8 MASTER 1 cur-1 - 2 0 0 0 2529146 1 0 0 0 0 0 0 - 0 -
-8 MASTER 2 old-1186 - 2 0 0 0 2529146 1 0 0 0 0 0 0 - 0 -
-

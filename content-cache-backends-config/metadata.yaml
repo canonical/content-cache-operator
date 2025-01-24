@@ -1,0 +1,36 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+# This file populates the Overview on Charmhub.
+# See https://juju.is/docs/sdk/metadata-reference for a checklist and guidance.
+
+# The charm package name, no spaces (required)
+# See https://juju.is/docs/sdk/naming#heading--naming-charms for guidance.
+name: content-cache-backends-config
+
+# The following metadata are human-readable and will be published prominently on Charmhub.
+
+# (Recommended)
+display-name: Content Cache Backends Config
+
+# (Required)
+summary: Provides configuration to the Content Cache charm.
+docs: https://discourse.charmhub.io/t/content-cache-backends-config-documentation-overview/15991
+issues: https://github.com/canonical/content-cache-backends-config-operator/issues
+maintainers: 
+  - https://launchpad.net/~canonical-is-devops
+source: https://github.com/canonical/content-cache-backends-config-operator
+
+description: |
+  Provides configuration for a location the associated set of backends to the Content Cache charm.
+  
+  This charm is a subordinate charm to the Content Cache charm. This charm should be integrated 
+  with the Content Cache charm to inject the charm configuration of this charm. For more 
+  information see the Content Cache charm.
+
+subordinate: true
+
+requires:
+  cache-config:
+    interface: content-cache-config
+    scope: container
+    limit: 1
