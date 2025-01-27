@@ -207,6 +207,7 @@ class ContentCacheCharm(ops.CharmBase):
         """
         try:
             nginx_manager.initialize(self._get_instance_name())
+            self.unit.set_ports(80, 443)
         except NginxSetupError:
             logger.exception("Failed to initialize nginx, going to error state for retries")
             raise
