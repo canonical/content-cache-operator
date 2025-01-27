@@ -147,6 +147,7 @@ class ContentCacheCharm(ops.CharmBase):
                 self.certificates,
             )
             logger.info("Found all certificate requested")
+            self.unit.open_port("tcp", 443)
         except TLSCertificateIntegrationNotExistError:
             logger.info("Skipping TLS certificates as tls-certificate integration not found")
         except TLSCertificateFileError:
@@ -207,6 +208,7 @@ class ContentCacheCharm(ops.CharmBase):
         """
         try:
             nginx_manager.initialize(self._get_instance_name())
+            self.unit.open_port("tcp", 80)
         except NginxSetupError:
             logger.exception("Failed to initialize nginx, going to error state for retries")
             raise
