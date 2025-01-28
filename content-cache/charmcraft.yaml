@@ -13,7 +13,8 @@ platforms:
 parts:
   nginx-module-lua-upstream:
     plugin: dump
-    source: lua-upstream-nginx-module-packaging
+    source: https://github.com/openresty/lua-upstream-nginx-module.git
+    source-commit: 07b11be7a2e6e1b75209745915a84d281737d4d7 # nginxUpstreamLuaModuleCommit <- DO NOT REMOVE, used by renovate
     build-packages:
       - git
       - dpkg-dev
@@ -23,16 +24,8 @@ parts:
       - dh-lua
     override-build: |
       set -eux
-
-      # Fetch the module to compile
-      repo=lua-upstream-nginx-module
-      rm -Rf $repo
-      git clone https://github.com/openresty/$repo
-      cd $repo
-      git checkout 07b11be7a2e6e1b75209745915a84d281737d4d7
-
       # Build package
-      cp -R ../debian .
+      cp -R /root/parts/charm/src/lua-upstream-nginx-module-packaging/debian .
       curl https://raw.githubusercontent.com/openresty/lua-nginx-module/f44c18859050be5af314bae8f05660478af5e31d/src/api/ngx_http_lua_api.h -O --output-dir debian/
       dpkg-buildpackage -us -uc
       cp ../libnginx-mod-http-upstream_0.1_amd64.deb /root/stage
@@ -41,7 +34,7 @@ parts:
   nginx-upstream-healthcheck:
     plugin: dump
     source: https://github.com/openresty/lua-resty-upstream-healthcheck.git
-    source-commit: 7924b2abbcc3269423611e6d7aa66be28f4076f0
+    source-commit: 7924b2abbcc3269423611e6d7aa66be28f4076f0 # luaHealthchecksCommit <- DO NOT REMOVE, used by renovate
     override-build:
       cp /root/parts/nginx-upstream-healthcheck/src/lib/resty/upstream/healthcheck.lua /root/stage/
     prime:
