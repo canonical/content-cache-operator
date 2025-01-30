@@ -1,6 +1,35 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "group:all"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^content-cache/charmcraft.yaml$"],
+      "description": "Update upstream-healthcheck dependency",
+      "matchStringsStrategy": "any",
+      "matchStrings": [
+        "source-commit:\\s*\"?(?<currentDigest>[a-f0-9]{40})\"? # luaHealthchecksCommit"
+      ],
+      "currentValueTemplate": "master",
+      "depNameTemplate": "luaHealthchecksRepo",
+      "datasourceTemplate": "git-refs",
+      "packageNameTemplate": "https://github.com/openresty/lua-resty-upstream-healthcheck.git"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^content-cache/charmcraft.yaml$"],
+       "description": "Update nginx-upstream-healthcheck dependency",
+      "currentValueTemplate": "master",
+      "matchStringsStrategy": "any",
+      "matchStrings": [
+        "source-commit:\\s*\"?(?<currentDigest>[a-f0-9]{40})\"? # nginxUpstreamLuaModuleCommit"
+      ],
+      "depNameTemplate": "nginxUpstreamLuaModuleRepo",
+      "datasourceTemplate": "git-refs",
+      "packageNameTemplate": "https://github.com/openresty/lua-upstream-nginx-module.git"
+    }
   ]
 }
