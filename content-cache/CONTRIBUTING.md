@@ -28,7 +28,7 @@ For integration tests, you can use the `--config-charm-file` to speed up tests:
 tox run -e integration -- --config-charm-file=../content-cache-backends-config/content-cache-backends-config_amd64.charm
 ```
 
-If you're iterating on integration tests, you can reuse existing resources with a command like the following one that will re-use the same model to run the basic tests:
+If you're iterating on integration tests, you can reuse existing resources with a command like the following one that will reuse the same model to run the basic tests:
 
 ```shell
 tox run -e integration -- --charm-file=content-cache_amd64.charm --config-charm-file=../content-cache-backends-config/content-cache-backends-config_amd64.charm --keep-models --model test-cc --no-deploy -k test_basic
