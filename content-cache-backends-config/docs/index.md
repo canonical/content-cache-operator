@@ -1,4 +1,6 @@
-NOTE: This charm works with the a WIP content-cache charm rewrite. This charm does not work with the current content-cache charm.
+[note]
+ This charm works with the a WIP content-cache charm rewrite. This charm does not work with the current content-cache charm.
+ [/note]
 
 This charm is a subordinate charm to the Content Cache charm. This charm provides the Content Cache charm with the configuration required to expose a set of backend service behind caching capabilities of the Content Cache charm. For more information see the [Content Cache charm](https://charmhub.io/content-cache).
 

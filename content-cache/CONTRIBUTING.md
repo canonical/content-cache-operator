@@ -134,6 +134,7 @@ that can be used for linting and formatting code when you're preparing contribut
 * ``tox -e lint``: Runs a range of static code analysis to check the code.
 * ``tox -e static``: Runs other checks such as ``bandit`` for security issues.
 * ``tox run -e integration``: Runs integration tests.
+* `tox -e unit`: Runs the unit tests.
 
 For integration tests, you can use the `--config-charm-file` to speed up tests:
 
