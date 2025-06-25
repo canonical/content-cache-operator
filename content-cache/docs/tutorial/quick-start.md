@@ -1,4 +1,4 @@
-# Deploy Content Cache
+# Deploy content-cache
 
 The content-cache charm makes deploying and managing a static web content cache with nginx easy with the help of [Juju](https://juju.is/) [charm](https://juju.is/docs/olm/charmed-operators).
 
@@ -18,7 +18,7 @@ using a Multipass VM as outlined in this guide:
 
 ## Steps
 
-- Pack the Content Cache charm. Run the following command at the root of the git repo.
+- Pack the Content Cache charm. Run the following command at the root of the git repository.
 The version of the charm is an unreleased rewrite of the charm.
 In the future, it will be available on charmhub.
 
@@ -39,7 +39,7 @@ juju deploy content-cache-backends-config --channel=latest/edge --revision=5 bac
 juju config backends backends=185.125.90.20 hostname=ubuntu.com protocol=https
 ```
 
-The `backends` takes a comma-separated list of IPs, and `protocol` can be set to `http` or `https`.
+The `backends` takes a comma-separated list of IP addresses, and `protocol` can be set to `http` or `https`.
 The above configuration ask the nginx to cache the content from `https://185.125.90.20`.
 The configuration can be changed to point to a different server.
 The Juju machine hosting the Content Cache charm needs to be able to access the server, for the charm to work.

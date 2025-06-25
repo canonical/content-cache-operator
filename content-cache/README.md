@@ -8,7 +8,7 @@ Avoid using this README file for information that is maintained or published els
 Use links instead.
 -->
 
-# Content Cache Operator
+# Content-cache operator
 
 A [Juju](https://juju.is/) [charm](https://juju.is/docs/olm/charmed-operators) deploying and managing a static web content cache with nginx.
 
