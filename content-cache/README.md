@@ -8,7 +8,9 @@ Avoid using this README file for information that is maintained or published els
 Use links instead.
 -->
 
-# Content-cache operator
+<!-- vale Canonical.007-Headings-sentence-case = NO -->
+# Content Cache Operator
+<!-- vale Canonical.007-Headings-sentence-case = YES -->
 
 A [Juju](https://juju.is/) [charm](https://juju.is/docs/olm/charmed-operators) deploying and managing a static web content cache with nginx.
 
