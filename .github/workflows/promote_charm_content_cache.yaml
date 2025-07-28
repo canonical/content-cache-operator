@@ -24,4 +24,8 @@ jobs:
       origin-channel: ${{ github.event.inputs.origin-channel }}
       destination-channel: ${{ github.event.inputs.destination-channel }}
       working-directory: ./content-cache
+      base-channel: 24.04
+      base-name: ubuntu
+      base-architecture: amd64
+      doc-automation-disabled: false
     secrets: inherit
