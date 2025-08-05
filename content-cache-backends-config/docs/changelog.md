@@ -8,7 +8,7 @@
 
 ## 2025-01-13
 
-### ** Added**
+### **Added**
 
 - Support for healthcheck-valid-status charm configurations.
 - Support for healthcheck-ssl-verify charm configurations.
