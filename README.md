@@ -1,4 +1,4 @@
-# Content Cache
+# Content cache charms
 
 This repository contains the code for two charms:
 1. `content-cache`: A machine charm managing a nginx instance configured as a content cache. See the [content-cache README](content-cache/README.md) for more information.

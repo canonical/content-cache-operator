@@ -8,7 +8,7 @@ Avoid using this README file for information that is maintained or published els
 Use links instead.
 -->
 
-# Content Cache Backends Config Operator
+# Content cache backends config operator
 
 A [Juju](https://juju.is/) [subordinate](https://juju.is/docs/sdk/charm-taxonomy#heading--subordinate-charms) [charm](https://juju.is/docs/olm/charmed-operators) to the [Content Cache charm](https://charmhub.io/content-cache) which provides the Content Cache charm with the configuration required to expose a set of backend services behind caching capabilities of the Content Cache charm.
 
