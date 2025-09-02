@@ -483,7 +483,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
             upstream = "{upstream}",
             type = "{config.protocol.value}",
 
-            http_req = "GET {config.healthcheck_config.path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",
+            http_req = "GET {config.healthcheck_config.path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",  # noqa: line-too-long
 
             port = {getservbyname(config.protocol.value)},
             interval = {config.healthcheck_config.interval},
