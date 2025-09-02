@@ -483,7 +483,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
             upstream = "{upstream}",
             type = "{config.protocol.value}",
 
-            http_req = "GET {config.healthcheck_config.path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",  # noqa: line-too-long
+            http_req = "GET {config.healthcheck_config.path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",
 
             port = {getservbyname(config.protocol.value)},
             interval = {config.healthcheck_config.interval},
@@ -499,7 +499,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
             ngx.log(ngx.ERR, "failed to spawn health checker: ", err)
             return
         end
-    """
+    """  # noqa: line-too-long
 
 
 def _get_location_config_keys(
