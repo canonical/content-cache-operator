@@ -107,4 +107,4 @@ To add signatures on your commits, follow the
 Please refer to the charm specific guides:
 
 - [content-cache/CONTRIBUTING.md](content-cache/CONTRIBUTING.md)
-- [content-cache-backend-configs/CONTRIBUTING.md](content-cache-backends-configs/CONTRIBUTING.md)
+- [content-cache-backend-configs/CONTRIBUTING.md](content-cache-backends-config/CONTRIBUTING.md)
