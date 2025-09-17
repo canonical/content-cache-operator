@@ -27,8 +27,6 @@ When contributing, you must abide by the
 
 ## Releases and versions
 
-This project uses [semantic versioning](https://semver.org/).
-
 Please ensure that any new feature, fix, or significant change is documented by
 adding an entry to the [CHANGELOG.md](https://github.com/canonical/content-cache-operator/blob/main/CHANGELOG.md) file.
 
