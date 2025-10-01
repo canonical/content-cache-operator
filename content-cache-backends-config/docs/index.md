@@ -1,6 +1,8 @@
-[note]
- This charm works with the a WIP content-cache charm rewrite. This charm does not work with the current content-cache charm.
- [/note]
+# Content Cache Backends Config Operator
+
+NOTES: This charm works with the a WIP content-cache charm rewrite. This charm does not work with the current content-cache charm.
+
+<!-- A single sentence that says what the product is, succinctly and memorably. Add a 1-2 sentence description of what the charm software does. -->
 
 This charm is a subordinate charm to the Content Cache charm. This charm provides the Content Cache charm with the configuration required to expose a set of backend service behind caching capabilities of the Content Cache charm. For more information see the [Content Cache charm](https://charmhub.io/content-cache).
 
@@ -18,7 +20,7 @@ either directly change something you see that's wrong, ask a question or make a 
 the comments section.
 
 If there's a particular area of documentation that you'd like to see that's missing, please 
-[file a bug](https://github.com/canonical/content-cache-operator/issues).
+[file a bug](https://github.com/canonical/content-cache-backends-config-operator/issues).
 
 ## Project and community
 
@@ -32,3 +34,5 @@ projects, contributions, suggestions, fixes, and constructive feedback.
 
 Thinking about using the Content Cache Backends Config Operator for your next project? 
 [Get in touch](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)!
+
+# Contents
