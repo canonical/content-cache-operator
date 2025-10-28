@@ -25,3 +25,9 @@ jobs:
       juju-channel: 3.6/stable
       provider: lxd
       working-directory: ./content-cache-backends-config
+  allure-report:
+    if: always() && !cancelled()
+    needs:
+      - integration-tests
+      - build-content-cache-backends-config
+    uses: canonical/operator-workflows/.github/workflows/allure_report.yaml@main
