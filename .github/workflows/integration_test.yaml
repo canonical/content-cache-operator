@@ -2,11 +2,14 @@ name: Integration tests
 
 on:
   pull_request:
+  schedule:
+  - cron: "0 15 * * SAT"
 
 jobs:
   # This test the content-cache and content-cache-backends-config charms together.
   integration-tests:
-    uses: canonical/operator-workflows/.github/workflows/integration_test.yaml@main
+    uses: 
+      canonical/operator-workflows/.github/workflows/integration_test.yaml@main
     secrets: inherit
     with:
       juju-channel: 3.6/stable
@@ -19,15 +22,16 @@ jobs:
   build-content-cache-backends-config:
     # Only build if the integration test succeeds.
     needs: integration-tests
-    uses: canonical/operator-workflows/.github/workflows/integration_test.yaml@main
+    uses: 
+      canonical/operator-workflows/.github/workflows/integration_test.yaml@main
     secrets: inherit
     with:
       juju-channel: 3.6/stable
       provider: lxd
       working-directory: ./content-cache-backends-config
   allure-report:
-    if: always() && !cancelled()
+    if: ${{ !cancelled() && github.event_name == 'schedule' }}
     needs:
-      - integration-tests
-      - build-content-cache-backends-config
+    - integration-tests
+    - build-content-cache-backends-config
     uses: canonical/operator-workflows/.github/workflows/allure_report.yaml@main
