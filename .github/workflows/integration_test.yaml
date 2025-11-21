@@ -30,7 +30,7 @@ jobs:
       provider: lxd
       working-directory: ./content-cache-backends-config
   allure-report:
-    if: ${{ (success() || failure()) && github.event_name == 'schedule' }}
+    if: ${{ !cancelled() && github.event_name == 'schedule' }}
     needs:
     - integration-tests
     - build-content-cache-backends-config
