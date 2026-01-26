@@ -15,7 +15,7 @@ jobs:
       juju-channel: 3.6/stable
       provider: lxd
       modules: '["test_basic", "test_tls_cert", "test_healthchecks", "test_metric"]'
-      working-directory: ./content-cache
+      working-directory: ./content-cache/
       self-hosted-runner: true
       self-hosted-runner-label: "edge"
   # This is for building the content-cache-backends-config charm for the publish charm workflow.
@@ -28,7 +28,7 @@ jobs:
     with:
       juju-channel: 3.6/stable
       provider: lxd
-      working-directory: ./content-cache-backends-config
+      working-directory: ./content-cache-backends-config/
   allure-report:
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     needs:
