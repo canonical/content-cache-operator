@@ -3,7 +3,6 @@
 
 """Test setup."""
 
-
 from pytest import Parser
 
 

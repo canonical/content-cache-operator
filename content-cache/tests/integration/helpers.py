@@ -195,8 +195,7 @@ async def deploy_http_app(
 
     test_server_content = TEST_SERVER_PATH.read_text()
     certificate_content = TEST_SERVER_CERTIFICATE.read_text()
-    any_charm_content = textwrap.dedent(
-        f'''
+    any_charm_content = textwrap.dedent(f'''
     import logging
     import os
     import subprocess
@@ -251,8 +250,7 @@ async def deploy_http_app(
             self.generate_config()
             subprocess.run(["systemctl", "daemon-reload"])
             subprocess.run(["systemctl", "restart", SERVICE_NAME])
-    '''
-    )
+    ''')
 
     src_overwrite = {
         "test_server.py": test_server_content,

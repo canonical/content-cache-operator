@@ -3,7 +3,6 @@
 
 """Fixture for integration tests."""
 
-
 import asyncio
 import logging
 import secrets
