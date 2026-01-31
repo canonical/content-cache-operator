@@ -1,0 +1,52 @@
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+  config (not enough units yet - 0/1)
+[32mINFO    [0m tests.integration.helpers:helpers.py:140 Querying cache on http://10.68.111.15/ with Host: test.healthchecks.local
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+[32mINFO    [0m pytest_operator.plugin:plugin.py:951 Model status:
+
+Model                   Controller           Cloud/Region         Version  SLA          Timestamp
+test-healthchecks-qsac  github-pr-ae2d8-lxd  localhost/localhost  3.6.14   unsupported  15:36:52Z
+
+App         Version  Status   Scale  Charm                          Channel      Rev  Exposed  Message
+cache                blocked      1  content-cache                                 0  no       Waiting for integration with config charm
+cert                 active       1  self-signed-certificates       latest/edge  533  no       
+config               unknown      0  content-cache-backends-config                 0  no       
+config-alt           unknown      0  content-cache-backends-config                 1  no       
+http-ok              active       2  any-charm                      latest/beta  133  no       
+https-ok             active       1  any-charm                      latest/beta  133  no       
+metric               unknown      0  grafana-agent                  1/stable     605  no       
+
+Unit         Workload  Agent  Machine  Public address  Ports       Message
+cache/0*     blocked   idle   1        10.68.111.15    80,443/tcp  Waiting for integration with config charm
+cert/0*      active    idle   0        10.68.111.193               
+http-ok/0*   active    idle   2        10.68.111.252               
+http-ok/1    active    idle   3        10.68.111.57                
+https-ok/0*  active    idle   4        10.68.111.120               
+
+Machine  State    Address        Inst id        Base          AZ             Message
+0        started  10.68.111.193  juju-7352dd-0  ubuntu@22.04  github-runner  Running
+1        started  10.68.111.15   juju-7352dd-1  ubuntu@24.04  github-runner  Running
+2        started  10.68.111.252  juju-7352dd-2  ubuntu@24.04  github-runner  Running
+3        started  10.68.111.57   juju-7352dd-3  ubuntu@24.04  github-runner  Running
+4        started  10.68.111.120  juju-7352dd-4  ubuntu@24.04  github-runner  Running
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:957 Juju error logs:
+
+machine-0: 15:24:43 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-0: 15:24:43 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-1: 15:24:50 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-1: 15:24:50 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-2: 15:26:19 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-2: 15:26:19 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-3: 15:27:18 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-3: 15:27:18 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-4: 15:34:44 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-4: 15:34:44 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-1: 15:35:12 ERROR juju.worker.dependency "log-sender" manifold worker returned unexpected error: sending log message: websocket: close 1005 (no status): websocket: close sent
+unit-cache-0: 15:35:12 ERROR juju.worker.dependency "log-sender" manifold worker returned unexpected error: sending log message: websocket: close 1005 (no status): websocket: close sent
+unit-http-ok-0: 15:36:37 ERROR juju.worker.dependency "log-sender" manifold worker returned unexpected error: sending log message: write tcp 10.68.111.252:51348->10.68.111.16:17070: write: broken pipe
+machine-2: 15:36:37 ERROR juju.worker.dependency "log-sender" manifold worker returned unexpected error: sending log message: websocket: close 1005 (no status): websocket: close sent
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:1039 Forgetting model main...
