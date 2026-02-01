@@ -519,6 +519,7 @@ def _get_location_config_keys(
     keys = [
         nginx.Key("proxy_pass", f"{config.protocol.value}://{upstream}{config.backends_path}"),
         nginx.Key("proxy_set_header", f'Host "{host}"'),
+        nginx.Key("proxy_cache_revalidate", "on"),
     ]
 
     for cache_valid in config.proxy_cache_valid:
