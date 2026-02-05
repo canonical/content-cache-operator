@@ -32,3 +32,11 @@ Thinking about using the Content Cache Operator for your next project?
 [Get in touch](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)!
 
 # Contents
+
+1. [Tutorial](tutorial)
+  1. [Getting started](tutorial/tutorial.md)
+1. [How-to](how-to)
+  1. [Contribute](how-to/contribute.md)
+  2. [Enable COS](how-to/enable-cos.md)
+  3. [Enable HTTPS](how-to/enable-https.md)
+  4. [Upgrade](how-to/upgrade.md)
