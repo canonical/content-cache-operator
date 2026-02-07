@@ -1,0 +1,45 @@
+[33mWARNING [0m juju.client.connection:connection.py:858 unexpected facade SSHServer received from the controller
+[32mINFO    [0m pytest_operator.plugin:plugin.py:762 Adding model github-pr-4de84-lxd:test-tls-cert-6a01 on cloud localhost
+[33mWARNING [0m juju.client.connection:connection.py:858 unexpected facade SSHServer received from the controller
+[33mWARNING [0m juju.client.connection:connection.py:858 unexpected facade SSHSession received from the controller
+[33mWARNING [0m juju.client.connection:connection.py:858 unexpected facade SSHTunneler received from the controller
+[32mINFO    [0m pytest_operator.plugin:plugin.py:621 Using tmp_path: /home/ubuntu/actions-runner/_work/content-cache-operator/content-cache-operator/content-cache/.tox/integration/tmp/pytest/test-tls-cert-6a010
+[32mINFO    [0m pytest_operator.plugin:plugin.py:1212 Building charm content-cache-backends-config
+[32mINFO    [0m pytest_operator.plugin:plugin.py:1217 Built charm content-cache-backends-config in 120.19s
+[32mINFO    [0m juju.model:__init__.py:2301 Deploying ch:amd64/jammy/self-signed-certificates-533
+[32mINFO    [0m juju.model:__init__.py:2301 Deploying ch:amd64/noble/grafana-agent-605
+[32mINFO    [0m juju.model:__init__.py:2301 Deploying local:content-cache-backends-config-1
+[32mINFO    [0m juju.model:__init__.py:2301 Deploying local:content-cache-backends-config-0
+[32mINFO    [0m juju.model:__init__.py:2301 Deploying local:content-cache-0
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [allocating] waiting: waiting for machine
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [allocating] waiting: waiting for machine
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cert/0 [idle] active: 
+[32mINFO    [0m juju.model:__init__.py:2301 Deploying ch:amd64/noble/any-charm-133
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  http-ok/0 [allocating] waiting: waiting for machine
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  http-ok/0 [allocating] waiting: waiting for machine
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+  config (not enough units yet - 0/1)
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] maintenance: Nginx is not ready
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] maintenance: Nginx is not ready
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] maintenance: Nginx is not ready
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] maintenance: Nginx is not ready
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] maintenance: Nginx is not ready
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] maintenance: Nginx is not ready
+[32mINFO    [0m tests.integration.helpers:helpers.py:140 Querying cache on https://10.160.163.112/ with Host: test.8a6e.local
+[32mINFO    [0m tests.integration.helpers:helpers.py:140 Querying cache on http://10.160.163.112/ with Host: test.8a6e.local
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
