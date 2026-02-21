@@ -1,0 +1,107 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"
+    arrange: A working application of content-cache charm integrated with config charm.
+    act:
+        1. Integrate with grafana-agent charm.
+        2. Remove integration with grafana-agent charm.
+    assert:
+        1. Charms in active status.
+        2. Charms in active status.
+    ","68146","test_integrate_with_cos","tests.integration","2026-02-21","passed","2026-02-21","","test_metric","",""
+"
+    arrange: A working application of content-cache charm, with no integrations.
+    act:
+        1. Integrate with the configuration charm with configuration set.
+        2. Wait for a while, then query again.
+        3. Wait until the cache expires, then query again.
+        4. Remove the configuration on the configuration charm.
+        5. Remove the integration between the charms.
+    assert:
+        1. The request to the cache should succeed.
+        2. The timestamp of the response should be the same as last request.
+        3. The timestamp of the response should be refreshed.
+        4. The configuration charm should be in blocked state. The content-cache charm will be
+            serving according to the old configuration.
+        5. The application in blocked status waiting for integration.
+    ","68250","test_charm_integrate_with_data","tests.integration","2026-02-21","passed","2026-02-21","","test_basic","",""
+"
+    arrange: One backend responding 418 on its healthcheck. And valid status to match it or not.
+    act: Nothing.
+    assert: HTTP request should fail as 200 is not a valid status here.
+    ","33447","test_healthchecks_custom_status[healthy]","tests.integration","2026-02-21","passed","2026-02-21","","test_healthchecks","",""
+"
+    arrange: A working application of content-cache charm with configurations. The backends
+        configuration has non-existence server and a fallback server.
+    act: Make a request to the content-cache.
+    assert: The fallback server respond with the output.
+    ","23387","test_charm_with_failover","tests.integration","2026-02-21","passed","2026-02-21","","test_basic","",""
+"
+    arrange: Two backends responding 200 on their healthchecks.
+    act: Nothing.
+    assert: HTTP request should succeed and two backends are reported up in the status page.
+    ","131025","test_healthchecks_healthy","tests.integration","2026-02-21","passed","2026-02-21","","test_healthchecks","",""
+"
+    arrange: A working charm with integration with two configuration charms.
+    act: Make query to content cache for both configurations.
+    assert: Both request should succeed.
+    ","30210","test_charm_with_two_config_app","tests.integration","2026-02-21","passed","2026-02-21","","test_basic","",""
+"
+    arrange: Two backends responding 200 on their healthchecks.
+    act: Turn one backend unhealty.
+    assert: HTTP request should succeed. One backend is reported UP. One backend is reported DOWN.
+    ","9032","test_healthchecks_one_unhealthy","tests.integration","2026-02-21","passed","2026-02-21","","test_healthchecks","",""
+"
+    arrange: One backend responding 418 on its healthcheck. And valid status to match it or not.
+    act: Nothing.
+    assert: HTTP request should fail as 200 is not a valid status here.
+    ","34035","test_healthchecks_ssl_verify[no_ssl_verify]","tests.integration","2026-02-21","passed","2026-02-21","","test_healthchecks","",""
+"
+    arrange: A working application of content-cache charm no integration.
+    act: Integrate with configuration charm then TLS certificate charm.
+    assert: HTTPS request should succeed.
+    ","177518","test_integrate_with_data_then_cert","tests.integration","2026-02-21","passed","2026-02-21","","test_tls_cert","",""
+"
+    arrange: Two backends. One responding 200 on its healthcheck, and the other 500.
+    act: Bring back the faulty backend to an healthy state.
+    assert: HTTP request should succeed. Two backends are reported up.
+    ","7023","test_healthchecks_one_recovery","tests.integration","2026-02-21","passed","2026-02-21","","test_healthchecks","",""
+"
+    arrange: One backend responding 418 on its healthcheck. And valid status to match it or not.
+    act: Nothing.
+    assert: HTTP request should fail as 200 is not a valid status here.
+    ","34030","test_healthchecks_ssl_verify[ssl_verify]","tests.integration","2026-02-21","passed","2026-02-21","","test_healthchecks","",""
+"
+    arrange: A working application of content-cache charm integrated with config charm.
+    act: Makes some requests to the content-cache.
+    assert: The cache log contains the metrics.
+    ","228787","test_metric_log","tests.integration","2026-02-21","passed","2026-02-21","","test_metric","",""
+"
+    arrange: A working application of content-cache charm no integration.
+    act: Integrate with TLS certificate charm then configuration charm.
+    assert: HTTPS request should succeed.
+    ","26342","test_integrate_with_cert_then_data","tests.integration","2026-02-21","passed","2026-02-21","","test_tls_cert","",""
+"
+    arrange: A working application of content-cache charm, with no integrations, and a test HTTP
+        server.
+    act:
+        1. Integrate with the configuration charm.
+        2. Add configuration to the configuration charm.
+    assert:
+        1. The application in blocked status waiting for integration.
+        2. The request to the cache should succeed.
+    ","167650","test_charm_integrate_with_no_data","tests.integration","2026-02-21","passed","2026-02-21","","test_basic","",""
+"
+    arrange: One backend responding 418 on its healthcheck. And valid status to match it or not.
+    act: Nothing.
+    assert: HTTP request should fail as 200 is not a valid status here.
+    ","33454","test_healthchecks_custom_status[unhealthy]","tests.integration","2026-02-21","passed","2026-02-21","","test_healthchecks","",""
+"
+    arrange: The applications deployed.
+    act: Nothing.
+    assert: The applications in blocked status waiting for integration.
+    ","0","test_charm_start","tests.integration","2026-02-21","passed","2026-02-21","","test_basic","",""
+"
+    arrange: Two healthy backends.
+    act: Turn both backends unhealth.
+    assert: HTTP request should fail with 502. Both backends are reported DOWN.
+    ","11033","test_healthchecks_all_unhealthy","tests.integration","2026-02-21","passed","2026-02-21","","test_healthchecks","",""
