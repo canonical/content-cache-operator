@@ -1,0 +1,44 @@
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+  config (not enough units yet - 0/1)
+[32mINFO    [0m tests.integration.helpers:helpers.py:140 Querying cache on http://10.168.169.48/ with Host: test.5341.local
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+[32mINFO    [0m pytest_operator.plugin:plugin.py:951 Model status:
+
+Model            Controller           Cloud/Region         Version  SLA          Timestamp
+test-basic-9vlc  github-pr-c0ac1-lxd  localhost/localhost  3.6.14   unsupported  15:38:49Z
+
+App         Version  Status   Scale  Charm                          Channel      Rev  Exposed  Message
+cache                blocked      1  content-cache                                 0  no       Waiting for integration with config charm
+cert                 active       1  self-signed-certificates       latest/edge  601  no       
+config               unknown      0  content-cache-backends-config                 1  no       
+config-alt           unknown      0  content-cache-backends-config                 0  no       
+http-ok              active       1  any-charm                      latest/beta  133  no       
+metric               unknown      0  grafana-agent                  1/stable     605  no       
+
+Unit        Workload  Agent  Machine  Public address  Ports       Message
+cache/0*    blocked   idle   1        10.168.169.48   80,443/tcp  Waiting for integration with config charm
+cert/0*     active    idle   0        10.168.169.206              
+http-ok/0*  active    idle   2        10.168.169.104              
+
+Machine  State    Address         Inst id        Base          AZ             Message
+0        started  10.168.169.206  juju-709f66-0  ubuntu@22.04  github-runner  Running
+1        started  10.168.169.48   juju-709f66-1  ubuntu@24.04  github-runner  Running
+2        started  10.168.169.104  juju-709f66-2  ubuntu@24.04  github-runner  Running
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:957 Juju error logs:
+
+machine-1: 15:30:57 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-1: 15:30:57 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-0: 15:31:02 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-0: 15:31:02 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-2: 15:32:11 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-2: 15:32:11 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+unit-config-0: 15:32:39 ERROR unit.config/0.juju-log Configuration error: Empty backends configuration found
+unit-config-0: 15:32:41 ERROR unit.config/0.juju-log cache-config:2: Configuration error: Empty backends configuration found
+unit-config-1: 15:36:27 ERROR unit.config/1.juju-log Configuration error: Empty backends configuration found
+machine-1: 15:37:30 ERROR juju.worker.dependency "log-sender" manifold worker returned unexpected error: sending log message: websocket: close 1005 (no status): websocket: close sent
+unit-cache-0: 15:37:30 ERROR juju.worker.dependency "log-sender" manifold worker returned unexpected error: sending log message: websocket: close 1005 (no status): websocket: close sent
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:1039 Forgetting model main...
