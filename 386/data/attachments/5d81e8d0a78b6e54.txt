@@ -1,0 +1,1 @@
+[32mINFO    [0m tests.integration.helpers:helpers.py:140 Querying cache on http://10.211.16.102/ with Host: test.healthchecks.local
