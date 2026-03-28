@@ -1,0 +1,36 @@
+[32mINFO    [0m pytest_operator.plugin:plugin.py:951 Model status:
+
+Model            Controller           Cloud/Region         Version  SLA          Timestamp
+test-basic-jle3  github-pr-45e6f-lxd  localhost/localhost  3.6.20   unsupported  15:32:38Z
+
+App         Version  Status       Scale  Charm                          Channel      Rev  Exposed  Message
+cache                maintenance    0/1  content-cache                                 0  no       Nginx is not ready
+cert                 error            1  self-signed-certificates       latest/edge  601  no       hook failed: "update-status"
+config               active         0/1  content-cache-backends-config                 1  no       
+config-alt           unknown          0  content-cache-backends-config                 0  no       
+http-ok              active           1  any-charm                      latest/beta  133  no       
+metric               unknown          0  grafana-agent                  1/stable     605  no       
+
+Unit         Workload  Agent  Machine  Public address  Ports       Message
+cache/0*     unknown   lost   1        10.90.226.198   80,443/tcp  agent lost, see 'juju show-status-log cache/0'
+  config/0*  unknown   lost            10.90.226.198               agent lost, see 'juju show-status-log config/0'
+cert/0*      error     idle   0        10.90.226.148               hook failed: "update-status"
+http-ok/0*   active    idle   2        10.90.226.120               
+
+Machine  State    Address        Inst id        Base          AZ             Message
+0        started  10.90.226.148  juju-fdf5c8-0  ubuntu@22.04  github-runner  Running
+1        down     10.90.226.198  juju-fdf5c8-1  ubuntu@24.04  github-runner  Running
+2        started  10.90.226.120  juju-fdf5c8-2  ubuntu@24.04  github-runner  Running
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:957 Juju error logs:
+
+machine-1: 15:27:08 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-1: 15:27:08 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-0: 15:27:17 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-0: 15:27:17 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-2: 15:28:22 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-2: 15:28:22 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+unit-config-0: 15:28:49 ERROR unit.config/0.juju-log Configuration error: Empty backends configuration found
+unit-config-0: 15:28:50 ERROR unit.config/0.juju-log cache-config:2: Configuration error: Empty backends configuration found
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:1039 Forgetting model main...
