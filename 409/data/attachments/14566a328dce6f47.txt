@@ -1,0 +1,46 @@
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+  config (not enough units yet - 0/1)
+[32mINFO    [0m tests.integration.helpers:helpers.py:140 Querying cache on http://10.95.123.76/ with Host: test.35f4.local
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+[32mINFO    [0m pytest_operator.plugin:plugin.py:951 Model status:
+
+Model            Controller           Cloud/Region         Version  SLA          Timestamp
+test-basic-zs1s  github-pr-e7aa9-lxd  localhost/localhost  3.6.20   unsupported  15:42:00Z
+
+App         Version  Status   Scale  Charm                          Channel      Rev  Exposed  Message
+cache                blocked      1  content-cache                                 0  no       Waiting for integration with config charm
+cert                 active       1  self-signed-certificates       latest/edge  621  no       
+config               unknown      0  content-cache-backends-config                 0  no       
+config-alt           unknown      0  content-cache-backends-config                 1  no       
+http-ok              active       1  any-charm                      latest/beta  133  no       
+metric               unknown      0  grafana-agent                  1/stable     605  no       
+
+Unit        Workload  Agent  Machine  Public address  Ports       Message
+cache/0*    blocked   idle   1        10.95.123.76    80,443/tcp  Waiting for integration with config charm
+cert/0*     active    idle   0        10.95.123.78                
+http-ok/0*  active    idle   2        10.95.123.125               
+
+Machine  State    Address        Inst id        Base          AZ             Message
+0        started  10.95.123.78   juju-4e3e5b-0  ubuntu@22.04  github-runner  Running
+1        started  10.95.123.76   juju-4e3e5b-1  ubuntu@24.04  github-runner  Running
+2        started  10.95.123.125  juju-4e3e5b-2  ubuntu@24.04  github-runner  Running
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:957 Juju error logs:
+
+machine-1: 15:33:50 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-1: 15:33:50 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-0: 15:33:56 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-0: 15:33:56 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-2: 15:35:16 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-2: 15:35:16 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+unit-config-0: 15:35:43 ERROR unit.config/0.juju-log Configuration error: Empty backends configuration found
+unit-config-0: 15:35:45 ERROR unit.config/0.juju-log cache-config:2: Configuration error: Empty backends configuration found
+unit-config-1: 15:39:41 ERROR unit.config/1.juju-log Configuration error: Empty backends configuration found
+machine-1: 15:40:41 ERROR juju.worker.dependency "log-sender" manifold worker returned unexpected error: sending log message: websocket: close 1005 (no status): websocket: close sent
+unit-cache-0: 15:40:41 ERROR juju.worker.dependency "log-sender" manifold worker returned unexpected error: sending log message: websocket: close 1005 (no status): websocket: close sent
+unit-cache-0: 15:41:00 ERROR juju.worker.dependency "uniter" manifold worker returned unexpected error: relation scope id "7d8b9095-51ce-4015-84be-eea20a4e3e5b:r#4#config": settings 7d8b9095-51ce-4015-84be-eea20a4e3e5b:r#4#config not found (not found)
+machine-1: 15:41:02 ERROR juju.api.watcher error trying to stop watcher: connection is shutdown before send: connection is shut down
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:1039 Forgetting model main...

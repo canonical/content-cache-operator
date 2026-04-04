@@ -1,0 +1,24 @@
+[32mINFO    [0m pytest_operator.plugin:plugin.py:951 Model status:
+
+Model               Controller           Cloud/Region         Version  SLA          Timestamp
+test-tls-cert-7sn0  github-pr-e7aa9-lxd  localhost/localhost  3.6.20   unsupported  15:27:00Z
+
+App         Version  Status   Scale  Charm                          Channel      Rev  Exposed  Message
+cache                waiting    0/1  content-cache                                 0  no       waiting for machine
+cert                 waiting    0/1  self-signed-certificates       latest/edge  621  no       waiting for machine
+config               unknown      0  content-cache-backends-config                 1  no       
+config-alt           unknown      0  content-cache-backends-config                 0  no       
+metric               unknown      0  grafana-agent                  1/stable     605  no       
+
+Unit     Workload  Agent       Machine  Public address  Ports  Message
+cache/0  waiting   allocating  1        10.189.221.130         waiting for machine
+cert/0   waiting   allocating  0        10.189.221.8           waiting for machine
+
+Machine  State    Address         Inst id        Base          AZ             Message
+0        pending  10.189.221.8    juju-f9575c-0  ubuntu@22.04  github-runner  Running
+1        pending  10.189.221.130  juju-f9575c-1  ubuntu@24.04  github-runner  Running
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:957 Juju error logs:
+
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:1039 Forgetting model main...

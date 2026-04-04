@@ -1,0 +1,8 @@
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+  config/2 [allocating] waiting: installing agent
+  config-alt (not enough units yet - 0/1)
+[32mINFO    [0m tests.integration.helpers:helpers.py:140 Querying cache on http://10.95.123.76/ with Host: test.e93a.local
+[32mINFO    [0m tests.integration.helpers:helpers.py:140 Querying cache on http://10.95.123.76/ with Host: test.92a7.local
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
