@@ -1,0 +1,45 @@
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+  config (not enough units yet - 0/1)
+[32mINFO    [0m tests.integration.helpers:helpers.py:140 Querying cache on http://10.215.49.243/ with Host: test.4e0e.local
+[32mINFO    [0m juju.model:__init__.py:3254 Waiting for model:
+  cache/0 [idle] blocked: Waiting for integration with config charm
+[32mINFO    [0m pytest_operator.plugin:plugin.py:951 Model status:
+
+Model            Controller           Cloud/Region         Version  SLA          Timestamp
+test-basic-mone  github-pr-e7aa9-lxd  localhost/localhost  3.6.21   unsupported  15:38:43Z
+
+App         Version  Status   Scale  Charm                          Channel      Rev  Exposed  Message
+cache                blocked      1  content-cache                                 0  no       Waiting for integration with config charm
+cert                 active       1  self-signed-certificates       latest/edge  627  no       
+config               unknown      0  content-cache-backends-config                 0  no       
+config-alt           unknown      0  content-cache-backends-config                 1  no       
+http-ok              active       1  any-charm                      latest/beta  140  no       
+metric               unknown      0  grafana-agent                  1/stable     605  no       
+
+Unit        Workload  Agent  Machine  Public address  Ports       Message
+cache/0*    blocked   idle   1        10.215.49.243   80,443/tcp  Waiting for integration with config charm
+cert/0*     active    idle   0        10.215.49.239               
+http-ok/0*  active    idle   2        10.215.49.209               
+
+Machine  State    Address        Inst id        Base          AZ             Message
+0        started  10.215.49.239  juju-118f19-0  ubuntu@22.04  github-runner  Running
+1        started  10.215.49.243  juju-118f19-1  ubuntu@24.04  github-runner  Running
+2        started  10.215.49.209  juju-118f19-2  ubuntu@24.04  github-runner  Running
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:957 Juju error logs:
+
+machine-1: 15:29:35 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-1: 15:29:35 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-0: 15:29:47 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-0: 15:29:47 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-2: 15:31:08 ERROR juju.worker.dependency "lxd-container-provisioner" manifold worker returned unexpected error: container types not yet available
+machine-2: 15:31:08 ERROR juju.worker.dependency "kvm-container-provisioner" manifold worker returned unexpected error: container types not yet available
+unit-config-0: 15:31:35 ERROR unit.config/0.juju-log Configuration error: Empty backends configuration found
+unit-config-0: 15:31:37 ERROR unit.config/0.juju-log cache-config:2: Configuration error: Empty backends configuration found
+unit-config-1: 15:36:21 ERROR unit.config/1.juju-log Configuration error: Empty backends configuration found
+unit-config-1: 15:36:54 ERROR juju.worker.dependency "uniter" manifold worker returned unexpected error: relation scope id "fe0b1a61-c5d5-4c1b-8ddb-f7a861118f19:r#3#cache": settings fe0b1a61-c5d5-4c1b-8ddb-f7a861118f19:r#3#cache not found (not found)
+unit-cache-0: 15:37:22 ERROR juju.worker.dependency "log-sender" manifold worker returned unexpected error: sending log message: websocket: close 1005 (no status): websocket: close sent
+machine-1: 15:37:22 ERROR juju.worker.dependency "log-sender" manifold worker returned unexpected error: sending log message: websocket: close 1005 (no status): websocket: close sent
+
+[32mINFO    [0m pytest_operator.plugin:plugin.py:1039 Forgetting model main...
