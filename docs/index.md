@@ -6,6 +6,14 @@ This charm should be used for caching static web content. When a client makes a 
 
 The charm simplifies the operation of an Nginx server as a static web content cache. This makes the charm suitable for users looking for a low maintenance way to reduce load on static websites.
 
+## Content Cache Backends Config
+
+[note]
+This charm works with a WIP content-cache charm rewrite. This charm does not work with the current content-cache charm.
+[/note]
+
+The [Content Cache Backends Config](https://charmhub.io/content-cache-backends-config) charm is a subordinate charm to the Content Cache charm. It provides the Content Cache charm with the configuration required to expose a set of backend services behind the caching capabilities of the Content Cache charm. For more information see the [Content Cache charm](https://charmhub.io/content-cache).
+
 ## Contributing to this documentation
 
 Documentation is an important part of this project, and we take the same open-source approach to the documentation as 
@@ -20,15 +28,15 @@ If there's a particular area of documentation that you'd like to see that's miss
 
 ## Project and community
 
-The Content Cache Operator is a member of the Ubuntu family. It's an open-source project that warmly welcomes community 
+The Content Cache Operators are members of the Ubuntu family. They are open-source projects that warmly welcome community 
 projects, contributions, suggestions, fixes, and constructive feedback.
 
 - [Code of conduct](https://ubuntu.com/community/code-of-conduct)
 - [Get support](https://discourse.charmhub.io/)
 - [Join our online chat](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)
-- [Contribute](https://github.com/canonical/content-cache-operator/blob/main/content-cache/CONTRIBUTING.md)
+- [Contribute](https://github.com/canonical/content-cache-operator/blob/main/CONTRIBUTING.md)
 
-Thinking about using the Content Cache Operator for your next project? 
+Thinking about using the Content Cache Operators for your next project? 
 [Get in touch](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)!
 
 # Contents
