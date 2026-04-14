@@ -1,6 +1,8 @@
+(tutorial_tutorial)=
+
 # Deploy content-cache
 
-The content-cache charm makes deploying and managing a static web content cache with nginx easy with the help of [Juju](https://juju.is/) [charm](https://juju.is/docs/olm/charmed-operators).
+The content-cache charm makes deploying and managing a static web content cache with nginx easy with the help of [Juju](https://juju.is/) {ref}`charm <juju:charm>`.
 
 ## What you'll do
 
@@ -11,10 +13,10 @@ The content-cache charm makes deploying and managing a static web content cache 
 ## Requirements
 
 - A workstation, e.g. a laptop, with amd64 architecture.
-- Juju 3 installed and bootstrapped to a LXD controller. You can accomplish this process by 
-using a Multipass VM as outlined in this guide: 
-[Set up / Tear down your test environment](https://juju.is/docs/juju/set-up--tear-down-your-test-environment)
-- 
+- Juju 3 installed and bootstrapped to a LXD controller. You can accomplish this process by
+  using a Multipass VM as outlined in this guide:
+  [Set up / Tear down your test environment](https://juju.is/docs/juju/set-up--tear-down-your-test-environment)
+  <!-- TODO: Replace with intersphinx ref - could not find target for https://juju.is/docs/juju/set-up--tear-down-your-test-environment -->
 
 ## Steps
 

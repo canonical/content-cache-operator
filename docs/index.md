@@ -1,4 +1,12 @@
-A [Juju](https://juju.is/) [charm](https://juju.is/docs/olm/charmed-operators) deploying and managing a static web content cache with Nginx.
+---
+myst:
+  html_meta:
+    "description lang=en": "Learn how to deploy, configure and operate the Content Cache Operators using Juju."
+---
+
+# Content Cache Operators
+
+A [Juju](https://juju.is/) {ref}`charm <juju:charm>` deploying and managing a static web content cache with Nginx.
 
 This machine charm manages a Nginx instance configured as a content cache. The configuration for the locations of cache is managed with the [Content Cache Backends Config subordinate charm](https://charmhub.io/content-cache-backends-config). Each Content Cache Backends Config charm stores the configuration for a location and the associated set of backends.
 
@@ -8,9 +16,9 @@ The charm simplifies the operation of an Nginx server as a static web content ca
 
 ## Content Cache Backends Config
 
-[note]
+```{note}
 This charm works with a WIP content-cache charm rewrite. This charm does not work with the current content-cache charm.
-[/note]
+```
 
 The [Content Cache Backends Config](https://charmhub.io/content-cache-backends-config) charm is a subordinate charm to the Content Cache charm. It provides the Content Cache charm with the configuration required to expose a set of backend services behind the caching capabilities of the Content Cache charm. For more information see the [Content Cache charm](https://charmhub.io/content-cache).
 
@@ -39,12 +47,8 @@ projects, contributions, suggestions, fixes, and constructive feedback.
 Thinking about using the Content Cache Operators for your next project? 
 [Get in touch](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)!
 
-# Contents
-
-1. [Tutorial](tutorial)
-  1. [Getting started](tutorial/tutorial.md)
-1. [How-to](how-to)
-  1. [Contribute](how-to/contribute.md)
-  2. [Enable COS](how-to/enable-cos.md)
-  3. [Enable HTTPS](how-to/enable-https.md)
-  4. [Upgrade](how-to/upgrade.md)
+```{toctree}
+:hidden:
+tutorial/index
+how-to/index
+```

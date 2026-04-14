@@ -16,15 +16,18 @@ header:
     - '**/*.md'
     - '**/*.pem'
     - '**/*.txt'
+    - '**/*.rst'
     - '.jujuignore'
     - '.gitignore'
     - '.licenserc.yaml'
+    - '.readthedocs.yaml'
     - 'CODEOWNERS'
     - 'LICENSE'
     - 'content-cache/lua-upstream-nginx-module-packaging/debian/changelog'
     - 'trivy.yaml'
     - 'pyproject.toml'
     - 'zap_rules.tsv'
+    - 'docs/**'
     # Ignore charm libraries.
     - "**/lib/charms/**"
   comment: on-failure
