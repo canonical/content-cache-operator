@@ -12,5 +12,5 @@ Description TBD
 
 ```{toctree}
 :maxdepth: 1
-tutorial
+deploy-content-cache
 ```

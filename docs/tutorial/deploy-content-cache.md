@@ -1,4 +1,4 @@
-(tutorial_tutorial)=
+(tutorial_deploy_content_cache)=
 
 # Deploy content-cache
 
@@ -14,9 +14,7 @@ The content-cache charm makes deploying and managing a static web content cache 
 
 - A workstation, e.g. a laptop, with amd64 architecture.
 - Juju 3 installed and bootstrapped to a LXD controller. You can accomplish this process by
-  using a Multipass VM as outlined in this guide:
-  [Set up / Tear down your test environment](https://juju.is/docs/juju/set-up--tear-down-your-test-environment)
-  <!-- TODO: Replace with intersphinx ref - could not find target for https://juju.is/docs/juju/set-up--tear-down-your-test-environment -->
+  using a Multipass VM as outlined in this guide: {ref}`Set up / Tear down your test environment <juju:set-things-up>`
 
 ## Steps
 
