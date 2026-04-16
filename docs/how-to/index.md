@@ -8,12 +8,13 @@ myst:
 
 # How-to guides
 
-Description TBD
+Consult these guides for more information on basic configurations,
+setting up monitoring, upgrading, and contributing to the project.
 
 ```{toctree}
 :maxdepth: 1
-contribute
-enable-cos
-enable-https
-upgrade
+Enable HTTPS <enable-https>
+Enable COS <enable-cos>
+Upgrade <upgrade>
+Contribute <contribute>
 ```
