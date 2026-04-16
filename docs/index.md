@@ -6,30 +6,20 @@ myst:
 
 # Content Cache Operators
 
-A [Juju](https://juju.is/) {ref}`charm <juju:charm>` deploying and managing a static web content cache with Nginx.
+A set of [Juju](https://juju.is/) {ref}`charms <juju:charm>` deploying and managing a static web content cache with NGINX.
 
-This machine charm manages a Nginx instance configured as a content cache. The configuration for the locations of cache is managed with the [Content Cache Backends Config subordinate charm](https://charmhub.io/content-cache-backends-config). Each Content Cache Backends Config charm stores the configuration for a location and the associated set of backends.
+This machine charm manages a NGINX instance configured as a content cache. The configuration for the locations of cache is managed with the [Content Cache Backends Config subordinate charm](https://charmhub.io/content-cache-backends-config). Each Content Cache Backends Config charm stores the configuration for a location and the associated set of backends.
 
 This charm should be used for caching static web content. When a client makes a request, this charm checks if the requested content is cached and valid. If not this charm will query the backends hosts for the content to refresh the cache. This process works well for static content that does not change based on the client. For these type of content, the cache can greatly reduce the load on the backend hosts.
 
-The charm simplifies the operation of an Nginx server as a static web content cache. This makes the charm suitable for users looking for a low maintenance way to reduce load on static websites.
-
-## Content Cache Backends Config
-
-```{note}
-This charm works with a WIP content-cache charm rewrite. This charm does not work with the current content-cache charm.
-```
-
-The [Content Cache Backends Config](https://charmhub.io/content-cache-backends-config) charm is a subordinate charm to the Content Cache charm. It provides the Content Cache charm with the configuration required to expose a set of backend services behind the caching capabilities of the Content Cache charm. For more information see the [Content Cache charm](https://charmhub.io/content-cache).
+The charm simplifies the operation of an NGINX server as a static web content cache. This makes the charm suitable for users looking for a low maintenance way to reduce load on static websites.
 
 ## Contributing to this documentation
 
 Documentation is an important part of this project, and we take the same open-source approach to the documentation as 
 the code. As such, we welcome community contributions, suggestions and constructive feedback on our documentation. 
-Our documentation is hosted on the [Charmhub forum](https://discourse.charmhub.io/) 
-to enable easy collaboration. Please use the "Help us improve this documentation" links on each documentation page to 
-either directly change something you see that's wrong, ask a question or make a suggestion about a potential change through 
-the comments section.
+Our documentation is hosted on the [Read the Docs](https://about.readthedocs.com/) 
+to enable easy collaboration.
 
 If there's a particular area of documentation that you'd like to see that's missing, please 
 [file a bug](https://github.com/canonical/content-cache-operator/issues).
@@ -51,4 +41,5 @@ Thinking about using the Content Cache Operators for your next project?
 :hidden:
 tutorial/index
 how-to/index
+reference/index
 ```
