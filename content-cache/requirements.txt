@@ -1,6 +1,6 @@
-cosl ==1.6.1
+cosl ==1.9.1
 cryptography ==46.0.5
-ops ==3.6.0
-pydantic ==2.12.5
+ops ==3.7.0
+pydantic ==2.13.2
 python-nginx == 1.5.7
 requests ==2.32.5
