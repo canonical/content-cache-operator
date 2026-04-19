@@ -3,4 +3,4 @@ cryptography ==46.0.5
 ops ==3.7.0
 pydantic ==2.13.2
 python-nginx == 1.5.7
-requests ==2.32.5
+requests ==2.33.0
