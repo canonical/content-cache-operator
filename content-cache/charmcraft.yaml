@@ -14,7 +14,7 @@ parts:
   nginx-module-lua-upstream:
     plugin: dump
     source: https://github.com/openresty/lua-upstream-nginx-module.git
-    source-commit: 10a72cf4f9101b757a767a4a279101276ecac782 # nginxUpstreamLuaModuleCommit <- DO NOT REMOVE, used by renovate
+    source-commit: ad49f606989f91a514a7568eb45deb2642dd3e86 # nginxUpstreamLuaModuleCommit <- DO NOT REMOVE, used by renovate
     build-packages:
       - git
       - dpkg-dev
