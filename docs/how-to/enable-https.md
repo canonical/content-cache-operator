@@ -1,3 +1,5 @@
+(how_to_enable_https)=
+
 # How to enable HTTPS
 
 In order for the Content Cache charm to take HTTPS requests, the charm will need TLS certificates.

@@ -24,7 +24,7 @@ For more information see the [Content Cache charm](https://charmhub.io/content-c
 
 ## Get started
 
-To begin, refer to the [Content Cache tutorial](https://github.com/canonical/content-cache-operator/blob/main/content-cache/docs/tutorial/quick-start.md) for step-by-step instructions.
+To begin, refer to the [Content Cache tutorial](https://github.com/canonical/content-cache-operator/blob/main/docs/tutorial/tutorial.md) for step-by-step instructions.
 
 ## Integrations
 

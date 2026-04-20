@@ -16,7 +16,7 @@ This charm should be integrated with the Content Cache charm to inject the corre
 
 ## Get started
 
-The Content Cache Backends Config Charm requires the deployment of the Content Cache charm. To begin, refer to the [Content Cache tutorial](https://github.com/canonical/content-cache-operator/blob/main/content-cache/docs/tutorial/quick-start.md) for step-by-step instructions.
+The Content Cache Backends Config Charm requires the deployment of the Content Cache charm. To begin, refer to the [Content Cache tutorial](https://github.com/canonical/content-cache-operator/blob/main/docs/tutorial/tutorial.md) for step-by-step instructions.
 
 ### Basic operations
 
