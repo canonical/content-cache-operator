@@ -1,3 +1,5 @@
+(how_to_enable_cos)=
+
 # How to enable COS
 
 The charm utilizes Nginx as a static web content cache.

@@ -30,7 +30,7 @@ When contributing, you must abide by the
 This project uses [semantic versioning](https://semver.org/).
 
 Please ensure that any new feature, fix, or significant change is documented by
-adding an entry to the [CHANGELOG.md](https://github.com/canonical/content-cache-operator/blob/main/content-cache-backends-config/docs/changelog.md) file.
+adding an entry to the [CHANGELOG.md](https://github.com/canonical/content-cache-operator/blob/main/CHANGELOG.md) file.
 
 To learn more about changelog best practices, visit [Keep a Changelog](https://keepachangelog.com/).
 
