@@ -1,10 +1,10 @@
 # Contributing
 
-This document explains the processes and practices recommended for contributing enhancements to the Content Cache Operator.
+This document explains the processes and practices recommended for contributing enhancements to the Content Cache Operators.
 
 ## Overview
 
-- Generally, before developing enhancements to this charm, you should consider [opening an issue
+- Generally, before developing enhancements to these charms, you should consider [opening an issue
   ](https://github.com/canonical/content-cache-operator/issues) explaining your use case.
 - If you would like to chat with us about your use-cases or proposed implementation, you can reach
   us at [Canonical Matrix public channel](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)
@@ -14,7 +14,7 @@ This document explains the processes and practices recommended for contributing 
 - All enhancements require review before being merged. Code review typically examines
   - code quality
   - test coverage
-  - user experience for Juju operators of this charm.
+  - user experience for Juju operators of these charms.
 - Once your pull request is approved, we squash and merge your pull request branch onto
   the `main` branch. This creates a linear Git commit history.
 - For further information on contributing, please refer to our
@@ -84,7 +84,7 @@ we use the [Canonical contributor license agreement](https://assets.ubuntu.com/v
 
 #### Canonical contributor agreement
 
-Canonical welcomes contributions to the Content Cache Operator. Please check out our
+Canonical welcomes contributions to the Content Cache Operators. Please check out our
 [contributor agreement](https://ubuntu.com/legal/contributors) if you're interested in contributing to the solution.
 
 The CLA sign-off is simple line at the
