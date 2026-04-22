@@ -1,6 +1,6 @@
-# How to contribute
+# Contributing
 
-This document explains the processes and practices recommended for contributing enhancements to the `content-cache` charms.
+This document explains the processes and practices recommended for contributing enhancements to the Content Cache Operators.
 
 ## Overview
 
@@ -9,26 +9,27 @@ This document explains the processes and practices recommended for contributing 
 - If you would like to chat with us about your use-cases or proposed implementation, you can reach
   us at [Canonical Matrix public channel](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)
   or [Discourse](https://discourse.charmhub.io/).
-- Familiarizing yourself with the [Juju documentation](https://documentation.ubuntu.com/juju/latest/howto/manage-charms/index.html)
+- Familiarizing yourself with the [Juju documentation](https://documentation.ubuntu.com/juju/3.6/howto/manage-charms/)
   will help you a lot when working on new features or bug fixes.
 - All enhancements require review before being merged. Code review typically examines
   - code quality
   - test coverage
-  - user experience for Juju operators of this charm.
+  - user experience for Juju operators of these charms.
 - Once your pull request is approved, we squash and merge your pull request branch onto
   the `main` branch. This creates a linear Git commit history.
 - For further information on contributing, please refer to our
-  [Contributing Guide](https://github.com/canonical/is-charms-contributing-guide).
+  [Contributing Guide](https://github.com/canonical/platform-engineering-contributing-guide).
 
 ## Code of conduct
 
 When contributing, you must abide by the
 [Ubuntu Code of Conduct](https://ubuntu.com/community/ethos/code-of-conduct).
 
-## Releases and versions
+## Changelog
 
 Please ensure that any new feature, fix, or significant change is documented by
-adding an entry to the [CHANGELOG.md](https://github.com/canonical/content-cache-operator/blob/main/CHANGELOG.md) file.
+adding an entry to the [CHANGELOG.md](docs/changelog.md) file. Use the date of the
+contribution as the header for new entries.
 
 To learn more about changelog best practices, visit [Keep a Changelog](https://keepachangelog.com/).
 
@@ -39,7 +40,7 @@ notify in advance the people involved to avoid confusion;
 also, reference the issue or bug number when you submit the changes.
 
 - [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks)
-  our [GitHub repository](https://github.com/canonical/content-cache-operator/)
+  our [GitHub repository](https://github.com/canonical/content-cache-operator)
   and add the changes to your fork, properly structuring your commits,
   providing detailed commit messages and signing your commits.
 - Make sure the updated project builds and runs without warnings or errors;
@@ -49,35 +50,31 @@ also, reference the issue or bug number when you submit the changes.
 
 Your changes will be reviewed in due time; if approved, they will be eventually merged.
 
-### Describing pull requests
+### AI
 
-To be properly considered, reviewed and merged,
-your pull request must provide the following details:
+You are free to use any tools you want while preparing your contribution, including
+AI, provided that you do so lawfully and ethically.
 
-- **Title**: Summarize the change in a short, descriptive title.
+Avoid using AI to complete issues tagged with the "good first issues" label. The
+purpose of these issues is to provide newcomers with opportunities to contribute
+to our projects and gain coding skills. Using AI to complete these tasks
+undermines their purpose.
 
-- **Overview**: Describe the problem that your pull request solves.
-  Mention any new features, bug fixes or refactoring.
+We have created instructions and tools that you can provide AI while preparing your contribution: [`copilot-collections`](https://github.com/canonical/copilot-collections)
 
-- **Rationale**: Explain why the change is needed.
+While it isn't necessary to use `copilot-collections` while preparing your
+contribution, these files contain details about our quality standards and
+practices that will help the AI avoid common pitfalls when interacting with
+our projects. By using these tools, you can avoid longer review times and nitpicks.
 
-- **Juju Events Changes**: Describe any changes made to Juju events, or
-  "None" if the pull request does not change any Juju events.
+If you choose to use AI, please disclose this information to us by indicating
+AI usage in the PR description (for instance, marking the checklist item about
+AI usage). You don't need to go into explicit details about how and where you used AI.
 
-- **Module Changes**: Describe any changes made to the module, or "None"
-  if your pull request does not change the module.
-
-- **Library Changes**: Describe any changes made to the library,
-  or "None" is the library is not affected.
-
-- **Checklist**: Complete the following items:
-
-  - The [charm style guide](https://juju.is/docs/sdk/styleguide) was applied
-  - The [contributing guide](https://github.com/canonical/is-charms-contributing-guide) was applied
-  - The changes are compliant with [ISD054 - Managing Charm Complexity](https://discourse.charmhub.io/t/specification-isd014-managing-charm-complexity/11619)
-  - The documentation is updated
-  - The PR is tagged with appropriate label (trivial, senior-review-required)
-  - The changelog has been updated
+Avoid submitting contributions that you don't fully understand.
+You are responsible for the entire contribution, including the AI-assisted portions.
+You must be willing to engage in discussion and respond to any questions, comments,
+or suggestions we may have. 
 
 ### Signing commits
 
@@ -87,7 +84,7 @@ we use the [Canonical contributor license agreement](https://assets.ubuntu.com/v
 
 #### Canonical contributor agreement
 
-Canonical welcomes contributions to the Discourse charm. Please check out our
+Canonical welcomes contributions to the Content Cache Operators. Please check out our
 [contributor agreement](https://ubuntu.com/legal/contributors) if you're interested in contributing to the solution.
 
 The CLA sign-off is simple line at the
