@@ -1,0 +1,15 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"
+    arrange: A working application of content-cache charm integrated with config charm.
+    act: Makes some requests to the content-cache.
+    assert: The cache log contains the metrics.
+    ","0","test_metric_log","tests.integration","2026-05-10","broken","2026-05-10","","test_metric","",""
+"
+    arrange: A working application of content-cache charm integrated with config charm.
+    act:
+        1. Integrate with grafana-agent charm.
+        2. Remove integration with grafana-agent charm.
+    assert:
+        1. Charms in active status.
+        2. Charms in active status.
+    ","0","test_integrate_with_cos","tests.integration","2026-05-10","broken","2026-05-10","","test_metric","",""

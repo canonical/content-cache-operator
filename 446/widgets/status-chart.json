@@ -1,0 +1,1 @@
+[{"uid":"2bfaf87e36cc6e6a","name":"test_metric_log","time":{"start":1778428880023,"stop":1778428880023,"duration":0},"status":"broken","severity":"normal"},{"uid":"ef313190060cbd07","name":"test_integrate_with_cos","time":{"start":1778428992148,"stop":1778428992148,"duration":0},"status":"broken","severity":"normal"}]
