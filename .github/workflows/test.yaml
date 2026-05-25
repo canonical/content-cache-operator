@@ -3,6 +3,10 @@ name: Tests
 on:
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   unit-tests-content-cache:
     uses: canonical/operator-workflows/.github/workflows/test.yaml@main
