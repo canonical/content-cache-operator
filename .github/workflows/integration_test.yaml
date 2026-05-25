@@ -18,6 +18,8 @@ jobs:
       working-directory: ./content-cache/
       self-hosted-runner: true
       self-hosted-runner-label: "edge"
+      tmate-debug: true
+      tmate-timeout: 3h
   # This is for building the content-cache-backends-config charm for the publish charm workflow.
   build-content-cache-backends-config:
     # Only build if the integration test succeeds.
