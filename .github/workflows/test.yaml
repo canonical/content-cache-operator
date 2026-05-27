@@ -7,9 +7,6 @@ jobs:
   unit-tests-content-cache:
     uses: canonical/operator-workflows/.github/workflows/test.yaml@main
     secrets: inherit
-    permissions:
-      contents: read
-      pull-requests: read    
     with:
       self-hosted-runner: true
       self-hosted-runner-label: "edge"
@@ -18,9 +15,6 @@ jobs:
   unit-tests-content-cache-backends-config:
     uses: canonical/operator-workflows/.github/workflows/test.yaml@main
     secrets: inherit
-    permissions:
-      contents: read
-      pull-requests: read    
     with:
       self-hosted-runner: true
       self-hosted-runner-label: "edge"
