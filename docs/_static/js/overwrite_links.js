@@ -1,5 +1,5 @@
 // Replace oldDomain with newDomain
-const oldDomain = 'canonical-content-cache-juju-charms.readthedocs-hosted.com';
+const oldDomain = 'canonical-content-cache-charms.readthedocs-hosted.com';
 const newDomain = 'canonical.com/juju/docs/content-cache-charms';
 
 function escapeRegExp(value) {
