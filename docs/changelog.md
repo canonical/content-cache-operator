@@ -57,7 +57,7 @@ Each revision is versioned by the date of the revision.
 
 - Support for fail-timeout, backends-path, proxy-cache-valid configuration options from integration with Content Cache Backends Config charm.
 
-# 2024-10-07
+## 2024-10-07
 
 ## **Added**
 
