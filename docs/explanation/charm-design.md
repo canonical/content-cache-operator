@@ -14,36 +14,36 @@ behaviour in real deployments, so that you can predict outcomes and avoid unexpe
 
 ## Static-only caching assumption
 
-The most important design decision is that **the charm is built exclusively for caching static,
-non-personalised content**. Think of it as a lightweight CDN in front of your backends: image
+The most important design decision is that the charm is built exclusively for caching static,
+non-personalised content. Think of it as a lightweight CDN in front of your backends: image
 assets, CSS files, HTML pages that look the same regardless of who requests them.
 
-nginx identifies a cacheable response by its **cache key**. The charm configures nginx with
+nginx identifies a cacheable response by its cache key. The charm configures nginx with
 the default cache key:
 
 ```
 $scheme$proxy_host$request_uri
 ```
 
-`$request_uri` includes the path **and** any query string. This means:
+`$request_uri` includes the path and any query string. This means:
 
-- `GET /page?lang=en` and `GET /page?lang=fr` produce **different** cache keys and are stored
+- `GET /page?lang=en` and `GET /page?lang=fr` produce different cache keys and are stored
   as separate cache entries — query-parameter-based variation works correctly.
-- However, the key does **not** consider request headers such as `Cookie`, `Authorization`, or
+- However, the key does not consider request headers such as `Cookie`, `Authorization`, or
   `X-User-ID`.
 
-This means that **two requests with the same URL but different session cookies will share a
-single cache entry**. The first response is cached and served to every subsequent requester of
+This means that two requests with the same URL but different session cookies will share a
+single cache entry. The first response is cached and served to every subsequent requester of
 that URL, regardless of their session or identity. For personalised or session-dependent
 content, this produces incorrect results.
 
-The charm is therefore **not suitable** for:
+The charm is therefore not suitable for:
 
 - Pages that vary by logged-in user (e.g. dashboards, account pages)
 - API responses that differ based on cookies or auth tokens (same URL, different users)
 - Any content where the correct response depends on the requester's identity
 
-It **is well-suited** for:
+It is well-suited for:
 
 - Public marketing pages and blog posts
 - Static asset files (JS, CSS, fonts, images)
@@ -68,14 +68,14 @@ dedicated cache zone.
 
 nginx uses a two-tier storage model for caching:
 
-**Disk** stores the actual cached response bodies. Each hostname gets its own directory:
+Disk stores the actual cached response bodies. Each hostname gets its own directory:
 
 ```
 /data/nginx/cache/<hostname>/
 ```
 
-**RAM** stores the cache metadata (keys, expiry information, and file paths). The charm
-allocates a fixed **10 MB keys zone per hostname**:
+RAM stores the cache metadata (keys, expiry information, and file paths). The charm
+allocates a fixed 10 MB keys zone per hostname:
 
 ```nginx
 proxy_cache_path /data/nginx/cache/example.com
@@ -90,8 +90,8 @@ meaning 10 MB supports approximately 800,000 cached entries.
 
 ### What happens when the keys zone fills up
 
-When the keys zone is full, nginx applies **LRU (Least Recently Used) eviction**: the metadata
-entry for the least recently accessed cache item is removed from RAM first. This does **not**
+When the keys zone is full, nginx applies LRU (Least Recently Used) eviction: the metadata
+entry for the least recently accessed cache item is removed from RAM first. This does not
 immediately delete the cached response from disk. It means that the next request for that URL
 will be treated as a cache miss, and nginx will re-fetch the response from a backend to
 repopulate both the disk entry and the RAM key.
@@ -119,7 +119,7 @@ Each hostname configured via a `content-cache-backends-config` relation gets:
 - Its own RAM keys zone (`keys_zone=<hostname>:10m`)
 - Its own upstream block and log files
 
-There is **no cross-hostname competition** for RAM or disk. Adding or removing a
+There is no cross-hostname competition for RAM or disk. Adding or removing a
 `content-cache-backends-config` relation only affects that hostname's configuration; other
 hostnames continue serving from their own caches uninterrupted.
 
@@ -138,10 +138,10 @@ The health check parameters are configured per relation:
 | `healthcheck-valid-status` | HTTP codes considered healthy | `200` |
 | `healthcheck-ssl-verify` | Verify SSL cert on HTTPS checks | `true` |
 
-The checker uses **fall/rise thresholds** to avoid flapping:
+The checker uses fall/rise thresholds to avoid flapping:
 
-- A backend is marked **down** after **3 consecutive failures** (`fall=3`)
-- A backend is marked **up** again after **2 consecutive successes** (`rise=2`)
+- A backend is marked down after 3 consecutive failures (`fall=3`)
+- A backend is marked up again after 2 consecutive successes (`rise=2`)
 
 The generated Lua block for a single backend looks like:
 
@@ -173,7 +173,7 @@ level, not the background health check level.
 ### All backends unavailable
 
 If all backends for a hostname are simultaneously marked down (either by the health checker or
-by `fail-timeout`), nginx returns **502 Bad Gateway** to the client. Cached content for the
+by `fail-timeout`), nginx returns 502 Bad Gateway to the client. Cached content for the
 affected paths may still be served if the entries are still valid according to `proxy-cache-valid`.
 nginx does not serve stale content beyond its TTL by default.
 
@@ -190,7 +190,7 @@ provides a hostname, the charm requests a certificate for that hostname.
 ### Behaviour when certificates are not yet available
 
 If the `certificates` integration exists but the certificate for a hostname has not yet been
-issued, the charm enters **Maintenance status** and **does not load any nginx configuration**
+issued, the charm enters Maintenance status and does not load any nginx configuration
 until all required certificates are available. It will not fall back to serving the hostname
 over plain HTTP.
 
