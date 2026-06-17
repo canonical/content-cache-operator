@@ -1,20 +1,20 @@
 ---
 myst:
   html_meta:
-    "description lang=en": "Explanation of the Content Cache charm's design decisions and how they affect caching behaviour, memory usage, failover, and TLS."
+    "description lang=en": "Explanation of the Content Cache charm's design decisions and how they affect caching behavior, memory usage, failover, and TLS."
 ---
 
 (explanation_charm_design)=
 
 # Charm design and how it works under the hood
 
-The Content Cache charm makes deliberate, opinionated design decisions to optimise for
+The Content Cache charm makes deliberate, opinionated design decisions to optimize for
 simplicity and static content caching. This page explains those decisions and how they affect
-behaviour in real deployments, so that you can predict outcomes and avoid unexpected issues.
+behavior in real deployments, so that you can predict outcomes and avoid unexpected issues.
 
 ## Static-only caching assumption
 
-The charm is built exclusively for caching static, non-personalised content: image
+The charm is built exclusively for caching static, non-personalized content: image
 assets, CSS files, HTML pages that look the same regardless of who requests them.
 
 nginx identifies a cacheable response by its cache key. The charm does not set a
@@ -24,16 +24,16 @@ nginx identifies a cacheable response by its cache key. The charm does not set a
 $scheme$proxy_host$request_uri
 ```
 
-`$request_uri` includes the path and any query string. This means:
+`$request_uri` includes the path and any query string. Implication:
 
 - `GET /page?lang=en` and `GET /page?lang=fr` produce different cache keys and are stored
-  as separate cache entries — query-parameter-based variation works correctly.
+  as separate cache entries, and therefore query-parameter-based variation works correctly.
 - However, the key does not consider request headers such as `Cookie`, `Authorization`, or
   `X-User-ID`.
 
 This means that two requests with the same URL but different session cookies will share a
 single cache entry. The first response is cached and served to every subsequent requester of
-that URL, regardless of their session or identity. For personalised or session-dependent
+that URL, regardless of their session or identity. For personalized or session-dependent
 content, this produces incorrect results.
 
 The charm is therefore not suitable for:
@@ -186,7 +186,7 @@ TLS certificates are obtained via the Juju `certificates` integration
 (using the `tls-certificates` interface). When a `content-cache-backends-config` relation
 provides a hostname, the charm requests a certificate for that hostname.
 
-### Behaviour when certificates are not yet available
+### Behavior when certificates are not yet available
 
 If the `certificates` integration exists but the certificate for a hostname has not yet been
 issued, the charm enters Maintenance status and does not load any nginx configuration
@@ -203,7 +203,7 @@ with no TLS.
 
 | Decision | Consequence |
 |---|---|
-| Cache key does not include auth/session headers | Dynamic, personalised content is served incorrectly |
+| Cache key does not include auth/session headers | Dynamic, personalized content is served incorrectly |
 | Keys zone fixed at 10 MB per hostname | High-traffic deployments with many unique URLs may see increased backend requests due to LRU eviction |
 | Each hostname is fully isolated | No cross-hostname cache pollution; no shared RAM competition |
 | TLS required if certificates integration is present | No silent HTTP fallback when certs are expected but not yet available |
