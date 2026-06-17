@@ -21,10 +21,10 @@ nginx identifies a cacheable response by its cache key. The charm does not set a
 `proxy_cache_key` directive, so nginx uses its default:
 
 ```
-$scheme$proxy_host$uri$is_args$args
+$scheme$proxy_host$request_uri
 ```
 
-`$uri$is_args$args` includes the path and any query string. This means:
+`$request_uri` includes the path and any query string. This means:
 
 - `GET /page?lang=en` and `GET /page?lang=fr` produce different cache keys and are stored
   as separate cache entries — query-parameter-based variation works correctly.
