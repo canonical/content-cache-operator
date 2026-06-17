@@ -14,18 +14,17 @@ behaviour in real deployments, so that you can predict outcomes and avoid unexpe
 
 ## Static-only caching assumption
 
-The most important design decision is that the charm is built exclusively for caching static,
-non-personalised content. Think of it as a lightweight CDN in front of your backends: image
+The charm is built exclusively for caching static, non-personalised content: image
 assets, CSS files, HTML pages that look the same regardless of who requests them.
 
-nginx identifies a cacheable response by its cache key. The charm configures nginx with
-the default cache key:
+nginx identifies a cacheable response by its cache key. The charm does not set a
+`proxy_cache_key` directive, so nginx uses its default:
 
 ```
-$scheme$proxy_host$request_uri
+$scheme$proxy_host$uri$is_args$args
 ```
 
-`$request_uri` includes the path and any query string. This means:
+`$uri$is_args$args` includes the path and any query string. This means:
 
 - `GET /page?lang=en` and `GET /page?lang=fr` produce different cache keys and are stored
   as separate cache entries — query-parameter-based variation works correctly.
