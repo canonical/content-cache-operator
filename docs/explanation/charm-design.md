@@ -190,22 +190,13 @@ provides a hostname, the charm requests a certificate for that hostname.
 ### Behavior when certificates are not yet available
 
 If the `certificates` integration exists but the certificate for a hostname has not yet been
-issued, the charm enters Maintenance status and does not load any nginx configuration
+issued, the charm enters `Maintenance` status and does not load any nginx configuration
 until all required certificates are available. It will not fall back to serving the hostname
 over plain HTTP.
 
-This is an intentional security decision: a charm that has been told to expect TLS should not
+This is an intentional security decision, as a charm that has been told to expect TLS should not
 silently serve unencrypted traffic because a certificate is delayed.
 
-If no `certificates` integration is present, the charm serves all traffic over HTTP on port 80
-with no TLS.
-
-## Summary of design opinions
-
-| Decision | Consequence |
-|---|---|
-| Cache key does not include auth/session headers | Dynamic, personalized content is served incorrectly |
-| Keys zone fixed at 10 MB per hostname | High-traffic deployments with many unique URLs may see increased backend requests due to LRU eviction |
-| Each hostname is fully isolated | No cross-hostname cache pollution; no shared RAM competition |
-| TLS required if certificates integration is present | No silent HTTP fallback when certs are expected but not yet available |
-| All-backends-down → 502 | No stale-cache fallback beyond TTL |
+If no `certificates` integration is present, the charm does not add a `listen 443 ssl` directive
+to the nginx server block. nginx then falls back to its default behavior of listening on port 80,
+serving all traffic over plain HTTP with no TLS.
