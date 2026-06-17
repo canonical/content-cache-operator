@@ -84,8 +84,8 @@ proxy_cache_path /data/nginx/cache/example.com
 ```
 
 The 10 MB limit is fixed in the charm and cannot be changed via configuration. For most static
-content deployments this is sufficient: nginx can hold roughly 80,000 cache keys per megabyte,
-meaning 10 MB supports approximately 800,000 cached entries.
+content deployments this is sufficient: nginx can hold roughly 8,000 cache keys per megabyte,
+meaning 10 MB supports approximately 80,000 cached entries.
 
 ### What happens when the keys zone fills up
 
