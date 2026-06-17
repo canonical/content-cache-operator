@@ -19,11 +19,7 @@ assets, CSS files, HTML pages that look the same regardless of who requests them
 
 nginx identifies a cacheable response by its cache key. The charm does not set a
 [`proxy_cache_key`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_key)
-directive, so nginx uses its default:
-
-```
-$scheme$proxy_host$request_uri
-```
+directive, so nginx uses its default: `$scheme$proxy_host$request_uri`.
 
 `$request_uri` includes the path and any query string. Implication:
 
@@ -41,7 +37,7 @@ The charm is therefore not suitable for:
 
 - Pages that vary by logged-in user (e.g. dashboards, account pages)
 - API responses that differ based on cookies or auth tokens (same URL, different users)
-- Any content where the correct response depends on the requester's identity
+- Any content where the correct response depends on the identity of the user making the request
 
 It is well-suited for:
 
