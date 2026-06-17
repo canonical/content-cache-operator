@@ -18,7 +18,8 @@ The charm is built exclusively for caching static, non-personalized content: ima
 assets, CSS files, HTML pages that look the same regardless of who requests them.
 
 nginx identifies a cacheable response by its cache key. The charm does not set a
-`proxy_cache_key` directive, so nginx uses its default:
+[`proxy_cache_key`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_key)
+directive, so nginx uses its default:
 
 ```
 $scheme$proxy_host$request_uri
@@ -60,7 +61,8 @@ location / {
 }
 ```
 
-The `proxy_cache` directive (set at the server block level) ties this location to its hostname's
+The [`proxy_cache`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache)
+directive (set at the server block level) ties this location to its hostname's
 dedicated cache zone.
 
 ## Cache storage: disk and RAM
@@ -74,7 +76,9 @@ Disk stores the actual cached response bodies. Each hostname gets its own direct
 ```
 
 RAM stores the cache metadata (keys, expiry information, and file paths). The charm
-allocates a fixed 10 MB keys zone per hostname:
+allocates a fixed 10 MB keys zone per hostname via the
+[`proxy_cache_path`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path)
+directive:
 
 ```nginx
 proxy_cache_path /data/nginx/cache/example.com
@@ -84,13 +88,14 @@ proxy_cache_path /data/nginx/cache/example.com
 ```
 
 The 10 MB limit is fixed in the charm and cannot be changed via configuration. For most static
-content deployments this is sufficient: nginx can hold roughly 8,000 cache keys per megabyte,
-meaning 10 MB supports approximately 80,000 cached entries.
+content deployments this is sufficient: per the nginx docs, one megabyte zone can store about
+8,000 keys, meaning 10 MB supports approximately 80,000 cached entries.
 
 ### What happens when the keys zone fills up
 
-When the keys zone is full, nginx applies LRU (Least Recently Used) eviction: the metadata
-entry for the least recently accessed cache item is removed from RAM first. This does not
+When the keys zone is full, nginx applies
+[LRU (Least Recently Used) eviction](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path):
+the metadata entry for the least recently accessed cache item is removed from RAM first. This does not
 immediately delete the cached response from disk. It means that the next request for that URL
 will be treated as a cache miss, and nginx will re-fetch the response from a backend to
 repopulate both the disk entry and the RAM key.
@@ -100,8 +105,9 @@ as evicted keys are re-fetched, but does not cause data loss or service interrup
 
 ### Disk expiry and cache lifetime
 
-Disk entries are expired according to `proxy-cache-valid`, which maps HTTP response codes to
-TTLs. For example:
+Disk entries are expired according to
+[`proxy_cache_valid`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid),
+which maps HTTP response codes to TTLs. For example:
 
 ```
 proxy-cache-valid: '["200 302 1h", "404 1m"]'
@@ -164,7 +170,8 @@ ok, err = hc.spawn_checker{
 
 ### The `fail-timeout` parameter
 
-`fail-timeout` is a separate nginx concept from the Lua health checker. When nginx tries to
+[`fail-timeout`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#server) is a
+separate nginx concept from the Lua health checker. When nginx tries to
 proxy a request to a backend and that individual request fails, the backend is skipped for the
 `fail-timeout` duration (default `30s`) before being retried. This operates at the request
 level, not the background health check level.
