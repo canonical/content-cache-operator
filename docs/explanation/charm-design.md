@@ -95,13 +95,7 @@ content deployments this is sufficient: per the nginx docs, one megabyte zone ca
 
 When the keys zone is full, nginx applies
 [LRU (Least Recently Used) eviction](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path):
-the metadata entry for the least recently accessed cache item is removed from RAM first. This does not
-immediately delete the cached response from disk. It means that the next request for that URL
-will be treated as a cache miss, and nginx will re-fetch the response from a backend to
-repopulate both the disk entry and the RAM key.
-
-In practice, a full keys zone under sustained traffic causes an increase in backend requests
-as evicted keys are re-fetched, but does not cause data loss or service interruption.
+the metadata entry for the least recently accessed cache item is removed from the shared memory zone.
 
 ### Disk expiry and cache lifetime
 
