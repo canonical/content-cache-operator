@@ -16,8 +16,6 @@ jobs:
       provider: lxd
       modules: '["test_basic", "test_tls_cert", "test_healthchecks", "test_metric"]'
       working-directory: ./content-cache/
-      self-hosted-runner: true
-      self-hosted-runner-label: "edge"
   # This is for building the content-cache-backends-config charm for the publish charm workflow.
   build-content-cache-backends-config:
     # Only build if the integration test succeeds.
