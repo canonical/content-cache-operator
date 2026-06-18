@@ -11,8 +11,8 @@ jobs:
       contents: write
       pull-requests: write
     with:
-      self-hosted-runner: true
-      self-hosted-runner-label: "edge"
+      self-hosted-runner: false
+      runs-on-base: ubuntu-24.04
       working-directory: ./content-cache
       vale-style-check: true
   unit-tests-content-cache-backends-config:
@@ -22,7 +22,7 @@ jobs:
       contents: write
       pull-requests: write
     with:
-      self-hosted-runner: true
-      self-hosted-runner-label: "edge"
+      self-hosted-runner: false
+      runs-on-base: ubuntu-24.04
       working-directory: ./content-cache-backends-config
       vale-style-check: true
