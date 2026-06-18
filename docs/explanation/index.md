@@ -13,5 +13,5 @@ real-world usage.
 
 ```{toctree}
 :maxdepth: 1
-Charm design and how it works <charm-design>
+Charm design <charm-design>
 ```

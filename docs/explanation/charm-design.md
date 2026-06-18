@@ -9,29 +9,28 @@ myst:
 # Charm design and how it works under the hood
 
 The Content Cache charm makes deliberate, opinionated design decisions to optimize for
-simplicity and static content caching. This page explains those decisions and how they affect
-behavior in real deployments, so that you can predict outcomes and avoid unexpected issues.
+simplicity and static content caching. Understanding those decisions and how they affect
+behavior in real deployments can help you predict outcomes and avoid unexpected issues.
 
 ## Static-only caching assumption
 
-The charm is built exclusively for caching static, non-personalized content: image
-assets, CSS files, HTML pages that look the same regardless of who requests them.
+The charm is built exclusively for caching static, non-personalized content such as image
+assets, CSS files, and HTML pages. This content should look the same regardless of who requests it.
 
 nginx identifies a cacheable response by its cache key. The charm does not set a
 [`proxy_cache_key`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_key)
 directive, so nginx uses its default: `$scheme$proxy_host$request_uri`.
 
-`$request_uri` includes the path and any query string. Implication:
-
-- `GET /page?lang=en` and `GET /page?lang=fr` produce different cache keys and are stored
-  as separate cache entries, and therefore query-parameter-based variation works correctly.
-- However, the key does not consider request headers such as `Cookie`, `Authorization`, or
-  `X-User-ID`.
+`$request_uri` includes the path and any query string. For example,
+`GET /page?lang=en` and `GET /page?lang=fr` produce different cache keys and are stored
+as separate cache entries, and therefore query-parameter-based variation works correctly.
+The key does not consider request headers such as `Cookie`, `Authorization`, or
+`X-User-ID`.
 
 This means that two requests with the same URL but different session cookies will share a
 single cache entry. The first response is cached and served to every subsequent requester of
 that URL, regardless of their session or identity. For personalized or session-dependent
-content, this produces incorrect results.
+content, this behavior produces incorrect results.
 
 The charm is therefore not suitable for:
 
@@ -61,9 +60,9 @@ The [`proxy_cache`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#pr
 directive (set at the server block level) ties this location to its hostname's
 dedicated cache zone.
 
-## Cache storage: disk and RAM
+## Cache storage
 
-nginx uses a two-tier storage model for caching:
+nginx uses a two-tier storage model for caching: disk and RAM.
 
 Disk stores the actual cached response bodies. Each hostname gets its own directory:
 
@@ -84,8 +83,8 @@ proxy_cache_path /data/nginx/cache/example.com
 ```
 
 The 10 MB limit is fixed in the charm and cannot be changed via configuration. For most static
-content deployments this is sufficient: per the nginx docs, one megabyte zone can store about
-8,000 keys, meaning 10 MB supports approximately 80,000 cached entries.
+content deployments this is sufficient: per the nginx docs,
+10 MB supports approximately 80,000 cached entries.
 
 ### What happens when the keys zone fills up
 
@@ -95,7 +94,7 @@ the metadata entry for the least recently accessed cache item is removed from th
 
 ### Disk expiry and cache lifetime
 
-Disk entries are expired according to
+Disk entries expire according to
 [`proxy_cache_valid`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid),
 which maps HTTP response codes to TTLs. For example:
 
@@ -103,7 +102,7 @@ which maps HTTP response codes to TTLs. For example:
 proxy-cache-valid: '["200 302 1h", "404 1m"]'
 ```
 
-This caches 200 and 302 responses for one hour, and 404 responses for one minute. Responses
+This directive caches 200 and 302 responses for one hour, and 404 responses for one minute. Responses
 not matched by any rule are not cached.
 
 ### Multi-host isolation
@@ -179,13 +178,13 @@ TLS is terminated at the nginx instance managed by this charm. Backends are alwa
 directly by IP address over the protocol specified by the `protocol` configuration option
 (`http` or `https`).
 
-TLS certificates are obtained via the Juju `certificates` integration
+TLS certificates are obtained via the Juju `certificates` relation
 (using the `tls-certificates` interface). When a `content-cache-backends-config` relation
 provides a hostname, the charm requests a certificate for that hostname.
 
 ### Behavior when certificates are not yet available
 
-If the `certificates` integration exists but the certificate for a hostname has not yet been
+If the `certificates` relation exists but the certificate for a hostname has not yet been
 issued, the charm enters `Maintenance` status and does not load any nginx configuration
 until all required certificates are available. It will not fall back to serving the hostname
 over plain HTTP.
@@ -193,6 +192,6 @@ over plain HTTP.
 This is an intentional security decision, as a charm that has been told to expect TLS should not
 silently serve unencrypted traffic because a certificate is delayed.
 
-If no `certificates` integration is present, the charm does not add a `listen 443 ssl` directive
+If no `certificates` relation is present, the charm does not add a `listen 443 ssl` directive
 to the nginx server block. nginx then falls back to its default behavior of listening on port 80,
 serving all traffic over plain HTTP with no TLS.
