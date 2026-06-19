@@ -174,7 +174,7 @@ nginx does not serve stale content beyond its TTL by default.
 
 ## TLS termination
 
-TLS is terminated at the nginx instance managed by this charm. Backends are always addressed
+TLS is terminated by the nginx instance managed by this charm. Backends are always addressed
 directly by IP address over the protocol specified by the `protocol` configuration option
 (`http` or `https`).
 
