@@ -19,7 +19,7 @@ assets, CSS files, and HTML pages. This content should look the same regardless 
 
 nginx identifies a cacheable response by its cache key. The charm does not set a
 [`proxy_cache_key`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_key)
-directive, so nginx uses its default: `$scheme$proxy_host$request_uri`.
+directive, so nginx uses the default `$scheme$proxy_host$request_uri`.
 
 `$request_uri` includes the path and any query string. For example,
 `GET /page?lang=en` and `GET /page?lang=fr` produce different cache keys and are stored
@@ -86,7 +86,7 @@ The 10 MB limit is fixed in the charm and cannot be changed via configuration. F
 content deployments this is sufficient: per the nginx docs,
 10 MB supports approximately 80,000 cached entries.
 
-### What happens when the keys zone fills up
+### When the keys zone fills up
 
 When the keys zone is full, nginx applies
 [LRU (Least Recently Used) eviction](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path):
@@ -129,7 +129,7 @@ The health check parameters are configured per relation:
 
 | Parameter | Description | Default |
 |---|---|---|
-| `healthcheck-interval` | Time between checks (ms) | 10000 |
+| `healthcheck-interval` | Time between checks (ms) | `10000` |
 | `healthcheck-path` | URL path to probe | `/` |
 | `healthcheck-valid-status` | HTTP codes considered healthy | `200` |
 | `healthcheck-ssl-verify` | Verify SSL cert on HTTPS checks (set to `false` to skip verification) | `true` |
@@ -139,8 +139,8 @@ The checker uses fall/rise thresholds to avoid flapping:
 - A backend is marked down after 3 consecutive failures (`fall=3`)
 - A backend is marked up again after 2 consecutive successes (`rise=2`)
 
-The generated Lua block for a single backend looks like (using non-default values for
-`healthcheck-path` and `protocol` as an example):
+The following example shows the generated Lua block for a single backend
+using non-default values for `healthcheck-path` and `protocol`:
 
 ```lua
 ok, err = hc.spawn_checker{
