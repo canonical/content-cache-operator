@@ -42,5 +42,6 @@ Thinking about using the Content Cache Operators for your next project?
 tutorial/index
 how-to/index
 reference/index
+explanation/index
 changelog
 ```
