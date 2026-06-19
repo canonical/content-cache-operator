@@ -113,7 +113,9 @@ Each hostname configured via a `content-cache-backends-config` relation gets:
 - Its own RAM keys zone (`keys_zone=<hostname>:10m`)
 - Its own upstream block and log files
 
-There is no cross-hostname competition for RAM or disk. Adding or removing a
+There is no cross-hostname competition for RAM. Each hostname has its own `keys_zone`
+allocation, so one hostname's cache metadata cannot evict another's. Disk capacity, however,
+is shared across all hostnames on the same filesystem. Adding or removing a
 `content-cache-backends-config` relation only affects that hostname's configuration; other
 hostnames continue serving from their own caches uninterrupted.
 
@@ -137,7 +139,8 @@ The checker uses fall/rise thresholds to avoid flapping:
 - A backend is marked down after 3 consecutive failures (`fall=3`)
 - A backend is marked up again after 2 consecutive successes (`rise=2`)
 
-The generated Lua block for a single backend looks like:
+The generated Lua block for a single backend looks like (using non-default values for
+`healthcheck-path` and `protocol` as an example):
 
 ```lua
 ok, err = hc.spawn_checker{
@@ -185,9 +188,9 @@ provides a hostname, the charm requests a certificate for that hostname.
 ### Behavior when certificates are not yet available
 
 If the `certificates` relation exists but the certificate for a hostname has not yet been
-issued, the charm enters `Maintenance` status and does not load any nginx configuration
-until all required certificates are available. It will not fall back to serving the hostname
-over plain HTTP.
+issued, the charm enters `Maintenance` status and does not reload nginx with the updated
+configuration until all required certificates are available. It will not fall back to serving
+the hostname over plain HTTP.
 
 This is an intentional security decision, as a charm that has been told to expect TLS should not
 silently serve unencrypted traffic because a certificate is delayed.
