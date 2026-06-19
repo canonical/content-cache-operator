@@ -114,7 +114,7 @@ Each hostname configured via a `content-cache-backends-config` relation gets:
 - Its own upstream block and log files
 
 There is no cross-hostname competition for RAM. Each hostname has its own `keys_zone`
-allocation, so one hostname's cache metadata cannot evict another's. Disk capacity, however,
+allocation, so one hostname's cache metadata cannot evict other cache. Disk capacity, however,
 is shared across all hostnames on the same filesystem. Adding or removing a
 `content-cache-backends-config` relation only affects that hostname's configuration; other
 hostnames continue serving from their own caches uninterrupted.
