@@ -132,7 +132,7 @@ The health check parameters are configured per relation:
 | `healthcheck-interval` | Time between checks (ms) | 10000 |
 | `healthcheck-path` | URL path to probe | `/` |
 | `healthcheck-valid-status` | HTTP codes considered healthy | `200` |
-| `healthcheck-ssl-verify` | Verify SSL cert on HTTPS checks | `true` |
+| `healthcheck-ssl-verify` | Verify SSL cert on HTTPS checks (set to `false` to skip verification) | `true` |
 
 The checker uses fall/rise thresholds to avoid flapping:
 
