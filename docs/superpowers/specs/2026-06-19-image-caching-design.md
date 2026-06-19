@@ -33,22 +33,26 @@ Also update `docs/explanation/index.md` toctree.
 ## Sections
 
 ### 1. Introduction
+
 Establish that the charm supports large binary files (e.g., Ubuntu ISOs). Disk is the
 dominant resource concern, not RAM.
 
 ### 2. How large-file caching works
+
 - nginx fetches the full file from upstream on cache miss, streams to client and disk simultaneously
 - `use_temp_path=off` → single write directly to final cache location
 - No file-size limit per entry (only disk space limits)
 - RAM keys_zone stores metadata only (~80,000 entries per 10 MB zone); not a concern
 
 ### 3. Disk capacity
+
 - No `max_size` set on `proxy_cache_path` → nginx fills disk
 - Ubuntu ISOs: 1–4 GB each
 - Operators must provision a large volume at `/data/nginx/cache/`
 - When disk is full: new cache writes fail; existing cached files remain accessible
 
 ### 4. Cache eviction and the inactive timeout
+
 - nginx default `inactive` = 10 minutes (not overridden by charm)
 - A cached ISO not accessed within 10 minutes is evicted from disk
 - Operators can set a long `proxy-cache-valid` TTL on `content-cache-backends-config`
@@ -56,11 +60,13 @@ dominant resource concern, not RAM.
 - No charm config option to change `inactive` timeout directly
 
 ### 5. Concurrent first-hit requests
+
 - `proxy_cache_lock` not set → each concurrent request for an uncached file triggers
   a separate upstream fetch
 - For large files: multiplied upstream bandwidth during the caching window
 
 ### 6. Quick-reference table
+
 Summary of all behaviors and limits:
 | Behavior | Detail |
 |---|---|
