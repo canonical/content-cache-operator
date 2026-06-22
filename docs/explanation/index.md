@@ -13,5 +13,5 @@ real-world usage.
 
 ```{toctree}
 :maxdepth: 1
-Large-file caching <large-file-caching>
+Caching behavior <caching-behavior>
 ```
