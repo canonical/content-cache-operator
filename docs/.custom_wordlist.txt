@@ -1,2 +1,11 @@
 AI
+chmod
 classDef
+hardcoded
+healthcheck
+healthchecks
+Lua
+proxied
+subprocess
+toctree
+untrusted

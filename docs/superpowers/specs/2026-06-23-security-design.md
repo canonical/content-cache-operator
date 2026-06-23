@@ -35,19 +35,23 @@ Also update `docs/explanation/index.md` toctree.
 ## Structure (boundary-based)
 
 ### 1. Introduction
+
 Three security boundaries: client → charm, charm → backend, internal nginx process.
 
 ### 2. Client → charm boundary
+
 - TLS: via `tls-certificates` integration; without it, HTTP only
 - Client auth: none — intentional design for public static content; operators must add
   a reverse proxy/WAF in front if access control is needed
 - Rate limiting: not configured; operators must add at upstream component
 
 ### 3. Charm → backend boundary
+
 - `protocol` config defaults to `https`
 - `healthcheck-ssl-verify` defaults to `true`; affects healthchecks only, NOT proxy_pass
 
 ### 4. Internal boundary
+
 - nginx runs as `www-data` (low-privilege)
 - PEM files at `/etc/nginx/certificates/<hostname>.pem`, owned by `www-data`, chmod `0o644`
   (private key readable by local users — restrict machine access)
@@ -55,6 +59,7 @@ Three security boundaries: client → charm, charm → backend, internal nginx p
 - `shell=False` on all subprocess calls
 
 ### 5. Cached data risks
+
 - Cache key excludes Cookie/Authorization headers — personalized content must not be routed
   through the charm
 - No built-in cache purge — must wait for TTL/inactive expiry or implement at nginx level
