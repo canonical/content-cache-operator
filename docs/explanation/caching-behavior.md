@@ -81,10 +81,11 @@ Each file can be several gigabytes.
 
 ### Disk capacity
 
-The charm does not set a `max_size` limit on
+The charm does not set `max_size` or `min_free` on
 [`proxy_cache_path`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path).
-nginx will cache files until the filesystem is full. With no cap, caching a modest number of
-ISO images can exhaust the disk of the host machine.
+nginx's cache manager only performs LRU eviction when one of those parameters is configured —
+without them, it has no threshold to act on. nginx will therefore cache files until the
+filesystem is full, with no automatic cleanup.
 
 Operators should:
 
