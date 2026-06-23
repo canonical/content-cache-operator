@@ -76,8 +76,8 @@ and the bandwidth consumed is modest. For large files the impact is more signifi
 
 ## Large-file considerations
 
-The behaviors above are amplified when caching large binary files such as Ubuntu ISO images,
-which are typically 1–4 GB each.
+The behaviors above are amplified when caching large binary files such as Ubuntu ISO images.
+Each file can be several gigabytes.
 
 ### Disk capacity
 
@@ -108,10 +108,11 @@ that files accessed regularly do not expire prematurely between hits.
 
 ### Concurrent first-hit bandwidth
 
-Without `proxy_cache_lock`, ten concurrent first-hit requests for a 2 GB ISO consume 20 GB
-of upstream bandwidth in parallel. Once the file is fully cached, all subsequent requests are
-served from disk. The concurrent-fetch problem only affects the window before the file is
-fully stored.
+Without `proxy_cache_lock`, multiple concurrent first-hit requests for the same uncached
+large file each trigger a separate upstream fetch. For a multi-gigabyte file, this multiplies
+upstream bandwidth consumption during the caching window. Once the file is fully cached, all
+subsequent requests are served from disk. The concurrent-fetch problem only affects the window
+before the file is fully stored.
 
 ## Quick reference
 
