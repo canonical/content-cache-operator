@@ -32,15 +32,6 @@ download. There is no intermediate temporary file.
 Once a response is cached on disk, nginx serves it directly from disk without contacting the
 upstream backend. The client receives the response faster, and the backend sees no load.
 
-### RAM and disk roles
-
-nginx uses a two-tier storage model. File bodies are stored on disk. Cache metadata — keys,
-timestamps, and expiry information — is stored in a shared memory zone (RAM). The charm
-allocates a 10 MB
-[`keys_zone`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path)
-per hostname, which holds approximately 80,000 entries. RAM is not a concern for typical
-deployments: file bodies never enter the keys zone.
-
 ## Cache expiry and eviction
 
 Two independent mechanisms remove cached responses.
@@ -103,10 +94,6 @@ For files accessed periodically — for example, ISO images downloaded during ma
 provisioning runs — the 10-minute inactive timeout may cause repeated upstream re-fetches.
 Each re-fetch transfers the full file again from the upstream backend.
 
-Operators can set a long `proxy-cache-valid` TTL (for example, `200 7d`) via
-`content-cache-backends-config`. This does not change the inactive timeout, but it ensures
-that files accessed regularly do not expire prematurely between hits.
-
 ### Concurrent first-hit bandwidth
 
 Without `proxy_cache_lock`, multiple concurrent first-hit requests for the same uncached
@@ -122,8 +109,6 @@ before the file is fully stored.
 | Cache miss | nginx fetches from upstream and writes to disk simultaneously |
 | Cache hit | Served from disk; no upstream contact |
 | Write path on first fetch | Direct to final cache location (`use_temp_path=off`) |
-| RAM used for file bodies | None — file bodies live on disk only |
-| RAM used for cache metadata | `keys_zone=<hostname>:10m` (~80,000 entries per hostname) |
 | Disk cap | None — `max_size` is not set |
 | Cache TTL per status code | Configurable via `proxy-cache-valid` on `content-cache-backends-config` |
 | Cache eviction (inactive timeout) | nginx default: 10 minutes of no access; not configurable via the charm |
