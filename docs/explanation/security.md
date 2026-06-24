@@ -29,10 +29,7 @@ machine is not shared with untrusted local users.
 
 ### Client authentication
 
-The charm provides no client authentication mechanism. Any client that can reach port 80 or
-443 on the machine can request cached content. This is an intentional design constraint: the
-charm is built for publicly accessible static content. There are no plans to add a native
-authentication feature.
+The charm provides no client authentication mechanism. Any client that can reach the charm's HTTP(S) listener (port 80 when no `certificates` relation is present, otherwise port 443) can request cached content. This is an intentional design constraint: the charm is built for publicly accessible static content. There are no plans to add a native authentication feature.
 
 ### Rate limiting
 
@@ -115,8 +112,8 @@ receive each other's responses.
 
 The charm provides no built-in mechanism to purge a cached response on demand — for example,
 if sensitive content was accidentally cached. Cache entries are removed when their
-`proxy-cache-valid` TTL expires or when they are evicted by the 10-minute inactive timeout.
-Operators who need on-demand purge capability must implement it directly at the nginx level
+`proxy-cache-valid` TTL expires or when they are removed by nginx's default `inactive=10m`
+behavior for `proxy_cache_path` (the charm does not override this). Operators who need on-demand purge capability must implement it directly at the nginx level
 outside the charm, or wait for natural expiry.
 
 ## Best practices
