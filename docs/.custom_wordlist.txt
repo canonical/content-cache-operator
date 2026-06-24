@@ -7,5 +7,5 @@ healthchecks
 Lua
 proxied
 subprocess
-toctree
+sudo
 untrusted

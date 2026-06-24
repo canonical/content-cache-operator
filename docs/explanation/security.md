@@ -74,16 +74,24 @@ option to enable SSL certificate verification for proxied backend connections.
 
 ### Process user
 
-nginx worker processes run as `www-data`, a low-privilege system account. The cache directory
+On Ubuntu, the nginx package is configured to run worker processes as `www-data` via the
+[`user` directive](https://nginx.org/en/docs/ngx_core_module.html#user) in the system
+`nginx.conf`. `www-data` is a low-privilege system account with no login shell and no sudo
+rights. If nginx were compromised, the attacker would have only the limited access of
+`www-data` — they cannot read arbitrary files owned by other users or escalate privileges
+without a separate exploit.
+
+The charm creates and owns all cache and certificate files as `www-data`. The cache directory
 at `/data/nginx/cache/` and the certificate files at `/etc/nginx/certs/` are owned by
-`www-data`.
+`www-data` (set via `os.chown` in the charm code).
 
 ### Status page access
 
 The nginx status page at `/nginx_status` and the backend health status page at
-`/nginx_backends_status` are restricted to `127.0.0.1` only. External clients cannot access
-these endpoints. This is hardcoded in the generated nginx configuration and cannot be changed
-via charm configuration.
+`/nginx_backends_status` are restricted to `127.0.0.1` only using the nginx
+[`allow`/`deny` directives](https://nginx.org/en/docs/http/ngx_http_access_module.html).
+External clients cannot access these endpoints. This is hardcoded in the generated nginx
+configuration and cannot be changed via charm configuration.
 
 ### Subprocess security
 
