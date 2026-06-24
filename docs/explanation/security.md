@@ -52,17 +52,23 @@ default unless backends do not support HTTPS.
 
 ### Backend SSL certificate verification
 
-The `healthcheck-ssl-verify` option on `content-cache-backends-config` controls whether the
-Lua healthcheck module verifies the backend SSL certificate during health checks. It defaults
-to `true`. Setting it to `false` disables certificate verification for healthchecks and should
-only be used in controlled environments — for example, when backends use self-signed
-certificates on a trusted private network.
+The charm contacts backends over two separate code paths: the Lua healthcheck module (periodic
+health pings) and the nginx `proxy_pass` directive (actual proxied requests). These have
+different SSL verification behavior.
 
-This option only affects healthchecks. The nginx
-[`proxy_pass`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass)
-directive does not perform SSL certificate verification for backend connections. Operators who
-require end-to-end SSL verification for proxied requests must configure this at the
-infrastructure level (for example, by using a private CA trusted by the machine).
+**Healthchecks** — the `healthcheck-ssl-verify` option on `content-cache-backends-config`
+controls whether the Lua healthcheck module verifies the backend SSL certificate during health
+pings. It defaults to `true`. Setting it to `false` disables certificate verification for
+healthchecks and should only be used in controlled environments — for example, when backends
+use self-signed certificates on a trusted private network.
+
+**Proxied requests** — nginx's
+[`proxy_ssl_verify`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify)
+defaults to `off` and the charm does not override it. This means that even when
+`protocol=https`, nginx encrypts the connection to the backend but does **not** verify the
+SSL certificate of the backend. Traffic to the backend is protected against passive eavesdropping
+but not against a man-in-the-middle attack on that connection. There is no charm configuration
+option to enable SSL certificate verification for proxied backend connections.
 
 ## Internal
 
