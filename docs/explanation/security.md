@@ -32,16 +32,15 @@ machine is not shared with untrusted local users.
 The charm provides no client authentication mechanism. Any client that can reach port 80 or
 443 on the machine can request cached content. This is an intentional design constraint: the
 charm is built for publicly accessible static content. There are no plans to add a native
-authentication feature. If the cached content requires access control, operators must place an
-authenticating reverse proxy or a Web Application Firewall (WAF) in front of the charm.
+authentication feature.
 
 ### Rate limiting
 
 The charm does not configure nginx rate limiting
 ([`limit_req`](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html) or
 [`limit_conn`](https://nginx.org/en/docs/http/ngx_http_limit_conn_module.html)). Operators
-who need protection against abuse or denial-of-service attacks must add rate limiting at an
-upstream component.
+who need protection against abuse or denial-of-service attacks must add rate limiting at a
+component placed in front of the charm, such as a load balancer, reverse proxy, or WAF.
 
 ## Charm to backend
 
@@ -114,6 +113,6 @@ outside the charm, or wait for natural expiry.
 | Backend protocol | Keep `protocol=https` (the default) |
 | Backend SSL verification | Keep `healthcheck-ssl-verify=true` (the default) |
 | Access control | Place an authenticating reverse proxy or WAF in front if the content is not fully public |
-| Rate limiting | Add rate limiting at an upstream component if abuse protection is needed |
+| Rate limiting | Add rate limiting at a component placed in front of the charm (load balancer, reverse proxy, or WAF) if abuse protection is needed |
 | Cached content | Only route public, non-personalized content through the charm |
 | Machine access | Restrict local user access to the Juju machine — TLS private keys are readable by local users |
