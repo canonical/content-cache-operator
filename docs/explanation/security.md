@@ -44,7 +44,7 @@ component placed in front of the charm, such as a load balancer, reverse proxy, 
 ### Backend protocol
 
 The `protocol` configuration option on `content-cache-backends-config` controls whether nginx
-contacts backends over HTTP or HTTPS. It defaults to `https`. Operators should keep this
+contacts backends over HTTP or HTTPS. The configuration defaults to `https`. Operators should keep this
 default unless backends do not support HTTPS.
 
 ### Backend SSL certificate verification
@@ -53,9 +53,9 @@ The charm contacts backends over two separate code paths: the Lua healthcheck mo
 health pings) and the nginx `proxy_pass` directive (actual proxied requests). These have
 different SSL verification behavior.
 
-**Healthchecks** — the `healthcheck-ssl-verify` option on `content-cache-backends-config`
+**Healthchecks** — the `healthcheck-ssl-verify` configuration option on `content-cache-backends-config`
 controls whether the Lua healthcheck module verifies the backend SSL certificate during health
-pings. It defaults to `true`. Setting it to `false` disables certificate verification for
+pings. The configuration defaults to `true`. Setting the configuration to `false` disables certificate verification for
 healthchecks and should only be used in controlled environments — for example, when backends
 use self-signed certificates on a trusted private network.
 
@@ -64,7 +64,7 @@ use self-signed certificates on a trusted private network.
 defaults to `off` and the charm does not override it. This means that even when
 `protocol=https`, nginx encrypts the connection to the backend but does **not** verify the
 SSL certificate of the backend. Traffic to the backend is protected against passive eavesdropping
-but not against a man-in-the-middle attack on that connection. There is no charm configuration
+but not against a machine-in-the-middle attack on that connection. There is no charm configuration
 option to enable SSL certificate verification for proxied backend connections.
 
 ## Internal
@@ -87,7 +87,7 @@ at `/data/nginx/cache/` and the certificate files at `/etc/nginx/certs/` are own
 The nginx status page at `/nginx_status` and the backend health status page at
 `/nginx_backends_status` are restricted to `127.0.0.1` only using the nginx
 [`allow`/`deny` directives](https://nginx.org/en/docs/http/ngx_http_access_module.html).
-External clients cannot access these endpoints. This is hardcoded in the generated nginx
+External clients cannot access these endpoints. This behavior is hard-coded in the generated nginx
 configuration and cannot be changed via charm configuration.
 
 ### Subprocess security
@@ -105,7 +105,7 @@ same URL with different session cookies share a single cache entry: the first re
 cached and served to every subsequent requester of that URL, regardless of their identity.
 
 Operators must ensure that only public, non-personalized content is routed through the charm.
-Routing personalized or session-dependent content through the charm will cause users to
+Routing personalized or session-dependent content through the charm means users will
 receive each other's responses.
 
 ### No cache purge
@@ -120,10 +120,10 @@ outside the charm, or wait for natural expiry.
 
 | Practice | Recommendation |
 |---|---|
-| Enable TLS | Integrate with a `tls-certificates` provider charm |
+| TLS | Integrate with a `tls-certificates` provider charm to enable TLS |
 | Backend protocol | Keep `protocol=https` (the default) |
 | Backend SSL verification | Keep `healthcheck-ssl-verify=true` (the default) |
 | Access control | Place an authenticating reverse proxy or WAF in front if the content is not fully public |
 | Rate limiting | Add rate limiting at a component placed in front of the charm (load balancer, reverse proxy, or WAF) if abuse protection is needed |
 | Cached content | Only route public, non-personalized content through the charm |
-| Machine access | Restrict local user access to the Juju machine — TLS private keys are readable by local users |
+| Machine access | Restrict local user access to the Juju machine |
