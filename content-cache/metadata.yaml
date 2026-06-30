@@ -14,7 +14,7 @@ display-name: Content Cache
 
 # (Required)
 summary: A charm for managing a content cache with nginx.
-docs: https://documentation.ubuntu.com/content-cache-operators/
+docs: https://canonical.com/juju/docs/content-cache-charms
 issues: https://github.com/canonical/content-cache-operator/issues
 maintainers: 
   - https://launchpad.net/~canonical-is-devops
