@@ -19,8 +19,8 @@ capacity — especially when caching large binary files such as Ubuntu ISO image
 When nginx receives a request for a URL that is not in the cache, it forwards the request to
 an upstream backend. As the response arrives, nginx simultaneously:
 
-1. Streams the response body to the client.
-2. Writes the response body to disk at `/data/nginx/cache/<hostname>/`.
+- Streams the response body to the client.
+- Writes the response body to disk at `/data/nginx/cache/<hostname>/`.
 
 The charm sets
 [`use_temp_path=off`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path)
@@ -102,15 +102,3 @@ upstream bandwidth consumption during the caching window. Once the file is fully
 subsequent requests are served from disk. The concurrent-fetch problem only affects the window
 before the file is fully stored.
 
-## Quick reference
-
-| Behavior | Detail |
-|---|---|
-| Cache miss | nginx fetches from upstream and writes to disk simultaneously |
-| Cache hit | Served from disk; no upstream contact |
-| Write path on first fetch | Direct to final cache location (`use_temp_path=off`) |
-| Disk cap | None — `max_size` is not set |
-| Cache TTL per status code | Configurable via `proxy-cache-valid` on `content-cache-backends-config` |
-| Cache eviction (inactive timeout) | nginx default: 10 minutes of no access; not configurable via the charm |
-| Concurrent first-hit requests | Each triggers a separate upstream fetch (`proxy_cache_lock` not set) |
-| Disk full behavior | New cache writes fail; existing cached files remain accessible |

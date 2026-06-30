@@ -4,6 +4,5 @@ classDef
 hostnames
 ISOs
 Lua
-toctree
 TTLs
 uncached
