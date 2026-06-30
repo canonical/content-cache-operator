@@ -38,12 +38,13 @@ The charm is therefore not suitable for:
 - API responses that differ based on cookies or auth tokens (same URL, different users)
 - Any content where the correct response depends on the identity of the user making the request
 
-It is well-suited for:
+It is well-suited for static asset files (JS, CSS, fonts, images, binary packages, and
+archives), including use cases such as:
 
 - Public marketing pages and blog posts
-- Static asset files (JS, CSS, fonts, images)
 - Documentation sites
-- Content that is identical for every visitor, or that varies only by URL/query parameters
+- Software distribution mirrors (package repositories, release archives)
+- Any content that is identical for every visitor, or varies only by URL or query parameters
 
 The generated nginx location block looks like:
 
@@ -96,7 +97,8 @@ the metadata entry for the least recently accessed cache item is removed from th
 
 Disk entries expire according to
 [`proxy_cache_valid`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid),
-which maps HTTP response codes to TTLs. For example:
+which maps HTTP response codes to TTLs. This value is set via the `proxy-cache-valid` option
+on `content-cache-backends-config` and applies per location (per hostname and path). For example:
 
 ```
 proxy-cache-valid: '["200 302 1h", "404 1m"]'
@@ -182,8 +184,9 @@ directly by IP address over the protocol specified by the `protocol` configurati
 (`http` or `https`).
 
 TLS certificates are obtained via the Juju `certificates` relation
-(using the `tls-certificates` interface). When a `content-cache-backends-config` relation
-provides a hostname, the charm requests a certificate for that hostname.
+(using the `tls-certificates` interface). The charm requests one certificate per hostname —
+each `content-cache-backends-config` relation that provides a hostname triggers a separate
+certificate request.
 
 ### Behavior when certificates are not yet available
 
