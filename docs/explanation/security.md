@@ -37,7 +37,7 @@ The charm does not configure nginx rate limiting
 ([`limit_req`](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html) or
 [`limit_conn`](https://nginx.org/en/docs/http/ngx_http_limit_conn_module.html)). Operators
 who need protection against abuse or denial-of-service attacks must add rate limiting at a
-component placed in front of the charm, such as a load balancer, reverse proxy, or WAF.
+component placed in front of the charm, such as a load balancer, reverse proxy, or Web Application Firewall (WAF).
 
 ## Charm to backend
 

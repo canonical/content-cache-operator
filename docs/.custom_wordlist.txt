@@ -1,7 +1,6 @@
 AI
 chmod
 classDef
-hardcoded
 healthcheck
 healthchecks
 Lua
