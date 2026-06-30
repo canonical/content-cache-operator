@@ -46,7 +46,8 @@ archives), including use cases such as:
 - Software distribution mirrors (package repositories, release archives)
 - Any content that is identical for every visitor, or varies only by URL or query parameters
 
-The generated nginx location block looks like:
+For each configured path, the charm generates an nginx location block. The following
+example shows the directives relevant to caching:
 
 ```nginx
 location / {
