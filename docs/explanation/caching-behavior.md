@@ -57,13 +57,13 @@ There is currently no charm configuration option to change the `inactive` timeou
 
 The charm does not enable
 [`proxy_cache_lock`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock).
-When multiple clients simultaneously request the same URL that is not yet cached, nginx
+When multiple clients simultaneously request the same uncached URL, nginx
 starts a separate upstream fetch for each request rather than having the first fetch complete
 while the rest wait.
 
-For small files this is usually acceptable — the window of concurrent cache misses is brief
+For small files this behavior is usually acceptable — the window of concurrent cache misses is brief
 and the bandwidth consumed is modest. For large files the impact is more significant (see
-[Large-file considerations](#large-file-considerations) below).
+the next section).
 
 ## Large-file considerations
 
