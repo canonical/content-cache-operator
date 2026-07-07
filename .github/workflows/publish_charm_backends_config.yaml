@@ -2,12 +2,16 @@ name: Publish to edge for content-cache-backends-config
 
 on:
   workflow_dispatch:
-  push:
+  workflow_run:
+    workflows: ["Integration tests"]
+    types:
+      - completed
     branches:
       - main
 
 jobs:
   publish-to-edge:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     uses: canonical/operator-workflows/.github/workflows/publish_charm.yaml@main
     secrets: inherit
     with:
