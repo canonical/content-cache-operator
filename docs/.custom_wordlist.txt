@@ -1,2 +1,10 @@
 AI
+chmod
 classDef
+healthcheck
+healthchecks
+Lua
+proxied
+subprocess
+sudo
+untrusted
