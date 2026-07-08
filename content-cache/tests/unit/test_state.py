@@ -13,9 +13,13 @@ from src.state import HOSTNAME_FIELD_NAME, PATH_FIELD_NAME
 from state import (
     BACKENDS_FIELD_NAME,
     BACKENDS_PATH_FIELD_NAME,
+    HTTP_PROXY_FIELD_NAME,
+    HTTPS_PROXY_FIELD_NAME,
+    NO_PROXY_FIELD_NAME,
     PROTOCOL_FIELD_NAME,
     PROXY_CACHE_VALID_FIELD_NAME,
     LocationConfig,
+    get_proxy_from_nginx_config,
 )
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
@@ -36,6 +40,9 @@ def test_config_from_integration_data():
     assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
     assert config.healthcheck_config.ssl_verify is False
+    assert config.http_proxy == ""
+    assert config.https_proxy == ""
+    assert config.no_proxy == ""
 
 
 def test_config_subdomain_integration_data():
@@ -311,3 +318,70 @@ def test_config_valid_proxy_cache_valid_integration_data(proxy_cache_valid: str)
     assert config.healthcheck_config.path == "/"
     assert config.healthcheck_config.interval == 2000
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
+
+
+def test_proxy_config_from_integration_data():
+    """
+    arrange: Sample integration data with proxy configuration.
+    act: Create the config from the data.
+    assert: Proxy configurations are correctly parsed.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[HTTP_PROXY_FIELD_NAME] = "http://proxy.internal:3128"
+    data[HTTPS_PROXY_FIELD_NAME] = "http://proxy.internal:3128"
+    data[NO_PROXY_FIELD_NAME] = "localhost,127.0.0.1"
+
+    config = LocationConfig.from_integration_data(data)
+
+    assert config.http_proxy == "http://proxy.internal:3128"
+    assert config.https_proxy == "http://proxy.internal:3128"
+    assert config.no_proxy == "localhost,127.0.0.1"
+
+
+def test_get_proxy_from_nginx_config_with_proxy():
+    """
+    arrange: NginxConfig with proxy settings in one location.
+    act: Call get_proxy_from_nginx_config.
+    assert: Proxy settings are returned.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[HTTP_PROXY_FIELD_NAME] = "http://proxy.internal:3128"
+    data[HTTPS_PROXY_FIELD_NAME] = "http://proxy.internal:3128"
+    data[NO_PROXY_FIELD_NAME] = "localhost"
+    location_config = LocationConfig.from_integration_data(data)
+    nginx_config = {"example.com": {"/": location_config}}
+
+    http_proxy, https_proxy, no_proxy = get_proxy_from_nginx_config(nginx_config)
+
+    assert http_proxy == "http://proxy.internal:3128"
+    assert https_proxy == "http://proxy.internal:3128"
+    assert no_proxy == "localhost"
+
+
+def test_get_proxy_from_nginx_config_without_proxy():
+    """
+    arrange: NginxConfig with no proxy settings.
+    act: Call get_proxy_from_nginx_config.
+    assert: Empty strings are returned.
+    """
+    location_config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+    nginx_config = {"example.com": {"/": location_config}}
+
+    http_proxy, https_proxy, no_proxy = get_proxy_from_nginx_config(nginx_config)
+
+    assert http_proxy == ""
+    assert https_proxy == ""
+    assert no_proxy == ""
+
+
+def test_get_proxy_from_empty_nginx_config():
+    """
+    arrange: Empty NginxConfig.
+    act: Call get_proxy_from_nginx_config.
+    assert: Empty strings are returned.
+    """
+    http_proxy, https_proxy, no_proxy = get_proxy_from_nginx_config({})
+
+    assert http_proxy == ""
+    assert https_proxy == ""
+    assert no_proxy == ""

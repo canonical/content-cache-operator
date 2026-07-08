@@ -31,6 +31,9 @@ HEALTHCHECK_PATH_FIELD_NAME = "healthcheck_path"
 HEALTHCHECK_SSL_VERIFY_FIELD_NAME = "healthcheck_ssl_verify"
 HEALTHCHECK_VALID_STATUS_FIELD_NAME = "healthcheck_valid_status"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
+HTTP_PROXY_FIELD_NAME = "http_proxy"
+HTTPS_PROXY_FIELD_NAME = "https_proxy"
+NO_PROXY_FIELD_NAME = "no_proxy"
 
 
 class Protocol(str, enum.Enum):
@@ -171,6 +174,9 @@ class LocationConfig(pydantic.BaseModel):
         backends_path: The path to request the backends.
         proxy_cache_valid: The cache valid duration.
         healthcheck_config: The healthcheck configuration.
+        http_proxy: The URL of the HTTP proxy server.
+        https_proxy: The URL of the HTTPS proxy server.
+        no_proxy: A comma-separated list of hosts that should bypass the proxy.
     """
 
     hostname: typing.Annotated[
@@ -193,6 +199,9 @@ class LocationConfig(pydantic.BaseModel):
     ]
     proxy_cache_valid: tuple[str, ...]
     healthcheck_config: HealthcheckConfig
+    http_proxy: str = ""
+    https_proxy: str = ""
+    no_proxy: str = ""
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
@@ -253,6 +262,10 @@ class LocationConfig(pydantic.BaseModel):
 
         healthcheck_config = HealthcheckConfig.from_integration_data(data)
 
+        http_proxy = data.get(HTTP_PROXY_FIELD_NAME, "").strip()
+        https_proxy = data.get(HTTPS_PROXY_FIELD_NAME, "").strip()
+        no_proxy = data.get(NO_PROXY_FIELD_NAME, "").strip()
+
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
             return cls(
@@ -264,6 +277,9 @@ class LocationConfig(pydantic.BaseModel):
                 backends_path=backends_path,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck_config=healthcheck_config,
+                http_proxy=http_proxy,
+                https_proxy=https_proxy,
+                no_proxy=no_proxy,
             )
         except pydantic.ValidationError as err:
             err_msg = [
@@ -369,6 +385,29 @@ def extract_hostname_from_nginx_config(config: NginxConfig) -> tuple[Hostname, .
         The list of hostnames.
     """
     return tuple(config.keys())
+
+
+def get_proxy_from_nginx_config(config: NginxConfig) -> tuple[str, str, str]:
+    """Extract proxy settings from nginx configuration.
+
+    Returns the proxy settings from the first location that has any proxy configured.
+    If no locations have proxy settings configured, returns empty strings.
+
+    Args:
+        config: The nginx configuration.
+
+    Returns:
+        A tuple of (http_proxy, https_proxy, no_proxy).
+    """
+    for host_config in config.values():
+        for location_config in host_config.values():
+            if location_config.http_proxy or location_config.https_proxy or location_config.no_proxy:
+                return (
+                    location_config.http_proxy,
+                    location_config.https_proxy,
+                    location_config.no_proxy,
+                )
+    return ("", "", "")
 
 
 def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:

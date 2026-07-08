@@ -66,3 +66,22 @@ options:
       (https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid).
     type: string
     default: '[]'
+  http-proxy:
+    description: |
+      The URL of the HTTP proxy server for nginx to use when connecting to backends, e.g.
+      http://squid.internal:3128. Leave empty to disable HTTP proxying.
+    type: string
+    default: ''
+  https-proxy:
+    description: |
+      The URL of the HTTPS proxy server for nginx to use when connecting to backends, e.g.
+      http://squid.internal:3128. Leave empty to disable HTTPS proxying.
+    type: string
+    default: ''
+  no-proxy:
+    description: |
+      A comma-separated list of hosts, IP addresses, or CIDR ranges that should be contacted
+      directly, bypassing any configured proxy. For example: localhost,127.0.0.1,10.0.0.0/8.
+      Leave empty to proxy all connections.
+    type: string
+    default: ''

@@ -17,6 +17,9 @@ from src.state import (
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
     HOSTNAME_CONFIG_NAME,
+    HTTP_PROXY_CONFIG_NAME,
+    HTTPS_PROXY_CONFIG_NAME,
+    NO_PROXY_CONFIG_NAME,
     PATH_CONFIG_NAME,
     PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
@@ -61,6 +64,9 @@ def test_valid_config():
     assert config.healthcheck.path == "/healthz"
     assert config.healthcheck.interval == 2123
     assert config.proxy_cache_valid == ()
+    assert config.http_proxy == ""
+    assert config.https_proxy == ""
+    assert config.no_proxy == ""
 
 
 def test_hostname_with_subdomain():
@@ -414,7 +420,29 @@ def test_configuration_to_data():
         "healthcheck_ssl_verify": "false",
         "healthcheck_valid_status": "[200]",
         "proxy_cache_valid": "[]",
+        "http_proxy": "",
+        "https_proxy": "",
+        "no_proxy": "",
     }
+
+
+def test_configuration_to_data_with_proxy():
+    """
+    arrange: Mock charm with proxy configurations.
+    act: Create the configuration from the charm, and convert to dict.
+    assert: Data contains the proxy configurations.
+    """
+    charm = MockCharmFactory()
+    charm.config[HTTP_PROXY_CONFIG_NAME] = "http://proxy.internal:3128"
+    charm.config[HTTPS_PROXY_CONFIG_NAME] = "http://proxy.internal:3128"
+    charm.config[NO_PROXY_CONFIG_NAME] = "localhost,127.0.0.1"
+
+    config = Configuration.from_charm(charm)
+    data = config.to_integration_data()
+
+    assert data["http_proxy"] == "http://proxy.internal:3128"
+    assert data["https_proxy"] == "http://proxy.internal:3128"
+    assert data["no_proxy"] == "localhost,127.0.0.1"
 
 
 def test_configuration_to_data_model_dump_error(monkeypatch):
@@ -497,3 +525,53 @@ def test_invalid_healthcheck_interval(bad_value, error_msg):
         Configuration.from_charm(charm)
 
     assert str(err.value) == f"Config error: ['interval = {bad_value}: {error_msg}']"
+
+
+def test_valid_proxy_config():
+    """
+    arrange: Mock charm with proxy configurations.
+    act: Create the configuration from the charm.
+    assert: Proxy configurations are correctly parsed.
+    """
+    charm = MockCharmFactory()
+    charm.config[HTTP_PROXY_CONFIG_NAME] = "http://proxy.internal:3128"
+    charm.config[HTTPS_PROXY_CONFIG_NAME] = "http://proxy.internal:3128"
+    charm.config[NO_PROXY_CONFIG_NAME] = "localhost,127.0.0.1,10.0.0.0/8"
+
+    config = Configuration.from_charm(charm)
+
+    assert config.http_proxy == "http://proxy.internal:3128"
+    assert config.https_proxy == "http://proxy.internal:3128"
+    assert config.no_proxy == "localhost,127.0.0.1,10.0.0.0/8"
+
+
+def test_proxy_config_with_only_http_proxy():
+    """
+    arrange: Mock charm with only http_proxy configured.
+    act: Create the configuration from the charm.
+    assert: http_proxy is set; https_proxy and no_proxy are empty.
+    """
+    charm = MockCharmFactory()
+    charm.config[HTTP_PROXY_CONFIG_NAME] = "http://squid:3128"
+
+    config = Configuration.from_charm(charm)
+
+    assert config.http_proxy == "http://squid:3128"
+    assert config.https_proxy == ""
+    assert config.no_proxy == ""
+
+
+def test_proxy_config_strips_whitespace():
+    """
+    arrange: Mock charm with proxy configuration that has leading/trailing whitespace.
+    act: Create the configuration from the charm.
+    assert: Proxy configuration values are stripped.
+    """
+    charm = MockCharmFactory()
+    charm.config[HTTP_PROXY_CONFIG_NAME] = "  http://proxy.internal:3128  "
+    charm.config[NO_PROXY_CONFIG_NAME] = "  localhost  "
+
+    config = Configuration.from_charm(charm)
+
+    assert config.http_proxy == "http://proxy.internal:3128"
+    assert config.no_proxy == "localhost"

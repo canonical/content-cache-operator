@@ -28,6 +28,9 @@ HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
 HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
 HEALTHCHECK_VALID_STATUS_CONFIG_NAME = "healthcheck-valid-status"
 PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
+HTTP_PROXY_CONFIG_NAME = "http-proxy"
+HTTPS_PROXY_CONFIG_NAME = "https-proxy"
+NO_PROXY_CONFIG_NAME = "no-proxy"
 
 
 class Protocol(str, enum.Enum):
@@ -168,6 +171,9 @@ class Configuration(pydantic.BaseModel):
         backends_path: The path to request the backends.
         proxy_cache_valid: The cache valid duration.
         healthcheck: The healthcheck configuration.
+        http_proxy: The URL of the HTTP proxy server.
+        https_proxy: The URL of the HTTPS proxy server.
+        no_proxy: A comma-separated list of hosts that should bypass the proxy.
     """
 
     hostname: typing.Annotated[
@@ -190,6 +196,9 @@ class Configuration(pydantic.BaseModel):
     ]
     proxy_cache_valid: tuple[str, ...]
     healthcheck: HealthcheckConfig
+    http_proxy: str = ""
+    https_proxy: str = ""
+    no_proxy: str = ""
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
@@ -254,6 +263,10 @@ class Configuration(pydantic.BaseModel):
 
         healthcheck_config = HealthcheckConfig.from_charm(charm)
 
+        http_proxy = typing.cast(str, charm.config.get(HTTP_PROXY_CONFIG_NAME, "")).strip()
+        https_proxy = typing.cast(str, charm.config.get(HTTPS_PROXY_CONFIG_NAME, "")).strip()
+        no_proxy = typing.cast(str, charm.config.get(NO_PROXY_CONFIG_NAME, "")).strip()
+
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
             return cls(
@@ -265,6 +278,9 @@ class Configuration(pydantic.BaseModel):
                 backends_path=backends_path,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck=healthcheck_config,
+                http_proxy=http_proxy,
+                https_proxy=https_proxy,
+                no_proxy=no_proxy,
             )
         except pydantic.ValidationError as err:
             err_msg = [

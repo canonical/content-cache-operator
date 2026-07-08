@@ -65,6 +65,7 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     """
     mock_instance_name = "mock-test_0"
     monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._update_proxy_config", MagicMock())
     mock_status_check = MagicMock()
     mock_status_check.return_value = True
     monkeypatch.setattr("nginx_manager._systemctl_status_check", mock_status_check)

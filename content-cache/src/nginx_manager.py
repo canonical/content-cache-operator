@@ -23,7 +23,7 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import HostConfig, LocationConfig, NginxConfig, Protocol
+from state import HostConfig, LocationConfig, NginxConfig, Protocol, get_proxy_from_nginx_config
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,8 @@ NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
 NGINX_HEALTH_CHECK_TIMEOUT = 300
 NGINX_CACHE_LOG_FORMAT_NAME = "cache"
+NGINX_SYSTEMD_OVERRIDE_DIR = Path("/etc/systemd/system/nginx.service.d")
+NGINX_PROXY_OVERRIDE_FILE = NGINX_SYSTEMD_OVERRIDE_DIR / "proxy.conf"
 NGINX_CACHE_LOG_FORMAT = (
     "{"
     '"time": "$time_iso8601",'
@@ -198,6 +200,9 @@ def update_and_load_config(
     # This will reset the file permissions.
     _reset_nginx_files(instance_name)
 
+    http_proxy, https_proxy, no_proxy = get_proxy_from_nginx_config(configuration)
+    _update_proxy_config(http_proxy, https_proxy, no_proxy)
+
     errored_hosts: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
     healthcheck_workers_lua_code = ""
@@ -241,6 +246,52 @@ def _load_config() -> None:  # pragma: no cover
 
     logger.info("Restarting nginx to load the configuration files.")
     execute_command(["sudo", "systemctl", "restart", NGINX_SERVICE])
+
+
+def _update_proxy_config(http_proxy: str, https_proxy: str, no_proxy: str) -> None:  # pragma: no cover
+    """Write proxy settings to the nginx systemd service environment override.
+
+    Creates a systemd drop-in configuration file that sets HTTP_PROXY, HTTPS_PROXY,
+    and NO_PROXY environment variables for the nginx service. If all proxy values are
+    empty, the override file is removed.
+
+    Args:
+        http_proxy: The HTTP proxy URL, or empty string to disable.
+        https_proxy: The HTTPS proxy URL, or empty string to disable.
+        no_proxy: Comma-separated list of hosts to bypass the proxy, or empty string.
+    """
+    if not http_proxy and not https_proxy and not no_proxy:
+        logger.info("No proxy configuration found; removing nginx proxy override if present")
+        if NGINX_PROXY_OVERRIDE_FILE.exists():
+            NGINX_PROXY_OVERRIDE_FILE.unlink()
+            execute_command(["sudo", "systemctl", "daemon-reload"])
+        return
+
+    logger.info("Writing proxy configuration to nginx systemd service override")
+    try:
+        NGINX_SYSTEMD_OVERRIDE_DIR.mkdir(mode=0o755, parents=True, exist_ok=True)
+    except (PermissionError, OSError, IOError) as err:
+        logger.exception("Failed to create nginx systemd override directory")
+        raise NginxFileError("Failed to create nginx systemd override directory") from err
+
+    lines = ["[Service]\n"]
+    if http_proxy:
+        lines.append(f'Environment="HTTP_PROXY={http_proxy}"\n')
+        lines.append(f'Environment="http_proxy={http_proxy}"\n')
+    if https_proxy:
+        lines.append(f'Environment="HTTPS_PROXY={https_proxy}"\n')
+        lines.append(f'Environment="https_proxy={https_proxy}"\n')
+    if no_proxy:
+        lines.append(f'Environment="NO_PROXY={no_proxy}"\n')
+        lines.append(f'Environment="no_proxy={no_proxy}"\n')
+
+    try:
+        NGINX_PROXY_OVERRIDE_FILE.write_text("".join(lines), encoding="utf-8")
+    except (PermissionError, OSError, IOError) as err:
+        logger.exception("Failed to write nginx proxy override file")
+        raise NginxFileError("Failed to write nginx proxy override file") from err
+
+    execute_command(["sudo", "systemctl", "daemon-reload"])
 
 
 def _reset_nginx_files(instance_name: str) -> None:
