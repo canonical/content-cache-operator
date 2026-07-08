@@ -8,10 +8,8 @@ myst:
 
 # Security
 
-The charm makes deliberate security decisions at three boundaries: the connection from clients
-to nginx, the connection from nginx to backends, and the nginx process itself. This page
-explains those decisions, the gaps that operators must address externally, and the best
-practices for deploying the charm securely.
+The charm makes deliberate security decisions across three areas: client to charm,
+charm to backend, and internal process security.
 
 ## Client to charm
 
@@ -110,11 +108,10 @@ receive each other's responses.
 
 ### No cache purge
 
-The charm provides no built-in mechanism to purge a cached response on demand — for example,
-if sensitive content was accidentally cached. Cache entries are removed when their
-`proxy-cache-valid` TTL expires or when they are removed by nginx's default `inactive=10m`
-behavior for `proxy_cache_path` (the charm does not override this). Operators who need on-demand purge capability must implement it directly at the nginx level
-outside the charm, or wait for natural expiry.
+The charm provides no mechanism to purge a cached response on demand. Cache entries
+are only removed when their `proxy-cache-valid` TTL expires or when nginx's inactive
+eviction removes them (default: 10 minutes of no access). If sensitive content is
+accidentally cached, operators must wait for natural expiry.
 
 ## Best practices
 
