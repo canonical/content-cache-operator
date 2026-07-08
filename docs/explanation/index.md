@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    "description lang=en": "Explanation of the Content Cache Operators design, architecture, and how they work under the hood."
+    "description lang=en": "Explanation of the Content Cache Operators design, architecture, and security."
 ---
 
 (explanation_index)=

@@ -56,7 +56,7 @@ different SSL verification behavior.
 **Healthchecks** — the `healthcheck-ssl-verify` configuration option on `content-cache-backends-config`
 controls whether the Lua healthcheck module verifies the backend SSL certificate during health
 pings. The configuration defaults to `true`. Setting the configuration to `false` disables certificate verification for
-healthchecks and should only be used in controlled environments — for example, when backends
+healthchecks and should only be used in controlled environments, for example, when backends
 use self-signed certificates on a trusted private network.
 
 **Proxied requests** — nginx's
@@ -85,7 +85,7 @@ at `/data/nginx/cache/` and the certificate files at `/etc/nginx/certs/` are own
 ### Status page access
 
 The nginx status page at `/nginx_status` and the backend health status page at
-`/nginx_backends_status` are restricted to `127.0.0.1` only using the nginx
+`/nginx_backends_status` are restricted to `127.0.0.1` using the nginx
 [`allow`/`deny` directives](https://nginx.org/en/docs/http/ngx_http_access_module.html).
 External clients cannot access these endpoints. This behavior is hard-coded in the generated nginx
 configuration and cannot be changed via charm configuration.
@@ -99,7 +99,7 @@ malformed configuration values.
 
 ### Public-only content
 
-The charm's cache key is based on `$scheme$proxy_host$request_uri` (the nginx default). It
+The charm's cache key is based on the nginx default `$scheme$proxy_host$request_uri`. It
 does not include request headers such as `Cookie` or `Authorization`. Two requests for the
 same URL with different session cookies share a single cache entry: the first response is
 cached and served to every subsequent requester of that URL, regardless of their identity.
@@ -121,8 +121,8 @@ outside the charm, or wait for natural expiry.
 | Practice | Recommendation |
 |---|---|
 | TLS | Integrate with a `tls-certificates` provider charm to enable TLS |
-| Backend protocol | Keep `protocol=https` (the default) |
-| Backend SSL verification | Keep `healthcheck-ssl-verify=true` (the default) |
+| Backend protocol | Keep the default `protocol=https` |
+| Backend SSL verification | Keep the default `healthcheck-ssl-verify=true` |
 | Access control | Place an authenticating reverse proxy or WAF in front if the content is not fully public |
 | Rate limiting | Add rate limiting at a component placed in front of the charm (load balancer, reverse proxy, or WAF) if abuse protection is needed |
 | Cached content | Only route public, non-personalized content through the charm |
