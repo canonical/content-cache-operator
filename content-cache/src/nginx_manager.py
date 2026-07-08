@@ -248,7 +248,9 @@ def _load_config() -> None:  # pragma: no cover
     execute_command(["sudo", "systemctl", "restart", NGINX_SERVICE])
 
 
-def _update_proxy_config(http_proxy: str, https_proxy: str, no_proxy: str) -> None:  # pragma: no cover
+def _update_proxy_config(
+    http_proxy: str, https_proxy: str, no_proxy: str
+) -> None:  # pragma: no cover
     """Write proxy settings to the nginx systemd service environment override.
 
     Creates a systemd drop-in configuration file that sets HTTP_PROXY, HTTPS_PROXY,

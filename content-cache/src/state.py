@@ -401,7 +401,11 @@ def get_proxy_from_nginx_config(config: NginxConfig) -> tuple[str, str, str]:
     """
     for host_config in config.values():
         for location_config in host_config.values():
-            if location_config.http_proxy or location_config.https_proxy or location_config.no_proxy:
+            if (
+                location_config.http_proxy
+                or location_config.https_proxy
+                or location_config.no_proxy
+            ):
                 return (
                     location_config.http_proxy,
                     location_config.https_proxy,
