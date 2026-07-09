@@ -6,3 +6,10 @@ ISOs
 Lua
 TTLs
 uncached
+chmod
+healthcheck
+healthchecks
+proxied
+subprocess
+sudo
+untrusted
