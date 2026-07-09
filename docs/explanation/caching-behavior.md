@@ -59,10 +59,10 @@ nginx evaluates upstream response headers before applying `proxy_cache_valid`. A
 in [`proxy_cache_valid`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid),
 response headers take higher priority:
 
-- `X-Accel-Expires` — sets the cache TTL in seconds; overrides `proxy_cache_valid`.
-- `Cache-Control` or `Expires` — used to determine TTL when `X-Accel-Expires` is absent.
-- `Set-Cookie` — if present, the response is **not cached**, regardless of `proxy_cache_valid`.
-- `Vary: *` — if present, the response is **not cached**.
+- `X-Accel-Expires`: sets the cache TTL in seconds; overrides `proxy_cache_valid`.
+- `Cache-Control` or `Expires`: used to determine TTL when `X-Accel-Expires` is absent.
+- `Set-Cookie`: if present, the response is **not cached**, regardless of `proxy_cache_valid`.
+- `Vary: *`: if present, the response is **not cached**.
 
 The charm does not set
 [`proxy_ignore_headers`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ignore_headers),
