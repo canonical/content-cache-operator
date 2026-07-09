@@ -53,6 +53,27 @@ TTL expires, and a long TTL does not prevent eviction if the content is not acce
 
 There is currently no charm configuration option to change the `inactive` timeout directly.
 
+### Upstream cache headers
+
+nginx evaluates upstream response headers before applying `proxy_cache_valid`. As documented
+in [`proxy_cache_valid`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid),
+response headers take higher priority:
+
+- `X-Accel-Expires` — sets the cache TTL in seconds; overrides `proxy_cache_valid`.
+- `Cache-Control` or `Expires` — used to determine TTL when `X-Accel-Expires` is absent.
+- `Set-Cookie` — if present, the response is **not cached**, regardless of `proxy_cache_valid`.
+- `Vary: *` — if present, the response is **not cached**.
+
+The charm does not set
+[`proxy_ignore_headers`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ignore_headers),
+so these defaults apply. Backends that send `Cache-Control: no-store` or `Set-Cookie` on
+responses intended to be cached will silently bypass the cache.
+
+The [`inactive`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path)
+timeout applies to all cached entries regardless of their upstream cache headers. A response
+cached with `Cache-Control: max-age=86400` is still evicted if it receives no requests within
+the inactive window.
+
 ## Concurrent first-hit requests
 
 The charm does not enable
