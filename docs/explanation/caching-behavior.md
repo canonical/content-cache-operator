@@ -10,7 +10,7 @@ myst:
 
 The charm uses nginx to cache static content from upstream backends. Understanding how nginx
 fetches, stores, and expires cached responses helps operators predict behavior and plan
-capacity — especially when caching large binary files such as Ubuntu ISO images.
+capacity, especially when caching large binary files such as Ubuntu ISO images.
 
 ## How caching works
 
@@ -36,17 +36,17 @@ upstream backend. The client receives the response faster, and the backend sees 
 
 Two independent mechanisms remove cached responses.
 
-**TTL expiry** — The `proxy-cache-valid` configuration on `content-cache-backends-config`
+**TTL expiry:** The `proxy-cache-valid` configuration on `content-cache-backends-config`
 sets how long a cached response is considered fresh. For example, `200 1d` means a cached
 200 response is valid for one day. After the TTL expires, the next request for that URL
 triggers a fresh upstream fetch.
 
-**Inactive eviction** — nginx also tracks when each cache entry was last accessed. If a
+**Inactive eviction:** nginx also tracks when each cache entry was last accessed. If a
 cached response is not requested within the
 [`inactive`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path)
 period, nginx evicts it from disk regardless of its TTL. The charm does not override this
 parameter, so the nginx default of 10 minutes applies. A cached file that receives no
-requests for 10 minutes is removed from disk — even if its TTL has not yet expired.
+requests for 10 minutes is removed from disk, even if its TTL has not yet expired.
 
 These two mechanisms are independent. The inactive timeout can evict a response before its
 TTL expires, and a long TTL does not prevent eviction if the content is not accessed.
@@ -82,7 +82,7 @@ When multiple clients simultaneously request the same uncached URL, nginx
 starts a separate upstream fetch for each request rather than having the first fetch complete
 while the rest wait.
 
-For small files this behavior is usually acceptable — the window of concurrent cache misses is brief
+For small files this behavior is usually acceptable. The window of concurrent cache misses is brief
 and the bandwidth consumed is modest. For large files the impact is more significant (see
 the next section).
 
@@ -111,8 +111,8 @@ disk during the upstream fetch.
 
 ### Inactive eviction impact
 
-For files accessed periodically — for example, ISO images downloaded during machine
-provisioning runs — the 10-minute inactive timeout may cause repeated upstream re-fetches.
+For files accessed periodically (for example, ISO images downloaded during machine
+provisioning runs), the 10-minute inactive timeout may cause repeated upstream re-fetches.
 Each re-fetch transfers the full file again from the upstream backend.
 
 ### Concurrent first-hit bandwidth
