@@ -1,6 +1,13 @@
 AI
 cacheable
+chmod
 classDef
+healthcheck
+healthchecks
 hostnames
 Lua
+proxied
+subprocess
+sudo
 TTLs
+untrusted
