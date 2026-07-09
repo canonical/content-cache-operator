@@ -62,6 +62,7 @@ The Grafana Agent also runs a built-in node exporter that collects filesystem me
 mounted filesystems on the machine, including `node_filesystem_avail_bytes` and
 `node_filesystem_size_bytes`. These appear in the standard Node Exporter Grafana dashboard.
 
-Operators who provision a dedicated volume at `/data/nginx/cache/` will see its usage
-reported as a separate filesystem. Without a dedicated volume, cache disk usage is not
-distinguishable from general root filesystem usage.
+The charm does not declare Juju storage, so `/data/nginx/cache/` is a directory on the root
+filesystem by default. Cache disk usage is not separately visible in node_exporter metrics
+unless the operator manually mounts a separate volume at `/data/nginx/cache/` at the OS level
+before deploying.
