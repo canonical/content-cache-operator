@@ -21,6 +21,8 @@ Once integrated a Grafana dashboard named "Content Cache" should be imported. Th
 
 ## Available metrics
 
+These metrics are only available once the `cos-agent` integration is active.
+
 The charm ships a Grafana dashboard that is populated from the per-hostname JSON access logs
 forwarded to Loki. The following panels are available:
 
@@ -54,6 +56,12 @@ Loki queries:
 | `bytes_sent` | Total bytes sent to the client |
 | `body_bytes_sent` | Response body bytes sent (excluding headers) |
 
-Disk usage of the cache directory is not currently exposed as a metric.
-Operators who need disk observability should monitor the `/data/nginx/cache/` filesystem
-using their existing infrastructure monitoring tools.
+### Disk usage
+
+The Grafana Agent also runs a built-in node exporter that collects filesystem metrics for all
+mounted filesystems on the machine, including `node_filesystem_avail_bytes` and
+`node_filesystem_size_bytes`. These appear in the standard Node Exporter Grafana dashboard.
+
+Operators who provision a dedicated volume at `/data/nginx/cache/` will see its usage
+reported as a separate filesystem. Without a dedicated volume, cache disk usage is not
+distinguishable from general root filesystem usage.
