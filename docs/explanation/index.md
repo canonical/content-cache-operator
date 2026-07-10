@@ -13,5 +13,6 @@ real-world usage.
 
 ```{toctree}
 :maxdepth: 1
+Charm design <charm-design>
 Security <security>
 ```
