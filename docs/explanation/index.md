@@ -14,5 +14,6 @@ real-world usage.
 ```{toctree}
 :maxdepth: 1
 Caching behavior <caching-behavior>
+Charm design <charm-design>
 Security <security>
 ```
