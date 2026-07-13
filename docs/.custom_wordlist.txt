@@ -5,9 +5,11 @@ classDef
 healthcheck
 healthchecks
 hostnames
+ISOs
 Lua
 proxied
 subprocess
 sudo
 TTLs
+uncached
 untrusted
