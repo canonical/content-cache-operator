@@ -13,10 +13,8 @@ from ops.testing import Harness
 import state
 from charm import (
     CACHE_CONFIG_INTEGRATION_NAME,
-    CERTIFICATE_INTEGRATION_NAME,
     NGINX_NOT_READY_MESSAGE,
     WAIT_FOR_CONFIG_MESSAGE,
-    WAIT_FOR_TLS_CERT_MESSAGE,
     ContentCacheCharm,
 )
 from errors import NginxConfigurationAggregateError, NginxConfigurationError, NginxFileError
@@ -92,7 +90,7 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
     act: Add a config integration.
     assert: Charm in active. The data is parsed correctly.
     """
-    harness.add_relation(
+    relation_id = harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
         app_data=SAMPLE_INTEGRATION_DATA,
@@ -102,14 +100,11 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
     # Test the integration data is correct
     config = state.get_nginx_config(charm)
     assert len(config) == 1
-    assert "example.com" in config
-    location_config = config["example.com"]["/"]
-    assert location_config.hostname == "example.com"
-    assert location_config.path == "/"
+    assert relation_id in config
+    location_config = config[relation_id]
     assert location_config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert location_config.protocol == "https"
+    assert location_config.protocol.value == "https"
     assert location_config.fail_timeout == "30s"
-    assert location_config.backends_path == "/"
     assert location_config.healthcheck_config.path == "/"
     assert location_config.healthcheck_config.interval == 2000
     assert location_config.proxy_cache_valid == ("200 302 1h", "404 1m")
@@ -216,27 +211,73 @@ def test_nginx_config_error(
     assert charm.unit.status == ops.ActiveStatus("Error for host: ('mock host',)")
 
 
-def test_integration_cert_then_config(
-    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+
+# ============================
+# Story 1 TDD: New behavior tests (should FAIL until production code is updated)
+# ============================
+
+def test_get_nginx_config_returns_flat_per_relation_dict(
+    harness: Harness, charm: ContentCacheCharm
 ):
     """
-    arrange: A working charm.
-    act:
-        1. Integrate with certificate charm.
-        2. Integrate with configuration charm.
-    assert:
-        1. Charm in blocked state waiting for configuration
-        2. Charm in maintenance state waiting for TLS certificate.
+    arrange: Charm with a cache-config integration.
+    act: Get nginx config.
+    assert: Returns flat dict keyed by relation_id (int), not nested by hostname.
     """
-    harness.add_relation(
-        CERTIFICATE_INTEGRATION_NAME,
-        remote_app="cert",
-    )
-    assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
+    from ipaddress import IPv4Address
+    from state import LocationConfig, get_nginx_config
 
-    harness.add_relation(
+    relation_id = harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
         app_data=SAMPLE_INTEGRATION_DATA,
     )
-    assert charm.unit.status == ops.MaintenanceStatus(WAIT_FOR_TLS_CERT_MESSAGE)
+
+    config = get_nginx_config(charm)
+
+    assert relation_id in config
+    assert isinstance(config[relation_id], LocationConfig)
+    assert config[relation_id].backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
+
+
+def test_unique_port_allocated_per_relation(harness: Harness, charm: ContentCacheCharm):
+    """
+    arrange: Charm with two different cache-config integrations.
+    act: Add both integrations and query their ports.
+    assert: Each relation gets a unique port in the expected range.
+    """
+    rel_id_1 = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config1",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    rel_id_2 = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config2",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+
+    port_1 = charm._get_port_for_relation(rel_id_1)
+    port_2 = charm._get_port_for_relation(rel_id_2)
+
+    assert port_1 != port_2
+    assert port_1 >= 8080
+    assert port_2 >= 8080
+
+
+def test_port_stable_for_same_relation(harness: Harness, charm: ContentCacheCharm):
+    """
+    arrange: Charm with a cache-config integration.
+    act: Query the port for the same relation twice.
+    assert: Same port is returned both times (stable allocation).
+    """
+    rel_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+
+    port_first = charm._get_port_for_relation(rel_id)
+    port_second = charm._get_port_for_relation(rel_id)
+
+    assert port_first == port_second

@@ -9,10 +9,13 @@ from ipaddress import IPv4Address
 import pytest
 
 from errors import ConfigurationError
-from src.state import HOSTNAME_FIELD_NAME, PATH_FIELD_NAME
 from state import (
     BACKENDS_FIELD_NAME,
-    BACKENDS_PATH_FIELD_NAME,
+    FAIL_TIMEOUT_FIELD_NAME,
+    HEALTHCHECK_INTERVAL_FIELD_NAME,
+    HEALTHCHECK_PATH_FIELD_NAME,
+    HEALTHCHECK_SSL_VERIFY_FIELD_NAME,
+    HEALTHCHECK_VALID_STATUS_FIELD_NAME,
     PROTOCOL_FIELD_NAME,
     PROXY_CACHE_VALID_FIELD_NAME,
     LocationConfig,
@@ -28,134 +31,11 @@ def test_config_from_integration_data():
     """
     config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
 
-    assert config.hostname == "example.com"
-    assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
+    assert config.protocol.value == "https"
     assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
     assert config.healthcheck_config.ssl_verify is False
-
-
-def test_config_subdomain_integration_data():
-    """
-    arrange: Valid sample integration data with subdomain in hostname.
-    act: Create the config from the data.
-    assert: The configurations are correctly parsed.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_FIELD_NAME] = "hello.example.8d8c.com"
-    config = LocationConfig.from_integration_data(data)
-
-    assert config.hostname == "hello.example.8d8c.com"
-    assert config.path == "/"
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
-    assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
-    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
-
-
-def test_config_with_empty_hostname_integration_data():
-    """
-    arrange: Sample integration data with empty hostname.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_FIELD_NAME] = ""
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert (
-        str(err.value) == "Config error: ['hostname = : String should have at least 1 character']"
-    )
-
-
-def test_config_with_long_hostname_integration_data():
-    """
-    arrange: Sample integration data with long hostname.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_FIELD_NAME] = "a" * 256
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "Value error, Hostname cannot be longer than 255" in str(err.value)
-
-
-def test_config_with_invalid_hostname_integration_data():
-    """
-    arrange: Sample integration data with hostname with invalid character.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_FIELD_NAME] = "example?.com"
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "must be less than 64 in length, and consist of alphanumeric and hyphen" in str(
-        err.value
-    )
-
-
-def test_config_with_empty_path_integration_data():
-    """
-    arrange: Sample integration data with empty path.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PATH_FIELD_NAME] = ""
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert str(err.value) == "Config error: ['path = : String should have at least 1 character']"
-
-
-def test_config_with_invalid_path_integration_data():
-    """
-    arrange: Sample integration data with path with invalid character.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PATH_FIELD_NAME] = "/^"
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert (
-        str(err.value)
-        == "Config error: ['path = /^: Value error, Path contains non-allowed character']"
-    )
-
-
-def test_config_long_path_integration_data():
-    """
-    arrange: Valid sample integration data with long paths.
-    act: Create the config from the data.
-    assert: The configurations are correctly parsed.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PATH_FIELD_NAME] = "/path/to/somewhere"
-    data[BACKENDS_PATH_FIELD_NAME] = "/here/there"
-    config = LocationConfig.from_integration_data(data)
-    assert config.hostname == "example.com"
-    assert config.path == "/path/to/somewhere"
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
-    assert config.fail_timeout == "30s"
-    assert config.backends_path == "/here/there"
-    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 
 @pytest.mark.parametrize(
@@ -202,12 +82,9 @@ def test_config_http_protocol_integration_data():
     data[PROTOCOL_FIELD_NAME] = "http"
     config = LocationConfig.from_integration_data(data)
 
-    assert config.hostname == "example.com"
-    assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "http"
+    assert config.protocol.value == "http"
     assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 
@@ -302,12 +179,71 @@ def test_config_valid_proxy_cache_valid_integration_data(proxy_cache_valid: str)
 
     config = LocationConfig.from_integration_data(data)
 
-    assert config.hostname == "example.com"
-    assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
+    assert config.protocol.value == "https"
     assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
     assert config.healthcheck_config.path == "/"
     assert config.healthcheck_config.interval == 2000
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
+
+
+# ============================
+# Story 1 TDD: New behavior tests (should FAIL until production code is updated)
+# ============================
+
+MINIMAL_INTEGRATION_DATA = {
+    BACKENDS_FIELD_NAME: '["10.10.1.1"]',
+    PROTOCOL_FIELD_NAME: "https",
+    FAIL_TIMEOUT_FIELD_NAME: "30s",
+    HEALTHCHECK_INTERVAL_FIELD_NAME: "2000",
+    HEALTHCHECK_PATH_FIELD_NAME: "/",
+    HEALTHCHECK_SSL_VERIFY_FIELD_NAME: "false",
+    HEALTHCHECK_VALID_STATUS_FIELD_NAME: "[200]",
+    PROXY_CACHE_VALID_FIELD_NAME: "[]",
+}
+
+
+def test_location_config_has_no_hostname_field():
+    """
+    arrange: Minimal integration data without hostname.
+    act: Create LocationConfig from data.
+    assert: LocationConfig has no hostname field.
+    """
+    config = LocationConfig.from_integration_data(MINIMAL_INTEGRATION_DATA)
+
+    assert not hasattr(config, "hostname")
+
+
+def test_location_config_has_no_path_field():
+    """
+    arrange: Minimal integration data without path.
+    act: Create LocationConfig from data.
+    assert: LocationConfig has no path field.
+    """
+    config = LocationConfig.from_integration_data(MINIMAL_INTEGRATION_DATA)
+
+    assert not hasattr(config, "path")
+
+
+def test_location_config_has_no_backends_path_field():
+    """
+    arrange: Minimal integration data without backends_path.
+    act: Create LocationConfig from data.
+    assert: LocationConfig has no backends_path field.
+    """
+    config = LocationConfig.from_integration_data(MINIMAL_INTEGRATION_DATA)
+
+    assert not hasattr(config, "backends_path")
+
+
+def test_location_config_parses_required_fields_without_routing():
+    """
+    arrange: Integration data without any routing fields (hostname, path, backends_path).
+    act: Create LocationConfig from data.
+    assert: Config parsed correctly with backends, protocol, fail_timeout.
+    """
+    config = LocationConfig.from_integration_data(MINIMAL_INTEGRATION_DATA)
+
+    assert config.backends == (IPv4Address("10.10.1.1"),)
+    assert config.protocol.value == "https"
+    assert config.fail_timeout == "30s"

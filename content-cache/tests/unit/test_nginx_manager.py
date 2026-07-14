@@ -68,36 +68,31 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     mock_status_check = MagicMock()
     mock_status_check.return_value = True
     monkeypatch.setattr("nginx_manager._systemctl_status_check", mock_status_check)
-    hostname = "example.com"
+    port = 8080
     sample_data = {
-        hostname: {
-            "/path": LocationConfig(
-                hostname=hostname,
-                path="/path",
-                backends=(IPv4Address("10.10.10.2"), IPv4Address("10.10.10.1")),
-                protocol="https",
-                fail_timeout="30s",
-                backends_path="/backend",
-                proxy_cache_valid=("200 302 30m", "404 1m"),
-                healthcheck_config=HealthcheckConfig(
-                    interval=2123,
-                    path="/health",
-                    ssl_verify=False,
-                    valid_status=(200, 301),
-                ),
-            )
-        }
+        1: (port, LocationConfig(
+            backends=(IPv4Address("10.10.10.2"), IPv4Address("10.10.10.1")),
+            protocol="https",
+            fail_timeout="30s",
+            proxy_cache_valid=("200 302 30m", "404 1m"),
+            healthcheck_config=HealthcheckConfig(
+                interval=2123,
+                path="/health",
+                ssl_verify=False,
+                valid_status=(200, 301),
+            ),
+        ))
     }
 
-    nginx_manager.update_and_load_config(sample_data, {}, mock_instance_name)
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
 
-    config_file_content = nginx_manager._get_sites_enabled_path(hostname).read_text()
+    config_file_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
 
     assert "server 10.10.10.1" in config_file_content
     assert "fail_timeout=30s" in config_file_content
     assert "server 10.10.10.2" in config_file_content
-    assert "location /path" in config_file_content
-    assert "server_name example.com" in config_file_content
+    assert f"listen {port}" in config_file_content
+    assert "server_name" not in config_file_content
     assert "access_log" in config_file_content
     assert "error_log" in config_file_content
 
@@ -105,7 +100,6 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert "GET /health" in healthchecks_config_file_content
     assert "port = 443" in healthchecks_config_file_content
     assert "interval = 2123" in healthchecks_config_file_content
-    assert 'host = "example.com"' in healthchecks_config_file_content
     assert "ssl_verify = false" in healthchecks_config_file_content
     assert "valid_statuses = {200,301}" in healthchecks_config_file_content
 
@@ -150,3 +144,82 @@ def test_file_errors(monkeypatch, patch_nginx_manager: None):
 
     with pytest.raises(NginxFileError):
         nginx_manager._store_and_enable_site_config("mock-host", {})
+
+
+# ============================
+# Story 1 TDD: New behavior tests (should FAIL until production code is updated)
+# ============================
+
+def test_update_config_uses_listen_port_not_server_name(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Valid configuration data with a port number.
+    act: Create configuration files from the data.
+    assert: Config uses listen <port> instead of server_name.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    mock_status_check = MagicMock()
+    mock_status_check.return_value = True
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", mock_status_check)
+
+    port = 8080
+    sample_data = {
+        1: (port, LocationConfig(
+            backends=(IPv4Address("10.10.10.1"),),
+            protocol="https",
+            fail_timeout="30s",
+            proxy_cache_valid=(),
+            healthcheck_config=HealthcheckConfig(
+                interval=2123,
+                path="/health",
+                ssl_verify=False,
+                valid_status=(200,),
+            ),
+        ))
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_file_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+
+    assert f"listen {port}" in config_file_content
+    assert "server_name" not in config_file_content
+    assert "location /" in config_file_content
+
+
+def test_update_config_has_single_root_location_not_path_routing(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: Valid configuration data with a port number.
+    act: Create configuration files from the data.
+    assert: Config has exactly one location / block (no path-based routing).
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    mock_status_check = MagicMock()
+    mock_status_check.return_value = True
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", mock_status_check)
+
+    port = 8081
+    sample_data = {
+        2: (port, LocationConfig(
+            backends=(IPv4Address("10.10.10.1"),),
+            protocol="http",
+            fail_timeout="30s",
+            proxy_cache_valid=(),
+            healthcheck_config=HealthcheckConfig(
+                interval=1000,
+                path="/",
+                ssl_verify=False,
+                valid_status=(200,),
+            ),
+        ))
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_file_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+
+    assert "location /" in config_file_content
+    assert "location /path" not in config_file_content

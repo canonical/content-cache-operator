@@ -9,30 +9,18 @@ import logging
 
 import ops
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
-from charms.tls_certificates_interface.v4.tls_certificates import (
-    CertificateRequestAttributes,
-    Mode,
-    TLSCertificatesRequiresV4,
-)
 
 import nginx_manager
-from certificates import write_certificates
 from errors import (
     IntegrationDataError,
     NginxConfigurationAggregateError,
     NginxFileError,
     NginxSetupError,
     NginxStopError,
-    TLSCertificateFileError,
-    TLSCertificateIntegrationNotExistError,
-    TLSCertificateNotAvailableError,
 )
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
-    CERTIFICATE_INTEGRATION_NAME,
     NginxConfig,
-    extract_hostname_from_nginx_config,
-    get_hostnames,
     get_nginx_config,
 )
 
@@ -41,11 +29,15 @@ logger = logging.getLogger(__name__)
 WAIT_FOR_CONFIG_MESSAGE = "Waiting for integration with config charm"
 NGINX_NOT_READY_MESSAGE = "Nginx is not ready"
 RECEIVED_NGINX_CONFIG_MESSAGE = "Received nginx configuration"
-WAIT_FOR_TLS_CERT_MESSAGE = "Waiting for TLS certificates requested"
+
+NGINX_PORT_RANGE_START = 8080
+NGINX_PORT_RANGE_SIZE = 200
 
 
 class ContentCacheCharm(ops.CharmBase):
     """Charm the application."""
+
+    _stored = ops.StoredState()
 
     def __init__(self, framework: ops.Framework) -> None:
         """Initialize the object.
@@ -55,28 +47,9 @@ class ContentCacheCharm(ops.CharmBase):
         """
         super().__init__(framework)
 
+        self._stored.set_default(port_map={})
+
         self._cos_agent = COSAgentProvider(charm=self)
-
-        # Get the hostname from the integration data.
-        hostnames = []
-        try:
-            hostnames = get_hostnames(self)
-        except IntegrationDataError as err:
-            logger.warning("Issues with integration data: %s", err)
-            # Unable to do anything about the error, therefore continue with setup.
-
-        self.certificates = TLSCertificatesRequiresV4(
-            charm=self,
-            relationship_name=CERTIFICATE_INTEGRATION_NAME,
-            certificate_requests=[
-                CertificateRequestAttributes(common_name=name) for name in hostnames
-            ],
-            mode=Mode.UNIT,
-            refresh_events=[
-                self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_changed,
-                self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_broken,
-            ],
-        )
 
         framework.observe(self.on.start, self._on_start)
         framework.observe(self.on.stop, self._on_stop)
@@ -88,10 +61,6 @@ class ContentCacheCharm(ops.CharmBase):
         framework.observe(
             self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_broken,
             self._on_cache_config_relation_broken,
-        )
-        framework.observe(
-            self.certificates.on.certificate_available,
-            self._on_certificate_available,
         )
 
     def _on_start(self, _: ops.StartEvent) -> None:
@@ -115,10 +84,6 @@ class ContentCacheCharm(ops.CharmBase):
         """Handle config relation broken event."""
         self._load_nginx_config()
 
-    def _on_certificate_available(self, _: ops.EventBase) -> None:
-        """Handle certificate available event."""
-        self._load_nginx_config()
-
     def _update_status_with_nginx(self) -> None:
         """Set the charm status according to nginx status."""
         if not nginx_manager.health_check():
@@ -137,34 +102,15 @@ class ContentCacheCharm(ops.CharmBase):
         if nginx_config is None:
             return
 
-        hostnames = extract_hostname_from_nginx_config(nginx_config)
-        hostname_to_cert = {}
-        try:
-            hostname_to_cert = write_certificates(
-                hostnames,
-                nginx_manager.NGINX_USER,
-                nginx_manager.NGINX_CERTIFICATES_PATH,
-                self.certificates,
-            )
-            logger.info("Found all certificate requested")
-        except TLSCertificateIntegrationNotExistError:
-            logger.info("Skipping TLS certificates as tls-certificate integration not found")
-        except TLSCertificateFileError:
-            logger.exception(
-                "Failed to write TLS certificate file, going to error state for retries"
-            )
-            raise
-        except TLSCertificateNotAvailableError:
-            logger.warning(
-                "Unable to load nginx config due to not all certificate needed are available yet"
-            )
-            self.unit.status = ops.MaintenanceStatus(WAIT_FOR_TLS_CERT_MESSAGE)
-            return
+        ported_config = {
+            rel_id: (self._get_port_for_relation(rel_id), config)
+            for rel_id, config in nginx_config.items()
+        }
 
         status_message = ""
         try:
             nginx_manager.update_and_load_config(
-                nginx_config, hostname_to_cert, self._get_instance_name()
+                ported_config, self._get_instance_name()
             )
         except NginxFileError:
             logger.exception(
@@ -199,6 +145,28 @@ class ContentCacheCharm(ops.CharmBase):
         self.unit.status = ops.MaintenanceStatus(RECEIVED_NGINX_CONFIG_MESSAGE)
         return nginx_config
 
+    def _get_port_for_relation(self, relation_id: int) -> int:
+        """Get the nginx listening port assigned to a relation, allocating one if needed.
+
+        Port assignments are persisted in StoredState so the same port is returned
+        across charm restarts for the same relation.
+
+        Args:
+            relation_id: The Juju relation ID.
+
+        Returns:
+            The allocated port number.
+        """
+        key = str(relation_id)
+        if key not in self._stored.port_map:
+            used_ports = set(self._stored.port_map.values())
+            for offset in range(NGINX_PORT_RANGE_SIZE):
+                candidate = NGINX_PORT_RANGE_START + offset
+                if candidate not in used_ports:
+                    self._stored.port_map[key] = candidate
+                    break
+        return self._stored.port_map[key]
+
     def _nginx_initialize(self) -> None:
         """Initialize the nginx instance.
 
@@ -207,7 +175,6 @@ class ContentCacheCharm(ops.CharmBase):
         """
         try:
             nginx_manager.initialize(self._get_instance_name())
-            self.unit.set_ports(80, 443)
         except NginxSetupError:
             logger.exception("Failed to initialize nginx, going to error state for retries")
             raise
