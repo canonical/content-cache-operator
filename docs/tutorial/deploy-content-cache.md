@@ -36,14 +36,14 @@ Deploy the Content Cache Backends Config charm, and configure the application.
 
 ```bash
 juju deploy content-cache-backends-config --channel=latest/edge --revision=5 backends
-juju config backends backends=185.125.90.20 hostname=ubuntu.com protocol=https
+juju config backends backends=185.125.90.20 protocol=https
 ```
 
-The `backends` takes a comma-separated list of IP addresses, and `protocol` can be set to `http` or `https`.
-The above configuration ask the nginx to cache the content from `https://185.125.90.20`.
+The `backends` option takes a comma-separated list of IP addresses, and `protocol` can be set to `http` or `https`.
+The above configuration tells nginx to cache content from `https://185.125.90.20`.
 The configuration can be changed to point to a different server.
-The Juju machine hosting the Content Cache charm needs to be able to access the server, for the charm to work.
-Whether the Juju machine is able to access to server can be tested by `juju ssh` into the Juju machine and use curl to test access.
+The Juju machine hosting the Content Cache charm needs to be able to access the server for the charm to work.
+Whether the Juju machine can reach the server can be tested by using `juju ssh` into the Juju machine and running curl.
 
 Integrate the two charms, and wait until the charms are in active state.
 
@@ -52,10 +52,10 @@ juju integrate cache backends
 juju status --watch 5s
 ```
 
-Test the Content Cache with cURL.
+Test the Content Cache with cURL. The charm allocates a unique port per relation starting at 8080, so the first configured backend is reachable on port 8080.
 
 ```bash
-curl http://<IP of the juju machine> -H "Host: ubuntu.com"
+curl http://<IP of the juju machine>:8080
 ```
 
 Right now `https://185.125.90.20` is responding with the following content:
