@@ -34,6 +34,13 @@ make vale
 make lint-md
 ```
 
+## Charmhub
+
+| Name | Listing |
+|------|---------|
+| `content-cache` | https://charmhub.io/content-cache |
+| `content-cache-backends-config` | https://charmhub.io/content-cache-backends-config |
+
 ## Project and community
 
 The Content Cache Project is a member of the Ubuntu family. It is an
