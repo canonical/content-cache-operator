@@ -57,7 +57,6 @@ def test_valid_config():
     assert config.proxy_cache_valid == ()
 
 
-
 @pytest.mark.parametrize(
     "invalid_backends, error_message",
     [
@@ -346,6 +345,7 @@ def test_invalid_healthcheck_interval(bad_value, error_msg):
 # ============================
 # Story 1 TDD: New behavior tests (should FAIL until production code is updated)
 # ============================
+
 
 def test_configuration_has_no_hostname_field():
     """

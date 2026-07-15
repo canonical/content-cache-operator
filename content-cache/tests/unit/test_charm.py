@@ -211,10 +211,10 @@ def test_nginx_config_error(
     assert charm.unit.status == ops.ActiveStatus("Error for host: ('mock host',)")
 
 
-
 # ============================
 # Story 1 TDD: New behavior tests (should FAIL until production code is updated)
 # ============================
+
 
 def test_get_nginx_config_returns_flat_per_relation_dict(
     harness: Harness, charm: ContentCacheCharm
@@ -225,6 +225,7 @@ def test_get_nginx_config_returns_flat_per_relation_dict(
     assert: Returns flat dict keyed by relation_id (int), not nested by hostname.
     """
     from ipaddress import IPv4Address
+
     from state import LocationConfig, get_nginx_config
 
     relation_id = harness.add_relation(

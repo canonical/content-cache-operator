@@ -70,18 +70,21 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     monkeypatch.setattr("nginx_manager._systemctl_status_check", mock_status_check)
     port = 8080
     sample_data = {
-        1: (port, LocationConfig(
-            backends=(IPv4Address("10.10.10.2"), IPv4Address("10.10.10.1")),
-            protocol="https",
-            fail_timeout="30s",
-            proxy_cache_valid=("200 302 30m", "404 1m"),
-            healthcheck_config=HealthcheckConfig(
-                interval=2123,
-                path="/health",
-                ssl_verify=False,
-                valid_status=(200, 301),
+        1: (
+            port,
+            LocationConfig(
+                backends=(IPv4Address("10.10.10.2"), IPv4Address("10.10.10.1")),
+                protocol="https",
+                fail_timeout="30s",
+                proxy_cache_valid=("200 302 30m", "404 1m"),
+                healthcheck_config=HealthcheckConfig(
+                    interval=2123,
+                    path="/health",
+                    ssl_verify=False,
+                    valid_status=(200, 301),
+                ),
             ),
-        ))
+        )
     }
 
     nginx_manager.update_and_load_config(sample_data, mock_instance_name)
@@ -150,6 +153,7 @@ def test_file_errors(monkeypatch, patch_nginx_manager: None):
 # Story 1 TDD: New behavior tests (should FAIL until production code is updated)
 # ============================
 
+
 def test_update_config_uses_listen_port_not_server_name(monkeypatch, patch_nginx_manager: None):
     """
     arrange: Valid configuration data with a port number.
@@ -164,18 +168,21 @@ def test_update_config_uses_listen_port_not_server_name(monkeypatch, patch_nginx
 
     port = 8080
     sample_data = {
-        1: (port, LocationConfig(
-            backends=(IPv4Address("10.10.10.1"),),
-            protocol="https",
-            fail_timeout="30s",
-            proxy_cache_valid=(),
-            healthcheck_config=HealthcheckConfig(
-                interval=2123,
-                path="/health",
-                ssl_verify=False,
-                valid_status=(200,),
+        1: (
+            port,
+            LocationConfig(
+                backends=(IPv4Address("10.10.10.1"),),
+                protocol="https",
+                fail_timeout="30s",
+                proxy_cache_valid=(),
+                healthcheck_config=HealthcheckConfig(
+                    interval=2123,
+                    path="/health",
+                    ssl_verify=False,
+                    valid_status=(200,),
+                ),
             ),
-        ))
+        )
     }
 
     nginx_manager.update_and_load_config(sample_data, mock_instance_name)
@@ -203,18 +210,21 @@ def test_update_config_has_single_root_location_not_path_routing(
 
     port = 8081
     sample_data = {
-        2: (port, LocationConfig(
-            backends=(IPv4Address("10.10.10.1"),),
-            protocol="http",
-            fail_timeout="30s",
-            proxy_cache_valid=(),
-            healthcheck_config=HealthcheckConfig(
-                interval=1000,
-                path="/",
-                ssl_verify=False,
-                valid_status=(200,),
+        2: (
+            port,
+            LocationConfig(
+                backends=(IPv4Address("10.10.10.1"),),
+                protocol="http",
+                fail_timeout="30s",
+                proxy_cache_valid=(),
+                healthcheck_config=HealthcheckConfig(
+                    interval=1000,
+                    path="/",
+                    ssl_verify=False,
+                    valid_status=(200,),
+                ),
             ),
-        ))
+        )
     }
 
     nginx_manager.update_and_load_config(sample_data, mock_instance_name)

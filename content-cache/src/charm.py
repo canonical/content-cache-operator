@@ -109,9 +109,7 @@ class ContentCacheCharm(ops.CharmBase):
 
         status_message = ""
         try:
-            nginx_manager.update_and_load_config(
-                ported_config, self._get_instance_name()
-            )
+            nginx_manager.update_and_load_config(ported_config, self._get_instance_name())
         except NginxFileError:
             logger.exception(
                 "Failed to update nginx config file, going to error state for retries"
@@ -158,14 +156,15 @@ class ContentCacheCharm(ops.CharmBase):
             The allocated port number.
         """
         key = str(relation_id)
-        if key not in self._stored.port_map:
-            used_ports = set(self._stored.port_map.values())
+        port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
+        if key not in port_map:
+            used_ports = set(port_map.values())
             for offset in range(NGINX_PORT_RANGE_SIZE):
                 candidate = NGINX_PORT_RANGE_START + offset
                 if candidate not in used_ports:
-                    self._stored.port_map[key] = candidate
+                    port_map[key] = candidate
                     break
-        return self._stored.port_map[key]
+        return port_map[key]
 
     def _nginx_initialize(self) -> None:
         """Initialize the nginx instance.

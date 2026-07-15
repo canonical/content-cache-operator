@@ -199,7 +199,7 @@ def update_and_load_config(
     errored_identifiers: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
     healthcheck_workers_lua_code = ""
-    for relation_id, (port, config) in configuration.items():
+    for _, (port, config) in configuration.items():
         identifier = str(port)
         try:
             vhost_healthcheck_worker_lua_code = _create_virtualhost_config(
@@ -487,9 +487,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
     """
 
 
-def _get_location_config_keys(
-    config: LocationConfig, upstream: str
-) -> tuple[nginx.Key, ...]:
+def _get_location_config_keys(config: LocationConfig, upstream: str) -> tuple[nginx.Key, ...]:
     """Create the nginx keys for location configuration.
 
     Args:

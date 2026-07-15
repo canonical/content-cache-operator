@@ -141,7 +141,7 @@ Each `content-cache-backends-config` relation configured via `cache-config` gets
 - Its own upstream block and log files
 
 There is no cross-relation competition for RAM. Each relation has its own `keys_zone`
-allocation, so one backend's cache metadata cannot evict another's. Disk capacity, however,
+allocation, so cache metadata for one backend cannot evict the cache for another. Disk capacity, however,
 is shared across all relations on the same filesystem. Adding or removing a
 `content-cache-backends-config` relation only affects that relation's configuration; other
 backends continue serving from their own caches uninterrupted.
