@@ -260,4 +260,14 @@ async def cache_tester_fixture(
 
     await model.wait_for_idle([app.name], status="blocked", timeout=10 * 60)
     assert unit.workload_status_message == "Waiting for integration with config charm"
-    # The configuration charm is removed due to being subordinate charm with no relation.
+    # Wait for config app units to be fully removed before the next test runs.
+    # Config app scales to 0 units when the relation is removed, but Juju takes
+    # a moment to complete the unit removal. Without this wait, the next test
+    # may create a new relation while a previous unit is still being torn down,
+    # causing race conditions.
+    deadline = 60
+    poll_interval = 1
+    elapsed = 0
+    while (config_app.units or config_alt_app.units) and elapsed < deadline:
+        await asyncio.sleep(poll_interval)
+        elapsed += poll_interval

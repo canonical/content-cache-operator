@@ -80,8 +80,10 @@ class ContentCacheCharm(ops.CharmBase):
         """Handle config relation changed event."""
         self._load_nginx_config()
 
-    def _on_cache_config_relation_broken(self, _: ops.RelationBrokenEvent) -> None:
+    def _on_cache_config_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
         """Handle config relation broken event."""
+        port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
+        port_map.pop(str(event.relation.id), None)
         self._load_nginx_config()
 
     def _update_status_with_nginx(self) -> None:
