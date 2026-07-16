@@ -158,8 +158,6 @@ def test_get_location_config_keys_https(patch_nginx_manager: None):
 
     key_strings = [k.as_strings for k in keys]
     assert any(f"https://{upstream}/" in s for s in key_strings)
-
-
 def test_healthcheck_worker_uses_per_peer_ports(patch_nginx_manager: None):
     """
     arrange: A LocationConfig with backends on different ports.
