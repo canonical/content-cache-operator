@@ -3,7 +3,7 @@
 
 """Unit test for the charm."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import ops
 import pytest
@@ -280,22 +280,17 @@ def test_load_nginx_config_writes_cache_backends(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):
     """
-    arrange: A working charm with mocked get_binding returning a fixed IP.
+    arrange: A working charm with get_cache_backends_urls mocked in the fixture.
     act: Add a cache-config relation with valid data.
     assert: cache-backends is written to unit relation data with the expected URL.
     """
     import json
 
-    with patch.object(
-        charm.model,
-        "get_binding",
-        return_value=MagicMock(network=MagicMock(bind_address="10.0.0.1")),
-    ):
-        relation_id = harness.add_relation(
-            CACHE_CONFIG_INTEGRATION_NAME,
-            remote_app="config",
-            app_data=SAMPLE_INTEGRATION_DATA,
-        )
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
 
     assert charm.unit.status == ops.ActiveStatus()
     rel_data = harness.get_relation_data(relation_id, charm.unit.name)
@@ -303,8 +298,7 @@ def test_load_nginx_config_writes_cache_backends(
     assert cache_backends != ""
     urls = json.loads(cache_backends)
     assert len(urls) == 1
-    assert urls[0].startswith("http://")
-    assert ":8080" in urls[0]
+    assert urls[0] == "http://10.0.0.1:8080"
 
 
 def test_relation_broken_clears_cache_backends(
@@ -315,16 +309,11 @@ def test_relation_broken_clears_cache_backends(
     act: Remove the relation.
     assert: Charm returns to blocked status.
     """
-    with patch.object(
-        charm.model,
-        "get_binding",
-        return_value=MagicMock(network=MagicMock(bind_address="10.0.0.1")),
-    ):
-        relation_id = harness.add_relation(
-            CACHE_CONFIG_INTEGRATION_NAME,
-            remote_app="config",
-            app_data=SAMPLE_INTEGRATION_DATA,
-        )
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
 
     assert charm.unit.status == ops.ActiveStatus()
 
