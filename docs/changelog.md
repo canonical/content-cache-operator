@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Each revision is versioned by the date of the revision.
 
+## 2026-07-16
+
+### Changed
+
+- The `backends` configuration option on `content-cache-backends-config` now accepts URLs in the
+  form `<http|https>://<ip>:<port>` instead of bare IP addresses with a separate `protocol` option.
+  The `protocol` option has been removed.
+
+### Added
+
+- The content-cache charm now publishes a `cache-backends` field to the `cache-config` relation
+  data after nginx becomes active. The field contains a JSON list of URLs representing the
+  address and port at which this unit is listening, so ingress components can discover it
+  automatically.
+
 ## 2026-06-18
 
 - Migrated the RTD documentation URL under the Canonical domain.

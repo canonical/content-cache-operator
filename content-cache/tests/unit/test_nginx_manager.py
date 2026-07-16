@@ -10,7 +10,7 @@ import requests
 
 import nginx_manager
 from errors import NginxFileError
-from state import HealthcheckConfig, LocationConfig
+from state import LocationConfig
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
 

@@ -203,10 +203,29 @@ nginx does not serve stale content beyond its TTL by default.
 
 ## Backend protocol (HTTP vs HTTPS)
 
-Backends are always addressed directly by IP address over the protocol specified by the
-`protocol` configuration option (`http` or `https`).
+Backends are specified as full URLs in the form `<http|https>://<ip>:<port>`.
+The protocol and port are encoded directly in each backend URL.
 
-When `protocol` is set to `https`, nginx connects to the backend over TLS. The charm does
-not manage TLS certificates for the incoming (listening) side. TLS termination for
-incoming client traffic is expected to be handled by an upstream ingress (such as haproxy with
-the `ingress-configurator` charm).
+For example, to proxy to an HTTPS backend:
+
+```bash
+juju config backends backends=https://185.125.90.20:443
+```
+
+When the URL scheme is `https`, nginx connects to the backend over TLS.
+All backends in a single relation must use the same scheme.
+The charm does not manage TLS certificates for the incoming (listening) side.
+TLS termination for incoming client traffic is expected to be handled by an upstream ingress
+(such as haproxy with the `ingress-configurator` charm).
+
+## Cache-backends published address
+
+After nginx is configured and active, the content-cache charm writes a `cache-backends` field
+to the `cache-config` relation data. This field contains a JSON list of URLs in the form
+`http://<unit-bind-ip>:<allocated-port>`, representing the address at which this unit is
+listening for the relation.
+
+An ingress configurator can read this value to replace its haproxy backend address with
+the content-cache unit address, without needing to know the port in advance.
+
+The field is updated if the port changes and cleared when the relation is removed.
