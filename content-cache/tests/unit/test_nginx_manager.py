@@ -147,4 +147,3 @@ def test_file_errors(monkeypatch, patch_nginx_manager: None):
 
     with pytest.raises(NginxFileError):
         nginx_manager._store_and_enable_site_config("mock-host", {})
-
