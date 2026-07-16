@@ -10,7 +10,6 @@ import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from socket import getservbyname
 
 import nginx
 import requests
@@ -442,12 +441,12 @@ def _get_upstream_config_keys(config: LocationConfig) -> tuple[nginx.Key, ...]:
     Returns:
         The nginx.Key for the upstream configuration.
     """
-    port = 80
-    if config.protocol == Protocol.HTTPS:
-        port = 443
     keys = [
-        nginx.Key("server", f"{ip}:{port} fail_timeout={config.fail_timeout}")
-        for ip in config.backends
+        nginx.Key(
+            "server",
+            f"{url.host}:{url.port} fail_timeout={config.fail_timeout}",
+        )
+        for url in config.backends
     ]
     return tuple(keys)
 
@@ -462,16 +461,19 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
     Returns:
         A string with the lua script for the healthcheck workers.
     """
+    first_url = config.backends[0]
+    scheme = first_url.scheme
+    port = int(first_url.port) if first_url.port else (443 if scheme == "https" else 80)
     valid_status_str = ",".join(str(status) for status in config.healthcheck_config.valid_status)
     hc_path = config.healthcheck_config.path
     return rf"""ok, err = hc.spawn_checker{{
             shm = "healthcheck",
             upstream = "{upstream}",
-            type = "{config.protocol.value}",
+            type = "{scheme}",
 
             http_req = "GET {hc_path} HTTP/1.0\r\n\r\n",
 
-            port = {getservbyname(config.protocol.value)},
+            port = {port},
             interval = {config.healthcheck_config.interval},
             timeout = 1000,
             fall = 3,
@@ -497,8 +499,9 @@ def _get_location_config_keys(config: LocationConfig, upstream: str) -> tuple[ng
     Returns:
         The nginx.Key for the Location configuration.
     """
+    scheme = config.backends[0].scheme
     keys = [
-        nginx.Key("proxy_pass", f"{config.protocol.value}://{upstream}/"),
+        nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
     ]
 
     for cache_valid in config.proxy_cache_valid:
