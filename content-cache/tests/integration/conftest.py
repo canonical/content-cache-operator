@@ -182,12 +182,6 @@ async def metric_app_fixture(
     yield applications[metric_app_name]
 
 
-@pytest.fixture(name="http_ok_path", scope="module")
-def http_ok_path_fixture() -> str:
-    """The path for http_ok_app."""
-    return f"/test-{secrets.token_urlsafe(4)}"
-
-
 @pytest.fixture(name="http_ok_message", scope="module")
 def http_ok_message_fixture() -> str:
     """The message for http_ok_app."""
@@ -196,11 +190,11 @@ def http_ok_message_fixture() -> str:
 
 @pytest_asyncio.fixture(name="http_ok_app", scope="module")
 async def http_ok_app_fixture(
-    model: Model, http_ok_path: str, http_ok_message: str, pytestconfig: pytest.Config
+    model: Model, http_ok_message: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The test HTTP application that returns OK."""
     app = await deploy_http_app(
-        app_name="http-ok", path=http_ok_path, status=200, message=http_ok_message, model=model
+        app_name="http-ok", path="/", status=200, message=http_ok_message, model=model
     )
     await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
 
@@ -209,12 +203,12 @@ async def http_ok_app_fixture(
 
 @pytest_asyncio.fixture(name="https_ok_app", scope="module")
 async def https_ok_app_fixture(
-    model: Model, http_ok_path: str, http_ok_message: str, pytestconfig: pytest.Config
+    model: Model, http_ok_message: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The test HTTPS application that returns OK."""
     app = await deploy_http_app(
         app_name="https-ok",
-        path=http_ok_path,
+        path="/",
         status=200,
         message=http_ok_message,
         model=model,
