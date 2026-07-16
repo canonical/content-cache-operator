@@ -5,6 +5,7 @@
 
 """The content-cache charm."""
 
+import json
 import logging
 
 import ops
