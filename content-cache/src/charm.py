@@ -134,13 +134,8 @@ class ContentCacheCharm(ops.CharmBase):
                 rel = self.model.get_relation(CACHE_CONFIG_INTEGRATION_NAME, rel_id)
                 if rel is None:
                     continue
-                try:
-                    urls = get_cache_backends_urls(self, rel, port)
-                    rel.data[self.unit]["cache-backends"] = json.dumps(urls)
-                except Exception:  # pylint: disable=broad-except
-                    logger.exception(
-                        "Failed to write cache-backends for relation %s, skipping", rel_id
-                    )
+                urls = get_cache_backends_urls(self, rel, port)
+                rel.data[self.unit]["cache-backends"] = json.dumps(urls)
 
     def _get_config_and_update_status(self) -> NginxConfig | None:
         """Attempt to get nginx config, updates charm status on failure.
