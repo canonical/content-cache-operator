@@ -4,7 +4,6 @@
 """Integration test for the content-cache charm."""
 
 import json
-import secrets
 from asyncio import sleep
 
 import pytest
@@ -13,13 +12,11 @@ from juju.model import Model
 
 from tests.integration.helpers import (
     BACKENDS_CONFIG_NAME,
-    BACKENDS_PATH_CONFIG_NAME,
     FAIL_TIMEOUT_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
     HEALTHCHECK_SSL_VERIFY_CONFIG_NAME,
     HEALTHCHECK_VALID_STATUS_CONFIG_NAME,
-    HOSTNAME_CONFIG_NAME,
     PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     CacheTester,
@@ -47,7 +44,6 @@ async def test_charm_integrate_with_no_data(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_message: str,
     http_ok_ip: str,
     model: Model,
@@ -73,11 +69,8 @@ async def test_charm_integrate_with_no_data(
     assert config_unit.workload_status_message == "Empty backends configuration found"
 
     # 2.
-    hostname = f"test.{secrets.token_hex(2)}.local"
     config = dict(CacheTester.BASE_CONFIG)
-    config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
-    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
@@ -85,7 +78,7 @@ async def test_charm_integrate_with_no_data(
     config[PROTOCOL_CONFIG_NAME] = "http"
     await cache_tester.setup_config(config)
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
-    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    response = await cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
@@ -99,7 +92,6 @@ async def test_charm_integrate_with_data(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_message: str,
     http_ok_ip: str,
     model: Model,
@@ -120,11 +112,8 @@ async def test_charm_integrate_with_data(
             serving according to the old configuration.
         5. The application in blocked status waiting for integration.
     """
-    hostname = f"test.{secrets.token_hex(2)}.local"
     config = dict(CacheTester.BASE_CONFIG)
-    config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
-    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
@@ -135,20 +124,20 @@ async def test_charm_integrate_with_data(
     await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
-    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    response = await cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
     timestamp = json.loads(response.content.decode("utf-8"))["time"]
 
     await sleep(3)
-    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    response = await cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
     assert timestamp == json.loads(response.content.decode("utf-8"))["time"]
 
     # The cache valid is set to 10 seconds, the total wait should exceed it.
     await sleep(11)
-    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    response = await cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
     assert timestamp != json.loads(response.content.decode("utf-8"))["time"]
@@ -166,7 +155,7 @@ async def test_charm_integrate_with_data(
     config_unit = config_app.units[0]
     assert unit.workload_status_message == ""
     assert config_unit.workload_status_message == "Empty backends configuration found"
-    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    response = await cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
@@ -178,7 +167,6 @@ async def test_charm_with_two_config_app(
     config_app: Application,
     config_alt_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_message: str,
     http_ok_ip: str,
     model: Model,
@@ -188,11 +176,8 @@ async def test_charm_with_two_config_app(
     act: Make query to content cache for both configurations.
     assert: Both request should succeed.
     """
-    hostname = f"test.{secrets.token_hex(2)}.local"
     config = dict(CacheTester.BASE_CONFIG)
-    config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
-    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
@@ -201,11 +186,8 @@ async def test_charm_with_two_config_app(
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
 
-    hostname_alt = f"test.{secrets.token_hex(2)}.local"
     config_alt = dict(CacheTester.BASE_CONFIG)
-    config_alt[HOSTNAME_CONFIG_NAME] = hostname_alt
     config_alt[BACKENDS_CONFIG_NAME] = http_ok_ip
-    config_alt[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config_alt[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config_alt[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config_alt[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
@@ -221,8 +203,8 @@ async def test_charm_with_two_config_app(
         [app.name, config_app.name, config_alt_app.name], status="active", timeout=10 * 60
     )
 
-    response = await cache_tester.query_cache(path="/", hostname=hostname)
-    response_alt = await cache_tester.query_cache(path="/", hostname=hostname_alt)
+    response = await cache_tester.query_cache(path="/", port=8080)
+    response_alt = await cache_tester.query_cache(path="/", port=8081)
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
     assert response_alt.status_code == 200
@@ -235,7 +217,6 @@ async def test_charm_with_failover(
     app: Application,
     config_app: Application,
     cache_tester: Application,
-    http_ok_path: str,
     http_ok_message: str,
     http_ok_ip: str,
     model: Model,
@@ -249,11 +230,8 @@ async def test_charm_with_failover(
     # A random IP for a non-existence server.
     fake_ip = "10.111.111.23"
 
-    hostname = f"test.{secrets.token_hex(2)}.local"
     config = dict(CacheTester.BASE_CONFIG)
-    config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = f"{fake_ip},{http_ok_ip}"
-    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
@@ -266,6 +244,6 @@ async def test_charm_with_failover(
     await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
-    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    response = await cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")

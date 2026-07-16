@@ -251,11 +251,10 @@ async def cache_tester_fixture(
     app: Application,
     config_app: Application,
     config_alt_app: Application,
-    cert_app: Application,
 ) -> AsyncIterator[CacheTester]:
     """Get the cache tester."""
     unit = app.units[0]
-    tester = CacheTester(model, app, config_app, config_alt_app, cert_app)
+    tester = CacheTester(model, app, config_app, config_alt_app)
 
     yield tester
 

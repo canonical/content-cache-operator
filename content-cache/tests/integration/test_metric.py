@@ -4,7 +4,6 @@
 """Integration test for the metric of content-cache charm with COS integration."""
 
 import json
-import secrets
 
 import pytest
 from juju.application import Application
@@ -15,12 +14,10 @@ from src import nginx_manager
 from src.charm import unit_name_to_instance_name
 from tests.integration.helpers import (
     BACKENDS_CONFIG_NAME,
-    BACKENDS_PATH_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
     HEALTHCHECK_SSL_VERIFY_CONFIG_NAME,
     HEALTHCHECK_VALID_STATUS_CONFIG_NAME,
-    HOSTNAME_CONFIG_NAME,
     PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     CacheTester,
@@ -36,7 +33,6 @@ async def test_metric_log(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_ip: str,
     model: Model,
 ) -> None:
@@ -47,11 +43,8 @@ async def test_metric_log(
     """
     unit: Unit = app.units[0]
 
-    hostname = f"test.{secrets.token_hex(2)}.local"
     config = dict(CacheTester.BASE_CONFIG)
-    config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
-    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2000"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
@@ -62,13 +55,13 @@ async def test_metric_log(
     await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
-    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    response = await cache_tester.query_cache(path="/")
     assert response.status_code == 200
-    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    response = await cache_tester.query_cache(path="/")
     assert response.status_code == 200
 
     content = await read_file(
-        unit, nginx_manager._get_cache_log_path(hostname, unit_name_to_instance_name(unit.name))
+        unit, nginx_manager._get_cache_log_path("8080", unit_name_to_instance_name(unit.name))
     )
     assert content
     lines = content.split("\n")
@@ -100,7 +93,6 @@ async def test_integrate_with_cos(
     config_app: Application,
     metric_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_ip: str,
     model: Model,
 ) -> None:
@@ -114,11 +106,8 @@ async def test_integrate_with_cos(
         2. Charms in active status.
     """
     # Arrange:
-    hostname = f"test.{secrets.token_hex(2)}.local"
     config = dict(CacheTester.BASE_CONFIG)
-    config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
-    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2000"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
@@ -128,7 +117,7 @@ async def test_integrate_with_cos(
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
-    response = await cache_tester.query_cache(path="/", hostname=hostname)
+    response = await cache_tester.query_cache(path="/")
     assert response.status_code == 200, "Test arrange failure"
 
     # 1.
