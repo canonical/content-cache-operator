@@ -3,7 +3,6 @@
 
 """Unit test for nginx_manager module."""
 
-from ipaddress import IPv4Address
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,6 +11,7 @@ import requests
 import nginx_manager
 from errors import NginxFileError
 from state import HealthcheckConfig, LocationConfig
+from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
 
 def test_reset_files_with_missing_dir(patch_nginx_manager: None):
@@ -59,9 +59,9 @@ def test_reset_files_with_existing_files(patch_nginx_manager: None):
 
 def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None):
     """
-    arrange: Valid configuration data.
+    arrange: Valid URL-format configuration data.
     act: Create configuration files from the data.
-    assert: The files are created and has the configurations.
+    assert: The files are created with host:port backends and correct scheme.
     """
     mock_instance_name = "mock-test_0"
     monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
@@ -72,17 +72,11 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     sample_data = {
         1: (
             port,
-            LocationConfig(
-                backends=(IPv4Address("10.10.10.2"), IPv4Address("10.10.10.1")),
-                protocol="https",
-                fail_timeout="30s",
-                proxy_cache_valid=("200 302 30m", "404 1m"),
-                healthcheck_config=HealthcheckConfig(
-                    interval=2123,
-                    path="/health",
-                    ssl_verify=False,
-                    valid_status=(200, 301),
-                ),
+            LocationConfig.from_integration_data(
+                {
+                    **SAMPLE_INTEGRATION_DATA,
+                    "backends": '["https://10.10.10.1:443", "https://10.10.10.2:443"]',
+                }
             ),
         )
     }
@@ -91,20 +85,77 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
 
     config_file_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
 
-    assert "server 10.10.10.1" in config_file_content
+    assert "server 10.10.10.1:443" in config_file_content
     assert "fail_timeout=30s" in config_file_content
-    assert "server 10.10.10.2" in config_file_content
+    assert "server 10.10.10.2:443" in config_file_content
     assert f"listen {port}" in config_file_content
     assert "server_name" not in config_file_content
     assert "access_log" in config_file_content
     assert "error_log" in config_file_content
 
     healthchecks_config_file_content = nginx_manager.NGINX_HEALTHCHECKS_CONF_PATH.read_text()
-    assert "GET /health" in healthchecks_config_file_content
+    assert "GET /" in healthchecks_config_file_content
     assert "port = 443" in healthchecks_config_file_content
-    assert "interval = 2123" in healthchecks_config_file_content
+    assert "interval = 2000" in healthchecks_config_file_content
     assert "ssl_verify = false" in healthchecks_config_file_content
-    assert "valid_statuses = {200,301}" in healthchecks_config_file_content
+
+
+def test_get_upstream_config_keys_http(patch_nginx_manager: None):
+    """
+    arrange: A LocationConfig with http backends on port 80.
+    act: Call _get_upstream_config_keys.
+    assert: Keys contain host:port entries with fail_timeout.
+    """
+    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+    keys = nginx_manager._get_upstream_config_keys(config)
+
+    key_strings = [k.as_strings for k in keys]
+    assert any("10.10.1.1:80" in s for s in key_strings)
+    assert any("10.10.2.2:80" in s for s in key_strings)
+    assert any("fail_timeout=30s" in s for s in key_strings)
+
+
+def test_get_upstream_config_keys_https(patch_nginx_manager: None):
+    """
+    arrange: A LocationConfig with https backends on port 443.
+    act: Call _get_upstream_config_keys.
+    assert: Keys contain host:port entries.
+    """
+    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    config = LocationConfig.from_integration_data(data)
+    keys = nginx_manager._get_upstream_config_keys(config)
+
+    key_strings = [k.as_strings for k in keys]
+    assert any("10.10.1.1:443" in s for s in key_strings)
+
+
+def test_get_location_config_keys_http(patch_nginx_manager: None):
+    """
+    arrange: A LocationConfig with http backends.
+    act: Call _get_location_config_keys.
+    assert: proxy_pass uses http scheme.
+    """
+    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+    upstream = "test-upstream"
+    keys = nginx_manager._get_location_config_keys(config, upstream)
+
+    key_strings = [k.as_strings for k in keys]
+    assert any(f"http://{upstream}/" in s for s in key_strings)
+
+
+def test_get_location_config_keys_https(patch_nginx_manager: None):
+    """
+    arrange: A LocationConfig with https backends.
+    act: Call _get_location_config_keys.
+    assert: proxy_pass uses https scheme.
+    """
+    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    config = LocationConfig.from_integration_data(data)
+    upstream = "test-upstream"
+    keys = nginx_manager._get_location_config_keys(config, upstream)
+
+    key_strings = [k.as_strings for k in keys]
+    assert any(f"https://{upstream}/" in s for s in key_strings)
 
 
 def test_health_check(monkeypatch, patch_nginx_manager: None):
