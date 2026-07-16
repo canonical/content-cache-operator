@@ -18,7 +18,6 @@ from tests.integration.helpers import (
     HEALTHCHECK_PATH_CONFIG_NAME,
     HEALTHCHECK_SSL_VERIFY_CONFIG_NAME,
     HEALTHCHECK_VALID_STATUS_CONFIG_NAME,
-    PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     CacheTester,
     get_app_ip,
@@ -67,12 +66,11 @@ async def test_healthchecks_healthy(
     assert: HTTP request should succeed and two backends are reported up in the status page.
     """
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = ",".join(http_ok_ips)
+    config[BACKENDS_CONFIG_NAME] = ",".join(f"http://{ip}:80" for ip in http_ok_ips)
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
@@ -207,12 +205,11 @@ async def test_healthchecks_custom_status(
     assert: HTTP request should fail as 200 is not a valid status here.
     """
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/teapot"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = valid_status
-    config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
@@ -254,12 +251,11 @@ async def test_healthchecks_ssl_verify(
     https_ok_ip = await get_app_ip(https_ok_app)
 
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = https_ok_ip
+    config[BACKENDS_CONFIG_NAME] = f"https://{https_ok_ip}:443"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = ssl_verify
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    config[PROTOCOL_CONFIG_NAME] = "https"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()

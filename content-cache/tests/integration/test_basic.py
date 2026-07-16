@@ -17,9 +17,9 @@ from tests.integration.helpers import (
     HEALTHCHECK_PATH_CONFIG_NAME,
     HEALTHCHECK_SSL_VERIFY_CONFIG_NAME,
     HEALTHCHECK_VALID_STATUS_CONFIG_NAME,
-    PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     CacheTester,
+    get_cache_backends,
 )
 
 
@@ -70,12 +70,11 @@ async def test_charm_integrate_with_no_data(
 
     # 2.
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    config[PROTOCOL_CONFIG_NAME] = "http"
     await cache_tester.setup_config(config)
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
     response = await cache_tester.query_cache(path="/")
@@ -113,12 +112,11 @@ async def test_charm_integrate_with_data(
         5. The application in blocked status waiting for integration.
     """
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
@@ -177,22 +175,20 @@ async def test_charm_with_two_config_app(
     assert: Both request should succeed.
     """
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
 
     config_alt = dict(CacheTester.BASE_CONFIG)
-    config_alt[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config_alt[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
     config_alt[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config_alt[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config_alt[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config_alt[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    config_alt[PROTOCOL_CONFIG_NAME] = "http"
     config_alt[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config_alt(config_alt)
 
@@ -231,13 +227,12 @@ async def test_charm_with_failover(
     fake_ip = "10.111.111.23"
 
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = f"{fake_ip},{http_ok_ip}"
+    config[BACKENDS_CONFIG_NAME] = f"http://{fake_ip}:80,http://{http_ok_ip}:80"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2123"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
 
-    config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     config[FAIL_TIMEOUT_CONFIG_NAME] = "5s"
     await cache_tester.setup_config(config)
@@ -247,3 +242,34 @@ async def test_charm_with_failover(
     response = await cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
+
+
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_cache_backends_published(
+    app: Application,
+    config_app: Application,
+    cache_tester: CacheTester,
+    http_ok_ip: str,
+    model: Model,
+) -> None:
+    """
+    arrange: A working charm with an active cache-config integration.
+    act: Read cache-backends from the unit relation data.
+    assert: cache-backends contains a valid HTTP URL with the unit bind address and allocated port.
+    """
+    config = dict(CacheTester.BASE_CONFIG)
+    config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
+    config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
+    config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
+    config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
+    await cache_tester.setup_config(config)
+    await cache_tester.integrate_config()
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+
+    unit = app.units[0]
+    backends = await get_cache_backends(unit)
+
+    assert len(backends) == 1
+    assert backends[0].startswith("http://")
+    assert ":8080" in backends[0] or ":8081" in backends[0]

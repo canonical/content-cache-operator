@@ -84,7 +84,7 @@ def test_https_backends():
         ),
         pytest.param(
             "ftp://10.10.1.1",
-            "Config error: [\"backends = ftp://10.10.1.1:",
+            'Config error: ["backends = ftp://10.10.1.1:',
             id="wrong scheme rejected",
         ),
     ],

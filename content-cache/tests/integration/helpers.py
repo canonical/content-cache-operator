@@ -26,7 +26,6 @@ HEALTHCHECK_INTERVAL_CONFIG_NAME = "healthcheck-interval"
 HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
 HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
 HEALTHCHECK_VALID_STATUS_CONFIG_NAME = "healthcheck-valid-status"
-PROTOCOL_CONFIG_NAME = "protocol"
 FAIL_TIMEOUT_CONFIG_NAME = "fail-timeout"
 PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
 
@@ -40,7 +39,6 @@ class CacheTester:
 
     BASE_CONFIG = {
         BACKENDS_CONFIG_NAME: "",
-        PROTOCOL_CONFIG_NAME: "https",
         FAIL_TIMEOUT_CONFIG_NAME: "30s",
         PROXY_CACHE_VALID_CONFIG_NAME: "[]",
     }
@@ -277,6 +275,35 @@ async def read_file(unit: Unit, path: Path) -> str:
     assert stdout is not None, f"Failed to read file {path} to stdout: {stderr}"
     logging.debug("File content of %s: %s", path, stdout)
     return stdout.strip()
+
+
+async def get_cache_backends(unit: Unit) -> list[str]:
+    """Get the cache-backends value from the unit's cache-config relation data.
+
+    Args:
+        unit: The content-cache unit to query.
+
+    Returns:
+        The list of cache-backend URLs published on the first cache-config relation.
+    """
+    return_code, rel_ids_stdout, stderr = await run_in_unit(
+        unit=unit,
+        command="relation-ids cache-config",
+    )
+    assert return_code == 0, f"Failed to get relation IDs: {stderr}"
+    rel_ids = (rel_ids_stdout or "").split()
+    assert rel_ids, "No cache-config relations found"
+    rel_id = rel_ids[0]
+
+    return_code, stdout, stderr = await run_in_unit(
+        unit=unit,
+        command=f"relation-get -r {rel_id} cache-backends -- {unit.name}",
+    )
+    assert return_code == 0, f"Failed to get cache-backends: {stderr}"
+    raw = (stdout or "").strip()
+    if not raw:
+        return []
+    return json.loads(raw)
 
 
 async def run_in_unit(
