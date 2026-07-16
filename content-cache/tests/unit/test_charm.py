@@ -211,11 +211,6 @@ def test_nginx_config_error(
     assert charm.unit.status == ops.ActiveStatus("Error for host: ('mock host',)")
 
 
-# ============================
-# Story 1 TDD: New behavior tests (should FAIL until production code is updated)
-# ============================
-
-
 def test_get_nginx_config_returns_flat_per_relation_dict(
     harness: Harness, charm: ContentCacheCharm
 ):

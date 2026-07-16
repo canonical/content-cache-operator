@@ -69,7 +69,7 @@ directive (set at the server block level) ties this location to its dedicated ca
 ## Port allocation
 
 The charm allocates a unique TCP port to each `cache-config` relation. Ports are assigned
-from a fixed range starting at **8080** and are **stable across charm restarts** — the same
+from a fixed range starting at `8080` and are stable across charm restarts. The same
 relation always receives the same port for the lifetime of that relation, stored via Juju's
 `StoredState`.
 
@@ -207,6 +207,6 @@ Backends are always addressed directly by IP address over the protocol specified
 `protocol` configuration option (`http` or `https`).
 
 When `protocol` is set to `https`, nginx connects to the backend over TLS. The charm does
-**not** manage TLS certificates for the incoming (listening) side — TLS termination for
+not manage TLS certificates for the incoming (listening) side. TLS termination for
 incoming client traffic is expected to be handled by an upstream ingress (such as haproxy with
 the `ingress-configurator` charm).
