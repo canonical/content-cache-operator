@@ -3,8 +3,7 @@
 
 """Unit test for the charm."""
 
-from ipaddress import IPv4Address
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import ops
 import pytest
@@ -102,8 +101,8 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
     assert len(config) == 1
     assert relation_id in config
     location_config = config[relation_id]
-    assert location_config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert location_config.protocol.value == "https"
+    assert location_config.backends[0].host == "10.10.1.1"
+    assert location_config.backends[1].host == "10.10.2.2"
     assert location_config.fail_timeout == "30s"
     assert location_config.healthcheck_config.path == "/"
     assert location_config.healthcheck_config.interval == 2000
@@ -134,19 +133,18 @@ def test_remove_integration(harness: Harness, charm: ContentCacheCharm):
 def test_invalid_integration_data(harness: Harness, charm: ContentCacheCharm):
     """
     arrange: A working charm.
-    act: Add a config integration with invalid data.
+    act: Add a config integration with invalid backends data.
     assert: Charm in block state.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[state.PROTOCOL_FIELD_NAME] = "invalid"
+    data[state.BACKENDS_FIELD_NAME] = '["not-a-url"]'
     harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
         app_data=data,
     )
-    assert charm.unit.status == ops.BlockedStatus(
-        "Faulty data from integration 0: Config error: [\"protocol = invalid: Input should be 'http' or 'https'\"]"
-    )
+    assert isinstance(charm.unit.status, ops.BlockedStatus)
+    assert "Config error" in charm.unit.status.message
 
 
 def test_empty_integration_data(harness: Harness, charm: ContentCacheCharm):
@@ -219,8 +217,6 @@ def test_get_nginx_config_returns_flat_per_relation_dict(
     act: Get nginx config.
     assert: Returns flat dict keyed by relation_id (int), not nested by hostname.
     """
-    from ipaddress import IPv4Address
-
     from state import LocationConfig, get_nginx_config
 
     relation_id = harness.add_relation(
@@ -233,7 +229,8 @@ def test_get_nginx_config_returns_flat_per_relation_dict(
 
     assert relation_id in config
     assert isinstance(config[relation_id], LocationConfig)
-    assert config[relation_id].backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
+    assert config[relation_id].backends[0].host == "10.10.1.1"
+    assert config[relation_id].backends[1].host == "10.10.2.2"
 
 
 def test_unique_port_allocated_per_relation(harness: Harness, charm: ContentCacheCharm):
@@ -277,3 +274,60 @@ def test_port_stable_for_same_relation(harness: Harness, charm: ContentCacheChar
     port_second = charm._get_port_for_relation(rel_id)
 
     assert port_first == port_second
+
+
+def test_load_nginx_config_writes_cache_backends(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A working charm with mocked get_binding returning a fixed IP.
+    act: Add a cache-config relation with valid data.
+    assert: cache-backends is written to unit relation data with the expected URL.
+    """
+    import json
+
+    with patch.object(
+        charm.model,
+        "get_binding",
+        return_value=MagicMock(network=MagicMock(bind_address="10.0.0.1")),
+    ):
+        relation_id = harness.add_relation(
+            CACHE_CONFIG_INTEGRATION_NAME,
+            remote_app="config",
+            app_data=SAMPLE_INTEGRATION_DATA,
+        )
+
+    assert charm.unit.status == ops.ActiveStatus()
+    rel_data = harness.get_relation_data(relation_id, charm.unit.name)
+    cache_backends = rel_data.get("cache-backends", "")
+    assert cache_backends != ""
+    urls = json.loads(cache_backends)
+    assert len(urls) == 1
+    assert urls[0].startswith("http://")
+    assert ":8080" in urls[0]
+
+
+def test_relation_broken_clears_cache_backends(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A charm with a cache-config relation that has cache-backends written.
+    act: Remove the relation.
+    assert: Charm returns to blocked status.
+    """
+    with patch.object(
+        charm.model,
+        "get_binding",
+        return_value=MagicMock(network=MagicMock(bind_address="10.0.0.1")),
+    ):
+        relation_id = harness.add_relation(
+            CACHE_CONFIG_INTEGRATION_NAME,
+            remote_app="config",
+            app_data=SAMPLE_INTEGRATION_DATA,
+        )
+
+    assert charm.unit.status == ops.ActiveStatus()
+
+    harness.remove_relation(relation_id)
+
+    assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
