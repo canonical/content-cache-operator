@@ -22,7 +22,7 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import LocationConfig, NginxConfig, Protocol
+from state import LocationConfig, NginxConfig
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)

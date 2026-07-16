@@ -3,7 +3,6 @@
 
 """The charm state and configurations."""
 
-import enum
 import json
 import logging
 import re
@@ -20,25 +19,12 @@ CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
 CERTIFICATE_INTEGRATION_NAME = "certificates"
 
 BACKENDS_FIELD_NAME = "backends"
-PROTOCOL_FIELD_NAME = "protocol"
 FAIL_TIMEOUT_FIELD_NAME = "fail_timeout"
 HEALTHCHECK_INTERVAL_FIELD_NAME = "healthcheck_interval"
 HEALTHCHECK_PATH_FIELD_NAME = "healthcheck_path"
 HEALTHCHECK_SSL_VERIFY_FIELD_NAME = "healthcheck_ssl_verify"
 HEALTHCHECK_VALID_STATUS_FIELD_NAME = "healthcheck_valid_status"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
-
-
-class Protocol(str, enum.Enum):
-    """Protocol to request backends.
-
-    Attributes:
-        HTTP: Use HTTP for requests.
-        HTTPS: Use HTTPS for requests.
-    """
-
-    HTTP = "http"
-    HTTPS = "https"
 
 
 def _validate_hostname_value(value: str) -> str:
@@ -159,18 +145,40 @@ class LocationConfig(pydantic.BaseModel):
     """Represents the configuration for a location.
 
     Attributes:
-        backends: The backends for this set of configuration.
-        protocol: The protocol to request the backends with. Can be http or https.
+        backends: The backend URLs for this configuration.
         fail_timeout: The time to wait before using a backend after failure.
         proxy_cache_valid: The cache valid duration.
         healthcheck_config: The healthcheck configuration.
     """
 
-    backends: tuple[pydantic.IPvAnyAddress, ...]
-    protocol: Protocol
+    backends: tuple[pydantic.AnyHttpUrl, ...]
     fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     proxy_cache_valid: tuple[str, ...]
     healthcheck_config: HealthcheckConfig
+
+    @pydantic.field_validator("backends")
+    @classmethod
+    def validate_backends_scheme(
+        cls, value: tuple[pydantic.AnyHttpUrl, ...]
+    ) -> tuple[pydantic.AnyHttpUrl, ...]:
+        """Validate that all backends share the same URL scheme.
+
+        Args:
+            value: The backends tuple to validate.
+
+        Raises:
+            ValueError: Backends have mixed schemes.
+
+        Returns:
+            The value after validation.
+        """
+        if len(value) > 1:
+            schemes = {url.scheme for url in value}
+            if len(schemes) > 1:
+                raise ValueError(
+                    f"All backends must share the same scheme; found mixed schemes: {schemes}"
+                )
+        return value
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
@@ -216,7 +224,6 @@ class LocationConfig(pydantic.BaseModel):
         Returns:
             The object.
         """
-        protocol = data.get(PROTOCOL_FIELD_NAME, "").lower().strip()
         backends_str = data.get(BACKENDS_FIELD_NAME, "").strip()
         fail_timeout = data.get(FAIL_TIMEOUT_FIELD_NAME, "").strip()
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
@@ -232,7 +239,6 @@ class LocationConfig(pydantic.BaseModel):
             # Ignore type check and let pydantic handle the type with validation errors.
             return cls(
                 backends=backends,  # type: ignore
-                protocol=protocol,  # type: ignore
                 fail_timeout=fail_timeout,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck_config=healthcheck_config,
@@ -364,3 +370,40 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
 
         configurations[rel.id] = config
     return configurations
+
+
+def _get_listen_protocol(charm: ops.CharmBase) -> str:
+    """Get the protocol the content-cache is listening on.
+
+    Returns "http" unconditionally in this story. Designed as a hook-in point
+    for Story 4 (certificate-transfer), which will return "https" when a TLS
+    certificate is present.
+
+    Args:
+        charm: The charm instance (reserved for future TLS detection).
+
+    Returns:
+        The protocol string ("http" or "https").
+    """
+    _ = charm  # reserved for Story 4 TLS detection
+    return "http"
+
+
+def get_cache_backends_urls(
+    charm: ops.CharmBase,
+    relation: ops.Relation,
+    port: int,
+) -> list[str]:
+    """Return the cache-backends URL list for a given relation and port.
+
+    Args:
+        charm: The charm instance used to look up the binding address.
+        relation: The relation to get the binding address for.
+        port: The nginx listening port allocated for this relation.
+
+    Returns:
+        A list containing one URL in the form protocol://ip:port.
+    """
+    ip = charm.model.get_binding(relation).network.bind_address
+    protocol = _get_listen_protocol(charm)
+    return [f"{protocol}://{ip}:{port}"]
