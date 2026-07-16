@@ -22,8 +22,7 @@ JujuConfig = Mapping[JujuConfigKey, JujuConfigValue]
 
 
 SAMPLE_CONFIG: JujuConfig = {
-    state.BACKENDS_CONFIG_NAME: "10.10.1.1,10.1.1.2",
-    state.PROTOCOL_CONFIG_NAME: "https",
+    state.BACKENDS_CONFIG_NAME: "http://10.10.1.1:80,http://10.1.1.2:80",
     state.FAIL_TIMEOUT_CONFIG_NAME: "30s",
     state.HEALTHCHECK_PATH_CONFIG_NAME: "/health",
     state.HEALTHCHECK_INTERVAL_CONFIG_NAME: 2000,
@@ -128,16 +127,18 @@ def test_integration_data(charm: ContentCacheBackendsConfigCharm, harness: Harne
 
     data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
     assert charm.unit.status == ops.ActiveStatus()
-    assert data == {
-        "backends": '["10.10.1.1", "10.1.1.2"]',
-        "protocol": "https",
-        "healthcheck_interval": "2000",
-        "healthcheck_path": "/health",
-        "healthcheck_ssl_verify": "true",
-        "healthcheck_valid_status": "[200]",
-        "fail_timeout": "30s",
-        "proxy_cache_valid": '["200 302 1h", "404 1m"]',
-    }
+    backends = __import__("json").loads(data["backends"])
+    assert len(backends) == 2
+    assert any("10.10.1.1" in b for b in backends)
+    assert any("10.1.1.2" in b for b in backends)
+    assert all(b.startswith("http://") for b in backends)
+    assert "protocol" not in data
+    assert data["healthcheck_interval"] == "2000"
+    assert data["healthcheck_path"] == "/health"
+    assert data["healthcheck_ssl_verify"] == "true"
+    assert data["healthcheck_valid_status"] == "[200]"
+    assert data["fail_timeout"] == "30s"
+    assert data["proxy_cache_valid"] == '["200 302 1h", "404 1m"]'
 
 
 def test_integration_with_invalid_config(charm: ContentCacheBackendsConfigCharm, harness: Harness):
