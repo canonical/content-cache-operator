@@ -21,7 +21,7 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import LocationConfig, Protocol
+from state import LocationConfig
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)
