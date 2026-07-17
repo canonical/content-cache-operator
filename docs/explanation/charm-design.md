@@ -225,7 +225,7 @@ to the `cache-config` relation data. This field contains a JSON list of URLs in 
 `http://<unit-bind-ip>:<allocated-port>`, representing the address at which this unit is
 listening for the relation.
 
-An ingress component can read this value to replace its haproxy backend address with
+An ingress component can read this value to replace its HAProxy-backend address with
 the content-cache unit address.
 
-The field is updated if the port changes and cleared when the relation is removed.
+The field is updated if the port changes. When the relation is removed, the field is cleared.
