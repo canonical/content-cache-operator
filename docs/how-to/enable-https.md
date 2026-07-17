@@ -2,14 +2,14 @@
 
 # How to connect to HTTPS backends
 
-The Content Cache charm can proxy to backends over HTTPS by setting the `protocol` option
+The Content Cache charm can proxy to backends over HTTPS by using HTTPS URLs in the `backends` option
 on the `content-cache-backends-config` charm.
 
 ```bash
-juju config backends protocol=https
+juju config backends backends=https://10.10.1.1:443
 ```
 
-When `protocol=https`, nginx connects to the backend IP addresses over TLS on port 443.
+When the URL scheme is `https`, nginx connects to the backend over TLS on the specified port.
 
 ## Skipping SSL certificate verification
 

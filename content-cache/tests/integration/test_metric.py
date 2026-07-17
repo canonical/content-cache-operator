@@ -18,7 +18,6 @@ from tests.integration.helpers import (
     HEALTHCHECK_PATH_CONFIG_NAME,
     HEALTHCHECK_SSL_VERIFY_CONFIG_NAME,
     HEALTHCHECK_VALID_STATUS_CONFIG_NAME,
-    PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     CacheTester,
     read_file,
@@ -44,12 +43,11 @@ async def test_metric_log(
     unit: Unit = app.units[0]
 
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2000"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
@@ -107,12 +105,11 @@ async def test_integrate_with_cos(
     """
     # Arrange:
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = http_ok_ip
+    config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "2000"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    config[PROTOCOL_CONFIG_NAME] = "http"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()

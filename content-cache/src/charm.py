@@ -5,6 +5,7 @@
 
 """The content-cache charm."""
 
+import json
 import logging
 
 import ops
@@ -21,6 +22,7 @@ from errors import (
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
     NginxConfig,
+    get_cache_backends_urls,
     get_nginx_config,
 )
 
@@ -84,6 +86,7 @@ class ContentCacheCharm(ops.CharmBase):
         """Handle config relation broken event."""
         port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
         port_map.pop(str(event.relation.id), None)
+        event.relation.data[self.unit]["cache-backends"] = ""
         self._load_nginx_config()
 
     def _update_status_with_nginx(self) -> None:
@@ -127,6 +130,12 @@ class ContentCacheCharm(ops.CharmBase):
         self._update_status_with_nginx()
         if isinstance(self.unit.status, ops.ActiveStatus):
             self.unit.status = ops.ActiveStatus(status_message)
+            for rel_id, (port, _) in ported_config.items():
+                rel = self.model.get_relation(CACHE_CONFIG_INTEGRATION_NAME, rel_id)
+                if rel is None:
+                    continue
+                urls = get_cache_backends_urls(self, rel, port)
+                rel.data[self.unit]["cache-backends"] = json.dumps(urls)
 
     def _get_config_and_update_status(self) -> NginxConfig | None:
         """Attempt to get nginx config, updates charm status on failure.

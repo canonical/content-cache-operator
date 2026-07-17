@@ -18,13 +18,11 @@ from state import (
     HEALTHCHECK_PATH_FIELD_NAME,
     HEALTHCHECK_SSL_VERIFY_FIELD_NAME,
     HEALTHCHECK_VALID_STATUS_FIELD_NAME,
-    PROTOCOL_FIELD_NAME,
     PROXY_CACHE_VALID_FIELD_NAME,
 )
 
 SAMPLE_INTEGRATION_DATA = {
-    BACKENDS_FIELD_NAME: '["10.10.1.1", "10.10.2.2"]',
-    PROTOCOL_FIELD_NAME: "https",
+    BACKENDS_FIELD_NAME: '["http://10.10.1.1:80", "http://10.10.2.2:80"]',
     FAIL_TIMEOUT_FIELD_NAME: "30s",
     HEALTHCHECK_INTERVAL_FIELD_NAME: "2000",
     HEALTHCHECK_PATH_FIELD_NAME: "/",
@@ -65,6 +63,9 @@ def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
         "charm.nginx_manager.update_and_load_config", mock_nginx_manager.update_and_load_config
     )
     monkeypatch.setattr("charm.nginx_manager.health_check", mock_nginx_manager.health_check)
+    monkeypatch.setattr(
+        "charm.get_cache_backends_urls", MagicMock(return_value=["http://10.0.0.1:8080"])
+    )
     return mock_nginx_manager
 
 
