@@ -231,4 +231,4 @@ listening for the relation.
 An ingress component can read this value to replace its `haproxy` backend address with
 the content-cache unit address.
 
-The field is updated if the port changes and cleared when the relation is removed.
+The field is updated if the port changes. When the relation is removed, the field is cleared.
