@@ -11,7 +11,6 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from socket import getservbyname
-from typing import Mapping
 
 import nginx
 import requests
@@ -23,7 +22,7 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import HostConfig, LocationConfig, NginxConfig, Protocol
+from state import LocationConfig, NginxConfig, Protocol
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)
@@ -180,14 +179,13 @@ def _systemctl_status_check() -> bool:  # pragma: no cover
 
 def update_and_load_config(
     configuration: NginxConfig,
-    hostname_to_cert: Mapping[str, Path],
     instance_name: str,
 ) -> None:
     """Update the nginx configuration files and load them.
 
     Args:
-        configuration: The nginx locations configurations.
-        hostname_to_cert: The mapping of hostname to the TLS certificates filepath.
+        configuration: The nginx locations configurations keyed by relation ID.
+            Each value is a tuple of (port, LocationConfig).
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
 
@@ -198,20 +196,18 @@ def update_and_load_config(
     # This will reset the file permissions.
     _reset_nginx_files(instance_name)
 
-    errored_hosts: list[str] = []
+    errored_identifiers: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
     healthcheck_workers_lua_code = ""
-    for host, config in configuration.items():
-        cert_path = None
-        if host in hostname_to_cert:
-            cert_path = hostname_to_cert[host]
+    for _, (port, config) in configuration.items():
+        identifier = str(port)
         try:
             vhost_healthcheck_worker_lua_code = _create_virtualhost_config(
-                host, config, cert_path, instance_name
+                identifier, port, config, instance_name
             )
             healthcheck_workers_lua_code += vhost_healthcheck_worker_lua_code
         except NginxConfigurationError as err:
-            errored_hosts.append(host)
+            errored_identifiers.append(identifier)
             configuration_errors.append(err)
             continue
         except NginxFileError:
@@ -225,8 +221,8 @@ def update_and_load_config(
         logger.info("Stop updating configuration file due to file write issues")
         raise
 
-    if errored_hosts:
-        raise NginxConfigurationAggregateError(errored_hosts, configuration_errors)
+    if errored_identifiers:
+        raise NginxConfigurationAggregateError(errored_identifiers, configuration_errors)
 
     _load_config()
 
@@ -376,74 +372,63 @@ def _create_status_page_config() -> None:
 
 
 def _create_virtualhost_config(
-    host: str, configuration: HostConfig, certificate_path: Path | None, instance_name: str
+    identifier: str, port: int, configuration: LocationConfig, instance_name: str
 ) -> str:
-    """Create the nginx configuration file for a virtual host.
+    """Create the nginx configuration file for a virtual host listening on a given port.
 
     Args:
-        host: The name of the virtual host.
-        configuration: The configurations of the host.
-        certificate_path: The filepath to the TLS certificate for the host.
+        identifier: A unique string used to name config and log files (e.g. the port as string).
+        port: The TCP port nginx should listen on for this backend.
+        configuration: The configuration of the backend.
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
 
     Raises:
         NginxConfigurationError: Failed to convert the configuration to nginx format.
     """
-    logger.info("Creating the nginx site configuration file for hosts %s", host)
+    logger.info("Creating the nginx site configuration file for port %s", port)
 
     lua_healthcheck_workers = ""
-    server_cache_dir = NGINX_PROXY_CACHE_DIR_PATH / host
+    server_cache_dir = NGINX_PROXY_CACHE_DIR_PATH / identifier
     _ensure_directory_exist_with_ownership(server_cache_dir)
     try:
         nginx_config = nginx.Conf(
             nginx.Key(
                 "proxy_cache_path",
-                f"{server_cache_dir} use_temp_path=off levels=1:2 keys_zone={host}:10m",
+                f"{server_cache_dir} use_temp_path=off levels=1:2 keys_zone={identifier}:10m",
             ),
         )
         server_config = nginx.Server(
-            nginx.Key("proxy_cache", host),
-            nginx.Key("server_name", host),
-            nginx.Key("access_log", _get_access_log_path(host, instance_name)),
+            nginx.Key("listen", str(port)),
+            nginx.Key("proxy_cache", identifier),
+            nginx.Key("access_log", _get_access_log_path(identifier, instance_name)),
             nginx.Key(
                 "access_log",
-                f"{_get_cache_log_path(host, instance_name)} {NGINX_CACHE_LOG_FORMAT_NAME}",
+                f"{_get_cache_log_path(identifier, instance_name)} {NGINX_CACHE_LOG_FORMAT_NAME}",
             ),
-            nginx.Key("error_log", _get_error_log_path(host, instance_name)),
+            nginx.Key("error_log", _get_error_log_path(identifier, instance_name)),
         )
 
-        if certificate_path is not None:
-            server_config.add(nginx.Key("listen", "443 ssl"))
-            server_config.add(nginx.Key("ssl_certificate", str(certificate_path)))
-            server_config.add(nginx.Key("ssl_certificate_key", str(certificate_path)))
+        upstream = str(uuid.uuid4())
+        upstream_keys = _get_upstream_config_keys(configuration)
+        upstream_config = nginx.Upstream(upstream, *upstream_keys)
+        nginx_config.add(upstream_config)
 
-        for path, config in configuration.items():
-            # Each set of hostname configuration with path configuration needs a upstream.
-            # Each upstream needs a unique upstream hostname.
-            # Since the hostname configuration supports any valid hostname, which is up to 255 in
-            # length, the upstream hostname cannot be built upon it. Therefore, UUIDv4 is used to
-            # the upstream hostname.
-            upstream = str(uuid.uuid4())
-            upstream_keys = _get_upstream_config_keys(config)
-            upstream_config = nginx.Upstream(upstream, *upstream_keys)
-            nginx_config.add(upstream_config)
+        location_keys = _get_location_config_keys(configuration, upstream)
+        server_config.add(nginx.Location("/", *location_keys))
 
-            location_keys = _get_location_config_keys(config, upstream, host)
-            server_config.add(nginx.Location(path, *location_keys))
-
-            lua_healthcheck_workers += _get_upstream_healthchecks_worker(upstream, config)
+        lua_healthcheck_workers += _get_upstream_healthchecks_worker(upstream, configuration)
 
         nginx_config.add(server_config)
     except nginx.ParseError as err:
         logger.exception(
-            "Unable to convert %s configuration to nginx format: %s", host, configuration
+            "Unable to convert port %s configuration to nginx format: %s", port, configuration
         )
         raise NginxConfigurationError(
-            f"Unable to convert {host} configuration to nginx format: {configuration}"
+            f"Unable to convert port {port} configuration to nginx format: {configuration}"
         ) from err
 
-    _store_and_enable_site_config(host, nginx_config)
+    _store_and_enable_site_config(identifier, nginx_config)
 
     return lua_healthcheck_workers
 
@@ -484,7 +469,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
             upstream = "{upstream}",
             type = "{config.protocol.value}",
 
-            http_req = "GET {hc_path} HTTP/1.0\r\nHost: {config.hostname}\r\n\r\n",
+            http_req = "GET {hc_path} HTTP/1.0\r\n\r\n",
 
             port = {getservbyname(config.protocol.value)},
             interval = {config.healthcheck_config.interval},
@@ -493,7 +478,6 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
             rise = 2,
             valid_statuses = {{{valid_status_str}}},
             concurrency = 10,
-            host = "{config.hostname}",
             ssl_verify = {str(config.healthcheck_config.ssl_verify).lower()}
         }}
         if not ok then
@@ -503,22 +487,18 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
     """
 
 
-def _get_location_config_keys(
-    config: LocationConfig, upstream: str, host: str
-) -> tuple[nginx.Key, ...]:
+def _get_location_config_keys(config: LocationConfig, upstream: str) -> tuple[nginx.Key, ...]:
     """Create the nginx keys for location configuration.
 
     Args:
         config: The location configurations.
         upstream: The upstream hostname for the backends.
-        host: The hostname for this server.
 
     Returns:
         The nginx.Key for the Location configuration.
     """
     keys = [
-        nginx.Key("proxy_pass", f"{config.protocol.value}://{upstream}{config.backends_path}"),
-        nginx.Key("proxy_set_header", f'Host "{host}"'),
+        nginx.Key("proxy_pass", f"{config.protocol.value}://{upstream}/"),
     ]
 
     for cache_valid in config.proxy_cache_valid:

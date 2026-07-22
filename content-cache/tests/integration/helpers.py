@@ -14,17 +14,14 @@ from juju.application import Application
 from juju.model import Model
 from juju.unit import Unit
 
-from state import CACHE_CONFIG_INTEGRATION_NAME, CERTIFICATE_INTEGRATION_NAME
+from state import CACHE_CONFIG_INTEGRATION_NAME
 
 logger = logging.getLogger(__name__)
 
 TEST_SERVER_PATH = Path("tests/integration/scripts/test_server.py")
 TEST_SERVER_CERTIFICATE = Path("tests/integration/scripts/certificate.pem")
 
-HOSTNAME_CONFIG_NAME = "hostname"
-PATH_CONFIG_NAME = "path"
 BACKENDS_CONFIG_NAME = "backends"
-BACKENDS_PATH_CONFIG_NAME = "backends-path"
 HEALTHCHECK_INTERVAL_CONFIG_NAME = "healthcheck-interval"
 HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
 HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
@@ -32,10 +29,6 @@ HEALTHCHECK_VALID_STATUS_CONFIG_NAME = "healthcheck-valid-status"
 PROTOCOL_CONFIG_NAME = "protocol"
 FAIL_TIMEOUT_CONFIG_NAME = "fail-timeout"
 PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
-
-
-class TestSetupError(Exception):
-    """Represent error in test setup."""
 
 
 class CacheTester:
@@ -46,10 +39,7 @@ class CacheTester:
     """
 
     BASE_CONFIG = {
-        HOSTNAME_CONFIG_NAME: "",
-        PATH_CONFIG_NAME: "/",
         BACKENDS_CONFIG_NAME: "",
-        BACKENDS_PATH_CONFIG_NAME: "/",
         PROTOCOL_CONFIG_NAME: "https",
         FAIL_TIMEOUT_CONFIG_NAME: "30s",
         PROXY_CACHE_VALID_CONFIG_NAME: "[]",
@@ -61,7 +51,6 @@ class CacheTester:
         app: Application,
         config_app: Application,
         config_alt_app: Application,
-        cert_app: Application | None = None,
     ):
         """Initialize the object.
 
@@ -70,13 +59,11 @@ class CacheTester:
             app: The content-cache application.
             config_app: The configuration charm application.
             config_alt_app: The alternative configuration charm application.
-            cert_app: The TLS certification charm application.
         """
         self._model = model
         self._app = app
         self._config_app = config_app
         self._config_alt_app = config_alt_app
-        self._cert_app = cert_app
         self._reset_after_run = True
 
     async def integrate_config(self) -> None:
@@ -91,19 +78,6 @@ class CacheTester:
         await self._model.integrate(
             f"{self._config_alt_app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
             f"{self._app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
-        )
-
-    async def integrate_cert(self) -> None:
-        """Integrate the TLS certification application.
-
-        Raises:
-            TestSetupError: The TLS certificate application is not provided.
-        """
-        if self._cert_app is None:
-            raise TestSetupError("TLS certificate application not provided")
-        await self._model.integrate(
-            f"{self._app.name}:{CERTIFICATE_INTEGRATION_NAME}",
-            f"{self._cert_app.name}:{CERTIFICATE_INTEGRATION_NAME}",
         )
 
     async def setup_config(self, configuration: dict[str, str]) -> None:
@@ -123,25 +97,24 @@ class CacheTester:
         await self._config_alt_app.set_config(configuration)
 
     async def query_cache(
-        self, path: str, hostname: str, protocol: str = "http"
+        self, path: str, port: int = 8080, protocol: str = "http"
     ) -> requests.Response:
         """Test the content cache with a request.
 
         Args:
             path: The URL path to the content-cache.
-            hostname: The hostname of the content-cache.
+            port: The nginx listening port allocated for the relation.
             protocol: The protocol to make the request.
 
         Returns:
             Whether the cache is working.
         """
         ip = await get_app_ip(self._app)
-        url = f"{protocol}://{ip}{path}"
-        logger.info(f"Querying cache on {url} with Host: {hostname}")
+        url = f"{protocol}://{ip}:{port}{path}"
+        logger.info(f"Querying cache on {url}")
 
         response = requests.get(
             url,
-            headers={"Host": hostname},
             allow_redirects=False,
             verify=False,
             timeout=300,
@@ -159,8 +132,6 @@ class CacheTester:
             await self._config_alt_app.remove_relation(
                 CACHE_CONFIG_INTEGRATION_NAME, self._app.name, True
             )
-        if self._app.related_applications(CERTIFICATE_INTEGRATION_NAME):
-            await self._app.remove_relation(CERTIFICATE_INTEGRATION_NAME, self._app.name, True)
         await self.reset_config()
 
     async def reset_config(self) -> None:

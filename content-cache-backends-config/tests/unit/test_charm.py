@@ -22,12 +22,9 @@ JujuConfig = Mapping[JujuConfigKey, JujuConfigValue]
 
 
 SAMPLE_CONFIG: JujuConfig = {
-    state.HOSTNAME_CONFIG_NAME: "example.com",
-    state.PATH_CONFIG_NAME: "/",
     state.BACKENDS_CONFIG_NAME: "10.10.1.1,10.1.1.2",
     state.PROTOCOL_CONFIG_NAME: "https",
     state.FAIL_TIMEOUT_CONFIG_NAME: "30s",
-    state.BACKENDS_PATH_CONFIG_NAME: "/",
     state.HEALTHCHECK_PATH_CONFIG_NAME: "/health",
     state.HEALTHCHECK_INTERVAL_CONFIG_NAME: 2000,
     state.PROXY_CACHE_VALID_CONFIG_NAME: '["200 302 1h", "404 1m"]',
@@ -132,11 +129,8 @@ def test_integration_data(charm: ContentCacheBackendsConfigCharm, harness: Harne
     data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
     assert charm.unit.status == ops.ActiveStatus()
     assert data == {
-        "hostname": "example.com",
-        "path": "/",
         "backends": '["10.10.1.1", "10.1.1.2"]',
         "protocol": "https",
-        "backends_path": "/",
         "healthcheck_interval": "2000",
         "healthcheck_path": "/health",
         "healthcheck_ssl_verify": "true",

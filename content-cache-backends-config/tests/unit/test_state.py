@@ -13,11 +13,8 @@ from factories import MockCharmFactory  # pylint: disable=import-error
 from errors import ConfigurationError
 from src.state import (
     BACKENDS_CONFIG_NAME,
-    BACKENDS_PATH_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
-    HOSTNAME_CONFIG_NAME,
-    PATH_CONFIG_NAME,
     PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     Configuration,
@@ -52,157 +49,12 @@ def test_valid_config():
 
     config = Configuration.from_charm(charm)
 
-    assert config.hostname == "example.com"
-    assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
+    assert config.protocol.value == "https"
     assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
     assert config.healthcheck.path == "/healthz"
     assert config.healthcheck.interval == 2123
     assert config.proxy_cache_valid == ()
-
-
-def test_hostname_with_subdomain():
-    """
-    arrange: Mock charm with valid configurations.
-    act: Use a domain with subdomain as hostname, and create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
-    """
-    charm = MockCharmFactory()
-    charm.config[HOSTNAME_CONFIG_NAME] = "sub.example.com"
-
-    config = Configuration.from_charm(charm)
-
-    assert config.hostname == "sub.example.com"
-    assert config.path == "/"
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
-    assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
-    assert config.healthcheck.path == "/healthz"
-    assert config.healthcheck.interval == 2123
-
-    assert config.proxy_cache_valid == ()
-
-
-def test_empty_hostname():
-    """
-    arrange: Mock charm with empty hostname.
-    act: Create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
-    """
-    charm = MockCharmFactory()
-    charm.config[HOSTNAME_CONFIG_NAME] = "   "
-
-    with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
-    assert (
-        str(err.value) == "Config error: ['hostname = : String should have at least 1 character']"
-    )
-
-
-def test_long_hostname():
-    """
-    arrange: Mock charm with long hostname.
-    act: Create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
-    """
-    charm = MockCharmFactory()
-    charm.config[HOSTNAME_CONFIG_NAME] = "a" * 256
-
-    with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
-
-    assert "Value error, Hostname cannot be longer than 255" in str(err.value)
-
-
-def test_invalid_hostname():
-    """
-    arrange: Mock charm with hostname with invalid character.
-    act: Create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
-    """
-    charm = MockCharmFactory()
-    charm.config[HOSTNAME_CONFIG_NAME] = "example?.com"
-
-    with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
-
-    assert "consist of alphanumeric and hyphen" in str(err.value)
-
-
-def test_longer_path():
-    """
-    arrange: Mock charm with valid configurations.
-    act: Use a longer path, and create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
-    """
-    charm = MockCharmFactory()
-    charm.config[PATH_CONFIG_NAME] = "/path/to/destination/0"
-    charm.config[BACKENDS_PATH_CONFIG_NAME] = "/path/to/destination/2"
-    charm.config[HEALTHCHECK_PATH_CONFIG_NAME] = "/path/to/health/2"
-
-    config = Configuration.from_charm(charm)
-
-    assert config.hostname == "example.com"
-    assert config.path == "/path/to/destination/0"
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
-    assert config.fail_timeout == "30s"
-    assert config.backends_path == "/path/to/destination/2"
-    assert config.healthcheck.path == "/path/to/health/2"
-    assert config.proxy_cache_valid == ()
-
-
-def test_empty_path():
-    """
-    arrange: Mock charm with empty path.
-    act: Create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
-    """
-    charm = MockCharmFactory()
-    charm.config[PATH_CONFIG_NAME] = "   "
-
-    with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
-
-    assert str(err.value) == "Config error: ['path = : String should have at least 1 character']"
-
-
-def test_invalid_path():
-    """
-    arrange: Mock charm with path with invalid character.
-    act: Create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
-    """
-    charm = MockCharmFactory()
-    charm.config[PATH_CONFIG_NAME] = "/^"
-
-    with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
-
-    assert (
-        str(err.value)
-        == "Config error: ['path = /^: Value error, Path contains non-allowed character']"
-    )
-
-
-def test_invalid_backends_path():
-    """
-    arrange: Mock charm with path with invalid character.
-    act: Create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
-    """
-    charm = MockCharmFactory()
-    charm.config[BACKENDS_PATH_CONFIG_NAME] = "/path/{"
-
-    with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
-
-    assert "backends_path = /path/{: Value error, Path contains non-allowed character" in str(
-        err.value
-    )
 
 
 @pytest.mark.parametrize(
@@ -247,12 +99,9 @@ def test_http_protocol():
 
     config = Configuration.from_charm(charm)
 
-    assert config.hostname == "example.com"
-    assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "http"
+    assert config.protocol.value == "http"
     assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
     assert config.healthcheck.path == "/healthz"
     assert config.healthcheck.interval == 2123
     assert config.proxy_cache_valid == ()
@@ -380,12 +229,9 @@ def test_valid_proxy_cache_valid(proxy_cache_valid: str):
 
     config = Configuration.from_charm(charm)
 
-    assert config.hostname == "example.com"
-    assert config.path == "/"
     assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
+    assert config.protocol.value == "https"
     assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
     assert config.healthcheck.path == "/healthz"
     assert config.healthcheck.interval == 2123
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
@@ -395,7 +241,7 @@ def test_configuration_to_data():
     """
     arrange: Mock charm with valid configurations.
     act: Create the configuration from the charm, and convert to dict.
-    assert: Data contains the configurations.
+    assert: Data contains the configurations without routing fields.
     """
     charm = MockCharmFactory()
 
@@ -403,12 +249,9 @@ def test_configuration_to_data():
     data = config.to_integration_data()
 
     assert data == {
-        "hostname": "example.com",
-        "path": "/",
         "backends": '["10.10.1.1", "10.10.2.2"]',
         "protocol": "https",
         "fail_timeout": "30s",
-        "backends_path": "/",
         "healthcheck_interval": "2123",
         "healthcheck_path": "/healthz",
         "healthcheck_ssl_verify": "false",

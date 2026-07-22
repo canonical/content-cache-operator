@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    "description lang=en": "Explanation of the Content Cache charm's design decisions and how they affect caching behavior, memory usage, failover, and TLS."
+    "description lang=en": "Explanation of the Content Cache charm's design decisions and how they affect caching behavior, memory usage, failover, and backend protocols."
 ---
 
 (explanation_charm_design)=
@@ -46,42 +46,66 @@ archives), including use cases such as:
 - Software distribution mirrors (package repositories, release archives)
 - Any content that is identical for every visitor, or varies only by URL or query parameters
 
-For each configured path, the charm generates an nginx location block. The following
+For each `cache-config` relation, the charm generates a single nginx server block with one
+`location /` block that proxies all traffic to the configured backends. The following
 example shows the directives relevant to caching:
 
 ```nginx
-location / {
-    proxy_pass http://<upstream-uuid>/;
-    proxy_set_header Host "example.com";
-    proxy_cache_valid 200 302 1h;
-    proxy_cache_valid 404 1m;
+server {
+    listen 8080;
+    proxy_cache 8080;
+
+    location / {
+        proxy_pass https://<upstream-uuid>/;
+        proxy_cache_valid 200 302 1h;
+        proxy_cache_valid 404 1m;
+    }
 }
 ```
 
 The [`proxy_cache`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache)
-directive (set at the server block level) ties this location to its hostname's
-dedicated cache zone.
+directive (set at the server block level) ties this location to its dedicated cache zone.
+
+## Port allocation
+
+The charm allocates a unique TCP port to each `cache-config` relation. Ports are assigned
+from a fixed range starting at `8080` and are stable across charm restarts. The same
+relation always receives the same port for the lifetime of that relation, stored via Juju's
+`StoredState`.
+
+This means each configured backend is reachable at a distinct port on the content-cache
+unit's IP address:
+
+```
+http://<unit-ip>:8080   →  backends from relation 1
+http://<unit-ip>:8081   →  backends from relation 2
+```
+
+An ingress component (such as haproxy with the `ingress-configurator` charm) is expected
+to sit in front of the content-cache unit and route incoming requests to the appropriate
+port based on hostname or path rules.
 
 ## Cache storage
 
 nginx uses a two-tier storage model for caching: disk and RAM.
 
-Disk stores the actual cached response bodies. Each hostname gets its own directory:
+Disk stores the actual cached response bodies. Each `cache-config` relation gets its own
+directory, named after its allocated port:
 
 ```
-/data/nginx/cache/<hostname>/
+/data/nginx/cache/<port>/
 ```
 
 RAM stores the cache metadata (keys, expiry information, and file paths). The charm
-allocates a fixed 10 MB keys zone per hostname via the
+allocates a fixed 10 MB keys zone per relation via the
 [`proxy_cache_path`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path)
 directive:
 
 ```nginx
-proxy_cache_path /data/nginx/cache/example.com
+proxy_cache_path /data/nginx/cache/8080
     use_temp_path=off
     levels=1:2
-    keys_zone=example.com:10m;
+    keys_zone=8080:10m;
 ```
 
 The 10 MB limit is fixed in the charm and cannot be changed via configuration. For most static
@@ -99,7 +123,7 @@ the metadata entry for the least recently accessed cache item is removed from th
 Disk entries expire according to
 [`proxy_cache_valid`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid),
 which maps HTTP response codes to TTLs. This value is set via the `proxy-cache-valid` option
-on `content-cache-backends-config` and applies per location (per hostname and path). For example:
+on `content-cache-backends-config` and applies per relation. For example:
 
 ```
 proxy-cache-valid: '["200 302 1h", "404 1m"]'
@@ -108,19 +132,19 @@ proxy-cache-valid: '["200 302 1h", "404 1m"]'
 This directive caches 200 and 302 responses for one hour, and 404 responses for one minute. Responses
 not matched by any rule are not cached.
 
-### Multi-host isolation
+### Per-backend isolation
 
-Each hostname configured via a `content-cache-backends-config` relation gets:
+Each `content-cache-backends-config` relation configured via `cache-config` gets:
 
-- Its own cache directory (`/data/nginx/cache/<hostname>/`)
-- Its own RAM keys zone (`keys_zone=<hostname>:10m`)
+- Its own cache directory (`/data/nginx/cache/<port>/`)
+- Its own RAM keys zone (`keys_zone=<port>:10m`)
 - Its own upstream block and log files
 
-There is no cross-hostname competition for RAM. Each hostname has its own `keys_zone`
-allocation, so one hostname's cache metadata cannot evict other cache. Disk capacity, however,
-is shared across all hostnames on the same filesystem. Adding or removing a
-`content-cache-backends-config` relation only affects that hostname's configuration; other
-hostnames continue serving from their own caches uninterrupted.
+There is no cross-relation competition for RAM. Each relation has its own `keys_zone`
+allocation, so cache metadata for one backend cannot evict the cache for another. Disk capacity, however,
+is shared across all relations on the same filesystem. Adding or removing a
+`content-cache-backends-config` relation only affects that relation's configuration; other
+backends continue serving from their own caches uninterrupted.
 
 ## Backend health checks and failover
 
@@ -150,7 +174,7 @@ ok, err = hc.spawn_checker{
     shm = "healthcheck",
     upstream = "<upstream-uuid>",
     type = "https",
-    http_req = "GET /health HTTP/1.0\r\nHost: example.com\r\n\r\n",
+    http_req = "GET /health HTTP/1.0\r\n\r\n",
     port = 443,
     interval = 10000,
     timeout = 1000,
@@ -158,7 +182,6 @@ ok, err = hc.spawn_checker{
     rise = 2,
     valid_statuses = {200},
     concurrency = 10,
-    host = "example.com",
     ssl_verify = true
 }
 ```
@@ -173,32 +196,17 @@ level, not the background health check level.
 
 ### All backends unavailable
 
-If all backends for a hostname are simultaneously marked down (either by the health checker or
+If all backends for a relation are simultaneously marked down (either by the health checker or
 by `fail-timeout`), nginx returns 502 Bad Gateway to the client. Cached content for the
 affected paths may still be served if the entries are still valid according to `proxy-cache-valid`.
 nginx does not serve stale content beyond its TTL by default.
 
-## TLS termination
+## Backend protocol (HTTP vs HTTPS)
 
-TLS is terminated by the nginx instance managed by this charm. Backends are always addressed
-directly by IP address over the protocol specified by the `protocol` configuration option
-(`http` or `https`).
+Backends are always addressed directly by IP address over the protocol specified by the
+`protocol` configuration option (`http` or `https`).
 
-TLS certificates are obtained via the Juju `certificates` relation
-(using the `tls-certificates` interface). The charm requests one certificate per hostname —
-each `content-cache-backends-config` relation that provides a hostname triggers a separate
-certificate request.
-
-### Behavior when certificates are not yet available
-
-If the `certificates` relation exists but the certificate for a hostname has not yet been
-issued, the charm enters `Maintenance` status and does not reload nginx with the updated
-configuration until all required certificates are available. It will not fall back to serving
-the hostname over plain HTTP.
-
-This is an intentional security decision, as a charm that has been told to expect TLS should not
-silently serve unencrypted traffic because a certificate is delayed.
-
-If no `certificates` relation is present, the charm does not add a `listen 443 ssl` directive
-to the nginx server block. nginx then falls back to its default behavior of listening on port 80,
-serving all traffic over plain HTTP with no TLS.
+When `protocol` is set to `https`, nginx connects to the backend over TLS. The charm does
+not manage TLS certificates for the incoming (listening) side. TLS termination for
+incoming client traffic is expected to be handled by an upstream ingress (such as haproxy with
+the `ingress-configurator` charm).

@@ -160,34 +160,16 @@ class Configuration(pydantic.BaseModel):
     """Represents the configuration.
 
     Attributes:
-        hostname: The hostname for the virtual host for this set of configuration.
-        path: The path for this set of configuration.
         backends: The backends for this set of configuration.
         protocol: The protocol to request the backends with. Can be http or https.
         fail_timeout: The time to wait before using a backend after failure.
-        backends_path: The path to request the backends.
         proxy_cache_valid: The cache valid duration.
         healthcheck: The healthcheck configuration.
     """
 
-    hostname: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_hostname_value),
-    ]
-    path: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_path_value),
-    ]
     backends: tuple[pydantic.IPvAnyAddress, ...]
     protocol: Protocol
     fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
-    backends_path: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_path_value),
-    ]
     proxy_cache_valid: tuple[str, ...]
     healthcheck: HealthcheckConfig
 
@@ -228,14 +210,11 @@ class Configuration(pydantic.BaseModel):
         Returns:
             The object.
         """
-        hostname = typing.cast(str, charm.config.get(HOSTNAME_CONFIG_NAME, "")).strip()
-        path = typing.cast(str, charm.config.get(PATH_CONFIG_NAME, "")).strip()
         protocol = typing.cast(str, charm.config.get(PROTOCOL_CONFIG_NAME, "")).lower().strip()
         backends_str = typing.cast(str, charm.config.get(BACKENDS_CONFIG_NAME, "")).strip()
         if not backends_str:
             raise ConfigurationError("Empty backends configuration found")
         fail_timeout = typing.cast(str, charm.config.get(FAIL_TIMEOUT_CONFIG_NAME, "")).strip()
-        backends_path = typing.cast(str, charm.config.get(BACKENDS_PATH_CONFIG_NAME, "")).strip()
         proxy_cache_valid_str = typing.cast(
             str, charm.config.get(PROXY_CACHE_VALID_CONFIG_NAME, "")
         ).strip()
@@ -257,12 +236,9 @@ class Configuration(pydantic.BaseModel):
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
             return cls(
-                hostname=hostname,
-                path=path,
                 backends=backends,  # type: ignore
                 protocol=protocol,  # type: ignore
                 fail_timeout=fail_timeout,
-                backends_path=backends_path,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck=healthcheck_config,
             )

@@ -8,7 +8,6 @@ import json
 import logging
 import re
 import typing
-from collections import defaultdict
 
 import ops
 import pydantic
@@ -20,12 +19,9 @@ logger = logging.getLogger(__name__)
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
 CERTIFICATE_INTEGRATION_NAME = "certificates"
 
-HOSTNAME_FIELD_NAME = "hostname"
-PATH_FIELD_NAME = "path"
 BACKENDS_FIELD_NAME = "backends"
 PROTOCOL_FIELD_NAME = "protocol"
 FAIL_TIMEOUT_FIELD_NAME = "fail_timeout"
-BACKENDS_PATH_FIELD_NAME = "backends_path"
 HEALTHCHECK_INTERVAL_FIELD_NAME = "healthcheck_interval"
 HEALTHCHECK_PATH_FIELD_NAME = "healthcheck_path"
 HEALTHCHECK_SSL_VERIFY_FIELD_NAME = "healthcheck_ssl_verify"
@@ -163,34 +159,16 @@ class LocationConfig(pydantic.BaseModel):
     """Represents the configuration for a location.
 
     Attributes:
-        hostname: The hostname for the virtual host for this set of configuration.
-        path: The path for this set of configuration.
         backends: The backends for this set of configuration.
         protocol: The protocol to request the backends with. Can be http or https.
         fail_timeout: The time to wait before using a backend after failure.
-        backends_path: The path to request the backends.
         proxy_cache_valid: The cache valid duration.
         healthcheck_config: The healthcheck configuration.
     """
 
-    hostname: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_hostname_value),
-    ]
-    path: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_path_value),
-    ]
     backends: tuple[pydantic.IPvAnyAddress, ...]
     protocol: Protocol
     fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
-    backends_path: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_path_value),
-    ]
     proxy_cache_valid: tuple[str, ...]
     healthcheck_config: HealthcheckConfig
 
@@ -238,12 +216,9 @@ class LocationConfig(pydantic.BaseModel):
         Returns:
             The object.
         """
-        hostname = data.get(HOSTNAME_FIELD_NAME, "").strip()
-        path = data.get(PATH_FIELD_NAME, "").strip()
         protocol = data.get(PROTOCOL_FIELD_NAME, "").lower().strip()
         backends_str = data.get(BACKENDS_FIELD_NAME, "").strip()
         fail_timeout = data.get(FAIL_TIMEOUT_FIELD_NAME, "").strip()
-        backends_path = data.get(BACKENDS_PATH_FIELD_NAME, "").strip()
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
 
         proxy_cache_valid = _parse_list(
@@ -256,12 +231,9 @@ class LocationConfig(pydantic.BaseModel):
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
             return cls(
-                hostname=hostname,
-                path=path,
                 backends=backends,  # type: ignore
                 protocol=protocol,  # type: ignore
                 fail_timeout=fail_timeout,
-                backends_path=backends_path,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck_config=healthcheck_config,
             )
@@ -353,22 +325,8 @@ def _check_status_code(code_str: str) -> None:
         raise ValueError(f"Invalid status code in proxy_cache_valid: {code}")
 
 
-Hostname = str
-Location = str
-NginxConfig = dict[Hostname, dict[Location, LocationConfig]]
-HostConfig = dict[Location, LocationConfig]
-
-
-def extract_hostname_from_nginx_config(config: NginxConfig) -> tuple[Hostname, ...]:
-    """Extract the list of hostnames from nginx configuration.
-
-    Args:
-        config: The configuration.
-
-    Returns:
-        The list of hostnames.
-    """
-    return tuple(config.keys())
+RelationId = int
+NginxConfig = dict[RelationId, LocationConfig]
 
 
 def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
@@ -381,14 +339,14 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
         IntegrationDataError: Invalid cache configurations in integration data.
 
     Returns:
-        The collection of locations and their configurations.
+        A mapping of relation ID to location configuration.
     """
     relations = charm.model.relations[CACHE_CONFIG_INTEGRATION_NAME]
     if not relations:
         logger.info("Found no configuration integrations")
         return {}
 
-    configurations: defaultdict[Hostname, dict[Location, LocationConfig]] = defaultdict(dict)
+    configurations: dict[RelationId, LocationConfig] = {}
 
     for rel in relations:
         logger.info("Parsing integration data for %s", rel.app)
@@ -404,36 +362,5 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
                 f"Faulty data from integration {rel.id}: {str(err)}"
             ) from err
 
-        configurations[config.hostname][config.path] = config
+        configurations[rel.id] = config
     return configurations
-
-
-def get_hostnames(charm: ops.CharmBase) -> list[Hostname]:
-    """Get the hostnames from integration data.
-
-    Args:
-        charm: The charm to extract integration data from.
-
-    Raises:
-        IntegrationDataError: Invalid hostname in integration data.
-
-    Returns:
-        A list of hostnames.
-    """
-    hostnames: list[Hostname] = []
-    relations = charm.model.relations.get(CACHE_CONFIG_INTEGRATION_NAME)
-    if not relations:
-        logger.info("Found no configuration integrations")
-        return hostnames
-
-    for rel in relations:
-        logger.info("Getting hostname from integration data for %s", rel.app)
-        hostname = rel.data[rel.app].get(HOSTNAME_FIELD_NAME, "").strip()
-        try:
-            _validate_hostname_value(hostname)
-        except ValueError as err:
-            raise IntegrationDataError(
-                f"Faulty hostname from integration {rel.id}: {str(err)}"
-            ) from err
-        hostnames.append(hostname)
-    return hostnames

@@ -182,12 +182,6 @@ async def metric_app_fixture(
     yield applications[metric_app_name]
 
 
-@pytest.fixture(name="http_ok_path", scope="module")
-def http_ok_path_fixture() -> str:
-    """The path for http_ok_app."""
-    return f"/test-{secrets.token_urlsafe(4)}"
-
-
 @pytest.fixture(name="http_ok_message", scope="module")
 def http_ok_message_fixture() -> str:
     """The message for http_ok_app."""
@@ -196,11 +190,11 @@ def http_ok_message_fixture() -> str:
 
 @pytest_asyncio.fixture(name="http_ok_app", scope="module")
 async def http_ok_app_fixture(
-    model: Model, http_ok_path: str, http_ok_message: str, pytestconfig: pytest.Config
+    model: Model, http_ok_message: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The test HTTP application that returns OK."""
     app = await deploy_http_app(
-        app_name="http-ok", path=http_ok_path, status=200, message=http_ok_message, model=model
+        app_name="http-ok", path="/", status=200, message=http_ok_message, model=model
     )
     await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
 
@@ -209,12 +203,12 @@ async def http_ok_app_fixture(
 
 @pytest_asyncio.fixture(name="https_ok_app", scope="module")
 async def https_ok_app_fixture(
-    model: Model, http_ok_path: str, http_ok_message: str, pytestconfig: pytest.Config
+    model: Model, http_ok_message: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The test HTTPS application that returns OK."""
     app = await deploy_http_app(
         app_name="https-ok",
-        path=http_ok_path,
+        path="/",
         status=200,
         message=http_ok_message,
         model=model,
@@ -251,11 +245,10 @@ async def cache_tester_fixture(
     app: Application,
     config_app: Application,
     config_alt_app: Application,
-    cert_app: Application,
 ) -> AsyncIterator[CacheTester]:
     """Get the cache tester."""
     unit = app.units[0]
-    tester = CacheTester(model, app, config_app, config_alt_app, cert_app)
+    tester = CacheTester(model, app, config_app, config_alt_app)
 
     yield tester
 
@@ -267,4 +260,14 @@ async def cache_tester_fixture(
 
     await model.wait_for_idle([app.name], status="blocked", timeout=10 * 60)
     assert unit.workload_status_message == "Waiting for integration with config charm"
-    # The configuration charm is removed due to being subordinate charm with no relation.
+    # Wait for config app units to be fully removed before the next test runs.
+    # Config app scales to 0 units when the relation is removed, but Juju takes
+    # a moment to complete the unit removal. Without this wait, the next test
+    # may create a new relation while a previous unit is still being torn down,
+    # causing race conditions.
+    deadline = 60
+    poll_interval = 1
+    elapsed = 0
+    while (config_app.units or config_alt_app.units) and elapsed < deadline:
+        await asyncio.sleep(poll_interval)
+        elapsed += poll_interval

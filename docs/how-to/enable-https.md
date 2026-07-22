@@ -1,19 +1,27 @@
 (how_to_enable_https)=
 
-# How to enable HTTPS
+# How to connect to HTTPS backends
 
-In order for the Content Cache charm to take HTTPS requests, the charm will need TLS certificates.
-The charm can request and receive certificates from charms that provides tls-certificates.
-
-For example, with a working content-cache charm deployment name `cache`, the following will add self-signed TLS certificates to it:
+The Content Cache charm can proxy to backends over HTTPS by setting the `protocol` option
+on the `content-cache-backends-config` charm.
 
 ```bash
-juju deploy self-signed-certificates cert
-juju integrate cert cache
+juju config backends protocol=https
 ```
 
-After the charm are in active status, cURL can be used to test the charm. Note the `-k` since self-signed certificates are used.
+When `protocol=https`, nginx connects to the backend IP addresses over TLS on port 443.
+
+## Skipping SSL certificate verification
+
+If the backends use self-signed certificates, you must disable SSL verification for the
+healthcheck probes, otherwise all backends will be marked as down:
 
 ```bash
-curl http://<IP of the juju machine> -H "Host: <hostname in config>" -k
+juju config backends healthcheck-ssl-verify=false
 ```
+
+## TLS termination for incoming traffic
+
+The Content Cache charm does not terminate TLS for incoming client requests.
+Client-facing TLS termination is expected to be handled by an upstream ingress component,
+such as haproxy configured with the `ingress-configurator` charm.
