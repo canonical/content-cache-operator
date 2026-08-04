@@ -24,4 +24,4 @@ juju config backends healthcheck-ssl-verify=false
 
 The Content Cache charm does not terminate TLS for incoming client requests.
 Client-facing TLS termination is expected to be handled by an upstream ingress component,
-such as haproxy configured with the `ingress-configurator` charm.
+such as `haproxy` configured with the `ingress-configurator` charm.

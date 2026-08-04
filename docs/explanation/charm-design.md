@@ -81,7 +81,7 @@ http://<unit-ip>:8080   →  backends from relation 1
 http://<unit-ip>:8081   →  backends from relation 2
 ```
 
-An ingress component (such as haproxy with the `ingress-configurator` charm) is expected
+An ingress component (such as `haproxy` with the `ingress-configurator` charm) is expected
 to sit in front of the content-cache unit and route incoming requests to the appropriate
 port based on hostname or path rules.
 
@@ -208,5 +208,5 @@ Backends are always addressed directly by IP address over the protocol specified
 
 When `protocol` is set to `https`, nginx connects to the backend over TLS. The charm does
 not manage TLS certificates for the incoming (listening) side. TLS termination for
-incoming client traffic is expected to be handled by an upstream ingress (such as haproxy with
+incoming client traffic is expected to be handled by an upstream ingress (such as `haproxy` with
 the `ingress-configurator` charm).
