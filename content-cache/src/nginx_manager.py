@@ -22,7 +22,7 @@ from errors import (
     NginxSetupError,
     NginxStopError,
 )
-from state import LocationConfig, NginxConfig, Protocol
+from state import LocationConfig, Protocol
 from utilities import execute_command
 
 logger = logging.getLogger(__name__)
@@ -178,7 +178,7 @@ def _systemctl_status_check() -> bool:  # pragma: no cover
 
 
 def update_and_load_config(
-    configuration: NginxConfig,
+    configuration: dict[int, tuple[int, LocationConfig]],
     instance_name: str,
 ) -> None:
     """Update the nginx configuration files and load them.

@@ -84,6 +84,7 @@ class ContentCacheCharm(ops.CharmBase):
         """Handle config relation broken event."""
         port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
         port_map.pop(str(event.relation.id), None)
+        self.unit.set_ports(*port_map.values())
         self._load_nginx_config()
 
     def _update_status_with_nginx(self) -> None:
@@ -127,6 +128,8 @@ class ContentCacheCharm(ops.CharmBase):
         self._update_status_with_nginx()
         if isinstance(self.unit.status, ops.ActiveStatus):
             self.unit.status = ops.ActiveStatus(status_message)
+            port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
+            self.unit.set_ports(*port_map.values())
 
     def _get_config_and_update_status(self) -> NginxConfig | None:
         """Attempt to get nginx config, updates charm status on failure.
@@ -166,6 +169,11 @@ class ContentCacheCharm(ops.CharmBase):
                 if candidate not in used_ports:
                     port_map[key] = candidate
                     break
+            else:
+                raise RuntimeError(
+                    f"Port range exhausted: all {NGINX_PORT_RANGE_SIZE} ports "
+                    f"starting at {NGINX_PORT_RANGE_START} are in use"
+                )
         return port_map[key]
 
     def _nginx_initialize(self) -> None:
