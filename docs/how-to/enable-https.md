@@ -11,7 +11,7 @@ juju config backends protocol=https
 
 When `protocol=https`, nginx connects to the backend IP addresses over TLS on port 443.
 
-## Skipping SSL certificate verification
+## Skip SSL certificate verification
 
 If the backends use self-signed certificates, you must disable SSL verification for the
 healthcheck probes, otherwise all backends will be marked as down:
