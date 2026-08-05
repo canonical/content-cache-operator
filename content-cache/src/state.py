@@ -16,8 +16,6 @@ from errors import ConfigurationError, IntegrationDataError
 logger = logging.getLogger(__name__)
 
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
-CERTIFICATE_INTEGRATION_NAME = "certificates"
-
 BACKENDS_FIELD_NAME = "backends"
 FAIL_TIMEOUT_FIELD_NAME = "fail_timeout"
 HEALTHCHECK_INTERVAL_FIELD_NAME = "healthcheck_interval"

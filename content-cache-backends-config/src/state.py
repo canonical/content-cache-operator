@@ -123,6 +123,30 @@ class Configuration(pydantic.BaseModel):
     proxy_cache_valid: tuple[str, ...]
     healthcheck: HealthcheckConfig
 
+    @pydantic.field_validator("backends")
+    @classmethod
+    def validate_backends_scheme(
+        cls, value: tuple[pydantic.AnyHttpUrl, ...]
+    ) -> tuple[pydantic.AnyHttpUrl, ...]:
+        """Validate that all backends share the same URL scheme.
+
+        Args:
+            value: The backends tuple to validate.
+
+        Raises:
+            ValueError: Backends have mixed schemes.
+
+        Returns:
+            The value after validation.
+        """
+        if len(value) > 1:
+            schemes = {url.scheme for url in value}
+            if len(schemes) > 1:
+                raise ValueError(
+                    f"All backends must share the same scheme; found mixed schemes: {schemes}"
+                )
+        return value
+
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
     def validate_proxy_cache_valid(cls, value: tuple[str, ...]) -> tuple[str, ...]:

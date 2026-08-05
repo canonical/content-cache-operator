@@ -109,6 +109,7 @@ class ContentCacheCharm(ops.CharmBase):
         """
         nginx_config = self._get_config_and_update_status()
         if nginx_config is None:
+            self._clear_cache_backends()
             return
 
         ported_config = {
@@ -141,7 +142,17 @@ class ContentCacheCharm(ops.CharmBase):
                 if rel is None:
                     continue
                 urls = get_cache_backends_urls(self, rel, port)
-                rel.data[self.unit]["cache-backends"] = json.dumps(urls)
+                new_value = json.dumps(urls)
+                if rel.data[self.unit].get("cache-backends") != new_value:
+                    rel.data[self.unit]["cache-backends"] = new_value
+        else:
+            self._clear_cache_backends()
+
+    def _clear_cache_backends(self) -> None:
+        """Clear cache-backends from all cache-config relation databags."""
+        for rel in self.model.relations[CACHE_CONFIG_INTEGRATION_NAME]:
+            if rel.data[self.unit].get("cache-backends"):
+                rel.data[self.unit]["cache-backends"] = ""
 
     def _get_config_and_update_status(self) -> NginxConfig | None:
         """Attempt to get nginx config, updates charm status on failure.

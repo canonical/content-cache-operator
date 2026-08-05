@@ -320,3 +320,56 @@ def test_relation_broken_clears_cache_backends(
     harness.remove_relation(relation_id)
 
     assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
+
+
+def test_cache_backends_cleared_when_config_fails(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A charm with an active relation that has cache-backends written.
+    act: Simulate a config validation failure by clearing the relation data.
+    assert: cache-backends is cleared on the relation.
+    """
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    assert charm.unit.status == ops.ActiveStatus()
+    assert harness.get_relation_data(relation_id, charm.unit.name).get("cache-backends") != ""
+
+    # Clear the relation data to trigger a config validation failure (blocked)
+    harness.update_relation_data(relation_id, "config", {"backends": ""})
+
+    assert isinstance(charm.unit.status, ops.BlockedStatus)
+    cache_backends = harness.get_relation_data(relation_id, charm.unit.name).get("cache-backends")
+    # Setting to "" removes the key in Juju/Harness, so None means cleared
+    assert not cache_backends
+
+
+def test_cache_backends_not_written_when_unchanged(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A charm with an active relation that already has cache-backends written.
+    act: Trigger update-status (re-runs _load_nginx_config).
+    assert: cache-backends is not re-written when the value hasn't changed.
+    """
+    from unittest.mock import MagicMock, patch
+
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    assert charm.unit.status == ops.ActiveStatus()
+
+    mock_setitem = MagicMock()
+    rel = charm.model.get_relation(CACHE_CONFIG_INTEGRATION_NAME, relation_id)
+    with patch.object(type(rel.data[charm.unit]), "__setitem__", mock_setitem):
+        charm.on.update_status.emit()
+
+    cache_backends_writes = [
+        c for c in mock_setitem.call_args_list if c.args[1] == "cache-backends"
+    ]
+    assert len(cache_backends_writes) == 0, "cache-backends should not be written when unchanged"
