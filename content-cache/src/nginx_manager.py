@@ -500,10 +500,6 @@ def _get_location_config_keys(config: LocationConfig, upstream: str) -> tuple[ng
     scheme = config.backends[0].scheme
     keys = [
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
-        # proxy_set_header Host is intentionally absent: hostname-based routing has been
-        # removed (Story 1). The upstream name is a UUID, so nginx would default Host to
-        # that UUID. This is acceptable for the current story; revisit in a future story
-        # if virtual-host routing is needed.
     ]
 
     for cache_valid in config.proxy_cache_valid:
