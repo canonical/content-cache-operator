@@ -1,4 +1,4 @@
-# Copyright 2025 Canonical Ltd.
+# Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 """Manage CA certificates for nginx backend trust."""
@@ -92,6 +92,7 @@ def _regenerate_bundle() -> None:
             return
         bundle_content = "\n".join(f.read_text(encoding="utf-8") for f in cert_files)
         CA_BUNDLE_PATH.write_text(bundle_content, encoding="utf-8")
+        CA_BUNDLE_PATH.chmod(0o644)
     except (PermissionError, OSError, IOError) as err:
         logger.exception("Failed to regenerate CA bundle")
         raise CACertificateFileError("Unable to regenerate CA bundle") from err

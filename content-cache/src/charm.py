@@ -19,6 +19,7 @@ from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 import ca_certs
 import nginx_manager
 from errors import (
+    CACertificateFileError,
     IntegrationDataError,
     NginxConfigurationAggregateError,
     NginxFileError,
@@ -114,12 +115,22 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_certificates_available(self, event: CertificatesAvailableEvent) -> None:
         """Handle certificate-transfer certificates available event."""
-        ca_certs.write_ca_cert(event.relation_id, list(event.certificates))
+        try:
+            ca_certs.write_ca_cert(event.relation_id, list(event.certificates))
+        except CACertificateFileError:
+            logger.exception("Failed to write CA certificate for relation %s", event.relation_id)
+            self.unit.status = ops.BlockedStatus("Failed to write CA certificate to disk")
+            return
         self._load_nginx_config()
 
     def _on_certificates_removed(self, event: CertificatesRemovedEvent) -> None:
         """Handle certificate-transfer certificates removed event."""
-        ca_certs.remove_ca_cert(event.relation_id)
+        try:
+            ca_certs.remove_ca_cert(event.relation_id)
+        except CACertificateFileError:
+            logger.exception("Failed to remove CA certificate for relation %s", event.relation_id)
+            self.unit.status = ops.BlockedStatus("Failed to remove CA certificate from disk")
+            return
         self._load_nginx_config()
 
     def _update_status_with_nginx(self) -> None:
