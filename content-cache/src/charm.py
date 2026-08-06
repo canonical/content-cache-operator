@@ -9,8 +9,14 @@ import json
 import logging
 
 import ops
+from charms.certificate_transfer_interface.v1.certificate_transfer import (
+    CertificatesAvailableEvent,
+    CertificatesRemovedEvent,
+    CertificateTransferRequires,
+)
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
 
+import ca_certs
 import nginx_manager
 from errors import (
     IntegrationDataError,
@@ -31,6 +37,8 @@ logger = logging.getLogger(__name__)
 WAIT_FOR_CONFIG_MESSAGE = "Waiting for integration with config charm"
 NGINX_NOT_READY_MESSAGE = "Nginx is not ready"
 RECEIVED_NGINX_CONFIG_MESSAGE = "Received nginx configuration"
+CERTIFICATE_TRANSFER_INTEGRATION_NAME = "certificate-transfer"
+WAIT_FOR_CA_CERT_MESSAGE = "Waiting for CA certificate via certificate-transfer"
 
 NGINX_PORT_RANGE_START = 30000
 NGINX_PORT_RANGE_SIZE = 200
@@ -53,6 +61,9 @@ class ContentCacheCharm(ops.CharmBase):
         self._stored.set_default(next_port_offset=0)
 
         self._cos_agent = COSAgentProvider(charm=self)
+        self._certificate_transfer = CertificateTransferRequires(
+            self, CERTIFICATE_TRANSFER_INTEGRATION_NAME
+        )
 
         framework.observe(self.on.start, self._on_start)
         framework.observe(self.on.stop, self._on_stop)
@@ -64,6 +75,14 @@ class ContentCacheCharm(ops.CharmBase):
         framework.observe(
             self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_broken,
             self._on_cache_config_relation_broken,
+        )
+        framework.observe(
+            self._certificate_transfer.on.certificate_set_updated,
+            self._on_certificates_available,
+        )
+        framework.observe(
+            self._certificate_transfer.on.certificates_removed,
+            self._on_certificates_removed,
         )
 
     def _on_start(self, _: ops.StartEvent) -> None:
@@ -93,6 +112,16 @@ class ContentCacheCharm(ops.CharmBase):
         event.relation.data[self.unit]["cache-backend"] = ""
         self._load_nginx_config()
 
+    def _on_certificates_available(self, event: CertificatesAvailableEvent) -> None:
+        """Handle certificate-transfer certificates available event."""
+        ca_certs.write_ca_cert(event.relation_id, list(event.certificates))
+        self._load_nginx_config()
+
+    def _on_certificates_removed(self, event: CertificatesRemovedEvent) -> None:
+        """Handle certificate-transfer certificates removed event."""
+        ca_certs.remove_ca_cert(event.relation_id)
+        self._load_nginx_config()
+
     def _update_status_with_nginx(self) -> None:
         """Set the charm status according to nginx status."""
         if not nginx_manager.health_check():
@@ -117,9 +146,20 @@ class ContentCacheCharm(ops.CharmBase):
             for rel_id, config in nginx_config.items()
         }
 
+        ca_bundle_path = ca_certs.get_ca_bundle_path()
+        any_https = any(
+            str(config.backends[0].scheme) == "https" for _, config in nginx_config.items()
+        )
+        if any_https and ca_bundle_path is None:
+            self.unit.status = ops.WaitingStatus(WAIT_FOR_CA_CERT_MESSAGE)
+            self._clear_cache_backends()
+            return
+
         status_message = ""
         try:
-            nginx_manager.update_and_load_config(ported_config, self._get_instance_name())
+            nginx_manager.update_and_load_config(
+                ported_config, self._get_instance_name(), ca_bundle_path=ca_bundle_path
+            )
         except NginxFileError:
             logger.exception(
                 "Failed to update nginx config file, going to error state for retries"
