@@ -236,6 +236,57 @@ def test_healthcheck_worker_upstream_entries_carry_ports(patch_nginx_manager: No
     assert any("10.10.2.2:9090" in s for s in key_strings)
 
 
+def test_get_location_config_keys_https_with_ca_bundle(patch_nginx_manager: None, tmp_path):
+    """
+    arrange: A LocationConfig with https backends and a CA bundle path.
+    act: Call _get_location_config_keys with ca_bundle_path set.
+    assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, proxy_ssl_server_name off present.
+    """
+    ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text("cert", encoding="utf-8")
+    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    config = LocationConfig.from_integration_data(data)
+    upstream = "test-upstream"
+
+    keys = nginx_manager._get_location_config_keys(config, upstream, ca_bundle_path=ca_bundle)
+
+    key_strings = [k.as_strings for k in keys]
+    assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
+    assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
+    assert any("proxy_ssl_server_name" in s and "off" in s for s in key_strings)
+
+
+def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: None):
+    """
+    arrange: A LocationConfig with https backends but no CA bundle path.
+    act: Call _get_location_config_keys with ca_bundle_path=None.
+    assert: No proxy_ssl directives in the keys.
+    """
+    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    config = LocationConfig.from_integration_data(data)
+
+    keys = nginx_manager._get_location_config_keys(config, "upstream", ca_bundle_path=None)
+
+    key_strings = [k.as_strings for k in keys]
+    assert not any("proxy_ssl" in s for s in key_strings)
+
+
+def test_get_location_config_keys_http_ignores_ca_bundle(patch_nginx_manager: None, tmp_path):
+    """
+    arrange: A LocationConfig with http backends and a CA bundle path provided.
+    act: Call _get_location_config_keys.
+    assert: No proxy_ssl directives added for http backends.
+    """
+    ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text("cert", encoding="utf-8")
+    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+
+    keys = nginx_manager._get_location_config_keys(config, "upstream", ca_bundle_path=ca_bundle)
+
+    key_strings = [k.as_strings for k in keys]
+    assert not any("proxy_ssl" in s for s in key_strings)
+
+
 def test_health_check(monkeypatch, patch_nginx_manager: None):
     """
     arrange: Patch the requests.get to return successful health check.

@@ -178,6 +178,7 @@ def _systemctl_status_check() -> bool:  # pragma: no cover
 def update_and_load_config(
     configuration: dict[int, tuple[int, LocationConfig]],
     instance_name: str,
+    ca_bundle_path: Path | None = None,
 ) -> None:
     """Update the nginx configuration files and load them.
 
@@ -186,6 +187,7 @@ def update_and_load_config(
             Each value is a tuple of (port, LocationConfig).
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
+        ca_bundle_path: Path to the CA bundle for proxy SSL verification, or None.
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
@@ -201,7 +203,7 @@ def update_and_load_config(
         identifier = str(port)
         try:
             vhost_healthcheck_worker_lua_code = _create_virtualhost_config(
-                identifier, port, config, instance_name
+                identifier, port, config, instance_name, ca_bundle_path=ca_bundle_path
             )
             healthcheck_workers_lua_code += vhost_healthcheck_worker_lua_code
         except NginxConfigurationError as err:
@@ -370,7 +372,11 @@ def _create_status_page_config() -> None:
 
 
 def _create_virtualhost_config(
-    identifier: str, port: int, configuration: LocationConfig, instance_name: str
+    identifier: str,
+    port: int,
+    configuration: LocationConfig,
+    instance_name: str,
+    ca_bundle_path: Path | None = None,
 ) -> str:
     """Create the nginx configuration file for a virtual host listening on a given port.
 
@@ -380,6 +386,7 @@ def _create_virtualhost_config(
         configuration: The configuration of the backend.
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
+        ca_bundle_path: Path to the CA bundle for proxy SSL verification, or None.
 
     Raises:
         NginxConfigurationError: Failed to convert the configuration to nginx format.
@@ -412,7 +419,9 @@ def _create_virtualhost_config(
         upstream_config = nginx.Upstream(upstream, *upstream_keys)
         nginx_config.add(upstream_config)
 
-        location_keys = _get_location_config_keys(configuration, upstream)
+        location_keys = _get_location_config_keys(
+            configuration, upstream, ca_bundle_path=ca_bundle_path
+        )
         server_config.add(nginx.Location("/", *location_keys))
 
         lua_healthcheck_workers += _get_upstream_healthchecks_worker(upstream, configuration)
@@ -489,20 +498,34 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
     """
 
 
-def _get_location_config_keys(config: LocationConfig, upstream: str) -> tuple[nginx.Key, ...]:
+def _get_location_config_keys(
+    config: LocationConfig,
+    upstream: str,
+    ca_bundle_path: Path | None = None,
+) -> tuple[nginx.Key, ...]:
     """Create the nginx keys for location configuration.
 
     Args:
         config: The location configurations.
         upstream: The upstream hostname for the backends.
+        ca_bundle_path: Path to the CA bundle for proxy SSL verification, or None.
 
     Returns:
         The nginx.Key for the Location configuration.
     """
     scheme = config.backends[0].scheme
-    keys = [
+    keys: list[nginx.Key] = [
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
     ]
+
+    if scheme == "https" and ca_bundle_path is not None:
+        keys.extend(
+            [
+                nginx.Key("proxy_ssl_trusted_certificate", str(ca_bundle_path)),
+                nginx.Key("proxy_ssl_verify", "on"),
+                nginx.Key("proxy_ssl_server_name", "off"),
+            ]
+        )
 
     for cache_valid in config.proxy_cache_valid:
         keys.append(nginx.Key("proxy_cache_valid", cache_valid))
