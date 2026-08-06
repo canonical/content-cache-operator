@@ -3,7 +3,6 @@
 
 """Integration tests for HTTPS backend support via certificate_transfer."""
 
-import pytest
 import pytest_asyncio
 from juju.application import Application
 from juju.model import Model
@@ -96,9 +95,8 @@ async def test_certificate_transfer_removal_clears_trust(
     )
     await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
 
-    await model.remove_relation(
-        f"{cert_app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
-        f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
+    await app.remove_relation(
+        CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, block_until_done=True
     )
     await model.wait_for_idle([app.name], status="waiting", timeout=5 * 60)
 
