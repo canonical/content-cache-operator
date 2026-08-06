@@ -15,7 +15,7 @@ When the URL scheme is `https`, nginx connects to the backend over TLS on the sp
 
 ## Provide a CA certificate via certificate_transfer
 
-To verify the backend's TLS certificate, integrate a certificate provider charm (such as
+To verify the backend TLS certificate, integrate a certificate provider charm (such as
 `self-signed-certificates` or `lego`) using the `certificate-transfer` interface:
 
 ```bash

@@ -235,7 +235,7 @@ The field is updated if the port changes. When the relation is removed, the fiel
 
 ## CA certificate trust for HTTPS backends
 
-When using HTTPS backend URLs, the content-cache charm can receive the backend's CA
+When using HTTPS backend URLs, the content-cache charm can receive the backend CA
 certificate via the `certificate-transfer` relation. The charm stores received certificates at
 `/etc/nginx/certs/ca-<relation-id>.pem` and regenerates a merged bundle at
 `/etc/nginx/certs/ca-bundle.pem` whenever the relation changes.
