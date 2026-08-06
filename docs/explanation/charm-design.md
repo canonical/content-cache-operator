@@ -232,3 +232,25 @@ An ingress component can read this value to replace its HAProxy-backend address 
 the content-cache unit address.
 
 The field is updated if the port changes. When the relation is removed, the field is cleared.
+
+## CA certificate trust for HTTPS backends
+
+When using HTTPS backend URLs, the content-cache charm can receive the backend's CA
+certificate via the `certificate-transfer` relation. The charm stores received certificates at
+`/etc/nginx/certs/ca-<relation-id>.pem` and regenerates a merged bundle at
+`/etc/nginx/certs/ca-bundle.pem` whenever the relation changes.
+
+Nginx is configured with:
+
+- `proxy_ssl_trusted_certificate /etc/nginx/certs/ca-bundle.pem` — trust the provided CA
+- `proxy_ssl_verify on` — verify backend certificates against the CA
+- `proxy_ssl_server_name off` — SNI hostname validation is disabled in this version
+
+Multiple `certificate-transfer` providers are supported; all CA certificates are merged into
+one bundle.
+
+If HTTPS backends are configured but no CA certificate has been received, the charm enters
+`WaitingStatus`. When the `certificate-transfer` relation is removed, the CA bundle is cleared
+and the charm returns to `WaitingStatus` until a new CA is provided.
+
+The `certificate-transfer` relation does not affect HTTP backends.
