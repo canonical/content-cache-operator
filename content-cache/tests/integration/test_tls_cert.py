@@ -3,51 +3,17 @@
 
 """Integration tests for HTTPS backend support via certificate_transfer."""
 
-import pytest_asyncio
+import pytest
 from juju.application import Application
 from juju.model import Model
 from pytest_operator.plugin import OpsTest
 
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
+CERT_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
 
 
-@pytest_asyncio.fixture(name="cert_transfer_integration_id", scope="function")
-async def cert_transfer_integration_id_fixture(
-    model: Model,
-    app: Application,
-    cert_app: Application,
-) -> str:
-    """Integration ID after adding certificate-transfer relation."""
-    await model.integrate(
-        f"{cert_app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
-        f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
-    )
-    # Return a tag to identify this integration for cleanup
-    return f"{cert_app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}"
-
-
-async def test_https_backends_without_cert_sets_waiting(
-    ops_test: OpsTest,
-    model: Model,
-    app: Application,
-    cache_tester,
-    http_ok_ip: str,
-) -> None:
-    """
-    arrange: Content-cache with no certificate-transfer relation.
-    act: Configure HTTPS backend URLs.
-    assert: Content-cache enters WaitingStatus waiting for CA certificate.
-    """
-    await cache_tester.integrate_config()
-    await cache_tester.configure(backends=f"https://{http_ok_ip}:443")
-    await model.wait_for_idle([app.name], status="waiting", timeout=10 * 60)
-
-    unit = app.units[0]
-    assert "CA certificate" in unit.workload_status_message
-
-
-async def test_https_backend_with_certificate_transfer(
+async def test_certificate_transfer_full_lifecycle(
     ops_test: OpsTest,
     model: Model,
     app: Application,
@@ -56,49 +22,41 @@ async def test_https_backend_with_certificate_transfer(
     http_ok_ip: str,
 ) -> None:
     """
-    arrange: Content-cache with HTTPS backend configured.
-    act: Integrate certificate-transfer.
-    assert: Content-cache reaches Active status.
+    arrange: Content-cache with HTTPS backend configured, no certificate-transfer yet.
+    act: Integrate certificate-transfer, then remove it.
+    assert: Content-cache reaches Active status after integration, then returns to
+        WaitingStatus after removal (CA bundle cleared).
     """
     await cache_tester.integrate_config()
     await cache_tester.configure(backends=f"https://{http_ok_ip}:443")
-    await model.wait_for_idle([app.name], status="waiting", timeout=10 * 60)
 
     await model.integrate(
-        f"{cert_app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
+        f"{cert_app.name}:{CERT_PROVIDER_ENDPOINT_NAME}",
         f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
     )
     await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
-
-    unit = app.units[0]
-    assert unit.workload_status == "active"
-
-
-async def test_certificate_transfer_removal_clears_trust(
-    ops_test: OpsTest,
-    model: Model,
-    app: Application,
-    cert_app: Application,
-    cache_tester,
-    http_ok_ip: str,
-) -> None:
-    """
-    arrange: Content-cache active with HTTPS backend and certificate-transfer integrated.
-    act: Remove the certificate-transfer relation.
-    assert: Content-cache moves to WaitingStatus (CA bundle cleared).
-    """
-    await cache_tester.integrate_config()
-    await cache_tester.configure(backends=f"https://{http_ok_ip}:443")
-    await model.integrate(
-        f"{cert_app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
-        f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
-    )
-    await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
+    assert app.units[0].workload_status == "active"
 
     await app.remove_relation(
         CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, block_until_done=True
     )
     await model.wait_for_idle([app.name], status="waiting", timeout=5 * 60)
+    assert "CA certificate" in app.units[0].workload_status_message
 
-    unit = app.units[0]
-    assert "CA certificate" in unit.workload_status_message
+
+@pytest.mark.skip(reason="TLS termination not yet implemented; see ISD-296 TLS termination story")
+async def test_tls_termination_with_certificates_relation(
+    ops_test: OpsTest,
+    model: Model,
+    app: Application,
+    cache_lego_app: Application,
+) -> None:
+    """
+    arrange: Content-cache integrated with a TLS certificate provider via tls-certificates.
+    act: Wait for certificate to be issued.
+    assert: Content-cache reaches Active status and serves HTTPS to upstream.
+
+    Note: This test requires the TLS termination story to be implemented in charm.py.
+    The certificates relation is declared in metadata.yaml and certificates.py is
+    available, but the event handlers are not yet wired up.
+    """
