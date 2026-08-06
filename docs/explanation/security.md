@@ -15,9 +15,13 @@ charm to backend, and internal process security.
 
 ### Transport security
 
-The charm does **not** terminate TLS for incoming client requests. nginx listens on HTTP only.
+The charm does **not** currently terminate TLS for incoming client requests. nginx listens on HTTP only.
 Client-facing TLS termination is expected to be handled by an upstream ingress component,
 such as `haproxy` configured with the `ingress-configurator` charm.
+
+The `certificates` relation is provided for future TLS termination support. When a TLS
+certificate provider (such as `lego`) is integrated via the `tls-certificates` relation,
+the charm will be able to serve HTTPS to upstream components.
 
 ### Client authentication
 
@@ -55,9 +59,9 @@ use self-signed certificates on a trusted private network.
 configures nginx with
 [`proxy_ssl_verify on`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify)
 and `proxy_ssl_trusted_certificate` pointing to the received CA bundle. nginx will then verify
-the backend TLS certificate against that CA. If no `receive-ca-cert` relation is present,
-`proxy_ssl_verify` is not set (nginx defaults to `off`), meaning the connection is encrypted
-but the backend certificate is not verified.
+the backend TLS certificate against that CA. If HTTPS backends are configured but no
+`receive-ca-cert` relation is present, the charm enters `WaitingStatus` and nginx is not
+reconfigured — traffic is paused until a CA certificate is supplied.
 
 ## Internal
 
