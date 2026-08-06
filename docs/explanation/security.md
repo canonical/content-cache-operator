@@ -15,19 +15,13 @@ charm to backend, and internal process security.
 
 ### Transport security
 
-The charm supports HTTPS via the `certificates` relation using the `tls-certificates`
-interface. When a certificate is issued for a hostname, nginx listens on port 443 with that
-certificate and private key. Without this relation, nginx serves all traffic over HTTP on
-port 80 with no encryption.
-
-The certificate and private key for each hostname are stored together in a single PEM file at
-`/etc/nginx/certs/<hostname>.pem`. The file is owned by `www-data` with permissions `0o644`,
-meaning it is readable by any local user on the machine. Operators should ensure the Juju
-machine is not shared with untrusted local users.
+The charm does **not** terminate TLS for incoming client requests. nginx listens on HTTP only.
+Client-facing TLS termination is expected to be handled by an upstream ingress component,
+such as `haproxy` configured with the `ingress-configurator` charm.
 
 ### Client authentication
 
-The charm provides no client authentication mechanism. Any client that can reach the charm's HTTP(S) listener (port 80 when no `certificates` relation is present, otherwise port 443) can request cached content. This is an intentional design constraint: the charm is built for publicly accessible static content. There are no plans to add a native authentication feature.
+The charm provides no client authentication mechanism. Any client that can reach the charm's HTTP listener can request cached content. This is an intentional design constraint: the charm is built for publicly accessible static content. There are no plans to add a native authentication feature.
 
 ### Rate limiting
 
@@ -57,13 +51,13 @@ pings. The configuration defaults to `true`. Setting the configuration to `false
 healthchecks and should only be used in controlled environments, for example, when backends
 use self-signed certificates on a trusted private network.
 
-**Proxied requests** — nginx's
-[`proxy_ssl_verify`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify)
-defaults to `off` and the charm does not override it. This means that even when
-`protocol=https`, nginx encrypts the connection to the backend but does **not** verify the
-SSL certificate of the backend. Traffic to the backend is protected against passive eavesdropping
-but not against a machine-in-the-middle attack on that connection. There is no charm configuration
-option to enable SSL certificate verification for proxied backend connections.
+**Proxied requests** — when the `receive-ca-cert` relation provides a CA certificate, the charm
+configures nginx with
+[`proxy_ssl_verify on`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify)
+and `proxy_ssl_trusted_certificate` pointing to the received CA bundle. nginx will then verify
+the backend TLS certificate against that CA. If no `receive-ca-cert` relation is present,
+`proxy_ssl_verify` is not set (nginx defaults to `off`), meaning the connection is encrypted
+but the backend certificate is not verified.
 
 ## Internal
 
@@ -76,9 +70,10 @@ rights. If nginx were compromised, the attacker would have only the limited acce
 `www-data` — they cannot read arbitrary files owned by other users or escalate privileges
 without a separate exploit.
 
-The charm creates and owns all cache and certificate files as `www-data`. The cache directory
-at `/data/nginx/cache/` and the certificate files at `/etc/nginx/certs/` are owned by
-`www-data` (set via `os.chown` in the charm code).
+The charm creates and owns all cache files as `www-data`. The cache directory
+at `/data/nginx/cache/` is owned by `www-data` (set via `os.chown` in the charm code).
+CA certificate files received via `receive-ca-cert` are stored at `/etc/nginx/certs/`
+and are readable by nginx at runtime.
 
 ### Status page access
 
@@ -117,9 +112,9 @@ accidentally cached, operators must wait for natural expiry.
 
 | Practice | Recommendation |
 |---|---|
-| TLS | Integrate with a `tls-certificates` provider charm to enable TLS |
-| Backend protocol | Keep the default `protocol=https` |
-| Backend SSL verification | Keep the default `healthcheck-ssl-verify=true` |
+| Incoming TLS | Handle at the ingress layer (e.g. `haproxy` with `ingress-configurator`) |
+| Backend protocol | Use HTTPS backend URLs with the `receive-ca-cert` relation for verified connections |
+| Backend SSL verification | Integrate `receive-ca-cert` to enable `proxy_ssl_verify on`; keep `healthcheck-ssl-verify=true` |
 | Access control | Place an authenticating reverse proxy or WAF in front if the content is not fully public |
 | Rate limiting | Add rate limiting at a component placed in front of the charm (load balancer, reverse proxy, or WAF) if abuse protection is needed |
 | Cached content | Only route public, non-personalized content through the charm |
