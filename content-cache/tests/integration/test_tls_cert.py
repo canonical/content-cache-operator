@@ -8,7 +8,7 @@ from juju.application import Application
 from juju.model import Model
 from pytest_operator.plugin import OpsTest
 
-CERTIFICATE_TRANSFER_INTEGRATION_NAME = "certificate-transfer"
+CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
 
 

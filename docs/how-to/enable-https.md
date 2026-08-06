@@ -16,10 +16,10 @@ When the URL scheme is `https`, nginx connects to the backend over TLS on the sp
 ## Provide a CA certificate via certificate_transfer
 
 To verify the backend TLS certificate, integrate a certificate provider charm (such as
-`self-signed-certificates` or `lego`) using the `certificate-transfer` interface:
+`self-signed-certificates` or `lego`) using the `receive-ca-cert` endpoint:
 
 ```bash
-juju integrate <cert-provider>:certificate-transfer content-cache:certificate-transfer
+juju integrate <cert-provider>:send-ca-cert content-cache:receive-ca-cert
 ```
 
 Once the CA certificate is received, the content-cache charm will:
@@ -30,9 +30,9 @@ Once the CA certificate is received, the content-cache charm will:
   disabled in this version)
 
 If HTTPS backends are configured but no CA certificate has been provided, the charm enters
-`WaitingStatus` until the certificate-transfer relation is established.
+`WaitingStatus` until the `receive-ca-cert` relation is established.
 
-Multiple certificate-transfer providers are supported; all provided CA certificates are merged
+Multiple `receive-ca-cert` providers are supported; all provided CA certificates are merged
 into a single bundle.
 
 ## Skip SSL certificate verification for health checks

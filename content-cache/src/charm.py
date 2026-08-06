@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 WAIT_FOR_CONFIG_MESSAGE = "Waiting for integration with config charm"
 NGINX_NOT_READY_MESSAGE = "Nginx is not ready"
 RECEIVED_NGINX_CONFIG_MESSAGE = "Received nginx configuration"
-CERTIFICATE_TRANSFER_INTEGRATION_NAME = "certificate-transfer"
+CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
 WAIT_FOR_CA_CERT_MESSAGE = "Waiting for CA certificate via certificate-transfer"
 
 NGINX_PORT_RANGE_START = 30000
