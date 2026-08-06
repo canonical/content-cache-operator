@@ -9,7 +9,7 @@ import json
 import logging
 
 import ops
-from charms.certificate_transfer_interface.v1.certificate_transfer import (
+from charmlibs.interfaces.certificate_transfer import (
     CertificatesAvailableEvent,
     CertificatesRemovedEvent,
     CertificateTransferRequires,
