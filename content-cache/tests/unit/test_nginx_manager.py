@@ -391,3 +391,86 @@ def test_update_config_without_cache_cert_no_ssl_directives(
 
     config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
     assert "ssl" not in config_content
+
+
+def test_proxy_cache_path_includes_inactive(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Configuration with cache_inactive set.
+    act: Generate nginx site config.
+    assert: proxy_cache_path directive contains inactive= parameter.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {
+                    **SAMPLE_INTEGRATION_DATA,
+                    "backends": '["http://10.10.10.1:80"]',
+                    "cache_inactive": "1h",
+                }
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "inactive=1h" in config_content
+
+
+def test_proxy_cache_path_includes_max_size(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Configuration with cache_max_size set.
+    act: Generate nginx site config.
+    assert: proxy_cache_path directive contains max_size= parameter.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {
+                    **SAMPLE_INTEGRATION_DATA,
+                    "backends": '["http://10.10.10.1:80"]',
+                    "cache_max_size": "2g",
+                }
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "max_size=2g" in config_content
+
+
+def test_proxy_cache_path_no_max_size_when_empty(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Configuration with empty cache_max_size.
+    act: Generate nginx site config.
+    assert: proxy_cache_path directive does not contain max_size= parameter.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "max_size" not in config_content

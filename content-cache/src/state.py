@@ -23,6 +23,8 @@ HEALTHCHECK_PATH_FIELD_NAME = "healthcheck_path"
 HEALTHCHECK_SSL_VERIFY_FIELD_NAME = "healthcheck_ssl_verify"
 HEALTHCHECK_VALID_STATUS_FIELD_NAME = "healthcheck_valid_status"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
+CACHE_INACTIVE_FIELD_NAME = "cache_inactive"
+CACHE_MAX_SIZE_FIELD_NAME = "cache_max_size"
 
 
 def _validate_hostname_value(value: str) -> str:
@@ -147,12 +149,16 @@ class LocationConfig(pydantic.BaseModel):
         fail_timeout: The time to wait before using a backend after failure.
         proxy_cache_valid: The cache valid duration.
         healthcheck_config: The healthcheck configuration.
+        cache_inactive: Time after which an unaccessed item is evicted from the disk cache.
+        cache_max_size: Maximum total disk size for the cache; empty string means no limit.
     """
 
     backends: tuple[pydantic.AnyHttpUrl, ...]
     fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     proxy_cache_valid: tuple[str, ...]
     healthcheck_config: HealthcheckConfig
+    cache_inactive: str = "10m"
+    cache_max_size: str = ""
 
     @pydantic.field_validator("backends")
     @classmethod
@@ -233,6 +239,9 @@ class LocationConfig(pydantic.BaseModel):
 
         healthcheck_config = HealthcheckConfig.from_integration_data(data)
 
+        cache_inactive = data.get(CACHE_INACTIVE_FIELD_NAME, "10m").strip() or "10m"
+        cache_max_size = data.get(CACHE_MAX_SIZE_FIELD_NAME, "").strip()
+
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
             return cls(
@@ -240,6 +249,8 @@ class LocationConfig(pydantic.BaseModel):
                 fail_timeout=fail_timeout,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck_config=healthcheck_config,
+                cache_inactive=cache_inactive,
+                cache_max_size=cache_max_size,
             )
         except pydantic.ValidationError as err:
             err_msg = [

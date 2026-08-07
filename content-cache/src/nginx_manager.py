@@ -388,6 +388,28 @@ def _create_status_page_config() -> None:
     _store_and_enable_site_config("nginx_status", nginx_config)
 
 
+def _build_proxy_cache_path(
+    cache_dir: Path,
+    identifier: str,
+    config: LocationConfig,
+) -> str:
+    """Build the proxy_cache_path directive value.
+
+    Args:
+        cache_dir: The directory to store cache files.
+        identifier: The unique cache zone identifier.
+        config: The location configuration with cache parameters.
+
+    Returns:
+        The proxy_cache_path value string.
+    """
+    value = f"{cache_dir} use_temp_path=off levels=1:2 keys_zone={identifier}:10m"
+    value += f" inactive={config.cache_inactive}"
+    if config.cache_max_size:
+        value += f" max_size={config.cache_max_size}"
+    return value
+
+
 def _create_virtualhost_config(  # pylint: disable=too-many-locals
     identifier: str,
     port: int,
@@ -418,7 +440,7 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals
         nginx_config = nginx.Conf(
             nginx.Key(
                 "proxy_cache_path",
-                f"{server_cache_dir} use_temp_path=off levels=1:2 keys_zone={identifier}:10m",
+                _build_proxy_cache_path(server_cache_dir, identifier, configuration),
             ),
         )
         listen_value = f"{port} ssl" if resolved_tls.frontend_cert_path else str(port)
