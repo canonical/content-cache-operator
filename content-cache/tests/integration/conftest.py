@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 CONFIG_CHARM_NAME = "content-cache-backends-config"
 CERT_CHARM_NAME = "self-signed-certificates"
+CACHE_LEGO_CHARM_NAME = "self-signed-certificates"
 METRIC_CHARM_NAME = "grafana-agent"
 
 
@@ -45,6 +46,12 @@ def config_alt_app_name_fixture() -> str:
 def cert_app_name_fixture() -> str:
     """The application name for the TLS certificate charm."""
     return "cert"
+
+
+@pytest.fixture(name="cache_lego_app_name", scope="module")
+def cache_lego_app_name_fixture() -> str:
+    """The application name for the cache-side TLS certificate provider charm."""
+    return "cache-lego"
 
 
 @pytest.fixture(name="metric_app_name", scope="module")
@@ -90,6 +97,7 @@ async def deploy_applications_fixture(
     config_app_name: str,
     config_alt_app_name: str,
     cert_app_name: str,
+    cache_lego_app_name: str,
     metric_app_name: str,
     pytestconfig: pytest.Config,
 ) -> AsyncIterator[dict[str, Application]]:
@@ -101,6 +109,7 @@ async def deploy_applications_fixture(
                 config_app_name: model.applications[config_app_name],
                 config_alt_app_name: model.applications[config_alt_app_name],
                 cert_app_name: model.applications[cert_app_name],
+                cache_lego_app_name: model.applications[cache_lego_app_name],
                 metric_app_name: model.applications[metric_app_name],
             }
         except KeyError as err:
@@ -121,6 +130,9 @@ async def deploy_applications_fixture(
     cert_app_deploy = model.deploy(
         CERT_CHARM_NAME, cert_app_name, channel="latest/edge", base="ubuntu@22.04"
     )
+    cache_lego_app_deploy = model.deploy(
+        CACHE_LEGO_CHARM_NAME, cache_lego_app_name, channel="latest/edge", base="ubuntu@22.04"
+    )
     metric_app_deploy = model.deploy(
         METRIC_CHARM_NAME,
         metric_app_name,
@@ -128,16 +140,24 @@ async def deploy_applications_fixture(
         base="ubuntu@24.04",
         num_units=0,
     )
-    app, config_app, config_alt_app, cert_app, metric_app = await asyncio.gather(
-        app_deploy, config_app_deploy, config_alt_app_deploy, cert_app_deploy, metric_app_deploy
+    app, config_app, config_alt_app, cert_app, cache_lego_app, metric_app = await asyncio.gather(
+        app_deploy,
+        config_app_deploy,
+        config_alt_app_deploy,
+        cert_app_deploy,
+        cache_lego_app_deploy,
+        metric_app_deploy,
     )
     await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
-    await model.wait_for_idle([cert_app.name], status="active", timeout=15 * 60)
+    await model.wait_for_idle(
+        [cert_app.name, cache_lego_app.name], status="active", timeout=15 * 60
+    )
     yield {
         app_name: app,
         config_app_name: config_app,
         config_alt_app_name: config_alt_app,
         cert_app_name: cert_app,
+        cache_lego_app_name: cache_lego_app,
         metric_app_name: metric_app,
     }
 
@@ -172,6 +192,14 @@ async def cert_app_fixture(
 ) -> AsyncIterator[Application]:
     """The TLS certificate charm application for testing."""
     yield applications[cert_app_name]
+
+
+@pytest_asyncio.fixture(name="cache_lego_app", scope="module")
+async def cache_lego_app_fixture(
+    cache_lego_app_name: str, applications: dict[str, Application]
+) -> AsyncIterator[Application]:
+    """The cache-side TLS certificate provider charm for testing the certificates relation."""
+    yield applications[cache_lego_app_name]
 
 
 @pytest_asyncio.fixture(name="metric_app", scope="module")

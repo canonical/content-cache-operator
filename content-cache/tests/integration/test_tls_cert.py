@@ -1,10 +1,10 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Integration tests for HTTPS backend support via certificate_transfer."""
+"""Integration tests for HTTPS backend support via certificate_transfer and tls-certificates."""
 
 import pytest
-from helpers import BACKENDS_CONFIG_NAME, CacheTester
+from helpers import BACKENDS_CONFIG_NAME, CacheTester, get_cache_backends, run_in_unit
 from juju.application import Application
 from juju.model import Model
 from pytest_operator.plugin import OpsTest
@@ -12,6 +12,7 @@ from pytest_operator.plugin import OpsTest
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
 CERT_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
+CERTIFICATES_INTEGRATION_NAME = "certificates"
 
 
 async def test_certificate_transfer_full_lifecycle(
@@ -47,46 +48,57 @@ async def test_certificate_transfer_full_lifecycle(
     assert "CA certificate" in app.units[0].workload_status_message
 
 
-@pytest.mark.skip(
-    reason=(
-        "Requires a running Juju model with self-signed-certificates or lego deployed "
-        "as cache-lego. Run manually against a live deployment: "
-        "juju integrate content-cache:certificates cache-lego:certificates && "
-        "juju integrate cache-lego:send-ca-cert haproxy:receive-ca-cert"
+@pytest.mark.abort_on_fail
+async def test_tls_termination_full_lifecycle(
+    ops_test: OpsTest,
+    model: Model,
+    app: Application,
+    cache_lego_app: Application,
+    cache_tester,
+    http_ok_ip: str,
+) -> None:
+    """
+    arrange: content-cache with an HTTP backend configured and cache-lego deployed.
+    act: Integrate cache-lego via the certificates relation, wait for cert issuance,
+        then remove the relation.
+    assert:
+        - After integration: content-cache reaches Active, cache-backends shows https://,
+          nginx site config contains ssl directives.
+        - After removal: content-cache remains Active, cache-backends reverts to http://.
+    """
+    await cache_tester.integrate_config()
+    config = dict(CacheTester.BASE_CONFIG)
+    config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
+    await cache_tester.setup_config(config)
+
+    await model.integrate(
+        f"{cache_lego_app.name}:{CERT_PROVIDER_ENDPOINT_NAME}",
+        f"{app.name}:{CERTIFICATES_INTEGRATION_NAME}",
     )
-)
-@pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_tls_termination_with_certificates_relation(
-    ops_test: OpsTest,
-    model: Model,
-    app: Application,
-    cache_lego_app: Application,
-) -> None:
-    """
-    arrange: content-cache integrated with cache-config and cache-lego (tls-certificates).
-    act: Wait for TLS cert issuance and active status.
-    assert: cache-backends returns https:// URL; nginx config contains ssl directives.
-    """
+    await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
+    assert app.units[0].workload_status == "active"
 
+    unit = app.units[0]
+    backends = await get_cache_backends(unit)
+    assert any(
+        b.startswith("https://") for b in backends
+    ), f"Expected https:// backend after TLS cert issuance, got: {backends}"
 
-_SKIP_REASON_TLS = (
-    "Requires a running Juju model with self-signed-certificates or lego deployed "
-    "as cache-lego. Run manually against a live deployment."
-)
+    _, ssl_files, _ = await run_in_unit(
+        unit=unit,
+        command="grep -rl ssl /etc/nginx/sites-enabled/ 2>/dev/null || true",
+    )
+    assert (
+        ssl_files and ssl_files.strip()
+    ), "No nginx site config with 'ssl' directive found after TLS cert issuance"
 
+    await app.remove_relation(
+        CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name, block_until_done=True
+    )
+    await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
+    assert app.units[0].workload_status == "active"
 
-@pytest.mark.skip(reason=_SKIP_REASON_TLS)
-@pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_tls_cert_relation_removal_reverts_to_http(
-    ops_test: OpsTest,
-    model: Model,
-    app: Application,
-    cache_lego_app: Application,
-) -> None:
-    """
-    arrange: content-cache with TLS cert active (ssl in nginx config).
-    act: Remove the certificates relation.
-    assert: Charm returns to ActiveStatus; cache-backends returns http:// URL.
-    """
+    backends_after = await get_cache_backends(unit)
+    assert any(
+        b.startswith("http://") for b in backends_after
+    ), f"Expected http:// backend after cert relation removal, got: {backends_after}"
