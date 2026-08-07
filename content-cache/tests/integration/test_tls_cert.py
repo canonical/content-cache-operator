@@ -4,6 +4,7 @@
 """Integration tests for HTTPS backend support via certificate_transfer."""
 
 import pytest
+from helpers import BACKENDS_CONFIG_NAME, CacheTester
 from juju.application import Application
 from juju.model import Model
 from pytest_operator.plugin import OpsTest
@@ -28,7 +29,9 @@ async def test_certificate_transfer_full_lifecycle(
         WaitingStatus after removal (CA bundle cleared).
     """
     await cache_tester.integrate_config()
-    await cache_tester.configure(backends=f"https://{http_ok_ip}:443")
+    config = dict(CacheTester.BASE_CONFIG)
+    config[BACKENDS_CONFIG_NAME] = f"https://{http_ok_ip}:443"
+    await cache_tester.setup_config(config)
 
     await model.integrate(
         f"{cert_app.name}:{CERT_PROVIDER_ENDPOINT_NAME}",
