@@ -1,1 +1,2 @@
 factory-boy >= 3, < 4
+ops-scenario>=7.0.0,<9.0.0

@@ -4,13 +4,10 @@
 """Fixtures for unit tests."""
 
 from pathlib import Path
-from typing import Iterator
 from unittest.mock import MagicMock
 
 import pytest
-from ops.testing import Harness
 
-from charm import ContentCacheCharm
 from state import (
     BACKENDS_FIELD_NAME,
     CACHE_INACTIVE_FIELD_NAME,
@@ -79,22 +76,3 @@ def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
         "charm.get_cache_backend_url", MagicMock(return_value="http://10.0.0.1:8080")
     )
     return mock_nginx_manager
-
-
-@pytest.fixture(name="harness", scope="function")
-def harness_fixture(monkeypatch, mock_nginx_manager: MagicMock) -> Iterator[Harness]:
-    """The ops testing harness fixture.
-
-    The mock_nginx_manager is to ensure the nginx_manager module is patched.
-    """
-    harness = Harness(ContentCacheCharm)
-    harness.add_network("10.0.0.1", endpoint="certificates")
-    harness.begin_with_initial_hooks()
-    yield harness
-    harness.cleanup()
-
-
-@pytest.fixture(name="charm", scope="function")
-def charm_fixture(harness: Harness) -> ContentCacheCharm:
-    """The charm fixture."""
-    return harness.charm
