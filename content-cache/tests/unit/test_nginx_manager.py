@@ -474,3 +474,28 @@ def test_proxy_cache_path_no_max_size_when_empty(monkeypatch, patch_nginx_manage
 
     config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
     assert "max_size" not in config_content
+
+
+def test_location_contains_proxy_cache_lock(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Valid configuration.
+    act: Generate nginx site config.
+    assert: Location block contains proxy_cache_lock on.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "proxy_cache_lock on" in config_content
