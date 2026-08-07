@@ -179,6 +179,7 @@ def update_and_load_config(
     configuration: dict[int, tuple[int, LocationConfig]],
     instance_name: str,
     ca_bundle_path: Path | None = None,
+    cache_cert_path: Path | None = None,
 ) -> None:
     """Update the nginx configuration files and load them.
 
@@ -188,6 +189,7 @@ def update_and_load_config(
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
         ca_bundle_path: Path to the CA bundle for proxy SSL verification, or None.
+        cache_cert_path: Path to the combined cert+key PEM for TLS termination, or None.
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
@@ -203,7 +205,12 @@ def update_and_load_config(
         identifier = str(port)
         try:
             vhost_healthcheck_worker_lua_code = _create_virtualhost_config(
-                identifier, port, config, instance_name, ca_bundle_path=ca_bundle_path
+                identifier,
+                port,
+                config,
+                instance_name,
+                ca_bundle_path=ca_bundle_path,
+                cache_cert_path=cache_cert_path,
             )
             healthcheck_workers_lua_code += vhost_healthcheck_worker_lua_code
         except NginxConfigurationError as err:
@@ -377,6 +384,7 @@ def _create_virtualhost_config(
     configuration: LocationConfig,
     instance_name: str,
     ca_bundle_path: Path | None = None,
+    cache_cert_path: Path | None = None,
 ) -> str:
     """Create the nginx configuration file for a virtual host listening on a given port.
 
@@ -387,6 +395,7 @@ def _create_virtualhost_config(
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
         ca_bundle_path: Path to the CA bundle for proxy SSL verification, or None.
+        cache_cert_path: Path to the combined cert+key PEM for TLS termination, or None.
 
     Raises:
         NginxConfigurationError: Failed to convert the configuration to nginx format.
@@ -403,8 +412,9 @@ def _create_virtualhost_config(
                 f"{server_cache_dir} use_temp_path=off levels=1:2 keys_zone={identifier}:10m",
             ),
         )
+        listen_value = f"{port} ssl" if cache_cert_path else str(port)
         server_config = nginx.Server(
-            nginx.Key("listen", str(port)),
+            nginx.Key("listen", listen_value),
             nginx.Key("proxy_cache", identifier),
             nginx.Key("access_log", _get_access_log_path(identifier, instance_name)),
             nginx.Key(
@@ -413,6 +423,9 @@ def _create_virtualhost_config(
             ),
             nginx.Key("error_log", _get_error_log_path(identifier, instance_name)),
         )
+        if cache_cert_path is not None:
+            server_config.add(nginx.Key("ssl_certificate", str(cache_cert_path)))
+            server_config.add(nginx.Key("ssl_certificate_key", str(cache_cert_path)))
 
         upstream = f"backend-{identifier}"
         upstream_keys = _get_upstream_config_keys(configuration)

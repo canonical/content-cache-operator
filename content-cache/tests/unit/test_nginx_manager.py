@@ -327,3 +327,63 @@ def test_file_errors(monkeypatch, patch_nginx_manager: None):
 
     with pytest.raises(NginxFileError):
         nginx_manager._store_and_enable_site_config("mock-host", {})
+
+
+def test_update_config_with_cache_cert_adds_ssl_directives(
+    monkeypatch, patch_nginx_manager: None, tmp_path
+):
+    """
+    arrange: Valid config and a cache_cert_path pointing to a PEM file.
+    act: Call update_and_load_config with cache_cert_path set.
+    assert: The nginx site config contains ssl listen, ssl_certificate, ssl_certificate_key.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    cert_file = tmp_path / "cache.pem"
+    cert_file.write_text("cert-content")
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(
+        sample_data, mock_instance_name, cache_cert_path=cert_file
+    )
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert f"listen {port} ssl" in config_content
+    assert f"ssl_certificate {cert_file}" in config_content
+    assert f"ssl_certificate_key {cert_file}" in config_content
+
+
+def test_update_config_without_cache_cert_no_ssl_directives(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: Valid config, no cache_cert_path.
+    act: Call update_and_load_config without cache_cert_path.
+    assert: The nginx site config does not contain ssl directives.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "ssl" not in config_content
