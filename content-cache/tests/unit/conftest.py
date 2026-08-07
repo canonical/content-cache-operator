@@ -84,6 +84,7 @@ def harness_fixture(monkeypatch, mock_nginx_manager: MagicMock) -> Iterator[Harn
     The mock_nginx_manager is to ensure the nginx_manager module is patched.
     """
     harness = Harness(ContentCacheCharm)
+    harness.add_network("10.0.0.1", endpoint="certificates")
     harness.begin_with_initial_hooks()
     yield harness
     harness.cleanup()
