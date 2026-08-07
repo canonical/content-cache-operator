@@ -10,7 +10,8 @@ from juju.model import Model
 from pytest_operator.plugin import OpsTest
 
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
-CERT_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
+CERT_TRANSFER_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
+CACHE_LEGO_CERT_PROVIDER_ENDPOINT_NAME = "certificates"
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
 CERTIFICATES_INTEGRATION_NAME = "certificates"
 
@@ -35,7 +36,7 @@ async def test_certificate_transfer_full_lifecycle(
     await cache_tester.setup_config(config)
 
     await model.integrate(
-        f"{cert_app.name}:{CERT_PROVIDER_ENDPOINT_NAME}",
+        f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
         f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
     )
     await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
@@ -72,7 +73,7 @@ async def test_tls_termination_full_lifecycle(
     await cache_tester.setup_config(config)
 
     await model.integrate(
-        f"{cache_lego_app.name}:{CERT_PROVIDER_ENDPOINT_NAME}",
+        f"{cache_lego_app.name}:{CACHE_LEGO_CERT_PROVIDER_ENDPOINT_NAME}",
         f"{app.name}:{CERTIFICATES_INTEGRATION_NAME}",
     )
     await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
