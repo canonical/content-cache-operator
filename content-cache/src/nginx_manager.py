@@ -578,6 +578,7 @@ def _get_location_config_keys(
     scheme = config.backends[0].scheme
     keys: list[nginx.Key] = [
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
+        nginx.Key("proxy_cache_lock", "on"),
     ]
 
     if scheme == "https" and config.backend_hostname:
