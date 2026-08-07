@@ -15,13 +15,23 @@ charm to backend, and internal process security.
 
 ### Transport security
 
-The charm does **not** currently terminate TLS for incoming client requests. nginx listens on HTTP only.
-Client-facing TLS termination is expected to be handled by an upstream ingress component,
-such as `haproxy` configured with the `ingress-configurator` charm.
+The charm terminates TLS for incoming client requests when the `certificates` relation
+(interface: `tls-certificates`) is established with a TLS certificate provider such as
+`lego` (referred to as `cache-lego`).
 
-The `certificates` relation is provided for future TLS termination support. When a TLS
-certificate provider (such as `lego`) is integrated via the `tls-certificates` relation,
-the charm will be able to serve HTTPS to upstream components.
+When a certificate is available, nginx listens on the allocated port with SSL enabled
+(`listen <port> ssl`) using the cert+key PEM stored at `/etc/nginx/certs/<unit-ip>.pem`.
+The `cache-backends` relation data returns `https://` URLs so that HAProxy can connect
+over HTTPS. HAProxy integrates with `cache-lego` via `certificate_transfer` to obtain
+the CA cert needed to trust the content-cache certificate.
+
+If the `certificates` relation is present but the certificate has not yet been issued,
+the charm enters `WaitingStatus`. When the relation is removed, the charm deletes the
+cert file and nginx reverts to HTTP.
+
+Without the `certificates` relation, nginx listens on HTTP only. Client-facing TLS
+termination must then be handled by an upstream ingress component such as `haproxy`
+configured with the `ingress-configurator` charm.
 
 ### Client authentication
 

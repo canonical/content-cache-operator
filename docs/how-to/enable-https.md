@@ -46,6 +46,29 @@ juju config backends healthcheck-ssl-verify=false
 
 ## TLS termination for incoming traffic
 
-The Content Cache charm does not terminate TLS for incoming client requests.
-Client-facing TLS termination is expected to be handled by an upstream ingress component,
-such as `haproxy` configured with the `ingress-configurator` charm.
+When HAProxy connects to the content-cache over HTTPS, the charm must present a TLS
+certificate. This is configured through the `certificates` relation
+(interface: `tls-certificates`).
+
+Deploy a TLS certificate provider (e.g. `lego`) as `cache-lego` and integrate:
+
+```bash
+juju integrate content-cache:certificates cache-lego:certificates
+```
+
+When the certificate is issued, the charm automatically:
+
+1. Writes the combined cert+key PEM to `/etc/nginx/certs/<unit-ip>.pem`
+2. Reconfigures nginx to listen with `ssl` on the allocated port
+3. Updates `cache-backends` to return `https://` URLs
+
+HAProxy must trust this certificate. Integrate HAProxy with `cache-lego` using the
+`certificate_transfer` interface:
+
+```bash
+juju integrate cache-lego:send-ca-cert haproxy:receive-ca-cert
+```
+
+If the `certificates` relation is present but the certificate has not yet been issued,
+the charm enters `WaitingStatus`. If the relation is removed, the charm deletes the
+cert file and reverts nginx to HTTP automatically.

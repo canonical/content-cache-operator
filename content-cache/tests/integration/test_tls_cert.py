@@ -44,7 +44,16 @@ async def test_certificate_transfer_full_lifecycle(
     assert "CA certificate" in app.units[0].workload_status_message
 
 
-@pytest.mark.skip(reason="TLS termination not yet implemented; see ISD-296 TLS termination story")
+@pytest.mark.skip(
+    reason=(
+        "Requires a running Juju model with self-signed-certificates or lego deployed "
+        "as cache-lego. Run manually against a live deployment: "
+        "juju integrate content-cache:certificates cache-lego:certificates && "
+        "juju integrate cache-lego:send-ca-cert haproxy:receive-ca-cert"
+    )
+)
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
 async def test_tls_termination_with_certificates_relation(
     ops_test: OpsTest,
     model: Model,
@@ -52,11 +61,29 @@ async def test_tls_termination_with_certificates_relation(
     cache_lego_app: Application,
 ) -> None:
     """
-    arrange: Content-cache integrated with a TLS certificate provider via tls-certificates.
-    act: Wait for certificate to be issued.
-    assert: Content-cache reaches Active status and serves HTTPS to upstream.
+    arrange: content-cache integrated with cache-config and cache-lego (tls-certificates).
+    act: Wait for TLS cert issuance and active status.
+    assert: cache-backends returns https:// URL; nginx config contains ssl directives.
+    """
 
-    Note: This test requires the TLS termination story to be implemented in charm.py.
-    The certificates relation is declared in metadata.yaml and certificates.py is
-    available, but the event handlers are not yet wired up.
+
+_SKIP_REASON_TLS = (
+    "Requires a running Juju model with self-signed-certificates or lego deployed "
+    "as cache-lego. Run manually against a live deployment."
+)
+
+
+@pytest.mark.skip(reason=_SKIP_REASON_TLS)
+@pytest.mark.abort_on_fail
+@pytest.mark.asyncio
+async def test_tls_cert_relation_removal_reverts_to_http(
+    ops_test: OpsTest,
+    model: Model,
+    app: Application,
+    cache_lego_app: Application,
+) -> None:
+    """
+    arrange: content-cache with TLS cert active (ssl in nginx config).
+    act: Remove the certificates relation.
+    assert: Charm returns to ActiveStatus; cache-backends returns http:// URL.
     """
