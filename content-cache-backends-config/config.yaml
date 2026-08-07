@@ -47,3 +47,19 @@ options:
       (https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid).
     type: string
     default: '[]'
+  cache-inactive:
+    description: |
+      Time after which a cached item is evicted from disk if not accessed.
+      Uses nginx time format: positive integer followed by s (seconds),
+      m (minutes), h (hours), or d (days). For example: 10m, 1h, 7d.
+      Increase for files that are accessed on long periodic cycles.
+    type: string
+    default: "10m"
+  cache-max-size:
+    description: |
+      Maximum total disk space used by the cache. Uses nginx size format:
+      positive integer followed by k, m, g, or t (case-insensitive).
+      For example: 512m, 2g. When set, nginx evicts least-recently-used
+      entries when the limit is reached. Empty string means no limit.
+    type: string
+    default: ""
