@@ -23,6 +23,9 @@ from tests.integration.helpers import (
     get_app_ip,
 )
 
+CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
+CERT_TRANSFER_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
+
 HEALTHCHECK_INTERVAL = 2000
 
 
@@ -236,6 +239,7 @@ async def test_healthchecks_custom_status(
 async def test_healthchecks_ssl_verify(
     app: Application,
     config_app: Application,
+    cert_app: Application,
     cache_tester: CacheTester,
     http_ok_message: str,
     https_ok_app: Application,
@@ -257,6 +261,11 @@ async def test_healthchecks_ssl_verify(
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = ssl_verify
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
+
+    await model.integrate(
+        f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
+        f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
+    )
     await cache_tester.setup_config(config)
     await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
