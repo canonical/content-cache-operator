@@ -1,27 +1,18 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Unit test for the charm."""
+"""Unit test for the charm using ops-scenario."""
 
-from typing import Mapping
-from unittest.mock import MagicMock
+import json
+from typing import cast
 
-import ops
 import pytest
-from ops.testing import Harness
+import scenario
 
 import state
-from charm import CACHE_CONFIG_INTEGRATION_NAME, ContentCacheBackendsConfigCharm
+from charm import CACHE_CONFIG_INTEGRATION_NAME
 
-# Test might need to access private methods.
-# pylint: disable=protected-access
-
-JujuConfigValue = str | int | float | bool
-JujuConfigKey = str
-JujuConfig = Mapping[JujuConfigKey, JujuConfigValue]
-
-
-SAMPLE_CONFIG: JujuConfig = {
+SAMPLE_CONFIG: dict[str, str | int | float | bool] = {
     state.BACKENDS_CONFIG_NAME: "http://10.10.1.1:80,http://10.1.1.2:80",
     state.FAIL_TIMEOUT_CONFIG_NAME: "30s",
     state.HEALTHCHECK_PATH_CONFIG_NAME: "/health",
@@ -32,104 +23,105 @@ SAMPLE_CONFIG: JujuConfig = {
 }
 
 
-def test_start(charm: ContentCacheBackendsConfigCharm):
+@pytest.fixture(name="cache_config_relation")
+def cache_config_relation_fixture() -> scenario.SubordinateRelation:
+    """A cache-config subordinate relation fixture."""
+    return scenario.SubordinateRelation(
+        endpoint=CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app_name="content-cache",
+    )
+
+
+def test_start_leader_no_relation(ctx: scenario.Context):
     """
-    arrange: A working charm.
+    arrange: A working leader charm with no integration.
     act: The charm started.
     assert: Charm in block state.
     """
-    assert charm.unit.status == ops.BlockedStatus("Waiting for integration")
+    out = ctx.run(ctx.on.start(), scenario.State(leader=True))
+    assert out.unit_status == scenario.BlockedStatus("Waiting for integration")
 
 
-def test_config_no_integration(charm: ContentCacheBackendsConfigCharm, harness: Harness):
+def test_start_follower(ctx: scenario.Context):
     """
-    arrange: Charm with no integration.
+    arrange: A working follower charm.
+    act: The charm started.
+    assert: Follower unit is active.
+    """
+    out = ctx.run(ctx.on.start(), scenario.State(leader=False))
+    assert out.unit_status == scenario.ActiveStatus()
+
+
+def test_config_no_integration(ctx: scenario.Context):
+    """
+    arrange: Leader charm with no integration.
     act: Update the configuration with valid values.
-    assert: The charm in active status.
+    assert: The charm remains in blocked status (no relation).
     """
-    harness.update_config(SAMPLE_CONFIG)
+    out = ctx.run(ctx.on.config_changed(), scenario.State(leader=True, config=SAMPLE_CONFIG))
+    assert out.unit_status == scenario.BlockedStatus("Waiting for integration")
 
-    assert charm.unit.status == ops.BlockedStatus("Waiting for integration")
 
-
-@pytest.mark.parametrize(
-    "event",
-    [
-        pytest.param("_on_config_changed", id="config_changed"),
-        pytest.param("_on_cache_config_relation_changed", id="config_relation_changed"),
-    ],
-)
-def test_integration_config_missing(charm: ContentCacheBackendsConfigCharm, event: str):
+def test_integration_config_missing(
+    ctx: scenario.Context,
+    cache_config_relation: scenario.SubordinateRelation,
+):
     """
-    arrange: Charm with no integration.
-    act: Trigger events.
+    arrange: Charm with integration but no config.
+    act: Trigger config_changed.
     assert: Charm in block state.
     """
-    mock_event = MagicMock()
-    getattr(charm, event)(mock_event)
+    out = ctx.run(
+        ctx.on.config_changed(),
+        scenario.State(leader=True, relations={cache_config_relation}),
+    )
+    assert isinstance(out.unit_status, scenario.BlockedStatus)
 
-    assert isinstance(charm.unit.status, ops.BlockedStatus)
 
-
-@pytest.mark.parametrize(
-    "event",
-    [
-        pytest.param("_on_config_changed", id="config_changed"),
-        pytest.param("_on_cache_config_relation_changed", id="config_relation_changed"),
-    ],
-)
 def test_integration_data_not_leader(
-    charm: ContentCacheBackendsConfigCharm, harness: Harness, event: str
+    ctx: scenario.Context,
+    cache_config_relation: scenario.SubordinateRelation,
 ):
     """
     arrange: Follow unit with configurations and integration.
-    act: Trigger events.
-    assert: The integration has no data.
+    act: Trigger config_changed.
+    assert: The integration has no data (follower doesn't write).
     """
-    harness.set_leader(False)
-    harness.update_config(SAMPLE_CONFIG)
-
-    relation_id = harness.add_relation(
-        CACHE_CONFIG_INTEGRATION_NAME,
-        remote_app="content-cache",
+    out = ctx.run(
+        ctx.on.config_changed(),
+        scenario.State(
+            leader=False,
+            config=SAMPLE_CONFIG,
+            relations={cache_config_relation},
+        ),
     )
-    harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
-
-    mock_event = MagicMock()
-    getattr(charm, event)(mock_event)
-
-    data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
-    assert charm.unit.status == ops.ActiveStatus()
-    assert data == {}
+    assert out.unit_status == scenario.ActiveStatus()
+    out_rel = out.get_relations(CACHE_CONFIG_INTEGRATION_NAME)[0]
+    assert out_rel.local_app_data == {}
 
 
-@pytest.mark.parametrize(
-    "event",
-    [
-        pytest.param("_on_config_changed", id="config_changed"),
-        pytest.param("_on_cache_config_relation_changed", id="config_relation_changed"),
-    ],
-)
-def test_integration_data(charm: ContentCacheBackendsConfigCharm, harness: Harness, event: str):
+def test_integration_data_via_config_changed(
+    ctx: scenario.Context,
+    cache_config_relation: scenario.SubordinateRelation,
+):
     """
     arrange: Leader unit with configurations and integration.
-    act: Trigger events.
+    act: Trigger config_changed.
     assert: The configuration is in the databag.
     """
-    harness.update_config(SAMPLE_CONFIG)
-
-    relation_id = harness.add_relation(
-        CACHE_CONFIG_INTEGRATION_NAME,
-        remote_app="content-cache",
+    out = ctx.run(
+        ctx.on.config_changed(),
+        scenario.State(
+            leader=True,
+            config=SAMPLE_CONFIG,
+            relations={cache_config_relation},
+        ),
     )
-    harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
+    assert out.unit_status == scenario.ActiveStatus()
+    out_rel = out.get_relations(CACHE_CONFIG_INTEGRATION_NAME)[0]
+    data = cast(dict[str, str], out_rel.local_app_data)
 
-    mock_event = MagicMock()
-    getattr(charm, event)(mock_event)
-
-    data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
-    assert charm.unit.status == ops.ActiveStatus()
-    backends = __import__("json").loads(data["backends"])
+    backends = json.loads(data["backends"])
     assert len(backends) == 2
     assert any("10.10.1.1" in b for b in backends)
     assert any("10.1.1.2" in b for b in backends)
@@ -145,21 +137,46 @@ def test_integration_data(charm: ContentCacheBackendsConfigCharm, harness: Harne
     assert data.get(state.CACHE_MAX_SIZE_FIELD_NAME, "") == ""
 
 
-def test_integration_with_invalid_config(charm: ContentCacheBackendsConfigCharm, harness: Harness):
+def test_integration_data_via_relation_changed(
+    ctx: scenario.Context,
+    cache_config_relation: scenario.SubordinateRelation,
+):
+    """
+    arrange: Leader unit with configurations and integration.
+    act: Trigger relation-changed.
+    assert: The configuration is in the databag.
+    """
+    out = ctx.run(
+        ctx.on.relation_changed(cache_config_relation),
+        scenario.State(
+            leader=True,
+            config=SAMPLE_CONFIG,
+            relations={cache_config_relation},
+        ),
+    )
+    assert out.unit_status == scenario.ActiveStatus()
+    out_rel = out.get_relations(CACHE_CONFIG_INTEGRATION_NAME)[0]
+    data = cast(dict[str, str], out_rel.local_app_data)
+    assert json.loads(data["backends"])
+    assert data[state.CACHE_INACTIVE_FIELD_NAME] == "10m"
+
+
+def test_integration_with_invalid_config(
+    ctx: scenario.Context,
+    cache_config_relation: scenario.SubordinateRelation,
+):
     """
     arrange: Leader unit with integration.
     act: Update the configuration to invalid value.
     assert: The unit is in blocked status.
     """
-    relation_id = harness.add_relation(
-        CACHE_CONFIG_INTEGRATION_NAME,
-        remote_app="content-cache",
+    bad_config: dict[str, str | int | float | bool] = dict(SAMPLE_CONFIG)
+    bad_config[state.BACKENDS_CONFIG_NAME] = ""
+    out = ctx.run(
+        ctx.on.config_changed(),
+        scenario.State(leader=True, config=bad_config, relations={cache_config_relation}),
     )
-    harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
-
-    harness.update_config({state.BACKENDS_CONFIG_NAME: ""})
-
-    assert charm.unit.status == ops.BlockedStatus("Empty backends configuration found")
+    assert out.unit_status == scenario.BlockedStatus("Empty backends configuration found")
 
 
 @pytest.mark.parametrize(
@@ -170,33 +187,20 @@ def test_integration_with_invalid_config(charm: ContentCacheBackendsConfigCharm,
     ],
 )
 def test_integration_removed(
-    harness: Harness, charm: ContentCacheBackendsConfigCharm, is_leader: bool
+    ctx: scenario.Context,
+    cache_config_relation: scenario.SubordinateRelation,
+    is_leader: bool,
 ):
     """
     arrange: Unit with integration.
     act: Remove integration.
-    assert: Block status
+    assert: Block status (leader) or Active status (follower).
     """
-    harness.set_leader(is_leader)
-    harness.update_config(SAMPLE_CONFIG)
-
-    relation_id = harness.add_relation(
-        CACHE_CONFIG_INTEGRATION_NAME,
-        remote_app="content-cache",
+    out = ctx.run(
+        ctx.on.relation_broken(cache_config_relation),
+        scenario.State(leader=is_leader, config=SAMPLE_CONFIG, relations={cache_config_relation}),
     )
-    harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
-    # When integrating applications the relation changed should fire.
-    # https://juju.is/docs/sdk/relation-name-relation-changed-event#heading--emission-sequence
-    # However, the harness does not fire relation changed on empty data, so it is manually
-    # triggered here.
-    charm._on_cache_config_relation_changed(MagicMock())
-
-    assert charm.unit.status == ops.ActiveStatus()
-
-    harness.remove_relation(relation_id)
-
     if is_leader:
-        assert charm.unit.status == ops.BlockedStatus("Waiting for integration")
-        return
-    # follower unit is always active.
-    assert charm.unit.status == ops.ActiveStatus()
+        assert out.unit_status == scenario.BlockedStatus("Waiting for integration")
+    else:
+        assert out.unit_status == scenario.ActiveStatus()

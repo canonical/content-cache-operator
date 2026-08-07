@@ -193,7 +193,10 @@ class Configuration(pydantic.BaseModel):
         Returns:
             The validated value.
         """
-        _check_nginx_time_str(value)
+        try:
+            _check_nginx_time_str(value)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
         return value
 
     @pydantic.field_validator("cache_max_size")
@@ -212,7 +215,10 @@ class Configuration(pydantic.BaseModel):
         """
         if not value:
             return value
-        _check_nginx_size_str(value)
+        try:
+            _check_nginx_size_str(value)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
         return value.lower()
 
     @classmethod
@@ -253,9 +259,7 @@ class Configuration(pydantic.BaseModel):
         cache_inactive = typing.cast(
             str, charm.config.get(CACHE_INACTIVE_CONFIG_NAME, "10m")
         ).strip()
-        cache_max_size = typing.cast(
-            str, charm.config.get(CACHE_MAX_SIZE_CONFIG_NAME, "")
-        ).strip()
+        cache_max_size = typing.cast(str, charm.config.get(CACHE_MAX_SIZE_CONFIG_NAME, "")).strip()
 
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
