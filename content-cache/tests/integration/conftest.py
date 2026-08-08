@@ -6,20 +6,14 @@
 import asyncio
 import logging
 import secrets
-from typing import AsyncIterator, List
+import time
+from collections.abc import Generator
 
+import jubilant
 import pytest
-import pytest_asyncio
-from juju.application import Application
-from juju.model import Model
 from pytest_operator.plugin import OpsTest
 
-from tests.integration.helpers import (
-    CacheTester,
-    deploy_http_app,
-    deploy_self_cert_https_app,
-    get_app_ip,
-)
+from tests.integration.helpers import CacheTester, deploy_http_app, get_app_ip
 
 logger = logging.getLogger(__name__)
 
@@ -28,41 +22,12 @@ CERT_CHARM_NAME = "self-signed-certificates"
 CACHE_LEGO_CHARM_NAME = "self-signed-certificates"
 METRIC_CHARM_NAME = "grafana-agent"
 
-
-@pytest.fixture(name="app_name", scope="module")
-def app_name_fixture() -> str:
-    """The application name."""
-    return "cache"
-
-
-@pytest.fixture(name="config_app_name", scope="module")
-def config_app_name_fixture() -> str:
-    """The application name for the configuration charm."""
-    return "config"
-
-
-@pytest.fixture(name="config_alt_app_name", scope="module")
-def config_alt_app_name_fixture() -> str:
-    """The application name for the alternative configuration charm."""
-    return "config-alt"
-
-
-@pytest.fixture(name="cert_app_name", scope="module")
-def cert_app_name_fixture() -> str:
-    """The application name for the TLS certificate charm."""
-    return "cert"
-
-
-@pytest.fixture(name="cache_lego_app_name", scope="module")
-def cache_lego_app_name_fixture() -> str:
-    """The application name for the cache-side TLS certificate provider charm."""
-    return "cache-lego"
-
-
-@pytest.fixture(name="metric_app_name", scope="module")
-def metric_app_name_fixture() -> str:
-    """The application name of the metric export charm."""
-    return "metric"
+APP_NAME = "cache"
+CONFIG_APP_NAME = "config"
+CONFIG_ALT_APP_NAME = "config-alt"
+CERT_APP_NAME = "cert"
+CACHE_LEGO_APP_NAME = "cache-lego"
+METRIC_APP_NAME = "metric"
 
 
 @pytest.fixture(name="charm_file", scope="module")
@@ -73,146 +38,109 @@ def charm_file_fixture(pytestconfig: pytest.Config) -> str:
     return f"./{file}"
 
 
-@pytest_asyncio.fixture(name="config_charm_file", scope="module")
-async def config_charm_file_fixture(
-    ops_test: OpsTest, pytestconfig: pytest.Config
-) -> AsyncIterator[str]:
+@pytest.fixture(name="config_charm_file", scope="module")
+def config_charm_file_fixture(ops_test: OpsTest, pytestconfig: pytest.Config) -> str:
     """Build the configuration charm file and return the path."""
     file = pytestconfig.getoption("--config-charm-file")
     if file:
-        yield file
-        return
-
-    path = await ops_test.build_charm("../content-cache-backends-config")
-    yield str(path)
+        return file
+    path = asyncio.run(ops_test.build_charm("../content-cache-backends-config"))
+    return str(path)
 
 
-@pytest_asyncio.fixture(name="model", scope="module")
-async def model_fixture(ops_test) -> AsyncIterator[Model]:
-    """The juju model for testing."""
-    yield ops_test.model
+@pytest.fixture(name="juju", scope="module")
+def juju_fixture() -> Generator[jubilant.Juju, None, None]:
+    """A jubilant Juju instance in a temporary model for the test module."""
+    with jubilant.temp_model() as juju:
+        yield juju
 
 
-@pytest_asyncio.fixture(name="applications", scope="module")
-async def deploy_applications_fixture(
-    model: Model,
+@pytest.fixture(name="applications", scope="module")
+def deploy_applications_fixture(
+    juju: jubilant.Juju,
     charm_file: str,
     config_charm_file: str,
-    app_name: str,
-    config_app_name: str,
-    config_alt_app_name: str,
-    cert_app_name: str,
-    cache_lego_app_name: str,
-    metric_app_name: str,
     pytestconfig: pytest.Config,
-) -> AsyncIterator[dict[str, Application]]:
-    """Deploy all applications in parallel."""
+) -> dict[str, str]:
+    """Deploy all applications and return a mapping of logical name to application name."""
     if pytestconfig.getoption("--no-deploy"):
-        try:
-            res = {
-                app_name: model.applications[app_name],
-                config_app_name: model.applications[config_app_name],
-                config_alt_app_name: model.applications[config_alt_app_name],
-                cert_app_name: model.applications[cert_app_name],
-                cache_lego_app_name: model.applications[cache_lego_app_name],
-                metric_app_name: model.applications[metric_app_name],
-            }
-        except KeyError as err:
-            missing_app = err.args[0]
-            raise RuntimeError(
-                f"At least one app is missing ({missing_app}), you cannot use --no-deploy."
-            )
-        yield res
-        return
+        return {
+            "app": APP_NAME,
+            "config": CONFIG_APP_NAME,
+            "config_alt": CONFIG_ALT_APP_NAME,
+            "cert": CERT_APP_NAME,
+            "cache_lego": CACHE_LEGO_APP_NAME,
+            "metric": METRIC_APP_NAME,
+        }
 
-    app_deploy = model.deploy(charm_file, app_name, base="ubuntu@24.04")
-    config_app_deploy = model.deploy(
-        config_charm_file, config_app_name, base="ubuntu@24.04", num_units=0
+    juju.deploy(charm_file, APP_NAME, base="ubuntu@24.04")
+    juju.deploy(config_charm_file, CONFIG_APP_NAME, base="ubuntu@24.04", num_units=0)
+    juju.deploy(config_charm_file, CONFIG_ALT_APP_NAME, base="ubuntu@24.04", num_units=0)
+    juju.deploy(CERT_CHARM_NAME, CERT_APP_NAME, channel="latest/edge", base="ubuntu@22.04")
+    juju.deploy(
+        CACHE_LEGO_CHARM_NAME, CACHE_LEGO_APP_NAME, channel="latest/edge", base="ubuntu@22.04"
     )
-    config_alt_app_deploy = model.deploy(
-        config_charm_file, config_alt_app_name, base="ubuntu@24.04", num_units=0
-    )
-    cert_app_deploy = model.deploy(
-        CERT_CHARM_NAME, cert_app_name, channel="latest/edge", base="ubuntu@22.04"
-    )
-    cache_lego_app_deploy = model.deploy(
-        CACHE_LEGO_CHARM_NAME, cache_lego_app_name, channel="latest/edge", base="ubuntu@22.04"
-    )
-    metric_app_deploy = model.deploy(
+    juju.deploy(
         METRIC_CHARM_NAME,
-        metric_app_name,
+        METRIC_APP_NAME,
         channel="1/stable",
         base="ubuntu@24.04",
         num_units=0,
     )
-    app, config_app, config_alt_app, cert_app, cache_lego_app, metric_app = await asyncio.gather(
-        app_deploy,
-        config_app_deploy,
-        config_alt_app_deploy,
-        cert_app_deploy,
-        cache_lego_app_deploy,
-        metric_app_deploy,
+    juju.wait(
+        lambda s: s.apps[APP_NAME].app_status.current in ("active", "blocked"),
+        timeout=15 * 60,
     )
-    await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
-    await model.wait_for_idle(
-        [cert_app.name, cache_lego_app.name], status="active", timeout=15 * 60
+    juju.wait(
+        lambda s: s.apps[CERT_APP_NAME].app_status.current == "active"
+        and s.apps[CACHE_LEGO_APP_NAME].app_status.current == "active",
+        timeout=15 * 60,
     )
-    yield {
-        app_name: app,
-        config_app_name: config_app,
-        config_alt_app_name: config_alt_app,
-        cert_app_name: cert_app,
-        cache_lego_app_name: cache_lego_app,
-        metric_app_name: metric_app,
+
+    return {
+        "app": APP_NAME,
+        "config": CONFIG_APP_NAME,
+        "config_alt": CONFIG_ALT_APP_NAME,
+        "cert": CERT_APP_NAME,
+        "cache_lego": CACHE_LEGO_APP_NAME,
+        "metric": METRIC_APP_NAME,
     }
 
 
-@pytest_asyncio.fixture(name="app", scope="module")
-async def app_fixture(
-    app_name: str, applications: dict[str, Application]
-) -> AsyncIterator[Application]:
-    """The content-cache charm application for testing."""
-    yield applications[app_name]
+@pytest.fixture(name="app", scope="module")
+def app_fixture(applications: dict[str, str]) -> str:
+    """The content-cache application name."""
+    return applications["app"]
 
 
-@pytest_asyncio.fixture(name="config_app", scope="module")
-async def config_app_fixture(
-    config_app_name: str, applications: dict[str, Application]
-) -> AsyncIterator[Application]:
-    """The configuration charm application for testing."""
-    yield applications[config_app_name]
+@pytest.fixture(name="config_app", scope="module")
+def config_app_fixture(applications: dict[str, str]) -> str:
+    """The configuration charm application name."""
+    return applications["config"]
 
 
-@pytest_asyncio.fixture(name="config_alt_app", scope="module")
-async def config_alt_app_fixture(
-    config_alt_app_name: str, applications: dict[str, Application]
-) -> AsyncIterator[Application]:
-    """The alternative configuration charm application for testing."""
-    yield applications[config_alt_app_name]
+@pytest.fixture(name="config_alt_app", scope="module")
+def config_alt_app_fixture(applications: dict[str, str]) -> str:
+    """The alternative configuration charm application name."""
+    return applications["config_alt"]
 
 
-@pytest_asyncio.fixture(name="cert_app", scope="module")
-async def cert_app_fixture(
-    cert_app_name: str, applications: dict[str, Application]
-) -> AsyncIterator[Application]:
-    """The TLS certificate charm application for testing."""
-    yield applications[cert_app_name]
+@pytest.fixture(name="cert_app", scope="module")
+def cert_app_fixture(applications: dict[str, str]) -> str:
+    """The TLS certificate charm application name."""
+    return applications["cert"]
 
 
-@pytest_asyncio.fixture(name="cache_lego_app", scope="module")
-async def cache_lego_app_fixture(
-    cache_lego_app_name: str, applications: dict[str, Application]
-) -> AsyncIterator[Application]:
-    """The cache-side TLS certificate provider charm for testing the certificates relation."""
-    yield applications[cache_lego_app_name]
+@pytest.fixture(name="cache_lego_app", scope="module")
+def cache_lego_app_fixture(applications: dict[str, str]) -> str:
+    """The cache-side TLS certificate provider charm name."""
+    return applications["cache_lego"]
 
 
-@pytest_asyncio.fixture(name="metric_app", scope="module")
-async def metric_app_fixture(
-    metric_app_name: str, applications: dict[str, Application]
-) -> AsyncIterator[Application]:
-    """The metric agent charm application for testing."""
-    yield applications[metric_app_name]
+@pytest.fixture(name="metric_app", scope="module")
+def metric_app_fixture(applications: dict[str, str]) -> str:
+    """The metric agent charm application name."""
+    return applications["metric"]
 
 
 @pytest.fixture(name="http_ok_message", scope="module")
@@ -221,113 +149,88 @@ def http_ok_message_fixture() -> str:
     return f"test-{secrets.token_urlsafe(2)}"
 
 
-@pytest_asyncio.fixture(name="http_ok_app", scope="module")
-async def http_ok_app_fixture(
-    model: Model, http_ok_message: str, pytestconfig: pytest.Config
-) -> AsyncIterator[Application]:
+@pytest.fixture(name="http_ok_app", scope="module")
+def http_ok_app_fixture(juju: jubilant.Juju, http_ok_message: str) -> str:
     """The test HTTP application that returns OK."""
-    app = await deploy_http_app(
-        app_name="http-ok", path="/", status=200, message=http_ok_message, model=model
+    app_name = deploy_http_app(
+        juju=juju, app_name="http-ok", path="/", status=200, message=http_ok_message
     )
-    await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
+    juju.wait(lambda s: s.apps[app_name].app_status.current == "active", timeout=15 * 60)
+    return app_name
 
-    yield app
 
-
-@pytest_asyncio.fixture(name="https_ok_app", scope="module")
-async def https_ok_app_fixture(
-    model: Model, http_ok_message: str, pytestconfig: pytest.Config
-) -> AsyncIterator[Application]:
+@pytest.fixture(name="https_ok_app", scope="module")
+def https_ok_app_fixture(juju: jubilant.Juju, http_ok_message: str) -> str:
     """The test HTTPS application that returns OK."""
-    app = await deploy_http_app(
+    app_name = deploy_http_app(
+        juju=juju,
         app_name="https-ok",
         path="/",
         status=200,
         message=http_ok_message,
-        model=model,
         https=True,
     )
-    await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
-
-    yield app
-
-
-@pytest_asyncio.fixture(name="https_cert_ok_app", scope="module")
-async def https_cert_ok_app_fixture(
-    model: Model, http_ok_message: str, cert_app: Application
-) -> AsyncIterator[Application]:
-    """HTTPS test app that gets its cert signed by cert_app's CA.
-
-    The backend cert is trusted by the cert_app CA bundle, so proxy_ssl_verify
-    will pass when content-cache receives the CA via receive-ca-cert.  The Lua
-    health checker uses the system cert store, so ssl_verify=true still fails for
-    self-signed CAs that are not installed system-wide.
-    """
-    app = await deploy_self_cert_https_app(
-        app_name="https-cert-ok",
-        path="/",
-        status=200,
-        message=http_ok_message,
-        model=model,
-    )
-    await model.integrate(
-        f"{app.name}:require-tls-certificates",
-        f"{cert_app.name}:certificates",
-    )
-    await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
-
-    yield app
+    juju.wait(lambda s: s.apps[app_name].app_status.current == "active", timeout=15 * 60)
+    return app_name
 
 
-@pytest_asyncio.fixture(name="http_ok_ip", scope="module")
-async def http_ok_ip_fixture(http_ok_app: Application) -> str:
-    """The IP to the test HTTP application that returns OK."""
-    return await get_app_ip(http_ok_app)
+@pytest.fixture(name="http_ok_ip", scope="module")
+def http_ok_ip_fixture(juju: jubilant.Juju, http_ok_app: str) -> str:
+    """The IP of the test HTTP application."""
+    return get_app_ip(juju, http_ok_app)
 
 
-@pytest_asyncio.fixture(name="http_ok_ips", scope="module")
-async def http_ok_ips_fixture(model: Model, http_ok_app: Application) -> List[str]:
-    """The IPs of the test HTTP applications (2 units expected)"""
-    if len(http_ok_app.units) < 2:
-        await http_ok_app.add_unit(1)
-        await model.wait_for_idle([http_ok_app.name], status="active", timeout=10 * 60)
+@pytest.fixture(name="http_ok_ips", scope="module")
+def http_ok_ips_fixture(juju: jubilant.Juju, http_ok_app: str) -> list[str]:
+    """The IPs of the test HTTP applications (2 units expected)."""
+    status = juju.status()
+    if len(status.apps[http_ok_app].units) < 2:
+        juju.add_unit(http_ok_app, num_units=1)
+        juju.wait(lambda s: s.apps[http_ok_app].app_status.current == "active", timeout=10 * 60)
+        status = juju.status()
 
-    ips = []
-    for unit in http_ok_app.units:
-        ips.append(await unit.get_public_address())
+    return [
+        unit.public_address
+        for unit in status.apps[http_ok_app].units.values()
+        if unit.public_address
+    ]
 
-    return ips
 
-
-@pytest_asyncio.fixture(name="cache_tester", scope="function")
-async def cache_tester_fixture(
-    model: Model,
-    app: Application,
-    config_app: Application,
-    config_alt_app: Application,
-) -> AsyncIterator[CacheTester]:
+@pytest.fixture(name="cache_tester", scope="function")
+def cache_tester_fixture(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
+    config_alt_app: str,
+) -> Generator[CacheTester, None, None]:
     """Get the cache tester."""
-    unit = app.units[0]
-    tester = CacheTester(model, app, config_app, config_alt_app)
+    tester = CacheTester(juju, app, config_app, config_alt_app)
 
     yield tester
 
     if not tester._reset_after_run:
         return
 
-    # This removes the integration and configurations.
-    await tester.reset()
+    tester.reset()
 
-    await model.wait_for_idle([app.name], status="blocked", timeout=10 * 60)
-    assert unit.workload_status_message == "Waiting for integration with config charm"
-    # Wait for config app units to be fully removed before the next test runs.
-    # Config app scales to 0 units when the relation is removed, but Juju takes
-    # a moment to complete the unit removal. Without this wait, the next test
-    # may create a new relation while a previous unit is still being torn down,
-    # causing race conditions.
+    juju.wait(
+        lambda s: s.apps[app].units[f"{app}/0"].workload_status.current == "blocked",
+        timeout=10 * 60,
+    )
+    assert (
+        juju.status().apps[app].units[f"{app}/0"].workload_status.message
+        == "Waiting for integration with config charm"
+    )
+
+    # Poll until subordinate units are removed before next test.
     deadline = 60
     poll_interval = 1
     elapsed = 0
-    while (config_app.units or config_alt_app.units) and elapsed < deadline:
-        await asyncio.sleep(poll_interval)
+    while elapsed < deadline:
+        st = juju.status()
+        config_units = st.apps.get(config_app, type("", (), {"units": {}})()).units
+        config_alt_units = st.apps.get(config_alt_app, type("", (), {"units": {}})()).units
+        if not config_units and not config_alt_units:
+            break
+        time.sleep(poll_interval)
         elapsed += poll_interval

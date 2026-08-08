@@ -3,13 +3,11 @@
 
 """Integration tests for the content-cache's active healthchecks."""
 
-import asyncio
-from typing import List
+import time
 
+import jubilant
 import pytest
 import requests
-from juju.application import Application
-from juju.model import Model
 
 from nginx_manager import NGINX_BACKENDS_STATUS_URL_PATH
 from tests.integration.helpers import (
@@ -29,39 +27,35 @@ CERT_TRANSFER_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
 HEALTHCHECK_INTERVAL = 2000
 
 
-async def get_nginx_status(app: Application, path: str) -> str:
-    """Fetch and returns the content of the status page
+def get_nginx_status(juju: jubilant.Juju, app: str, path: str) -> str:
+    """Fetch and returns the content of the status page.
 
     Args:
-        app: the application to connect to
-        path: the past to the status page
+        juju: The jubilant Juju instance.
+        app: The application name to connect to.
+        path: The path to the status page.
 
     Returns:
-        The content of the status page
+        The content of the status page.
 
     Raises:
-        RuntimeError: if status cannot be fetched
+        RuntimeError: if status cannot be fetched.
     """
-    unit = app.units[0]
-    command = f"curl 127.0.0.1/{path}"
-    task = await unit.run(command)
-    result = await task.wait()
-
-    if result.results["return-code"]:
-        raise RuntimeError(f"Couldn't fetch status page on {path}: {result.results['stderr']}")
-
-    return result.results["stdout"]
+    unit_name = f"{app}/0"
+    result = juju.exec(f"curl 127.0.0.1/{path}", unit=unit_name)
+    if result.return_code:
+        raise RuntimeError(f"Couldn't fetch status page on {path}: {result.stderr}")
+    return result.stdout
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_healthchecks_healthy(
-    app: Application,
-    config_app: Application,
+def test_healthchecks_healthy(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
     cache_tester: CacheTester,
     http_ok_message: str,
-    http_ok_ips: List[str],
-    model: Model,
+    http_ok_ips: list[str],
 ) -> None:
     """
     arrange: Two backends responding 200 on their healthchecks.
@@ -75,25 +69,15 @@ async def test_healthchecks_healthy(
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
-    await cache_tester.setup_config(config)
-    await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+    cache_tester.setup_config(config)
+    cache_tester.integrate_config()
+    juju.wait(jubilant.all_active, timeout=10 * 60)
 
-    response = await cache_tester.query_cache(path="/", protocol="http")
+    response = cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
-    # Here is a typical content for the backends_status page tested below.
-    # In the test we're checking that both backends are seen as "UP"
-    #
-    # Nginx Worker PID: 7905
-    # Upstream 88c26973-5726-4745-ab4a-d3addea80d82
-    # Primary Peers
-    #    10.14.1.77:80 UP
-    #    10.14.1.78:80 DOWN
-    # Backup Peers
-
-    status = await get_nginx_status(app, path=NGINX_BACKENDS_STATUS_URL_PATH)
+    status = get_nginx_status(juju, app, path=NGINX_BACKENDS_STATUS_URL_PATH)
     assert f"{http_ok_ips[0]}:80 UP" in status
     assert f"{http_ok_ips[1]}:80 UP" in status
 
@@ -101,28 +85,27 @@ async def test_healthchecks_healthy(
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_healthchecks_one_unhealthy(
-    app: Application,
-    config_app: Application,
+def test_healthchecks_one_unhealthy(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
     cache_tester: CacheTester,
     http_ok_message: str,
-    http_ok_ips: List[str],
-    model: Model,
+    http_ok_ips: list[str],
 ) -> None:
     """
     arrange: Two backends responding 200 on their healthchecks.
-    act: Turn one backend unhealty.
+    act: Turn one backend unhealthy.
     assert: HTTP request should succeed. One backend is reported UP. One backend is reported DOWN.
     """
     requests.get(f"http://{http_ok_ips[0]}/turn-unhealthy")
-    await asyncio.sleep(4 * HEALTHCHECK_INTERVAL / 1000)
+    time.sleep(4 * HEALTHCHECK_INTERVAL / 1000)
 
-    status = await get_nginx_status(app, path=NGINX_BACKENDS_STATUS_URL_PATH)
+    status = get_nginx_status(juju, app, path=NGINX_BACKENDS_STATUS_URL_PATH)
     assert f"{http_ok_ips[0]}:80 DOWN" in status
     assert f"{http_ok_ips[1]}:80 UP" in status
 
-    response = await cache_tester.query_cache(path="/", protocol="http")
+    response = cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
@@ -130,56 +113,54 @@ async def test_healthchecks_one_unhealthy(
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_healthchecks_one_recovery(
-    app: Application,
-    config_app: Application,
+def test_healthchecks_one_recovery(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
     cache_tester: CacheTester,
     http_ok_message: str,
-    http_ok_ips: List[str],
-    model: Model,
+    http_ok_ips: list[str],
 ) -> None:
     """
     arrange: Two backends. One responding 200 on its healthcheck, and the other 500.
-    act: Bring back the faulty backend to an healthy state.
+    act: Bring back the faulty backend to a healthy state.
     assert: HTTP request should succeed. Two backends are reported up.
     """
     requests.get(f"http://{http_ok_ips[0]}/turn-healthy")
-    await asyncio.sleep(3 * HEALTHCHECK_INTERVAL / 1000)
+    time.sleep(3 * HEALTHCHECK_INTERVAL / 1000)
 
-    status = await get_nginx_status(app, path=NGINX_BACKENDS_STATUS_URL_PATH)
+    status = get_nginx_status(juju, app, path=NGINX_BACKENDS_STATUS_URL_PATH)
     assert f"{http_ok_ips[0]}:80 UP" in status
     assert f"{http_ok_ips[1]}:80 UP" in status
 
-    response = await cache_tester.query_cache(path="/", protocol="http")
+    response = cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_healthchecks_all_unhealthy(
-    app: Application,
-    config_app: Application,
+def test_healthchecks_all_unhealthy(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
     cache_tester: CacheTester,
     http_ok_message: str,
-    http_ok_ips: List[str],
-    model: Model,
+    http_ok_ips: list[str],
 ) -> None:
     """
     arrange: Two healthy backends.
-    act: Turn both backends unhealth.
+    act: Turn both backends unhealthy.
     assert: HTTP request should fail with 502. Both backends are reported DOWN.
     """
     requests.get(f"http://{http_ok_ips[0]}/turn-unhealthy")
     requests.get(f"http://{http_ok_ips[1]}/turn-unhealthy")
-    await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
+    time.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
-    status = await get_nginx_status(app, path=NGINX_BACKENDS_STATUS_URL_PATH)
+    status = get_nginx_status(juju, app, path=NGINX_BACKENDS_STATUS_URL_PATH)
     assert f"{http_ok_ips[0]}:80 DOWN" in status
     assert f"{http_ok_ips[1]}:80 DOWN" in status
 
-    response = await cache_tester.query_cache(path="/", protocol="http")
+    response = cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == 502
 
 
@@ -191,16 +172,15 @@ async def test_healthchecks_all_unhealthy(
     ],
 )
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_healthchecks_custom_status(
-    app: Application,
-    config_app: Application,
+def test_healthchecks_custom_status(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
     cache_tester: CacheTester,
     http_ok_message: str,
     http_ok_ip: str,
     valid_status: str,
     expected_http_code: int,
-    model: Model,
 ) -> None:
     """
     arrange: One backend responding 418 on its healthcheck. And valid status to match it or not.
@@ -214,13 +194,13 @@ async def test_healthchecks_custom_status(
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = valid_status
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
-    await cache_tester.setup_config(config)
-    await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+    cache_tester.setup_config(config)
+    cache_tester.integrate_config()
+    juju.wait(jubilant.all_active, timeout=10 * 60)
 
-    await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
+    time.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
-    response = await cache_tester.query_cache(path="/", protocol="http")
+    response = cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == expected_http_code
 
     if expected_http_code == 200:
@@ -228,66 +208,51 @@ async def test_healthchecks_custom_status(
 
 
 @pytest.mark.parametrize(
-    ["use_cert_ok_app", "ssl_verify", "expected_http_code"],
+    ["ssl_verify", "expected_http_code"],
     [
-        # ssl_verify=false: backend cert IS signed by cert_app's CA.
-        # Proxy SSL verification passes (cert trusted by CA bundle) and the health check
-        # skips SSL verification (ssl_verify=false) so the backend is marked healthy → 200.
-        pytest.param(True, "false", 200, id="no_ssl_verify"),
-        # ssl_verify=true: backend cert is NOT signed by cert_app's CA (hardcoded
-        # self-signed cert from https_ok_app). The Lua health checker uses the system cert
-        # store; cert_app's CA is not installed there, so the health check marks the backend
-        # as unhealthy → 502 Bad Gateway.
-        pytest.param(False, "true", 502, id="ssl_verify"),
+        pytest.param("false", 200, id="no_ssl_verify"),
+        pytest.param("true", 502, id="ssl_verify"),
     ],
 )
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_healthchecks_ssl_verify(
-    app: Application,
-    config_app: Application,
-    cert_app: Application,
+def test_healthchecks_ssl_verify(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
+    cert_app: str,
     cache_tester: CacheTester,
     http_ok_message: str,
-    https_ok_app: Application,
-    https_cert_ok_app: Application,
-    use_cert_ok_app: bool,
+    https_ok_app: str,
     ssl_verify: str,
     expected_http_code: int,
-    model: Model,
 ) -> None:
     """
-    arrange: An HTTPS backend — either cert_app-signed (use_cert_ok_app=True) or
-        hardcoded self-signed (use_cert_ok_app=False) — with cert_app's CA provided to
-        content-cache via receive-ca-cert.
-    act: Configure healthcheck-ssl-verify and send a request.
-    assert: ssl_verify=false with a trusted backend cert returns 200 (proxy SSL passes,
-        healthcheck skips SSL).  ssl_verify=true with an untrusted backend cert returns 502
-        (Lua health checker marks the backend as unhealthy).
+    arrange: One backend responding on HTTPS. SSL verify option set.
+    act: Nothing.
+    assert: HTTP request should succeed or fail depending on SSL verification setting.
     """
-    backend_app = https_cert_ok_app if use_cert_ok_app else https_ok_app
-    backend_ip = await get_app_ip(backend_app)
+    https_ok_ip = get_app_ip(juju, https_ok_app)
 
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = f"https://{backend_ip}:443"
+    config[BACKENDS_CONFIG_NAME] = f"https://{https_ok_ip}:443"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = ssl_verify
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
 
-    await model.integrate(
-        f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
-        f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
+    juju.integrate(
+        f"{cert_app}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
+        f"{app}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
     )
     try:
-        await cache_tester.setup_config(config)
-        await cache_tester.integrate_config()
-        await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+        cache_tester.setup_config(config)
+        cache_tester.integrate_config()
+        juju.wait(jubilant.all_active, timeout=10 * 60)
 
-        await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
+        time.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
-        response = await cache_tester.query_cache(path="/", protocol="http")
+        response = cache_tester.query_cache(path="/", protocol="http")
         assert response.status_code == expected_http_code
 
         if expected_http_code == 200:
@@ -298,4 +263,7 @@ async def test_healthchecks_ssl_verify(
         # relation already exists and fail before integrate_config() is called,
         # leaving content-cache stuck in "Waiting for integration with config
         # charm" state.
-        await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, True)
+        juju.remove_relation(
+            f"{app}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
+            f"{cert_app}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
+        )

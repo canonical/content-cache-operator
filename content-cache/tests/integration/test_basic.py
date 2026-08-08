@@ -4,11 +4,10 @@
 """Integration test for the content-cache charm."""
 
 import json
-from asyncio import sleep
+import time
 
+import jubilant
 import pytest
-from juju.application import Application
-from juju.model import Model
 
 from tests.integration.helpers import (
     BACKENDS_CONFIG_NAME,
@@ -19,34 +18,33 @@ from tests.integration.helpers import (
     HEALTHCHECK_VALID_STATUS_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     CacheTester,
-    get_cache_backend,
+    get_cache_backends,
 )
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_charm_start(
-    app: Application,
+def test_charm_start(
+    juju: jubilant.Juju,
+    app: str,
 ) -> None:
     """
     arrange: The applications deployed.
     act: Nothing.
     assert: The applications in blocked status waiting for integration.
     """
-    assert len(app.units) == 1
-    unit = app.units[0]
-    assert unit.workload_status_message == "Waiting for integration with config charm"
+    status = juju.status()
+    unit_status = status.apps[app].units[f"{app}/0"]
+    assert unit_status.workload_status.message == "Waiting for integration with config charm"
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_charm_integrate_with_no_data(
-    app: Application,
-    config_app: Application,
+def test_charm_integrate_with_no_data(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
     cache_tester: CacheTester,
     http_ok_message: str,
     http_ok_ip: str,
-    model: Model,
 ) -> None:
     """
     arrange: A working application of content-cache charm, with no integrations, and a test HTTP
@@ -59,14 +57,21 @@ async def test_charm_integrate_with_no_data(
         2. The request to the cache should succeed.
     """
     # 1.
-    await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="blocked", timeout=10 * 60)
-    assert len(app.units) == 1
-    assert len(config_app.units) == 1
-    unit = app.units[0]
-    config_unit = config_app.units[0]
-    assert unit.workload_status_message == "Waiting for integration with config charm"
-    assert config_unit.workload_status_message == "Empty backends configuration found"
+    cache_tester.integrate_config()
+    juju.wait(
+        lambda s: s.apps[app].units[f"{app}/0"].workload_status.current == "blocked"
+        and s.apps[config_app].units[f"{config_app}/0"].workload_status.current == "blocked",
+        timeout=10 * 60,
+    )
+    st = juju.status()
+    assert (
+        st.apps[app].units[f"{app}/0"].workload_status.message
+        == "Waiting for integration with config charm"
+    )
+    assert (
+        st.apps[config_app].units[f"{config_app}/0"].workload_status.message
+        == "Empty backends configuration found"
+    )
 
     # 2.
     config = dict(CacheTester.BASE_CONFIG)
@@ -75,25 +80,24 @@ async def test_charm_integrate_with_no_data(
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    await cache_tester.setup_config(config)
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
-    response = await cache_tester.query_cache(path="/")
+    cache_tester.setup_config(config)
+    juju.wait(jubilant.all_active, timeout=10 * 60)
+    response = cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
     # Cleanup
-    await cache_tester.reset()
+    cache_tester.reset()
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_charm_integrate_with_data(
-    app: Application,
-    config_app: Application,
+def test_charm_integrate_with_data(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
     cache_tester: CacheTester,
     http_ok_message: str,
     http_ok_ip: str,
-    model: Model,
 ) -> None:
     """
     arrange: A working application of content-cache charm, with no integrations.
@@ -118,56 +122,62 @@ async def test_charm_integrate_with_data(
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
-    await cache_tester.setup_config(config)
-    await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+    cache_tester.setup_config(config)
+    cache_tester.integrate_config()
+    juju.wait(jubilant.all_active, timeout=10 * 60)
 
-    response = await cache_tester.query_cache(path="/")
+    response = cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
     timestamp = json.loads(response.content.decode("utf-8"))["time"]
 
-    await sleep(3)
-    response = await cache_tester.query_cache(path="/")
+    time.sleep(3)
+    response = cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
     assert timestamp == json.loads(response.content.decode("utf-8"))["time"]
 
     # The cache valid is set to 10 seconds, the total wait should exceed it.
-    await sleep(11)
-    response = await cache_tester.query_cache(path="/")
+    time.sleep(11)
+    response = cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
     assert timestamp != json.loads(response.content.decode("utf-8"))["time"]
 
-    await cache_tester.reset_config()
+    cache_tester.reset_config()
 
     # The configuration update should fail on the configuration charm, and enter blocked state.
     # Since the integration data is not updated, the content-cache charm will continue serve the
     # site, according to the old configuration.
-    await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
-    await model.wait_for_idle([config_app.name], status="blocked", timeout=10 * 60)
-    assert len(app.units) == 1
-    assert len(config_app.units) == 1
-    unit = app.units[0]
-    config_unit = config_app.units[0]
-    assert unit.workload_status_message == ""
-    assert config_unit.workload_status_message == "Empty backends configuration found"
-    response = await cache_tester.query_cache(path="/")
+    juju.wait(
+        lambda s: s.apps[app].units[f"{app}/0"].workload_status.current == "active",
+        timeout=10 * 60,
+    )
+    juju.wait(
+        lambda s: f"{config_app}/0" in s.apps[config_app].units
+        and s.apps[config_app].units[f"{config_app}/0"].workload_status.current == "blocked",
+        timeout=10 * 60,
+    )
+    st = juju.status()
+    assert st.apps[app].units[f"{app}/0"].workload_status.message == ""
+    assert (
+        st.apps[config_app].units[f"{config_app}/0"].workload_status.message
+        == "Empty backends configuration found"
+    )
+    response = cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_charm_with_two_config_app(
-    app: Application,
-    config_app: Application,
-    config_alt_app: Application,
+def test_charm_with_two_config_app(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
+    config_alt_app: str,
     cache_tester: CacheTester,
     http_ok_message: str,
     http_ok_ip: str,
-    model: Model,
 ) -> None:
     """
     arrange: A working charm with integration with two configuration charms.
@@ -181,7 +191,7 @@ async def test_charm_with_two_config_app(
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
-    await cache_tester.setup_config(config)
+    cache_tester.setup_config(config)
 
     config_alt = dict(CacheTester.BASE_CONFIG)
     config_alt[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
@@ -190,17 +200,15 @@ async def test_charm_with_two_config_app(
     config_alt[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config_alt[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
     config_alt[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
-    await cache_tester.setup_config_alt(config_alt)
+    cache_tester.setup_config_alt(config_alt)
 
-    await cache_tester.integrate_config()
-    await cache_tester.integrate_config_alt()
+    cache_tester.integrate_config()
+    cache_tester.integrate_config_alt()
 
-    await model.wait_for_idle(
-        [app.name, config_app.name, config_alt_app.name], status="active", timeout=10 * 60
-    )
+    juju.wait(jubilant.all_active, timeout=10 * 60)
 
-    response = await cache_tester.query_cache(path="/", port=30000)
-    response_alt = await cache_tester.query_cache(path="/", port=30001)
+    response = cache_tester.query_cache(path="/", port=8080)
+    response_alt = cache_tester.query_cache(path="/", port=8081)
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
     assert response_alt.status_code == 200
@@ -208,14 +216,13 @@ async def test_charm_with_two_config_app(
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_charm_with_failover(
-    app: Application,
-    config_app: Application,
-    cache_tester: Application,
+def test_charm_with_failover(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
+    cache_tester: CacheTester,
     http_ok_message: str,
     http_ok_ip: str,
-    model: Model,
 ) -> None:
     """
     arrange: A working application of content-cache charm with configurations. The backends
@@ -235,40 +242,40 @@ async def test_charm_with_failover(
 
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     config[FAIL_TIMEOUT_CONFIG_NAME] = "5s"
-    await cache_tester.setup_config(config)
-    await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+    cache_tester.setup_config(config)
+    cache_tester.integrate_config()
+    juju.wait(jubilant.all_active, timeout=10 * 60)
 
-    response = await cache_tester.query_cache(path="/")
+    response = cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.asyncio
-async def test_cache_backends_published(
-    app: Application,
-    config_app: Application,
+def test_cache_backends_published(
+    juju: jubilant.Juju,
+    app: str,
+    config_app: str,
     cache_tester: CacheTester,
     http_ok_ip: str,
-    model: Model,
 ) -> None:
     """
     arrange: A working charm with an active cache-config integration.
-    act: Read cache-backend from the unit relation data.
-    assert: cache-backend contains a valid HTTP URL with the unit bind address and allocated port.
+    act: Read cache-backends from the unit relation data.
+    assert: cache-backends contains a valid HTTP URL with the unit bind address and allocated port.
     """
     config = dict(CacheTester.BASE_CONFIG)
     config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    await cache_tester.setup_config(config)
-    await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+    cache_tester.setup_config(config)
+    cache_tester.integrate_config()
+    juju.wait(jubilant.all_active, timeout=10 * 60)
 
-    unit = app.units[0]
-    backend = await get_cache_backend(unit)
+    unit_name = f"{app}/0"
+    backends = get_cache_backends(juju, unit_name)
 
-    assert backend.startswith("http://")
-    assert ":30000" in backend or ":30001" in backend
+    assert len(backends) == 1
+    assert backends[0].startswith("http://")
+    assert ":8080" in backends[0] or ":8081" in backends[0]

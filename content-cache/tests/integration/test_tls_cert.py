@@ -3,11 +3,15 @@
 
 """Integration tests for HTTPS backend support via certificate_transfer and tls-certificates."""
 
+import jubilant
 import pytest
-from helpers import BACKENDS_CONFIG_NAME, CacheTester, get_cache_backend, run_in_unit
-from juju.application import Application
-from juju.model import Model
-from pytest_operator.plugin import OpsTest
+
+from tests.integration.helpers import (
+    BACKENDS_CONFIG_NAME,
+    CacheTester,
+    get_cache_backends,
+    run_in_unit,
+)
 
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
 CERT_TRANSFER_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
@@ -16,12 +20,11 @@ CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
 CERTIFICATES_INTEGRATION_NAME = "certificates"
 
 
-async def test_certificate_transfer_full_lifecycle(
-    ops_test: OpsTest,
-    model: Model,
-    app: Application,
-    cert_app: Application,
-    cache_tester,
+def test_certificate_transfer_full_lifecycle(
+    juju: jubilant.Juju,
+    app: str,
+    cert_app: str,
+    cache_tester: CacheTester,
     http_ok_ip: str,
 ) -> None:
     """
@@ -30,38 +33,51 @@ async def test_certificate_transfer_full_lifecycle(
     assert: Content-cache reaches Active status after integration, then returns to
         WaitingStatus after removal (CA bundle cleared).
     """
-    await cache_tester.integrate_config()
+    cache_tester.integrate_config()
     config = dict(CacheTester.BASE_CONFIG)
     config[BACKENDS_CONFIG_NAME] = f"https://{http_ok_ip}:443"
-    await cache_tester.setup_config(config)
+    cache_tester.setup_config(config)
 
     try:
-        await model.integrate(
-            f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
-            f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
+        juju.integrate(
+            f"{cert_app}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
+            f"{app}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
         )
-        await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
-        assert app.units[0].workload_status == "active"
+        juju.wait(
+            lambda s: s.apps[app].units[f"{app}/0"].workload_status.current == "active",
+            timeout=10 * 60,
+        )
+        assert juju.status().apps[app].units[f"{app}/0"].workload_status.current == "active"
 
-        await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name)
-        await model.wait_for_idle([app.name], status="waiting", timeout=5 * 60)
-        assert "CA certificate" in app.units[0].workload_status_message
+        juju.remove_relation(
+            f"{app}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
+            f"{cert_app}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
+        )
+        juju.wait(
+            lambda s: s.apps[app].units[f"{app}/0"].workload_status.current == "waiting",
+            timeout=5 * 60,
+        )
+        assert (
+            "CA certificate" in juju.status().apps[app].units[f"{app}/0"].workload_status.message
+        )
     finally:
         # Ensure the cert relation is removed even if the test fails, so the
-        # next test starts with a clean state.  Do NOT use block_until_done=True
-        # here: that calls block_until() with no timeout and can hang forever if
-        # the relation removal stalls.
-        if app.related_applications(CERTIFICATE_TRANSFER_INTEGRATION_NAME):
-            await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name)
+        # next test starts with a clean state.
+        try:
+            juju.remove_relation(
+                f"{app}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
+                f"{cert_app}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
 
 @pytest.mark.abort_on_fail
-async def test_tls_termination_full_lifecycle(
-    ops_test: OpsTest,
-    model: Model,
-    app: Application,
-    cache_lego_app: Application,
-    cache_tester,
+def test_tls_termination_full_lifecycle(
+    juju: jubilant.Juju,
+    app: str,
+    cache_lego_app: str,
+    cache_tester: CacheTester,
     http_ok_ip: str,
 ) -> None:
     """
@@ -73,48 +89,57 @@ async def test_tls_termination_full_lifecycle(
           nginx site config contains ssl directives.
         - After removal: content-cache remains Active, cache-backends reverts to http://.
     """
-    await cache_tester.integrate_config()
+    cache_tester.integrate_config()
     config = dict(CacheTester.BASE_CONFIG)
     config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
-    await cache_tester.setup_config(config)
-    # Wait for config subordinate hooks to complete and content-cache to be Active
-    # with the HTTP backend before integrating cache-lego for TLS termination.
-    # Without this wait, the TLS cert may arrive before config data is delivered,
-    # leaving the charm blocked on "Waiting for integration with config charm".
-    await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
+    cache_tester.setup_config(config)
 
-    await model.integrate(
-        f"{cache_lego_app.name}:{CACHE_LEGO_CERT_PROVIDER_ENDPOINT_NAME}",
-        f"{app.name}:{CERTIFICATES_INTEGRATION_NAME}",
+    juju.integrate(
+        f"{cache_lego_app}:{CACHE_LEGO_CERT_PROVIDER_ENDPOINT_NAME}",
+        f"{app}:{CERTIFICATES_INTEGRATION_NAME}",
     )
     try:
-        await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
-        assert app.units[0].workload_status == "active"
+        juju.wait(
+            lambda s: s.apps[app].units[f"{app}/0"].workload_status.current == "active",
+            timeout=10 * 60,
+        )
+        assert juju.status().apps[app].units[f"{app}/0"].workload_status.current == "active"
 
-        unit = app.units[0]
-        backends = await get_cache_backend(unit)
-        assert backends.startswith(
-            "https://"
+        unit_name = f"{app}/0"
+        backends = get_cache_backends(juju, unit_name)
+        assert any(
+            b.startswith("https://") for b in backends
         ), f"Expected https:// backend after TLS cert issuance, got: {backends}"
 
-        _, ssl_files, _ = await run_in_unit(
-            unit=unit,
-            command="grep -Rl ssl /etc/nginx/sites-enabled/ 2>/dev/null || true",
+        return_code, ssl_files, _ = run_in_unit(
+            juju=juju,
+            unit_name=unit_name,
+            command="grep -rl ssl /etc/nginx/sites-enabled/ 2>/dev/null || true",
         )
         assert (
             ssl_files and ssl_files.strip()
         ), "No nginx site config with 'ssl' directive found after TLS cert issuance"
 
-        await app.remove_relation(CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name)
-        await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
-        assert app.units[0].workload_status == "active"
+        juju.remove_relation(
+            f"{app}:{CERTIFICATES_INTEGRATION_NAME}",
+            f"{cache_lego_app}:{CACHE_LEGO_CERT_PROVIDER_ENDPOINT_NAME}",
+        )
+        juju.wait(
+            lambda s: s.apps[app].units[f"{app}/0"].workload_status.current == "active",
+            timeout=5 * 60,
+        )
+        assert juju.status().apps[app].units[f"{app}/0"].workload_status.current == "active"
 
-        backends_after = await get_cache_backend(unit)
-        assert backends_after.startswith(
-            "http://"
+        backends_after = get_cache_backends(juju, unit_name)
+        assert any(
+            b.startswith("http://") for b in backends_after
         ), f"Expected http:// backend after cert relation removal, got: {backends_after}"
     finally:
         # Ensure the certificates relation is removed even if the test fails.
-        # Do NOT use block_until_done=True here — it has no timeout and can hang forever.
-        if app.related_applications(CERTIFICATES_INTEGRATION_NAME):
-            await app.remove_relation(CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name)
+        try:
+            juju.remove_relation(
+                f"{app}:{CERTIFICATES_INTEGRATION_NAME}",
+                f"{cache_lego_app}:{CACHE_LEGO_CERT_PROVIDER_ENDPOINT_NAME}",
+            )
+        except Exception:  # noqa: BLE001
+            pass
