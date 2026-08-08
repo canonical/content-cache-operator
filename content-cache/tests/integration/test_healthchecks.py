@@ -266,14 +266,22 @@ async def test_healthchecks_ssl_verify(
         f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
         f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
     )
-    await cache_tester.setup_config(config)
-    await cache_tester.integrate_config()
-    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+    try:
+        await cache_tester.setup_config(config)
+        await cache_tester.integrate_config()
+        await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
-    await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
+        await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
-    response = await cache_tester.query_cache(path="/", protocol="http")
-    assert response.status_code == expected_http_code
+        response = await cache_tester.query_cache(path="/", protocol="http")
+        assert response.status_code == expected_http_code
 
-    if expected_http_code == 200:
-        assert http_ok_message in response.content.decode("utf-8")
+        if expected_http_code == 200:
+            assert http_ok_message in response.content.decode("utf-8")
+    finally:
+        # Always remove the cert integration so the next parametrised run can
+        # re-add it cleanly. Without this, the second run would find the
+        # relation already exists and fail before integrate_config() is called,
+        # leaving content-cache stuck in "Waiting for integration with config
+        # charm" state.
+        await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, True)

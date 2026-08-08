@@ -30,23 +30,36 @@ async def test_certificate_transfer_full_lifecycle(
     assert: Content-cache reaches Active status after integration, then returns to
         WaitingStatus after removal (CA bundle cleared).
     """
-    await cache_tester.integrate_config()
-    config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = f"https://{http_ok_ip}:443"
-    await cache_tester.setup_config(config)
-
+    # Integrate the cert provider first so the CA bundle is ready before the
+    # cache-config relation is created. Creating cache-config first and then
+    # integrating cert can cause a race where certificate_set_updated fires
+    # before the cert provider has written its data, producing an empty CA
+    # bundle that makes nginx refuse to reload its config.
     await model.integrate(
         f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
         f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
     )
-    await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
-    assert app.units[0].workload_status == "active"
+    config = dict(CacheTester.BASE_CONFIG)
+    config[BACKENDS_CONFIG_NAME] = f"https://{http_ok_ip}:443"
+    await cache_tester.setup_config(config)
+    await cache_tester.integrate_config()
 
-    await app.remove_relation(
-        CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, block_until_done=True
-    )
-    await model.wait_for_idle([app.name], status="waiting", timeout=5 * 60)
-    assert "CA certificate" in app.units[0].workload_status_message
+    try:
+        await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
+        assert app.units[0].workload_status == "active"
+
+        await app.remove_relation(
+            CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, block_until_done=True
+        )
+        await model.wait_for_idle([app.name], status="waiting", timeout=5 * 60)
+        assert "CA certificate" in app.units[0].workload_status_message
+    finally:
+        # Ensure the cert relation is removed even if the test fails, so the
+        # next test starts with a clean state.
+        if app.related_applications(CERTIFICATE_TRANSFER_INTEGRATION_NAME):
+            await app.remove_relation(
+                CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, block_until_done=True
+            )
 
 
 @pytest.mark.abort_on_fail
@@ -76,30 +89,37 @@ async def test_tls_termination_full_lifecycle(
         f"{cache_lego_app.name}:{CACHE_LEGO_CERT_PROVIDER_ENDPOINT_NAME}",
         f"{app.name}:{CERTIFICATES_INTEGRATION_NAME}",
     )
-    await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
-    assert app.units[0].workload_status == "active"
+    try:
+        await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
+        assert app.units[0].workload_status == "active"
 
-    unit = app.units[0]
-    backends = await get_cache_backends(unit)
-    assert any(
-        b.startswith("https://") for b in backends
-    ), f"Expected https:// backend after TLS cert issuance, got: {backends}"
+        unit = app.units[0]
+        backends = await get_cache_backends(unit)
+        assert any(
+            b.startswith("https://") for b in backends
+        ), f"Expected https:// backend after TLS cert issuance, got: {backends}"
 
-    _, ssl_files, _ = await run_in_unit(
-        unit=unit,
-        command="grep -rl ssl /etc/nginx/sites-enabled/ 2>/dev/null || true",
-    )
-    assert (
-        ssl_files and ssl_files.strip()
-    ), "No nginx site config with 'ssl' directive found after TLS cert issuance"
+        _, ssl_files, _ = await run_in_unit(
+            unit=unit,
+            command="grep -rl ssl /etc/nginx/sites-enabled/ 2>/dev/null || true",
+        )
+        assert (
+            ssl_files and ssl_files.strip()
+        ), "No nginx site config with 'ssl' directive found after TLS cert issuance"
 
-    await app.remove_relation(
-        CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name, block_until_done=True
-    )
-    await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
-    assert app.units[0].workload_status == "active"
+        await app.remove_relation(
+            CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name, block_until_done=True
+        )
+        await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
+        assert app.units[0].workload_status == "active"
 
-    backends_after = await get_cache_backends(unit)
-    assert any(
-        b.startswith("http://") for b in backends_after
-    ), f"Expected http:// backend after cert relation removal, got: {backends_after}"
+        backends_after = await get_cache_backends(unit)
+        assert any(
+            b.startswith("http://") for b in backends_after
+        ), f"Expected http:// backend after cert relation removal, got: {backends_after}"
+    finally:
+        # Ensure the certificates relation is removed even if the test fails.
+        if app.related_applications(CERTIFICATES_INTEGRATION_NAME):
+            await app.remove_relation(
+                CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name, block_until_done=True
+            )

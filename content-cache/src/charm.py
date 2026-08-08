@@ -115,6 +115,13 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_certificates_available(self, event: CertificatesAvailableEvent) -> None:
         """Handle certificate-transfer certificates available event."""
+        if not event.certificates:
+            # Provider has joined the relation but not yet written its certificate
+            # data.  Wait for the next event which will carry the actual certs.
+            logger.debug(
+                "Received empty certificate set for relation %s; skipping", event.relation_id
+            )
+            return
         try:
             ca_certs.write_ca_cert(event.relation_id, list(event.certificates))
         except CACertificateFileError:

@@ -57,12 +57,17 @@ def remove_ca_cert(relation_id: int) -> None:
 
 
 def get_ca_bundle_path() -> Path | None:
-    """Return the CA bundle path if it exists, else None.
+    """Return the CA bundle path if it exists and is non-empty, else None.
 
     Returns:
-        The path to the merged CA bundle, or None if no bundle exists.
+        The path to the merged CA bundle, or None if no bundle exists or is empty.
     """
-    return CA_BUNDLE_PATH if CA_BUNDLE_PATH.exists() else None
+    if not CA_BUNDLE_PATH.exists():
+        return None
+    if not CA_BUNDLE_PATH.read_text(encoding="utf-8").strip():
+        # An empty bundle would cause nginx to reject the config.
+        return None
+    return CA_BUNDLE_PATH
 
 
 def _ca_cert_path(relation_id: int) -> Path:
