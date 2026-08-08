@@ -30,21 +30,16 @@ async def test_certificate_transfer_full_lifecycle(
     assert: Content-cache reaches Active status after integration, then returns to
         WaitingStatus after removal (CA bundle cleared).
     """
-    # Integrate the cert provider first so the CA bundle is ready before the
-    # cache-config relation is created. Creating cache-config first and then
-    # integrating cert can cause a race where certificate_set_updated fires
-    # before the cert provider has written its data, producing an empty CA
-    # bundle that makes nginx refuse to reload its config.
-    await model.integrate(
-        f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
-        f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
-    )
+    await cache_tester.integrate_config()
     config = dict(CacheTester.BASE_CONFIG)
     config[BACKENDS_CONFIG_NAME] = f"https://{http_ok_ip}:443"
     await cache_tester.setup_config(config)
-    await cache_tester.integrate_config()
 
     try:
+        await model.integrate(
+            f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
+            f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
+        )
         await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
         assert app.units[0].workload_status == "active"
 
