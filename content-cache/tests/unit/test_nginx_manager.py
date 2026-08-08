@@ -238,13 +238,17 @@ def test_healthcheck_worker_upstream_entries_carry_ports(patch_nginx_manager: No
 
 def test_get_location_config_keys_https_with_ca_bundle(patch_nginx_manager: None, tmp_path):
     """
-    arrange: A LocationConfig with https backends and a CA bundle path.
+    arrange: A LocationConfig with https backends, a CA bundle path, and ssl_verify=true.
     act: Call _get_location_config_keys with ca_bundle_path set.
     assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, proxy_ssl_server_name off present.
     """
     ca_bundle = tmp_path / "ca-bundle.pem"
     ca_bundle.write_text("cert", encoding="utf-8")
-    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        "backends": '["https://10.10.1.1:443"]',
+        "healthcheck_ssl_verify": "true",
+    }
     config = LocationConfig.from_integration_data(data)
     upstream = "test-upstream"
 
@@ -254,6 +258,29 @@ def test_get_location_config_keys_https_with_ca_bundle(patch_nginx_manager: None
     assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
     assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
     assert any("proxy_ssl_server_name" in s and "off" in s for s in key_strings)
+
+
+def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
+    patch_nginx_manager: None, tmp_path
+):
+    """
+    arrange: A LocationConfig with https backends, a CA bundle path, and ssl_verify=false.
+    act: Call _get_location_config_keys with ca_bundle_path set.
+    assert: No proxy_ssl_verify directives added — CA bundle only used when ssl_verify is true.
+    """
+    ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text("cert", encoding="utf-8")
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        "backends": '["https://10.10.1.1:443"]',
+        "healthcheck_ssl_verify": "false",
+    }
+    config = LocationConfig.from_integration_data(data)
+
+    keys = nginx_manager._get_location_config_keys(config, "upstream", ca_bundle_path=ca_bundle)
+
+    key_strings = [k.as_strings for k in keys]
+    assert not any("proxy_ssl" in s for s in key_strings)
 
 
 def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: None):

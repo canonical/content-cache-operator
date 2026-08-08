@@ -543,7 +543,8 @@ def _get_location_config_keys(
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
     ]
 
-    if scheme == "https" and ca_bundle_path is not None:
+    ssl_verify = config.healthcheck_config.ssl_verify
+    if scheme == "https" and ca_bundle_path is not None and ssl_verify:
         keys.extend(
             [
                 nginx.Key("proxy_ssl_trusted_certificate", str(ca_bundle_path)),
