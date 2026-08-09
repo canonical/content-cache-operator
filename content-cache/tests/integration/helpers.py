@@ -125,9 +125,7 @@ class CacheTester:
         if self._config_app.related_applications(CACHE_CONFIG_INTEGRATION_NAME):
             # Do NOT use block_until_done=True — it calls block_until() with no timeout
             # and can hang forever if hook processing stalls.
-            await self._config_app.remove_relation(
-                CACHE_CONFIG_INTEGRATION_NAME, self._app.name
-            )
+            await self._config_app.remove_relation(CACHE_CONFIG_INTEGRATION_NAME, self._app.name)
         if self._config_alt_app.related_applications(CACHE_CONFIG_INTEGRATION_NAME):
             await self._config_alt_app.remove_relation(
                 CACHE_CONFIG_INTEGRATION_NAME, self._app.name
