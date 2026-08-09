@@ -77,6 +77,11 @@ async def test_tls_termination_full_lifecycle(
     config = dict(CacheTester.BASE_CONFIG)
     config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
     await cache_tester.setup_config(config)
+    # Wait for config subordinate hooks to complete and content-cache to be Active
+    # with the HTTP backend before integrating cache-lego for TLS termination.
+    # Without this wait, the TLS cert may arrive before config data is delivered,
+    # leaving the charm blocked on "Waiting for integration with config charm".
+    await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
 
     await model.integrate(
         f"{cache_lego_app.name}:{CACHE_LEGO_CERT_PROVIDER_ENDPOINT_NAME}",
