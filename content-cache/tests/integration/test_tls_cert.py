@@ -43,18 +43,16 @@ async def test_certificate_transfer_full_lifecycle(
         await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
         assert app.units[0].workload_status == "active"
 
-        await app.remove_relation(
-            CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, block_until_done=True
-        )
+        await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name)
         await model.wait_for_idle([app.name], status="waiting", timeout=5 * 60)
         assert "CA certificate" in app.units[0].workload_status_message
     finally:
         # Ensure the cert relation is removed even if the test fails, so the
-        # next test starts with a clean state.
+        # next test starts with a clean state.  Do NOT use block_until_done=True
+        # here: that calls block_until() with no timeout and can hang forever if
+        # the relation removal stalls.
         if app.related_applications(CERTIFICATE_TRANSFER_INTEGRATION_NAME):
-            await app.remove_relation(
-                CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, block_until_done=True
-            )
+            await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name)
 
 
 @pytest.mark.abort_on_fail
@@ -102,9 +100,7 @@ async def test_tls_termination_full_lifecycle(
             ssl_files and ssl_files.strip()
         ), "No nginx site config with 'ssl' directive found after TLS cert issuance"
 
-        await app.remove_relation(
-            CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name, block_until_done=True
-        )
+        await app.remove_relation(CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name)
         await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
         assert app.units[0].workload_status == "active"
 
@@ -114,7 +110,6 @@ async def test_tls_termination_full_lifecycle(
         ), f"Expected http:// backend after cert relation removal, got: {backends_after}"
     finally:
         # Ensure the certificates relation is removed even if the test fails.
+        # Do NOT use block_until_done=True here — it has no timeout and can hang forever.
         if app.related_applications(CERTIFICATES_INTEGRATION_NAME):
-            await app.remove_relation(
-                CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name, block_until_done=True
-            )
+            await app.remove_relation(CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name)

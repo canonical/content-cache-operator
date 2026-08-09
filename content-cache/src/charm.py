@@ -143,19 +143,25 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_certificates_available(self, event: CertificatesAvailableEvent) -> None:
         """Handle certificate-transfer certificates available event."""
-        if not event.certificates:
-            # Provider has joined the relation but not yet written its certificate
-            # data.  Wait for the next event which will carry the actual certs.
+        if event.certificates:
+            try:
+                ca_certs.write_ca_cert(event.relation_id, list(event.certificates))
+            except CACertificateFileError:
+                logger.exception(
+                    "Failed to write CA certificate for relation %s", event.relation_id
+                )
+                self.unit.status = ops.BlockedStatus("Failed to write CA certificate to disk")
+                return
+        else:
+            # Library returned empty certificates — the provider may not have written its
+            # data yet, or the library failed to parse the databag.  Fall through to
+            # _load_nginx_config() which calls _sync_ca_certs_from_relations() and reads
+            # the provider's databag directly, bypassing the library parser.
             logger.debug(
-                "Received empty certificate set for relation %s; skipping", event.relation_id
+                "Empty certificate set from library for relation %s; "
+                "will attempt direct databag read in _load_nginx_config",
+                event.relation_id,
             )
-            return
-        try:
-            ca_certs.write_ca_cert(event.relation_id, list(event.certificates))
-        except CACertificateFileError:
-            logger.exception("Failed to write CA certificate for relation %s", event.relation_id)
-            self.unit.status = ops.BlockedStatus("Failed to write CA certificate to disk")
-            return
         self._load_nginx_config()
 
     def _on_certificates_removed(self, event: CertificatesRemovedEvent) -> None:
