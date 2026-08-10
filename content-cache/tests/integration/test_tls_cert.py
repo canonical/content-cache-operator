@@ -99,7 +99,7 @@ async def test_tls_termination_full_lifecycle(
 
         _, ssl_files, _ = await run_in_unit(
             unit=unit,
-            command="grep -rl ssl /etc/nginx/sites-enabled/ 2>/dev/null || true",
+            command="grep -Rl ssl /etc/nginx/sites-enabled/ 2>/dev/null || true",
         )
         assert (
             ssl_files and ssl_files.strip()
