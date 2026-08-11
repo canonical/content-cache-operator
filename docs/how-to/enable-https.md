@@ -26,7 +26,7 @@ Once the CA certificate is received, the content-cache charm will:
 
 - Write the certificate to `/etc/nginx/certs/ca-bundle.pem`
 - Configure nginx to verify backend certificates against this CA
-- Use `proxy_ssl_verify on` and `proxy_ssl_server_name off` (SNI is disabled in this
+- Use `proxy_ssl_verify on` and `proxy_ssl_server_name off` (SNI — Server Name Indication, a TLS extension that sends the hostname during handshake — is disabled in this
   version)
 
 If HTTPS backends are configured but no CA certificate has been provided, the charm will enter
@@ -58,7 +58,7 @@ juju integrate content-cache:certificates cache-lego:certificates
 
 When the certificate is issued, the charm automatically:
 
-1. Writes the combined cert+key PEM to `/etc/nginx/certs/<unit-ip>.pem`
+1. Writes the combined cert+key PEM (Privacy Enhanced Mail, a base64-encoded certificate format) to `/etc/nginx/certs/<unit-ip>.pem`
 2. Reconfigures nginx to listen with `ssl` on the allocated port
 3. Updates the `cache-backends` relation data to return `https://` URLs
 
