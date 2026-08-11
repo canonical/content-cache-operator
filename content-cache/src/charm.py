@@ -30,7 +30,7 @@ WAIT_FOR_CONFIG_MESSAGE = "Waiting for integration with config charm"
 NGINX_NOT_READY_MESSAGE = "Nginx is not ready"
 RECEIVED_NGINX_CONFIG_MESSAGE = "Received nginx configuration"
 
-NGINX_PORT_RANGE_START = 8080
+NGINX_PORT_RANGE_START = 30000
 NGINX_PORT_RANGE_SIZE = 200
 
 
@@ -48,6 +48,7 @@ class ContentCacheCharm(ops.CharmBase):
         super().__init__(framework)
 
         self._stored.set_default(port_map={})
+        self._stored.set_default(next_port_offset=0)
 
         self._cos_agent = COSAgentProvider(charm=self)
 
@@ -154,6 +155,9 @@ class ContentCacheCharm(ops.CharmBase):
         Port assignments are persisted in StoredState so the same port is returned
         across charm restarts for the same relation.
 
+        New ports are allocated monotonically (like Linux PIDs) to maximise the time
+        interval before a port number is reused after a relation is removed.
+
         Args:
             relation_id: The Juju relation ID.
 
@@ -164,10 +168,13 @@ class ContentCacheCharm(ops.CharmBase):
         port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
         if key not in port_map:
             used_ports = set(port_map.values())
-            for offset in range(NGINX_PORT_RANGE_SIZE):
+            next_offset: int = self._stored.next_port_offset  # type: ignore[assignment]
+            for i in range(NGINX_PORT_RANGE_SIZE):
+                offset = (next_offset + i) % NGINX_PORT_RANGE_SIZE
                 candidate = NGINX_PORT_RANGE_START + offset
                 if candidate not in used_ports:
                     port_map[key] = candidate
+                    self._stored.next_port_offset = (offset + 1) % NGINX_PORT_RANGE_SIZE
                     break
             else:
                 raise RuntimeError(

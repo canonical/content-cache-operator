@@ -7,7 +7,6 @@ import logging
 import os
 import pwd
 import shutil
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from socket import getservbyname
@@ -409,7 +408,7 @@ def _create_virtualhost_config(
             nginx.Key("error_log", _get_error_log_path(identifier, instance_name)),
         )
 
-        upstream = str(uuid.uuid4())
+        upstream = f"backend-{identifier}"
         upstream_keys = _get_upstream_config_keys(configuration)
         upstream_config = nginx.Upstream(upstream, *upstream_keys)
         nginx_config.add(upstream_config)

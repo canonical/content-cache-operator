@@ -52,10 +52,10 @@ juju integrate cache backends
 juju status --watch 5s
 ```
 
-Test the Content Cache with cURL. The charm allocates a unique port per relation starting at 8080, so the first configured backend is reachable on port 8080.
+Test the Content Cache with cURL. The charm allocates a unique port per relation starting at 30000, so the first configured backend is reachable on port 30000.
 
 ```bash
-curl http://<IP of the juju machine>:8080
+curl http://<IP of the juju machine>:30000
 ```
 
 Right now `https://185.125.90.20` is responding with the following content:

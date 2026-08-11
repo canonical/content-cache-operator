@@ -52,11 +52,11 @@ example shows the directives relevant to caching:
 
 ```nginx
 server {
-    listen 8080;
-    proxy_cache 8080;
+    listen 30000;
+    proxy_cache 30000;
 
     location / {
-        proxy_pass https://<upstream-uuid>/;
+        proxy_pass https://backend-30000/;
         proxy_cache_valid 200 302 1h;
         proxy_cache_valid 404 1m;
     }
@@ -69,15 +69,20 @@ directive (set at the server block level) ties this location to its dedicated ca
 ## Port allocation
 
 The charm allocates a unique TCP port to each `cache-config` relation. Ports are assigned
-from a fixed range starting at `8080` and are stable across charm restarts. The same
+from a fixed range starting at `30000` and are stable across charm restarts. The same
 relation always receives the same port for the lifetime of that relation, stored via Juju's
 `StoredState`.
+
+Ports are allocated monotonically — like Linux PIDs — so that when a relation is removed
+and a new one is added, the new relation receives the next port in sequence rather than
+immediately reusing the freed port. This maximises the time before a port number is reused,
+reducing the risk of ingress routing conflicts during rapid relation cycling.
 
 This means each configured backend is reachable at a distinct port on the content-cache
 unit's IP address:
 
-- `http://<unit-ip>:8080` contains the backends for the first `cache-config` relation
-- `http://<unit-ip>:8081` contains the backends for the second `cache-config` relation
+- `http://<unit-ip>:30000` contains the backends for the first `cache-config` relation
+- `http://<unit-ip>:30001` contains the backends for the second `cache-config` relation
 
 An ingress component (such as `haproxy` with the `ingress-configurator` charm) is expected
 to sit in front of the content-cache unit and route incoming requests to the appropriate
@@ -100,10 +105,10 @@ allocates a fixed 10 MB keys zone per relation via the
 directive:
 
 ```nginx
-proxy_cache_path /data/nginx/cache/8080
+proxy_cache_path /data/nginx/cache/30000
     use_temp_path=off
     levels=1:2
-    keys_zone=8080:10m;
+    keys_zone=30000:10m;
 ```
 
 The 10 MB limit is fixed in the charm and cannot be changed via configuration. For most static
