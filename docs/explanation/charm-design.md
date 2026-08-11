@@ -76,10 +76,8 @@ relation always receives the same port for the lifetime of that relation, stored
 This means each configured backend is reachable at a distinct port on the content-cache
 unit's IP address:
 
-```
-http://<unit-ip>:8080   →  backends from relation 1
-http://<unit-ip>:8081   →  backends from relation 2
-```
+- `http://<unit-ip>:8080` contains the backends for the first `cache-config` relation
+- `http://<unit-ip>:8081` contains the backends for the second `cache-config` relation
 
 An ingress component (such as `haproxy` with the `ingress-configurator` charm) is expected
 to sit in front of the content-cache unit and route incoming requests to the appropriate

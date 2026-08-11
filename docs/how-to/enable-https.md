@@ -14,7 +14,7 @@ When `protocol=https`, nginx connects to the backend IP addresses over TLS on po
 ## Skip SSL certificate verification
 
 If the backends use self-signed certificates, you must disable SSL verification for the
-healthcheck probes, otherwise all backends will be marked as down:
+healthcheck probes, or all backends will be marked as down. To disable SSL verification, run:
 
 ```bash
 juju config backends healthcheck-ssl-verify=false
