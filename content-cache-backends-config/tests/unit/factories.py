@@ -10,14 +10,11 @@ import factory
 
 from src.state import (
     BACKENDS_CONFIG_NAME,
-    BACKENDS_PATH_CONFIG_NAME,
     FAIL_TIMEOUT_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
     HEALTHCHECK_SSL_VERIFY_CONFIG_NAME,
     HEALTHCHECK_VALID_STATUS_CONFIG_NAME,
-    HOSTNAME_CONFIG_NAME,
-    PATH_CONFIG_NAME,
     PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
 )
@@ -53,12 +50,9 @@ class MockCharmFactory(factory.Factory):
     unit = MockUnitFactory
     config = factory.Dict(
         {
-            HOSTNAME_CONFIG_NAME: "example.com",
-            PATH_CONFIG_NAME: "/",
             BACKENDS_CONFIG_NAME: "10.10.1.1, 10.10.2.2",
             PROTOCOL_CONFIG_NAME: "https",
             FAIL_TIMEOUT_CONFIG_NAME: "30s",
-            BACKENDS_PATH_CONFIG_NAME: "/",
             HEALTHCHECK_INTERVAL_CONFIG_NAME: 2123,
             HEALTHCHECK_PATH_CONFIG_NAME: "/healthz",
             HEALTHCHECK_SSL_VERIFY_CONFIG_NAME: False,

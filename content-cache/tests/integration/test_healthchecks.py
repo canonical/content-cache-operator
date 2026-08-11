@@ -14,12 +14,10 @@ from juju.model import Model
 from nginx_manager import NGINX_BACKENDS_STATUS_URL_PATH
 from tests.integration.helpers import (
     BACKENDS_CONFIG_NAME,
-    BACKENDS_PATH_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
     HEALTHCHECK_SSL_VERIFY_CONFIG_NAME,
     HEALTHCHECK_VALID_STATUS_CONFIG_NAME,
-    HOSTNAME_CONFIG_NAME,
     PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     CacheTester,
@@ -59,7 +57,6 @@ async def test_healthchecks_healthy(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_message: str,
     http_ok_ips: List[str],
     model: Model,
@@ -69,11 +66,8 @@ async def test_healthchecks_healthy(
     act: Nothing.
     assert: HTTP request should succeed and two backends are reported up in the status page.
     """
-    hostname = "test.healthchecks.local"
     config = dict(CacheTester.BASE_CONFIG)
-    config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = ",".join(http_ok_ips)
-    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
@@ -84,7 +78,7 @@ async def test_healthchecks_healthy(
     await cache_tester.integrate_config()
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
-    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    response = await cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
@@ -111,7 +105,6 @@ async def test_healthchecks_one_unhealthy(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_message: str,
     http_ok_ips: List[str],
     model: Model,
@@ -121,8 +114,6 @@ async def test_healthchecks_one_unhealthy(
     act: Turn one backend unhealty.
     assert: HTTP request should succeed. One backend is reported UP. One backend is reported DOWN.
     """
-    hostname = "test.healthchecks.local"
-
     requests.get(f"http://{http_ok_ips[0]}/turn-unhealthy")
     await asyncio.sleep(4 * HEALTHCHECK_INTERVAL / 1000)
 
@@ -130,7 +121,7 @@ async def test_healthchecks_one_unhealthy(
     assert f"{http_ok_ips[0]}:80 DOWN" in status
     assert f"{http_ok_ips[1]}:80 UP" in status
 
-    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    response = await cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
@@ -143,7 +134,6 @@ async def test_healthchecks_one_recovery(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_message: str,
     http_ok_ips: List[str],
     model: Model,
@@ -153,8 +143,6 @@ async def test_healthchecks_one_recovery(
     act: Bring back the faulty backend to an healthy state.
     assert: HTTP request should succeed. Two backends are reported up.
     """
-    hostname = "test.healthchecks.local"
-
     requests.get(f"http://{http_ok_ips[0]}/turn-healthy")
     await asyncio.sleep(3 * HEALTHCHECK_INTERVAL / 1000)
 
@@ -162,7 +150,7 @@ async def test_healthchecks_one_recovery(
     assert f"{http_ok_ips[0]}:80 UP" in status
     assert f"{http_ok_ips[1]}:80 UP" in status
 
-    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    response = await cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
 
@@ -173,7 +161,6 @@ async def test_healthchecks_all_unhealthy(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_message: str,
     http_ok_ips: List[str],
     model: Model,
@@ -183,8 +170,6 @@ async def test_healthchecks_all_unhealthy(
     act: Turn both backends unhealth.
     assert: HTTP request should fail with 502. Both backends are reported DOWN.
     """
-    hostname = "test.healthchecks.local"
-
     requests.get(f"http://{http_ok_ips[0]}/turn-unhealthy")
     requests.get(f"http://{http_ok_ips[1]}/turn-unhealthy")
     await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
@@ -193,7 +178,7 @@ async def test_healthchecks_all_unhealthy(
     assert f"{http_ok_ips[0]}:80 DOWN" in status
     assert f"{http_ok_ips[1]}:80 DOWN" in status
 
-    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    response = await cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == 502
 
 
@@ -210,7 +195,6 @@ async def test_healthchecks_custom_status(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_message: str,
     http_ok_ip: str,
     valid_status: str,
@@ -222,11 +206,8 @@ async def test_healthchecks_custom_status(
     act: Nothing.
     assert: HTTP request should fail as 200 is not a valid status here.
     """
-    hostname = "test.healthchecks.local"
     config = dict(CacheTester.BASE_CONFIG)
-    config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = http_ok_ip
-    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/teapot"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
@@ -239,7 +220,7 @@ async def test_healthchecks_custom_status(
 
     await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
-    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    response = await cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == expected_http_code
 
     if expected_http_code == 200:
@@ -259,7 +240,6 @@ async def test_healthchecks_ssl_verify(
     app: Application,
     config_app: Application,
     cache_tester: CacheTester,
-    http_ok_path: str,
     http_ok_message: str,
     https_ok_app: Application,
     ssl_verify: str,
@@ -273,11 +253,8 @@ async def test_healthchecks_ssl_verify(
     """
     https_ok_ip = await get_app_ip(https_ok_app)
 
-    hostname = "test.healthchecks.local"
     config = dict(CacheTester.BASE_CONFIG)
-    config[HOSTNAME_CONFIG_NAME] = hostname
     config[BACKENDS_CONFIG_NAME] = https_ok_ip
-    config[BACKENDS_PATH_CONFIG_NAME] = http_ok_path
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = ssl_verify
@@ -290,7 +267,7 @@ async def test_healthchecks_ssl_verify(
 
     await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
-    response = await cache_tester.query_cache(path="/", hostname=hostname, protocol="http")
+    response = await cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == expected_http_code
 
     if expected_http_code == 200:

@@ -6,15 +6,6 @@
 # See https://juju.is/docs/config for guidance.
 
 options:
-  hostname:
-    description: |
-      The hostname for the virtual host for this set of backends.
-    type: string
-  path:
-    description: |
-      The location to serve with this set of backends. Does not support regex.
-    type: string
-    default: /
   backends:
     description: |
       A comma-separated list of IPs. If multiple IPs are provided, the access to the backends will 
@@ -32,11 +23,6 @@ options:
       by s for seconds, m for minutes, or h for hours.
     type: string
     default: 30s
-  backends-path:
-    description: |
-      The path part of the URL to query the backends.
-    type: string
-    default: /
   healthcheck-interval:
     description: |
       The time between two health checks (in milliseconds)
