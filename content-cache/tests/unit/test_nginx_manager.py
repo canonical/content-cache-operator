@@ -240,7 +240,8 @@ def test_get_location_config_keys_https_with_ca_bundle(patch_nginx_manager: None
     """
     arrange: A LocationConfig with https backends, a CA bundle path, and ssl_verify=true.
     act: Call _get_location_config_keys with ca_bundle_path set.
-    assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, proxy_ssl_server_name off present.
+    assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, proxy_ssl_name, and
+        proxy_ssl_server_name off present.
     """
     ca_bundle = tmp_path / "ca-bundle.pem"
     ca_bundle.write_text("cert", encoding="utf-8")
@@ -257,6 +258,7 @@ def test_get_location_config_keys_https_with_ca_bundle(patch_nginx_manager: None
     key_strings = [k.as_strings for k in keys]
     assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
     assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
+    assert any("proxy_ssl_name" in s and "10.10.1.1" in s for s in key_strings)
     assert any("proxy_ssl_server_name" in s and "off" in s for s in key_strings)
 
 
@@ -266,7 +268,7 @@ def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
     """
     arrange: A LocationConfig with https backends, a CA bundle path, and ssl_verify=false.
     act: Call _get_location_config_keys with ca_bundle_path set.
-    assert: No proxy_ssl_verify directives added — CA bundle only used when ssl_verify is true.
+    assert: proxy_ssl directives are present — healthcheck ssl_verify does not affect proxy SSL.
     """
     ca_bundle = tmp_path / "ca-bundle.pem"
     ca_bundle.write_text("cert", encoding="utf-8")
@@ -280,7 +282,9 @@ def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
     keys = nginx_manager._get_location_config_keys(config, "upstream", ca_bundle_path=ca_bundle)
 
     key_strings = [k.as_strings for k in keys]
-    assert not any("proxy_ssl" in s for s in key_strings)
+    assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
+    assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
+    assert any("proxy_ssl_server_name" in s and "off" in s for s in key_strings)
 
 
 def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: None):

@@ -228,10 +228,17 @@ async def test_healthchecks_custom_status(
 
 
 @pytest.mark.parametrize(
-    ["ssl_verify", "expected_http_code"],
+    ["use_cert_ok_app", "ssl_verify", "expected_http_code"],
     [
-        pytest.param("false", 200, id="no_ssl_verify"),
-        pytest.param("true", 502, id="ssl_verify"),
+        # ssl_verify=false: backend cert IS signed by cert_app's CA.
+        # Proxy SSL verification passes (cert trusted by CA bundle) and the health check
+        # skips SSL verification (ssl_verify=false) so the backend is marked healthy → 200.
+        pytest.param(True, "false", 200, id="no_ssl_verify"),
+        # ssl_verify=true: backend cert is NOT signed by cert_app's CA (hardcoded
+        # self-signed cert from https_ok_app). The Lua health checker uses the system cert
+        # store; cert_app's CA is not installed there, so the health check marks the backend
+        # as unhealthy → 502 Bad Gateway.
+        pytest.param(False, "true", 502, id="ssl_verify"),
     ],
 )
 @pytest.mark.abort_on_fail
@@ -243,19 +250,26 @@ async def test_healthchecks_ssl_verify(
     cache_tester: CacheTester,
     http_ok_message: str,
     https_ok_app: Application,
+    https_cert_ok_app: Application,
+    use_cert_ok_app: bool,
     ssl_verify: str,
     expected_http_code: int,
     model: Model,
 ) -> None:
     """
-    arrange: One backend responding 418 on its healthcheck. And valid status to match it or not.
-    act: Nothing.
-    assert: HTTP request should fail as 200 is not a valid status here.
+    arrange: An HTTPS backend — either cert_app-signed (use_cert_ok_app=True) or
+        hardcoded self-signed (use_cert_ok_app=False) — with cert_app's CA provided to
+        content-cache via receive-ca-cert.
+    act: Configure healthcheck-ssl-verify and send a request.
+    assert: ssl_verify=false with a trusted backend cert returns 200 (proxy SSL passes,
+        healthcheck skips SSL).  ssl_verify=true with an untrusted backend cert returns 502
+        (Lua health checker marks the backend as unhealthy).
     """
-    https_ok_ip = await get_app_ip(https_ok_app)
+    backend_app = https_cert_ok_app if use_cert_ok_app else https_ok_app
+    backend_ip = await get_app_ip(backend_app)
 
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = f"https://{https_ok_ip}:443"
+    config[BACKENDS_CONFIG_NAME] = f"https://{backend_ip}:443"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = ssl_verify

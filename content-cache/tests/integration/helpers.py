@@ -243,6 +243,182 @@ async def deploy_http_app(
     return app
 
 
+async def deploy_self_cert_https_app(
+    app_name: str, path: str, status: int, message: str, model: Model
+) -> Application:
+    """Deploy an HTTPS test app that gets its cert signed by a tls-certificates CA.
+
+    The app generates a private key and CSR with its own IP as a Subject Alternative Name,
+    writes the CSR to the ``require-tls-certificates`` relation, and starts the HTTPS server
+    once the signed cert arrives.
+
+    After deploying, integrate ``<app_name>:require-tls-certificates`` with the CA charm's
+    ``certificates`` endpoint and wait for the app to become active.
+
+    Args:
+        app_name: The application name for the any-charm deployment.
+        path: URL path that the server will respond to.
+        status: HTTP status code the server returns on ``path``.
+        message: Response body the server returns on ``path``.
+        model: The libjuju Model to deploy into.
+
+    Returns:
+        The deployed Juju Application.
+    """
+    test_server_content = TEST_SERVER_PATH.read_text()
+
+    # The inner any-charm code.  Values of path/status/message are baked in by
+    # the outer f-string at deploy time; other {{}}/{{var}} escapes produce
+    # single-brace expressions that are evaluated inside the charm at runtime.
+    any_charm_content = textwrap.dedent(f'''\
+    import json
+    import logging
+    import os
+    import socket
+    import subprocess
+    from pathlib import Path
+
+    import ops
+    from any_charm_base import AnyCharmBase
+
+    logger = logging.getLogger(__name__)
+
+    SERVICE_NAME = "test-https-cert"
+    SERVICE_PATH = Path("/etc/systemd/system/" + SERVICE_NAME + ".service")
+    CERT_DIR = Path("/etc/test-certs")
+    SERVER_PEM = CERT_DIR / "server.pem"
+    KEY_PATH = CERT_DIR / "server.key"
+    CSR_PATH = CERT_DIR / "server.csr"
+    SAN_CONF = CERT_DIR / "san.cnf"
+
+
+    def _get_own_ip() -> str:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("10.255.255.255", 1))
+            return s.getsockname()[0]
+        finally:
+            s.close()
+
+
+    def _ensure_key_and_csr() -> str:
+        """Generate key + CSR for this unit's IP if not already present; return IP."""
+        ip = _get_own_ip()
+        if KEY_PATH.exists() and CSR_PATH.exists():
+            return ip
+        CERT_DIR.mkdir(parents=True, exist_ok=True)
+        SAN_CONF.write_text(
+            "[req]\\n"
+            "req_extensions = v3_req\\n"
+            "distinguished_name = req_dn\\n"
+            "[req_dn]\\n"
+            "[v3_req]\\n"
+            "subjectAltName = IP:" + ip + "\\n"
+        )
+        subprocess.run(
+            ["openssl", "genrsa", "-out", str(KEY_PATH), "2048"],
+            check=True, capture_output=True,
+        )
+        subprocess.run(
+            [
+                "openssl", "req", "-new",
+                "-key", str(KEY_PATH),
+                "-out", str(CSR_PATH),
+                "-subj", "/CN=" + ip,
+                "-config", str(SAN_CONF),
+            ],
+            check=True, capture_output=True,
+        )
+        logger.info("Generated key and CSR for IP %s", ip)
+        return ip
+
+
+    class AnyCharm(AnyCharmBase):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.framework.observe(self.on.install, self._on_install)
+            self.framework.observe(
+                self.on["require-tls-certificates"].relation_joined,
+                self._submit_csr,
+            )
+            self.framework.observe(
+                self.on["require-tls-certificates"].relation_changed,
+                self._on_cert_relation_changed,
+            )
+
+        def _on_install(self, event):
+            _ensure_key_and_csr()
+            self.unit.status = ops.WaitingStatus("Waiting for TLS certificate")
+
+        def _submit_csr(self, event):
+            """Write CSR to the tls-certificates relation unit data (v4 unit-mode)."""
+            _ensure_key_and_csr()
+            csr_pem = CSR_PATH.read_text()
+            event.relation.data[self.unit]["certificate_signing_requests"] = json.dumps(
+                [{{"certificate_signing_request": csr_pem, "ca": False}}]
+            )
+
+        def _on_cert_relation_changed(self, event):
+            """Read signed cert from provider and start the HTTPS server."""
+            if not CSR_PATH.exists():
+                return
+            csr_pem = CSR_PATH.read_text().strip()
+            for provider_unit in event.relation.units:
+                raw = event.relation.data[provider_unit].get("certificates")
+                if not raw:
+                    continue
+                for entry in json.loads(raw):
+                    if entry.get("certificate_signing_request", "").strip() == csr_pem:
+                        self._start_server(entry["certificate"])
+                        self.unit.status = ops.ActiveStatus()
+                        return
+
+        def _start_server(self, cert_pem: str):
+            """Write cert+key PEM and restart the systemd HTTPS service."""
+            SERVER_PEM.write_text(cert_pem + KEY_PATH.read_text())
+            test_server = Path(os.getcwd()) / "src" / "test_server.py"
+            SERVICE_PATH.write_text(
+                "[Unit]\\n"
+                "Description=Test HTTPS server (CA-issued cert)\\n"
+                "After=network.target\\n"
+                "\\n"
+                "[Service]\\n"
+                "Type=simple\\n"
+                "User=root\\n"
+                "ExecStart=/usr/bin/env python3 " + str(test_server)
+                + " --path {path} --status {status} --message {message}"
+                  " --port 443 --https --cert " + str(SERVER_PEM) + "\\n"
+                "Restart=on-failure\\n"
+                "\\n"
+                "[Install]\\n"
+                "WantedBy=multi-user.target\\n"
+            )
+            subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
+            subprocess.run(["systemctl", "enable", SERVICE_NAME], capture_output=True)
+            subprocess.run(["systemctl", "restart", SERVICE_NAME], capture_output=True)
+    ''')
+
+    src_overwrite = {
+        "test_server.py": test_server_content,
+        "any_charm.py": any_charm_content,
+    }
+
+    app: Application
+    if app_name in model.applications:
+        logging.info("Found existing %s application. Reconfiguring it.", app_name)
+        app = model.applications[app_name]
+        await app.set_config({"src-overwrite": json.dumps(src_overwrite)})
+    else:
+        app = await model.deploy(
+            "any-charm",
+            application_name=app_name,
+            channel="beta",
+            config={"src-overwrite": json.dumps(src_overwrite)},
+        )
+
+    return app
+
+
 async def get_app_ip(app: Application) -> str:
     """Get the IP for a unit of the application.
 

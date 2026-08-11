@@ -26,7 +26,7 @@ Once the CA certificate is received, the content-cache charm will:
 
 - Write the certificate to `/etc/nginx/certs/ca-bundle.pem`
 - Configure nginx to verify backend certificates against this CA
-- Use `proxy_ssl_verify on` and `proxy_ssl_server_name off` (SNI — Server Name Indication, a TLS extension that sends the hostname during handshake — is disabled in this
+- Use `proxy_ssl_verify on`, `proxy_ssl_name <backend-hostname>`, and `proxy_ssl_server_name off` (SNI — Server Name Indication, a TLS extension that sends the hostname during handshake — is disabled in this
   version)
 
 If HTTPS backends are configured but no CA certificate has been provided, the charm will enter
@@ -38,7 +38,10 @@ into a single bundle.
 ## Skip SSL certificate verification for health checks
 
 If the backends use self-signed certificates, you must disable SSL verification for the
-healthcheck probes, or all backends will be marked as down. To disable SSL verification, run:
+healthcheck probes, or all backends will be marked as down. This setting only affects the
+background Lua health checker — proxy traffic always verifies the backend certificate using
+the CA bundle provided via `receive-ca-cert`. To disable SSL verification for health checks,
+run:
 
 ```bash
 juju config backends healthcheck-ssl-verify=false

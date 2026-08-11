@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def write_certificates(
-    common_names: Sequence[str],
+    requests: Sequence[CertificateRequestAttributes],
     username: str,
     certificates_path: Path,
     certificates: TLSCertificatesRequiresV4,
@@ -34,7 +34,7 @@ def write_certificates(
     """Write the certificates available to file.
 
     Args:
-        common_names: The common name of the certificates to check if available and store.
+        requests: The certificate request attributes to look up and store.
         username: The name of the user to own the certificate file.
         certificates_path: The directory to store the certificates.
         certificates: The TLSCertificateRequiresV4 object.
@@ -55,7 +55,7 @@ def write_certificates(
     logger.info("Loading the certificate available over tls-certificates integration")
 
     common_name_to_cert = {}
-    for request in (CertificateRequestAttributes(common_name=name) for name in common_names):
+    for request in requests:
         provider_certificate, private_key = certificates.get_assigned_certificate(request)
         if not provider_certificate or not private_key:
             logger.warning("Certificate or private key not found for %s", request.common_name)
@@ -101,7 +101,7 @@ def _store_certificate(  # pragma: no cover
         os.chown(certificates_path, uid=user.pw_uid, gid=user.pw_gid)
         pem_file_path.write_text(pem_file_content, encoding="utf-8")
         os.chown(pem_file_path, uid=user.pw_uid, gid=user.pw_gid)
-        os.chmod(pem_file_path, 0o644)
+        os.chmod(pem_file_path, 0o600)
     except (PermissionError, OSError, IOError) as err:
         logger.exception("Failed to write the certificate to file for %s", common_name)
         raise TLSCertificateFileError(

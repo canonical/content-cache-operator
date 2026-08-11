@@ -67,8 +67,9 @@ use self-signed certificates on a trusted private network.
 
 **Proxied requests** — when the `receive-ca-cert` relation provides a CA certificate, the charm
 configures nginx with
-[`proxy_ssl_verify on`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify)
-and `proxy_ssl_trusted_certificate` pointing to the received CA bundle. nginx will then verify
+[`proxy_ssl_verify on`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify),
+`proxy_ssl_name` set to the backend's hostname for correct certificate verification, and
+`proxy_ssl_trusted_certificate` pointing to the received CA bundle. nginx will then verify
 the backend TLS certificate against that CA. If HTTPS backends are configured but no
 `receive-ca-cert` relation is present, the charm enters `WaitingStatus` and nginx is not
 reconfigured. Traffic is paused until a CA certificate is supplied.
@@ -128,7 +129,7 @@ accidentally cached, operators must wait for natural expiry.
 |---|---|
 | Incoming TLS | Handle at the ingress layer (e.g. `haproxy` with `ingress-configurator`) |
 | Backend protocol | Use HTTPS backend URLs with the `receive-ca-cert` relation for verified connections |
-| Backend SSL verification | Integrate `receive-ca-cert` to enable `proxy_ssl_verify on`; use `healthcheck-ssl-verify=true` |
+| Backend SSL verification | Integrate `receive-ca-cert` to enable `proxy_ssl_verify on` with correct hostname verification |
 | Access control | Place an authenticating reverse proxy or WAF in front if the content is not fully public |
 | Rate limiting | Add rate limiting at a component placed in front of the charm (load balancer, reverse proxy, or WAF) if abuse protection is needed |
 | Cached content | Only route public, non-personalized content through the charm |

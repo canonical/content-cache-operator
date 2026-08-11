@@ -14,7 +14,12 @@ from juju.application import Application
 from juju.model import Model
 from pytest_operator.plugin import OpsTest
 
-from tests.integration.helpers import CacheTester, deploy_http_app, get_app_ip
+from tests.integration.helpers import (
+    CacheTester,
+    deploy_http_app,
+    deploy_self_cert_https_app,
+    get_app_ip,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -241,6 +246,33 @@ async def https_ok_app_fixture(
         message=http_ok_message,
         model=model,
         https=True,
+    )
+    await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
+
+    yield app
+
+
+@pytest_asyncio.fixture(name="https_cert_ok_app", scope="module")
+async def https_cert_ok_app_fixture(
+    model: Model, http_ok_message: str, cert_app: Application
+) -> AsyncIterator[Application]:
+    """HTTPS test app that gets its cert signed by cert_app's CA.
+
+    The backend cert is trusted by the cert_app CA bundle, so proxy_ssl_verify
+    will pass when content-cache receives the CA via receive-ca-cert.  The Lua
+    health checker uses the system cert store, so ssl_verify=true still fails for
+    self-signed CAs that are not installed system-wide.
+    """
+    app = await deploy_self_cert_https_app(
+        app_name="https-cert-ok",
+        path="/",
+        status=200,
+        message=http_ok_message,
+        model=model,
+    )
+    await model.integrate(
+        f"{app.name}:require-tls-certificates",
+        f"{cert_app.name}:certificates",
     )
     await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
 
