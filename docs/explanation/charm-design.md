@@ -73,7 +73,7 @@ from a fixed range starting at `30000` and are stable across charm restarts. The
 relation always receives the same port for the lifetime of that relation, stored via Juju's
 `StoredState`.
 
-Ports are allocated monotonically — like Linux PIDs — so that when a relation is removed
+Ports are allocated monotonically, so that when a relation is removed
 and a new one is added, the new relation receives the next port in sequence rather than
 immediately reusing the freed port. This maximises the time before a port number is reused,
 reducing the risk of ingress routing conflicts during rapid relation cycling.
