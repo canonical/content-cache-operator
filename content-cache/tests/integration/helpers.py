@@ -375,7 +375,7 @@ async def deploy_self_cert_https_app(
 
         def _start_server(self, cert_pem: str):
             """Write cert+key PEM and restart the systemd HTTPS service."""
-            SERVER_PEM.write_text(cert_pem + KEY_PATH.read_text())
+            SERVER_PEM.write_text(cert_pem.strip() + "\\n" + KEY_PATH.read_text())
             test_server = Path(os.getcwd()) / "src" / "test_server.py"
             SERVICE_PATH.write_text(
                 "[Unit]\\n"

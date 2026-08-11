@@ -68,7 +68,7 @@ use self-signed certificates on a trusted private network.
 **Proxied requests** — when the `receive-ca-cert` relation provides a CA certificate, the charm
 configures nginx with
 [`proxy_ssl_verify on`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify),
-`proxy_ssl_name` set to the backend's hostname for correct certificate verification, and
+`proxy_ssl_name` set to the backend hostname for correct certificate verification, and
 `proxy_ssl_trusted_certificate` pointing to the received CA bundle. nginx will then verify
 the backend TLS certificate against that CA. If HTTPS backends are configured but no
 `receive-ca-cert` relation is present, the charm enters `WaitingStatus` and nginx is not
