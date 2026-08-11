@@ -209,7 +209,7 @@ nginx does not serve stale content beyond its TTL by default.
 Backends are specified as full URLs in the form `<http|https>://<ip>:<port>`.
 The protocol and port are encoded directly in each backend URL.
 
-For example, to proxy to an HTTPS backend:
+For example, proxy to an HTTPS backend using:
 
 ```bash
 juju config backends backends=https://185.125.90.20:443
