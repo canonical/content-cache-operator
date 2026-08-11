@@ -272,4 +272,4 @@ async def test_cache_backends_published(
 
     assert len(backends) == 1
     assert backends[0].startswith("http://")
-    assert ":8080" in backends[0] or ":8081" in backends[0]
+    assert ":30000" in backends[0] or ":30001" in backends[0]
