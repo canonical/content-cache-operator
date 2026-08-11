@@ -254,3 +254,5 @@ If HTTPS backends are configured but no CA certificate has been received, the ch
 and the charm returns to `WaitingStatus` until a new CA is provided.
 
 The `receive-ca-cert` relation does not affect HTTP backends.
+If all your backends are HTTP, the charm will ignore
+`receive-ca-cert` and nginx will serve traffic as normal.
