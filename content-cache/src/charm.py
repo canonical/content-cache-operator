@@ -85,6 +85,8 @@ class ContentCacheCharm(ops.CharmBase):
         """Handle config relation broken event."""
         port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
         port_map.pop(str(event.relation.id), None)
+        if not port_map:
+            self._stored.next_port_offset = 0
         self.unit.set_ports(*port_map.values())
         self._load_nginx_config()
 
