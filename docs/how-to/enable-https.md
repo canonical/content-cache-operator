@@ -13,7 +13,7 @@ juju config content-cache-backends-config backends=https://10.10.1.1:443
 When the URL scheme is `https`, nginx connects to the backend over TLS on the specified port
 (which is `443` in the example above).
 
-## Provide a CA certificate via certificate_transfer
+## Provide a CA certificate
 
 To verify the backend TLS certificate, integrate a certificate provider charm (such as
 `self-signed-certificates` or `lego`) using the `receive-ca-cert` endpoint:
@@ -29,7 +29,7 @@ Once the CA certificate is received, the content-cache charm will:
 - Use `proxy_ssl_verify on` and `proxy_ssl_server_name off` (SNI is disabled in this
   version)
 
-If HTTPS backends are configured but no CA certificate has been provided, the charm enters
+If HTTPS backends are configured but no CA certificate has been provided, the charm will enter
 `WaitingStatus` until the `receive-ca-cert` relation is established.
 
 Multiple `receive-ca-cert` providers are supported; all provided CA certificates are merged
@@ -60,7 +60,7 @@ When the certificate is issued, the charm automatically:
 
 1. Writes the combined cert+key PEM to `/etc/nginx/certs/<unit-ip>.pem`
 2. Reconfigures nginx to listen with `ssl` on the allocated port
-3. Updates `cache-backends` to return `https://` URLs
+3. Updates the `cache-backends` relation data to return `https://` URLs
 
 HAProxy must trust this certificate. Integrate HAProxy with `cache-lego` using the
 `certificate_transfer` interface:
@@ -70,5 +70,5 @@ juju integrate cache-lego:send-ca-cert haproxy:receive-ca-cert
 ```
 
 If the `certificates` relation is present but the certificate has not yet been issued,
-the charm enters `WaitingStatus`. If the relation is removed, the charm deletes the
-cert file and reverts nginx to HTTP automatically.
+the charm enters `WaitingStatus`. If the relation is removed, the charm automatically deletes the
+cert file and reverts nginx to HTTP.
