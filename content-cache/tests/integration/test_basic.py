@@ -203,8 +203,8 @@ async def test_charm_with_two_config_app(
         [app.name, config_app.name, config_alt_app.name], status="active", timeout=10 * 60
     )
 
-    response = await cache_tester.query_cache(path="/", port=8080)
-    response_alt = await cache_tester.query_cache(path="/", port=8081)
+    response = await cache_tester.query_cache(path="/", port=30000)
+    response_alt = await cache_tester.query_cache(path="/", port=30001)
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
     assert response_alt.status_code == 200

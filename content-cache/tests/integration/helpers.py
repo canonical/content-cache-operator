@@ -97,7 +97,7 @@ class CacheTester:
         await self._config_alt_app.set_config(configuration)
 
     async def query_cache(
-        self, path: str, port: int = 8080, protocol: str = "http"
+        self, path: str, port: int = 30000, protocol: str = "http"
     ) -> requests.Response:
         """Test the content cache with a request.
 

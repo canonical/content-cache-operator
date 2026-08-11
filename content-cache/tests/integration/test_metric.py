@@ -61,7 +61,7 @@ async def test_metric_log(
     assert response.status_code == 200
 
     content = await read_file(
-        unit, nginx_manager._get_cache_log_path("8080", unit_name_to_instance_name(unit.name))
+        unit, nginx_manager._get_cache_log_path("30000", unit_name_to_instance_name(unit.name))
     )
     assert content
     lines = content.split("\n")
