@@ -363,15 +363,15 @@ async def deploy_self_cert_https_app(
             if not CSR_PATH.exists():
                 return
             csr_pem = CSR_PATH.read_text().strip()
-            for provider_unit in event.relation.units:
-                raw = event.relation.data[provider_unit].get("certificates")
-                if not raw:
-                    continue
-                for entry in json.loads(raw):
-                    if entry.get("certificate_signing_request", "").strip() == csr_pem:
-                        self._start_server(entry["certificate"])
-                        self.unit.status = ops.ActiveStatus()
-                        return
+            # Certs are in the PROVIDER APP databag (tls-certificates v4), not unit databag.
+            raw = event.relation.data[event.relation.app].get("certificates")
+            if not raw:
+                return
+            for entry in json.loads(raw):
+                if entry.get("certificate_signing_request", "").strip() == csr_pem:
+                    self._start_server(entry["certificate"])
+                    self.unit.status = ops.ActiveStatus()
+                    return
 
         def _start_server(self, cert_pem: str):
             """Write cert+key PEM and restart the systemd HTTPS service."""
