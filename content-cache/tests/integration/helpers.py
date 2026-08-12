@@ -346,6 +346,10 @@ async def deploy_self_cert_https_app(
                 self._on_cert_relation_changed,
             )
 
+        def _on_start_(self, event):
+            """Override AnyCharmBase to keep WaitingStatus until cert arrives."""
+            self.unit.status = ops.WaitingStatus("Waiting for TLS certificate")
+
         def _on_install(self, event):
             _ensure_key_and_csr()
             self.unit.status = ops.WaitingStatus("Waiting for TLS certificate")
