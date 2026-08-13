@@ -276,16 +276,14 @@ def test_port_stable_for_same_relation(harness: Harness, charm: ContentCacheChar
     assert port_first == port_second
 
 
-def test_load_nginx_config_writes_cache_backends(
+def test_load_nginx_config_writes_cache_backend(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):
     """
-    arrange: A working charm with get_cache_backends_urls mocked in the fixture.
+    arrange: A working charm with get_cache_backend_url mocked in the fixture.
     act: Add a cache-config relation with valid data.
-    assert: cache-backends is written to unit relation data with the expected URL.
+    assert: cache-backend is written to unit relation data with the expected URL.
     """
-    import json
-
     relation_id = harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
@@ -294,11 +292,8 @@ def test_load_nginx_config_writes_cache_backends(
 
     assert charm.unit.status == ops.ActiveStatus()
     rel_data = harness.get_relation_data(relation_id, charm.unit.name)
-    cache_backends = rel_data.get("cache-backends", "")
-    assert cache_backends != ""
-    urls = json.loads(cache_backends)
-    assert len(urls) == 1
-    assert urls[0] == "http://10.0.0.1:8080"
+    cache_backend = rel_data.get("cache-backend", "")
+    assert cache_backend == "http://10.0.0.1:8080"
 
 
 def test_relation_broken_clears_cache_backends(
@@ -322,13 +317,13 @@ def test_relation_broken_clears_cache_backends(
     assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
 
 
-def test_cache_backends_cleared_when_config_fails(
+def test_cache_backend_cleared_when_config_fails(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):
     """
-    arrange: A charm with an active relation that has cache-backends written.
+    arrange: A charm with an active relation that has cache-backend written.
     act: Simulate a config validation failure by clearing the relation data.
-    assert: cache-backends is cleared on the relation.
+    assert: cache-backend is cleared on the relation.
     """
     relation_id = harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
@@ -336,24 +331,24 @@ def test_cache_backends_cleared_when_config_fails(
         app_data=SAMPLE_INTEGRATION_DATA,
     )
     assert charm.unit.status == ops.ActiveStatus()
-    assert harness.get_relation_data(relation_id, charm.unit.name).get("cache-backends") != ""
+    assert harness.get_relation_data(relation_id, charm.unit.name).get("cache-backend") != ""
 
     # Clear the relation data to trigger a config validation failure (blocked)
     harness.update_relation_data(relation_id, "config", {"backends": ""})
 
     assert isinstance(charm.unit.status, ops.BlockedStatus)
-    cache_backends = harness.get_relation_data(relation_id, charm.unit.name).get("cache-backends")
+    cache_backend = harness.get_relation_data(relation_id, charm.unit.name).get("cache-backend")
     # Setting to "" removes the key in Juju/Harness, so None means cleared
-    assert not cache_backends
+    assert not cache_backend
 
 
-def test_cache_backends_not_written_when_unchanged(
+def test_cache_backend_not_written_when_unchanged(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):
     """
-    arrange: A charm with an active relation that already has cache-backends written.
+    arrange: A charm with an active relation that already has cache-backend written.
     act: Trigger update-status (re-runs _load_nginx_config).
-    assert: cache-backends is not re-written when the value hasn't changed.
+    assert: cache-backend is not re-written when the value hasn't changed.
     """
     from unittest.mock import MagicMock, patch
 
@@ -369,7 +364,5 @@ def test_cache_backends_not_written_when_unchanged(
     with patch.object(type(rel.data[charm.unit]), "__setitem__", mock_setitem):
         charm.on.update_status.emit()
 
-    cache_backends_writes = [
-        c for c in mock_setitem.call_args_list if c.args[1] == "cache-backends"
-    ]
-    assert len(cache_backends_writes) == 0, "cache-backends should not be written when unchanged"
+    cache_backend_writes = [c for c in mock_setitem.call_args_list if c.args[1] == "cache-backend"]
+    assert len(cache_backend_writes) == 0, "cache-backend should not be written when unchanged"

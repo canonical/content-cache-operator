@@ -18,10 +18,9 @@ Each revision is versioned by the date of the revision.
 
 ### Added
 
-- The content-cache charm now publishes a `cache-backends` field to the `cache-config` relation
-  data after nginx becomes active. The field contains a JSON list of URLs representing the
-  address and port at which this unit is listening, so ingress components can discover it
-  automatically.
+- The content-cache charm now publishes a `cache-backend` field to the `cache-config` relation
+  data after nginx becomes active. The field contains a URL representing the address and port
+  at which this unit is listening, so ingress components can discover it automatically.
 
 ## 2026-06-18
 

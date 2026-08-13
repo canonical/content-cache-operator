@@ -19,7 +19,7 @@ from tests.integration.helpers import (
     HEALTHCHECK_VALID_STATUS_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     CacheTester,
-    get_cache_backends,
+    get_cache_backend,
 )
 
 
@@ -255,8 +255,8 @@ async def test_cache_backends_published(
 ) -> None:
     """
     arrange: A working charm with an active cache-config integration.
-    act: Read cache-backends from the unit relation data.
-    assert: cache-backends contains a valid HTTP URL with the unit bind address and allocated port.
+    act: Read cache-backend from the unit relation data.
+    assert: cache-backend contains a valid HTTP URL with the unit bind address and allocated port.
     """
     config = dict(CacheTester.BASE_CONFIG)
     config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
@@ -268,8 +268,7 @@ async def test_cache_backends_published(
     await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
     unit = app.units[0]
-    backends = await get_cache_backends(unit)
+    backend = await get_cache_backend(unit)
 
-    assert len(backends) == 1
-    assert backends[0].startswith("http://")
-    assert ":30000" in backends[0] or ":30001" in backends[0]
+    assert backend.startswith("http://")
+    assert ":30000" in backend or ":30001" in backend

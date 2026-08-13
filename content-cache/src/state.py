@@ -387,12 +387,12 @@ def _get_listen_protocol(charm: ops.CharmBase) -> str:
     return "http"
 
 
-def get_cache_backends_urls(
+def get_cache_backend_url(
     charm: ops.CharmBase,
     relation: ops.Relation,
     port: int,
-) -> list[str]:
-    """Return the cache-backends URL list for a given relation and port.
+) -> str:
+    """Return the cache-backend URL for a given relation and port.
 
     Args:
         charm: The charm instance used to look up the binding address.
@@ -400,8 +400,8 @@ def get_cache_backends_urls(
         port: The nginx listening port allocated for this relation.
 
     Returns:
-        A list containing one URL in the form protocol://ip:port.
+        A URL in the form protocol://ip:port.
     """
     ip = charm.model.get_binding(relation).network.bind_address
     protocol = _get_listen_protocol(charm)
-    return [f"{protocol}://{ip}:{port}"]
+    return f"{protocol}://{ip}:{port}"

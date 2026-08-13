@@ -277,14 +277,14 @@ async def read_file(unit: Unit, path: Path) -> str:
     return stdout.strip()
 
 
-async def get_cache_backends(unit: Unit) -> list[str]:
-    """Get the cache-backends value from the unit's cache-config relation data.
+async def get_cache_backend(unit: Unit) -> str:
+    """Get the cache-backend value from the unit's cache-config relation data.
 
     Args:
         unit: The content-cache unit to query.
 
     Returns:
-        The list of cache-backend URLs published on the first cache-config relation.
+        The cache-backend URL published on the first cache-config relation, or empty string.
     """
     return_code, rel_ids_stdout, stderr = await run_in_unit(
         unit=unit,
@@ -297,13 +297,10 @@ async def get_cache_backends(unit: Unit) -> list[str]:
 
     return_code, stdout, stderr = await run_in_unit(
         unit=unit,
-        command=f"relation-get -r {rel_id} cache-backends -- {unit.name}",
+        command=f"relation-get -r {rel_id} cache-backend -- {unit.name}",
     )
-    assert return_code == 0, f"Failed to get cache-backends: {stderr}"
-    raw = (stdout or "").strip()
-    if not raw:
-        return []
-    return json.loads(raw)
+    assert return_code == 0, f"Failed to get cache-backend: {stderr}"
+    return (stdout or "").strip()
 
 
 async def run_in_unit(

@@ -221,10 +221,10 @@ The charm does not manage TLS certificates for the incoming (listening) side.
 TLS termination for incoming client traffic is expected to be handled by an upstream ingress
 (such as `haproxy` with the `ingress-configurator` charm).
 
-## Cache-backends published address
+## Cache-backend published address
 
-After nginx is configured and active, the content-cache charm writes a `cache-backends` field
-to the `cache-config` relation data. This field contains a JSON list of URLs in the form
+After nginx is configured and active, the content-cache charm writes a `cache-backend` field
+to the `cache-config` relation data. This field contains a URL in the form
 `http://<unit-bind-ip>:<allocated-port>`, representing the address at which this unit is
 listening for the relation.
 

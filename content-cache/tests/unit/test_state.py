@@ -14,7 +14,7 @@ from state import (
     PROXY_CACHE_VALID_FIELD_NAME,
     LocationConfig,
     _get_listen_protocol,
-    get_cache_backends_urls,
+    get_cache_backend_url,
 )
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
@@ -113,20 +113,20 @@ def test_get_listen_protocol_returns_http():
     assert result == "http"
 
 
-def test_get_cache_backends_urls_http():
+def test_get_cache_backend_url_http():
     """
     arrange: A mock charm with a bind address and a relation.
-    act: Call get_cache_backends_urls with port 8080.
-    assert: Returns a list with one http URL containing the bind IP and port.
+    act: Call get_cache_backend_url with port 8080.
+    assert: Returns an http URL containing the bind IP and port.
     """
     charm = MagicMock()
     rel = MagicMock()
     charm.model.get_binding.return_value.network.bind_address = "10.1.2.3"
     port = 8080
 
-    result = get_cache_backends_urls(charm, rel, port)
+    result = get_cache_backend_url(charm, rel, port)
 
-    assert result == ["http://10.1.2.3:8080"]
+    assert result == "http://10.1.2.3:8080"
     charm.model.get_binding.assert_called_once_with(rel)
 
 
