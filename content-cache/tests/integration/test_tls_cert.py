@@ -4,7 +4,7 @@
 """Integration tests for HTTPS backend support via certificate_transfer and tls-certificates."""
 
 import pytest
-from helpers import BACKENDS_CONFIG_NAME, CacheTester, get_cache_backends, run_in_unit
+from helpers import BACKENDS_CONFIG_NAME, CacheTester, get_cache_backend, run_in_unit
 from juju.application import Application
 from juju.model import Model
 from pytest_operator.plugin import OpsTest
@@ -92,9 +92,9 @@ async def test_tls_termination_full_lifecycle(
         assert app.units[0].workload_status == "active"
 
         unit = app.units[0]
-        backends = await get_cache_backends(unit)
-        assert any(
-            b.startswith("https://") for b in backends
+        backends = await get_cache_backend(unit)
+        assert backends.startswith(
+            "https://"
         ), f"Expected https:// backend after TLS cert issuance, got: {backends}"
 
         _, ssl_files, _ = await run_in_unit(
@@ -109,9 +109,9 @@ async def test_tls_termination_full_lifecycle(
         await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
         assert app.units[0].workload_status == "active"
 
-        backends_after = await get_cache_backends(unit)
-        assert any(
-            b.startswith("http://") for b in backends_after
+        backends_after = await get_cache_backend(unit)
+        assert backends_after.startswith(
+            "http://"
         ), f"Expected http:// backend after cert relation removal, got: {backends_after}"
     finally:
         # Ensure the certificates relation is removed even if the test fails.
