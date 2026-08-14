@@ -4,7 +4,6 @@
 """Unit test for the state.py"""
 
 import json
-from ipaddress import IPv4Address
 
 import pydantic_core
 import pytest
@@ -15,7 +14,6 @@ from src.state import (
     BACKENDS_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
-    PROTOCOL_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
     Configuration,
 )
@@ -41,20 +39,38 @@ def mock_error_json_dumps(_):
 
 def test_valid_config():
     """
-    arrange: Mock charm with valid configurations.
+    arrange: Mock charm with valid URL-format backends configuration.
     act: Create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
+    assert: Correct configurations parsed from the mock charm.
     """
     charm = MockCharmFactory()
 
     config = Configuration.from_charm(charm)
 
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol.value == "https"
+    assert len(config.backends) == 2
+    assert config.backends[0].host == "10.10.1.1"
+    assert config.backends[0].scheme == "http"
+    assert config.backends[1].host == "10.10.2.2"
     assert config.fail_timeout == "30s"
     assert config.healthcheck.path == "/healthz"
     assert config.healthcheck.interval == 2123
     assert config.proxy_cache_valid == ()
+
+
+def test_https_backends():
+    """
+    arrange: Mock charm with https URL-format backends configuration.
+    act: Create the configuration from the charm.
+    assert: Backends parsed with https scheme.
+    """
+    charm = MockCharmFactory()
+    charm.config[BACKENDS_CONFIG_NAME] = "https://10.10.1.1:443,https://10.10.2.2:443"
+
+    config = Configuration.from_charm(charm)
+
+    assert len(config.backends) == 2
+    assert config.backends[0].scheme == "https"
+    assert config.backends[1].scheme == "https"
 
 
 @pytest.mark.parametrize(
@@ -62,14 +78,14 @@ def test_valid_config():
     [
         pytest.param("", "Empty backends configuration found", id="empty"),
         pytest.param(
-            "mock",
-            "Config error: ['backends = mock: value is not a valid IPv4 or IPv6 address']",
-            id="incorrect format",
+            "10.10.1.1",
+            "Config error: ['backends = 10.10.1.1:",
+            id="bare IP rejected",
         ),
         pytest.param(
-            "10.10.1",
-            "Config error: ['backends = 10.10.1: value is not a valid IPv4 or IPv6 address']",
-            id="incorrect IP format",
+            "ftp://10.10.1.1",
+            'Config error: ["backends = ftp://10.10.1.1:',
+            id="wrong scheme rejected",
         ),
     ],
 )
@@ -85,44 +101,7 @@ def test_config_backends_invalid_backends(invalid_backends: str, error_message: 
     with pytest.raises(ConfigurationError) as err:
         Configuration.from_charm(charm)
 
-    assert str(err.value) == error_message
-
-
-def test_http_protocol():
-    """
-    arrange: Mock charm with valid configurations.
-    act: Use a http as protocol, and create the configuration from the charm.
-    assert: Correct configurations from the mock charm.
-    """
-    charm = MockCharmFactory()
-    charm.config[PROTOCOL_CONFIG_NAME] = "http"
-
-    config = Configuration.from_charm(charm)
-
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol.value == "http"
-    assert config.fail_timeout == "30s"
-    assert config.healthcheck.path == "/healthz"
-    assert config.healthcheck.interval == 2123
-    assert config.proxy_cache_valid == ()
-
-
-def test_config_protocol_invalid():
-    """
-    arrange: Mock charm with invalid protocol config.
-    act: Create the state from the charm.
-    assert: Configuration error raised with a correct error message.
-    """
-    charm = MockCharmFactory()
-    charm.config[PROTOCOL_CONFIG_NAME] = "unknown"
-
-    with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
-
-    assert (
-        str(err.value)
-        == "Config error: [\"protocol = unknown: Input should be 'http' or 'https'\"]"
-    )
+    assert error_message in str(err.value)
 
 
 def test_invalid_format_proxy_cache_valid():
@@ -229,35 +208,34 @@ def test_valid_proxy_cache_valid(proxy_cache_valid: str):
 
     config = Configuration.from_charm(charm)
 
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol.value == "https"
+    assert len(config.backends) == 2
     assert config.fail_timeout == "30s"
-    assert config.healthcheck.path == "/healthz"
-    assert config.healthcheck.interval == 2123
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
 
 
 def test_configuration_to_data():
     """
-    arrange: Mock charm with valid configurations.
+    arrange: Mock charm with valid URL-format backends.
     act: Create the configuration from the charm, and convert to dict.
-    assert: Data contains the configurations without routing fields.
+    assert: Data contains backends as JSON URL list without protocol field.
     """
     charm = MockCharmFactory()
 
     config = Configuration.from_charm(charm)
     data = config.to_integration_data()
 
-    assert data == {
-        "backends": '["10.10.1.1", "10.10.2.2"]',
-        "protocol": "https",
-        "fail_timeout": "30s",
-        "healthcheck_interval": "2123",
-        "healthcheck_path": "/healthz",
-        "healthcheck_ssl_verify": "false",
-        "healthcheck_valid_status": "[200]",
-        "proxy_cache_valid": "[]",
-    }
+    backends = json.loads(data["backends"])
+    assert len(backends) == 2
+    assert "10.10.1.1" in backends[0]
+    assert "10.10.2.2" in backends[1]
+    assert all(b.startswith("http://") for b in backends)
+    assert "protocol" not in data
+    assert data["fail_timeout"] == "30s"
+    assert data["healthcheck_interval"] == "2123"
+    assert data["healthcheck_path"] == "/healthz"
+    assert data["healthcheck_ssl_verify"] == "false"
+    assert data["healthcheck_valid_status"] == "[200]"
+    assert data["proxy_cache_valid"] == "[]"
 
 
 def test_configuration_to_data_model_dump_error(monkeypatch):

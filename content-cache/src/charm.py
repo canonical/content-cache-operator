@@ -21,6 +21,7 @@ from errors import (
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
     NginxConfig,
+    get_cache_backend_url,
     get_nginx_config,
 )
 
@@ -88,6 +89,7 @@ class ContentCacheCharm(ops.CharmBase):
         if not port_map:
             self._stored.next_port_offset = 0
         self.unit.set_ports(*port_map.values())
+        event.relation.data[self.unit]["cache-backend"] = ""
         self._load_nginx_config()
 
     def _update_status_with_nginx(self) -> None:
@@ -106,6 +108,7 @@ class ContentCacheCharm(ops.CharmBase):
         """
         nginx_config = self._get_config_and_update_status()
         if nginx_config is None:
+            self._clear_cache_backend()
             return
 
         ported_config = {
@@ -133,6 +136,21 @@ class ContentCacheCharm(ops.CharmBase):
             self.unit.status = ops.ActiveStatus(status_message)
             port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
             self.unit.set_ports(*port_map.values())
+            for rel_id, (port, _) in ported_config.items():
+                rel = self.model.get_relation(CACHE_CONFIG_INTEGRATION_NAME, rel_id)
+                if rel is None:
+                    continue
+                url = get_cache_backend_url(self, rel, port)
+                if rel.data[self.unit].get("cache-backend") != url:
+                    rel.data[self.unit]["cache-backend"] = url
+        else:
+            self._clear_cache_backend()
+
+    def _clear_cache_backend(self) -> None:
+        """Clear cache-backend from all cache-config relation databags."""
+        for rel in self.model.relations[CACHE_CONFIG_INTEGRATION_NAME]:
+            if rel.data[self.unit].get("cache-backend"):
+                rel.data[self.unit]["cache-backend"] = ""
 
     def _get_config_and_update_status(self) -> NginxConfig | None:
         """Attempt to get nginx config, updates charm status on failure.

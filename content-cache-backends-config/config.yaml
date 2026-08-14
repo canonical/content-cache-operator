@@ -8,14 +8,9 @@
 options:
   backends:
     description: |
-      A comma-separated list of IPs. If multiple IPs are provided, the access to the backends will 
-      be load-balanced.
+      A comma-separated list of backend URLs in the form http://ip:port or https://ip:port.
+      If multiple URLs are provided, the access to the backends will be load-balanced.
     type: string
-  protocol:
-    description: |
-      The protocol to request the backends. Can be http or https.
-    type: string
-    default: https
   fail-timeout:
     description: |
       The time to wait before using a backend after failure. The other backend will be used 
