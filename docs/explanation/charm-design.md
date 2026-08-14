@@ -217,8 +217,10 @@ juju config backends backends=https://185.125.90.20:443
 
 When the URL scheme is `https`, nginx connects to the backend over TLS.
 All backends in a single relation must use the same scheme.
-The charm does not manage TLS certificates for the incoming (listening) side.
-TLS termination for incoming client traffic is expected to be handled by an upstream ingress
+The charm does not manage TLS certificates for the incoming (listening) side by default.
+TLS termination for incoming client traffic can be enabled via the `certificates` relation
+(interface: `tls-certificates`) with a provider such as `lego`.
+Without that relation, TLS termination is expected to be handled by an upstream ingress
 (such as `haproxy` with the `ingress-configurator` charm).
 
 ## Cache-backend published address
@@ -244,7 +246,8 @@ Nginx is configured with:
 
 - `proxy_ssl_trusted_certificate /etc/nginx/certs/ca-bundle.pem` — trust the provided CA
 - `proxy_ssl_verify on` — verify backend certificates against the CA
-- `proxy_ssl_server_name off` — disable SNI (Server Name Indication, a TLS extension that sends the hostname during handshake) in this version
+- `proxy_ssl_name <backend-hostname>` — verify the cert against the correct hostname
+- `proxy_ssl_server_name on` — send SNI (Server Name Indication) so backends using name-based virtual hosting present the correct certificate
 
 Multiple `receive-ca-cert` providers are supported; all CA certificates are merged into
 one bundle.

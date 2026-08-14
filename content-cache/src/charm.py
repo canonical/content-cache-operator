@@ -249,7 +249,7 @@ class ContentCacheCharm(ops.CharmBase):
                 self.unit.status = ops.BlockedStatus("Failed to remove TLS certificate file")
                 return
             self._stored.cache_cert_cn = ""
-        self._load_nginx_config()
+        self._load_nginx_config(tls_cert_removed=True)
 
     def _get_cache_cert_path(self) -> Path | None:
         """Return the cache cert path if TLS termination is active, else None.
@@ -272,8 +272,13 @@ class ContentCacheCharm(ops.CharmBase):
 
         self.unit.status = ops.ActiveStatus()
 
-    def _load_nginx_config(self) -> None:
+    def _load_nginx_config(self, tls_cert_removed: bool = False) -> None:
         """Validate the configuration and load to integration.
+
+        Args:
+            tls_cert_removed: Set to True when called from the certificates relation-broken
+                handler. Bypasses the "waiting for TLS cert" guard so nginx is reconfigured
+                back to HTTP even though the departing relation is still visible to ops.
 
         Raises:
             NginxFileError: File operation errors while updating nginx configuration files.
@@ -299,6 +304,7 @@ class ContentCacheCharm(ops.CharmBase):
         cache_cert_path = self._get_cache_cert_path()
         if (
             cache_cert_path is None
+            and not tls_cert_removed
             and self.model.get_relation(CERTIFICATE_INTEGRATION_NAME) is not None
         ):
             self.unit.status = ops.WaitingStatus(WAIT_FOR_TLS_CERT_MESSAGE)

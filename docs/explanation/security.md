@@ -22,7 +22,7 @@ The charm terminates TLS for incoming client requests when the `certificates` re
 When a certificate is available, nginx listens on the allocated port with SSL enabled
 (`listen <port> ssl`) using the PEM stored at `/etc/nginx/certs/<unit-ip>.pem`
 that contains the certificate and key.
-The `cache-backends` relation data returns `https://` URLs so that HAProxy can connect
+The `cache-backend` relation data returns `https://` URLs so that HAProxy can connect
 over HTTPS. HAProxy integrates with `cache-lego` via `certificate_transfer` to obtain
 the CA certificate needed to trust the content-cache certificate.
 

@@ -26,8 +26,7 @@ Once the CA certificate is received, the content-cache charm will:
 
 - Write the certificate to `/etc/nginx/certs/ca-bundle.pem`
 - Configure nginx to verify backend certificates against this CA
-- Use `proxy_ssl_verify on`, `proxy_ssl_name <backend-hostname>`, and `proxy_ssl_server_name off` (SNI — Server Name Indication, a TLS extension that sends the hostname during handshake — is disabled in this
-  version)
+- Use `proxy_ssl_verify on`, `proxy_ssl_name <backend-hostname>`, and `proxy_ssl_server_name on` (SNI — Server Name Indication, a TLS extension that sends the hostname during handshake — is enabled so backends using name-based virtual hosting present the correct certificate)
 
 If HTTPS backends are configured but no CA certificate has been provided, the charm will enter
 `WaitingStatus` until the `receive-ca-cert` relation is established.
@@ -63,7 +62,7 @@ When the certificate is issued, the charm automatically:
 
 1. Writes the combined certificate and key PEM (Privacy Enhanced Mail, a base64-encoded certificate format) to `/etc/nginx/certs/<unit-ip>.pem`
 2. Reconfigures nginx to listen with `ssl` on the allocated port
-3. Updates the `cache-backends` relation data to return `https://` URLs
+3. Updates the `cache-backend` relation data to return `https://` URLs
 
 HAProxy must trust this certificate. Integrate HAProxy with `cache-lego` using the
 `certificate_transfer` interface:

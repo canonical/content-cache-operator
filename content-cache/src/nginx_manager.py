@@ -548,7 +548,7 @@ def _get_location_config_keys(
                 nginx.Key("proxy_ssl_trusted_certificate", str(ca_bundle_path)),
                 nginx.Key("proxy_ssl_verify", "on"),
                 nginx.Key("proxy_ssl_name", str(backend_host)),
-                nginx.Key("proxy_ssl_server_name", "off"),
+                nginx.Key("proxy_ssl_server_name", "on"),
             ]
         )
 
