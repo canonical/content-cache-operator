@@ -506,8 +506,6 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
 
             http_req = "GET {hc_path} HTTP/1.0\r\n\r\n",
 
-<<<<<<< HEAD
-
             interval = {config.healthcheck_config.interval},
             timeout = 1000,
             fall = 3,
