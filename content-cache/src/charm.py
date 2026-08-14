@@ -16,8 +16,15 @@ from charmlibs.interfaces.certificate_transfer import (
     CertificateTransferRequires,
 )
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
+from charms.tls_certificates_interface.v4.tls_certificates import (
+    CertificateAvailableEvent,
+    CertificateRequestAttributes,
+    Mode,
+    TLSCertificatesRequiresV4,
+)
 
 import ca_certs
+import certificates
 import nginx_manager
 from errors import (
     CACertificateFileError,
@@ -26,6 +33,8 @@ from errors import (
     NginxFileError,
     NginxSetupError,
     NginxStopError,
+    TLSCertificateFileError,
+    TLSCertificateNotAvailableError,
 )
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
@@ -41,6 +50,8 @@ NGINX_NOT_READY_MESSAGE = "Nginx is not ready"
 RECEIVED_NGINX_CONFIG_MESSAGE = "Received nginx configuration"
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
 WAIT_FOR_CA_CERT_MESSAGE = "Waiting for CA certificate via certificate-transfer"
+CERTIFICATE_INTEGRATION_NAME = "certificates"
+WAIT_FOR_TLS_CERT_MESSAGE = "Waiting for TLS certificate"
 
 NGINX_PORT_RANGE_START = 30000
 NGINX_PORT_RANGE_SIZE = 200
@@ -61,10 +72,20 @@ class ContentCacheCharm(ops.CharmBase):
 
         self._stored.set_default(port_map={})
         self._stored.set_default(next_port_offset=0)
+        self._stored.set_default(cache_cert_cn="")
 
         self._cos_agent = COSAgentProvider(charm=self)
         self._certificate_transfer = CertificateTransferRequires(
             self, CERTIFICATE_TRANSFER_INTEGRATION_NAME
+        )
+        bind_ip = str(self.model.get_binding(CERTIFICATE_INTEGRATION_NAME).network.bind_address)
+        self._tls_certificates = TLSCertificatesRequiresV4(
+            charm=self,
+            relationship_name=CERTIFICATE_INTEGRATION_NAME,
+            certificate_requests=[
+                CertificateRequestAttributes(common_name=bind_ip, sans_ip=[bind_ip])
+            ],
+            mode=Mode.UNIT,
         )
 
         framework.observe(self.on.start, self._on_start)
@@ -85,6 +106,18 @@ class ContentCacheCharm(ops.CharmBase):
         framework.observe(
             self._certificate_transfer.on.certificates_removed,
             self._on_certificates_removed,
+        )
+        framework.observe(
+            self.on[CERTIFICATE_INTEGRATION_NAME].relation_created,
+            self._on_tls_certificates_relation_created,
+        )
+        framework.observe(
+            self._tls_certificates.on.certificate_available,
+            self._on_tls_certificate_available,
+        )
+        framework.observe(
+            self.on[CERTIFICATE_INTEGRATION_NAME].relation_broken,
+            self._on_tls_certificates_relation_broken,
         )
 
     def _on_start(self, _: ops.StartEvent) -> None:
@@ -175,6 +208,62 @@ class ContentCacheCharm(ops.CharmBase):
             return
         self._load_nginx_config()
 
+    def _on_tls_certificates_relation_created(self, _: ops.RelationCreatedEvent) -> None:
+        """Handle certificates relation created — enter WaitingStatus until cert arrives."""
+        self._load_nginx_config()
+
+    def _on_tls_certificate_available(self, _: CertificateAvailableEvent) -> None:
+        """Handle TLS certificate available event — write cert and serve HTTPS."""
+        bind_ip = str(self.model.get_binding(CERTIFICATE_INTEGRATION_NAME).network.bind_address)
+        try:
+            cert_map = certificates.write_certificates(
+                [CertificateRequestAttributes(common_name=bind_ip, sans_ip=[bind_ip])],
+                "root",
+                nginx_manager.NGINX_CERTIFICATES_PATH,
+                self._tls_certificates,
+            )
+        except TLSCertificateFileError:
+            logger.exception("Failed to write TLS certificate to disk")
+            self.unit.status = ops.BlockedStatus("Failed to write TLS certificate to disk")
+            return
+        except TLSCertificateNotAvailableError:
+            # The library fired certificate_available but get_assigned_certificate
+            # returned nothing (e.g. transient timing).  Stay in WaitingStatus;
+            # the next certificates-relation-changed event will retry.
+            logger.warning("TLS certificate not yet available; waiting for next event")
+            self.unit.status = ops.WaitingStatus(WAIT_FOR_TLS_CERT_MESSAGE)
+            return
+        if cert_map:
+            self._stored.cache_cert_cn = bind_ip
+        self._load_nginx_config()
+
+    def _on_tls_certificates_relation_broken(self, _: ops.RelationBrokenEvent) -> None:
+        """Handle certificates relation broken — delete cert and revert to HTTP."""
+        cn: str = self._stored.cache_cert_cn  # type: ignore[assignment]
+        if cn:
+            cert_path = nginx_manager.NGINX_CERTIFICATES_PATH / f"{cn}.pem"
+            try:
+                cert_path.unlink(missing_ok=True)
+            except OSError:
+                logger.exception("Failed to remove certificate file %s", cert_path)
+                self.unit.status = ops.BlockedStatus("Failed to remove TLS certificate file")
+                return
+            self._stored.cache_cert_cn = ""
+        self._load_nginx_config()
+
+    def _get_cache_cert_path(self) -> Path | None:
+        """Return the cache cert path if TLS termination is active, else None.
+
+        Returns None if no certificates relation is present or the certificate
+        has not yet been issued; does not set unit status.
+        """
+        if self.model.get_relation(CERTIFICATE_INTEGRATION_NAME) is None:
+            return None
+        cn: str = self._stored.cache_cert_cn  # type: ignore[assignment]
+        if not cn:
+            return None
+        return nginx_manager.NGINX_CERTIFICATES_PATH / f"{cn}.pem"
+
     def _update_status_with_nginx(self) -> None:
         """Set the charm status according to nginx status."""
         if not nginx_manager.health_check():
@@ -207,10 +296,22 @@ class ContentCacheCharm(ops.CharmBase):
             self._clear_cache_backend()
             return
 
+        cache_cert_path = self._get_cache_cert_path()
+        if (
+            cache_cert_path is None
+            and self.model.get_relation(CERTIFICATE_INTEGRATION_NAME) is not None
+        ):
+            self.unit.status = ops.WaitingStatus(WAIT_FOR_TLS_CERT_MESSAGE)
+            self._clear_cache_backend()
+            return
+
         status_message = ""
         try:
             nginx_manager.update_and_load_config(
-                ported_config, self._get_instance_name(), ca_bundle_path=ca_bundle_path
+                ported_config,
+                self._get_instance_name(),
+                ca_bundle_path=ca_bundle_path,
+                cache_cert_path=cache_cert_path,
             )
         except NginxFileError:
             logger.exception(
@@ -229,7 +330,7 @@ class ContentCacheCharm(ops.CharmBase):
             self.unit.status = ops.ActiveStatus(status_message)
             port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
             self.unit.set_ports(*port_map.values())
-            self._write_cache_backends(ported_config)
+            self._write_cache_backends(ported_config, cache_cert_path)
         else:
             self._clear_cache_backend()
 
@@ -254,13 +355,15 @@ class ContentCacheCharm(ops.CharmBase):
             ca_bundle_path = ca_certs.get_ca_bundle_path()
         return ca_bundle_path
 
-    def _write_cache_backends(self, ported_config: dict) -> None:
+    def _write_cache_backends(self, ported_config: dict, cache_cert_path: Path | None) -> None:
         """Write cache-backend URLs to all cache-config relation databags."""
         for rel_id, (port, _) in ported_config.items():
             rel = self.model.get_relation(CACHE_CONFIG_INTEGRATION_NAME, rel_id)
             if rel is None:
                 continue
-            url = get_cache_backend_url(self, rel, port)
+            url = get_cache_backend_url(
+                self, rel, port, has_cache_cert=cache_cert_path is not None
+            )
             if rel.data[self.unit].get("cache-backend") != url:
                 rel.data[self.unit]["cache-backend"] = url
 
