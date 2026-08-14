@@ -7,6 +7,7 @@
 
 import json
 import logging
+from pathlib import Path
 
 import ops
 from charmlibs.interfaces.certificate_transfer import (
@@ -198,19 +199,12 @@ class ContentCacheCharm(ops.CharmBase):
             for rel_id, config in nginx_config.items()
         }
 
-        ca_bundle_path = ca_certs.get_ca_bundle_path()
-        any_https = any(
+        ca_bundle_path = self._resolve_ca_bundle_path(nginx_config)
+        if ca_bundle_path is None and any(
             str(config.backends[0].scheme) == "https" for _, config in nginx_config.items()
-        )
-        if any_https and ca_bundle_path is None:
-            # The CA bundle may not have been written yet if this hook fires before
-            # the certificate_set_updated event.  Proactively read all cert-transfer
-            # relations so we don't stay in WaitingStatus unnecessarily.
-            self._sync_ca_certs_from_relations()
-            ca_bundle_path = ca_certs.get_ca_bundle_path()
-        if any_https and ca_bundle_path is None:
+        ):
             self.unit.status = ops.WaitingStatus(WAIT_FOR_CA_CERT_MESSAGE)
-            self._clear_cache_backends()
+            self._clear_cache_backend()
             return
 
         status_message = ""
@@ -235,15 +229,40 @@ class ContentCacheCharm(ops.CharmBase):
             self.unit.status = ops.ActiveStatus(status_message)
             port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
             self.unit.set_ports(*port_map.values())
-            for rel_id, (port, _) in ported_config.items():
-                rel = self.model.get_relation(CACHE_CONFIG_INTEGRATION_NAME, rel_id)
-                if rel is None:
-                    continue
-                url = get_cache_backend_url(self, rel, port)
-                if rel.data[self.unit].get("cache-backend") != url:
-                    rel.data[self.unit]["cache-backend"] = url
+            self._write_cache_backends(ported_config)
         else:
             self._clear_cache_backend()
+
+    def _resolve_ca_bundle_path(self, nginx_config: NginxConfig) -> Path | None:
+        """Return the CA bundle path, syncing cert-transfer relations if needed.
+
+        If HTTPS backends are configured but no bundle exists yet, proactively
+        reads all certificate-transfer relations before returning.
+
+        Returns:
+            The CA bundle path if it exists, otherwise None.
+        """
+        any_https = any(
+            str(config.backends[0].scheme) == "https" for _, config in nginx_config.items()
+        )
+        ca_bundle_path = ca_certs.get_ca_bundle_path()
+        if any_https and ca_bundle_path is None:
+            # The CA bundle may not have been written yet if this hook fires before
+            # the certificate_set_updated event.  Proactively read all cert-transfer
+            # relations so we don't stay in WaitingStatus unnecessarily.
+            self._sync_ca_certs_from_relations()
+            ca_bundle_path = ca_certs.get_ca_bundle_path()
+        return ca_bundle_path
+
+    def _write_cache_backends(self, ported_config: dict) -> None:
+        """Write cache-backend URLs to all cache-config relation databags."""
+        for rel_id, (port, _) in ported_config.items():
+            rel = self.model.get_relation(CACHE_CONFIG_INTEGRATION_NAME, rel_id)
+            if rel is None:
+                continue
+            url = get_cache_backend_url(self, rel, port)
+            if rel.data[self.unit].get("cache-backend") != url:
+                rel.data[self.unit]["cache-backend"] = url
 
     def _clear_cache_backend(self) -> None:
         """Clear cache-backend from all cache-config relation databags."""

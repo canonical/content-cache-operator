@@ -315,6 +315,8 @@ def test_relation_broken_clears_cache_backends(
     harness.remove_relation(relation_id)
 
     assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
+
+
 def test_cache_backend_cleared_when_config_fails(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):

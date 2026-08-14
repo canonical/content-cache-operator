@@ -158,43 +158,6 @@ def test_get_location_config_keys_https(patch_nginx_manager: None):
 
     key_strings = [k.as_strings for k in keys]
     assert any(f"https://{upstream}/" in s for s in key_strings)
-def test_healthcheck_worker_uses_per_peer_ports(patch_nginx_manager: None):
-    """
-    arrange: A LocationConfig with backends on different ports.
-    act: Call _get_upstream_healthchecks_worker.
-    assert: The generated lua script has no global port override, so each peer
-            uses its own port from the upstream server entry.
-    """
-    data = {
-        **SAMPLE_INTEGRATION_DATA,
-        "backends": '["http://10.10.1.1:8080", "http://10.10.2.2:9090"]',
-    }
-    config = LocationConfig.from_integration_data(data)
-    upstream = "test-upstream"
-
-    script = nginx_manager._get_upstream_healthchecks_worker(upstream, config)
-
-    assert "port =" not in script, "global port override must be absent for per-peer healthchecks"
-
-
-def test_healthcheck_worker_upstream_entries_carry_ports(patch_nginx_manager: None):
-    """
-    arrange: A LocationConfig with backends on different ports.
-    act: Call _get_upstream_config_keys.
-    assert: Each server entry carries its own host:port so the healthcheck
-            library can use the correct port per peer.
-    """
-    data = {
-        **SAMPLE_INTEGRATION_DATA,
-        "backends": '["http://10.10.1.1:8080", "http://10.10.2.2:9090"]',
-    }
-    config = LocationConfig.from_integration_data(data)
-
-    keys = nginx_manager._get_upstream_config_keys(config)
-
-    key_strings = [k.as_strings for k in keys]
-    assert any("10.10.1.1:8080" in s for s in key_strings)
-    assert any("10.10.2.2:9090" in s for s in key_strings)
 
 
 def test_healthcheck_worker_uses_per_peer_ports(patch_nginx_manager: None):
