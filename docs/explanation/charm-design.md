@@ -244,7 +244,7 @@ Nginx is configured with:
 
 - `proxy_ssl_trusted_certificate /etc/nginx/certs/ca-bundle.pem` — trust the provided CA
 - `proxy_ssl_verify on` — verify backend certificates against the CA
-- `proxy_ssl_server_name off` — SNI is disabled in this version
+- `proxy_ssl_server_name off` — disable SNI (Server Name Indication, a TLS extension that sends the hostname during handshake) in this version
 
 Multiple `receive-ca-cert` providers are supported; all CA certificates are merged into
 one bundle.

@@ -20,10 +20,11 @@ The charm terminates TLS for incoming client requests when the `certificates` re
 `lego` (referred to as `cache-lego`).
 
 When a certificate is available, nginx listens on the allocated port with SSL enabled
-(`listen <port> ssl`) using the cert+key PEM stored at `/etc/nginx/certs/<unit-ip>.pem`.
+(`listen <port> ssl`) using the PEM stored at `/etc/nginx/certs/<unit-ip>.pem`
+that contains the certificate and key.
 The `cache-backends` relation data returns `https://` URLs so that HAProxy can connect
 over HTTPS. HAProxy integrates with `cache-lego` via `certificate_transfer` to obtain
-the CA cert needed to trust the content-cache certificate.
+the CA certificate needed to trust the content-cache certificate.
 
 If the `certificates` relation is present but the certificate has not yet been issued,
 the charm enters `WaitingStatus`. When the relation is removed, the charm deletes the
@@ -67,7 +68,7 @@ use self-signed certificates on a trusted private network.
 
 **Proxied requests** — when the `receive-ca-cert` relation provides a CA certificate, the charm
 configures nginx with
-[`proxy_ssl_verify on`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify),
+[`proxy_ssl_verify`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify) enabled,
 `proxy_ssl_name` set to the backend hostname for correct certificate verification, and
 `proxy_ssl_trusted_certificate` pointing to the received CA bundle. nginx will then verify
 the backend TLS certificate against that CA. If HTTPS backends are configured but no

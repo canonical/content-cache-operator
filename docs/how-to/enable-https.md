@@ -61,7 +61,7 @@ juju integrate content-cache:certificates cache-lego:certificates
 
 When the certificate is issued, the charm automatically:
 
-1. Writes the combined cert+key PEM (Privacy Enhanced Mail, a base64-encoded certificate format) to `/etc/nginx/certs/<unit-ip>.pem`
+1. Writes the combined certificate and key PEM (Privacy Enhanced Mail, a base64-encoded certificate format) to `/etc/nginx/certs/<unit-ip>.pem`
 2. Reconfigures nginx to listen with `ssl` on the allocated port
 3. Updates the `cache-backends` relation data to return `https://` URLs
 
@@ -74,4 +74,4 @@ juju integrate cache-lego:send-ca-cert haproxy:receive-ca-cert
 
 If the `certificates` relation is present but the certificate has not yet been issued,
 the charm enters `WaitingStatus`. If the relation is removed, the charm automatically deletes the
-cert file and reverts nginx to HTTP.
+certificate file and reverts nginx to HTTP.
