@@ -26,7 +26,7 @@ Once the CA certificate is received, the content-cache charm will:
 
 - Write the certificate to `/etc/nginx/certs/ca-bundle.pem`
 - Configure nginx to verify backend certificates against this CA
-- Use `proxy_ssl_verify on`, `proxy_ssl_name <backend-hostname>`, and `proxy_ssl_server_name on` (SNI — Server Name Indication, a TLS extension that sends the hostname during handshake — is enabled so backends using name-based virtual hosting present the correct certificate)
+- Use `proxy_ssl_verify on` and `proxy_ssl_trusted_certificate` pointing to the CA bundle
 
 If HTTPS backends are configured but no CA certificate has been provided, the charm will enter
 `WaitingStatus` until the `receive-ca-cert` relation is established.

@@ -7,7 +7,6 @@ import logging
 import os
 import pwd
 from pathlib import Path
-from typing import Sequence
 
 from charms.tls_certificates_interface.v4.tls_certificates import (
     CertificateRequestAttributes,
@@ -24,76 +23,72 @@ from errors import (
 
 logger = logging.getLogger(__name__)
 
+FRONTEND_CERT_COMMON_NAME = "content-cache-charm"
 
-def write_certificates(
-    requests: Sequence[CertificateRequestAttributes],
+
+def write_certificate(
     username: str,
     certificates_path: Path,
     certificates: TLSCertificatesRequiresV4,
-) -> dict[str, Path]:
-    """Write the certificates available to file.
+) -> Path:
+    """Write the frontend TLS certificate to disk.
+
+    Looks up the certificate for the fixed common name ``content-cache-charm``
+    and stores the leaf certificate, any intermediate chain certificates, and
+    the private key in a single PEM file.
 
     Args:
-        requests: The certificate request attributes to look up and store.
-        username: The name of the user to own the certificate file.
-        certificates_path: The directory to store the certificates.
-        certificates: The TLSCertificateRequiresV4 object.
+        username: The OS user that should own the certificate file.
+        certificates_path: Directory to write the certificate into.
+        certificates: The TLSCertificatesRequiresV4 object.
 
     Raises:
-        TLSCertificateIntegrationNotExistError: Unable to found the tls-certificate integration.
-        TLSCertificateNotAvailableError: At least one certificate is not available.
+        TLSCertificateIntegrationNotExistError: No tls-certificates relation found.
+        TLSCertificateNotAvailableError: Certificate or key not yet issued.
 
     Returns:
-        The mapping of certificate common name to the file path of the corresponding
-        certificate. If the certificate is not available the entry will not exist in the
-        mapping.
+        Path to the written PEM file.
     """
     relation = certificates.charm.model.get_relation(certificates.relationship_name)
     if not relation:
         raise TLSCertificateIntegrationNotExistError("TLS certificate integration not found")
 
-    logger.info("Loading the certificate available over tls-certificates integration")
-
-    common_name_to_cert = {}
-    for request in requests:
-        provider_certificate, private_key = certificates.get_assigned_certificate(request)
-        if not provider_certificate or not private_key:
-            logger.warning("Certificate or private key not found for %s", request.common_name)
-            raise TLSCertificateNotAvailableError(
-                f"Certificate not available for {request.common_name}"
-            )
-        common_name_to_cert[request.common_name] = _store_certificate(
-            request.common_name, provider_certificate, private_key, username, certificates_path
+    request = CertificateRequestAttributes(common_name=FRONTEND_CERT_COMMON_NAME)
+    provider_certificate, private_key = certificates.get_assigned_certificate(request)
+    if not provider_certificate or not private_key:
+        logger.warning("Certificate or private key not found for %s", FRONTEND_CERT_COMMON_NAME)
+        raise TLSCertificateNotAvailableError(
+            f"Certificate not available for {FRONTEND_CERT_COMMON_NAME}"
         )
-    return common_name_to_cert
+    return _store_certificate(provider_certificate, private_key, username, certificates_path)
 
 
 # The file operations will be tested in integration tests.
 def _store_certificate(  # pragma: no cover
-    common_name: str,
     provider_certificate: ProviderCertificate,
     private_key: PrivateKey,
     username: str,
     certificates_path: Path,
 ) -> Path:
-    """Store a certificate and private key to file.
-
-    The certificate and private key is saved to the same file.
+    """Store the certificate, chain, and private key to a single PEM file.
 
     args:
-        common_name: The common name of the certificate.
-        provider_certificate: The certificate to store to file.
+        provider_certificate: The leaf certificate (and optional chain) to store.
         private_key: The private key for the certificate.
         username: The name of the user to own the certificate file.
         certificates_path: The directory to store the certificates.
 
     Returns:
-        The filepath of the stored certificate and private key.
+        The filepath of the stored PEM file.
     """
-    logger.info("Store the certificate for %s", common_name)
+    logger.info("Storing the frontend TLS certificate")
 
-    pem_file_content = f"{provider_certificate.certificate}\n{private_key}"
-    pem_file_path = certificates_path / f"{common_name}.pem"
+    parts = [provider_certificate.certificate]
+    if provider_certificate.chain:
+        parts.extend(provider_certificate.chain)
+    parts.append(str(private_key))
+    pem_file_content = "\n".join(parts)
+    pem_file_path = certificates_path / f"{FRONTEND_CERT_COMMON_NAME}.pem"
 
     try:
         user = pwd.getpwnam(username)
@@ -103,8 +98,6 @@ def _store_certificate(  # pragma: no cover
         os.chown(pem_file_path, uid=user.pw_uid, gid=user.pw_gid)
         os.chmod(pem_file_path, 0o600)
     except (PermissionError, OSError, IOError) as err:
-        logger.exception("Failed to write the certificate to file for %s", common_name)
-        raise TLSCertificateFileError(
-            f"Unable to write certificate for {common_name} to file"
-        ) from err
+        logger.exception("Failed to write the frontend TLS certificate to file")
+        raise TLSCertificateFileError("Unable to write frontend TLS certificate to file") from err
     return pem_file_path

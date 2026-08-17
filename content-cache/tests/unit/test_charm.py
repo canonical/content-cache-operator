@@ -378,8 +378,8 @@ def test_tls_certificates_relation_broken_reverts_to_http(
     tmp_path,
 ):
     """
-    arrange: A charm with a certificates relation and a stored cert CN (simulating a TLS cert
-        that was previously issued).
+    arrange: A charm with a certificates relation and a cert file on disk (simulating a TLS
+        cert that was previously issued).
     act: Remove the certificates relation (relation_broken).
     assert: The charm does not get stuck in WaitingStatus — it calls update_and_load_config
         and ends in ActiveStatus, not WaitingStatus("Waiting for TLS certificate").
@@ -396,9 +396,8 @@ def test_tls_certificates_relation_broken_reverts_to_http(
     assert charm.unit.status == ops.ActiveStatus()
 
     cert_rel_id = harness.add_relation(CERTIFICATE_INTEGRATION_NAME, remote_app="lego")
-    cert_file = certs_path / "10.0.0.1.pem"
+    cert_file = certs_path / "content-cache-charm.pem"
     cert_file.write_text("fake-cert", encoding="utf-8")
-    charm._stored.cache_cert_cn = "10.0.0.1"
 
     mock_nginx_manager.update_and_load_config.reset_mock()
     harness.remove_relation(cert_rel_id)

@@ -201,10 +201,10 @@ def test_healthcheck_worker_upstream_entries_carry_ports(patch_nginx_manager: No
 
 def test_get_location_config_keys_https_with_ca_bundle(patch_nginx_manager: None, tmp_path):
     """
-    arrange: A LocationConfig with https backends, a CA bundle path, and ssl_verify=true.
-    act: Call _get_location_config_keys with ca_bundle_path set.
-    assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, proxy_ssl_name, and
-        proxy_ssl_server_name on present.
+    arrange: A LocationConfig with https backends and a CA bundle path.
+    act: Call _get_location_config_keys with backend_ca_path set.
+    assert: proxy_ssl_trusted_certificate and proxy_ssl_verify on present; no proxy_ssl_name
+        or proxy_ssl_server_name (server name verification disabled per weiiwang01 review).
     """
     ca_bundle = tmp_path / "ca-bundle.pem"
     ca_bundle.write_text("cert", encoding="utf-8")
@@ -216,13 +216,13 @@ def test_get_location_config_keys_https_with_ca_bundle(patch_nginx_manager: None
     config = LocationConfig.from_integration_data(data)
     upstream = "test-upstream"
 
-    keys = nginx_manager._get_location_config_keys(config, upstream, ca_bundle_path=ca_bundle)
+    keys = nginx_manager._get_location_config_keys(config, upstream, backend_ca_path=ca_bundle)
 
     key_strings = [k.as_strings for k in keys]
     assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
     assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
-    assert any("proxy_ssl_name" in s and "10.10.1.1" in s for s in key_strings)
-    assert any("proxy_ssl_server_name" in s and "on" in s for s in key_strings)
+    assert not any("proxy_ssl_name" in s for s in key_strings)
+    assert not any("proxy_ssl_server_name" in s for s in key_strings)
 
 
 def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
@@ -230,7 +230,7 @@ def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
 ):
     """
     arrange: A LocationConfig with https backends, a CA bundle path, and ssl_verify=false.
-    act: Call _get_location_config_keys with ca_bundle_path set.
+    act: Call _get_location_config_keys with backend_ca_path set.
     assert: proxy_ssl directives are present — healthcheck ssl_verify does not affect proxy SSL.
     """
     ca_bundle = tmp_path / "ca-bundle.pem"
@@ -242,24 +242,23 @@ def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
     }
     config = LocationConfig.from_integration_data(data)
 
-    keys = nginx_manager._get_location_config_keys(config, "upstream", ca_bundle_path=ca_bundle)
+    keys = nginx_manager._get_location_config_keys(config, "upstream", backend_ca_path=ca_bundle)
 
     key_strings = [k.as_strings for k in keys]
     assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
     assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
-    assert any("proxy_ssl_server_name" in s and "on" in s for s in key_strings)
 
 
 def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: None):
     """
     arrange: A LocationConfig with https backends but no CA bundle path.
-    act: Call _get_location_config_keys with ca_bundle_path=None.
+    act: Call _get_location_config_keys with backend_ca_path=None.
     assert: No proxy_ssl directives in the keys.
     """
     data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
     config = LocationConfig.from_integration_data(data)
 
-    keys = nginx_manager._get_location_config_keys(config, "upstream", ca_bundle_path=None)
+    keys = nginx_manager._get_location_config_keys(config, "upstream", backend_ca_path=None)
 
     key_strings = [k.as_strings for k in keys]
     assert not any("proxy_ssl" in s for s in key_strings)
@@ -275,7 +274,7 @@ def test_get_location_config_keys_http_ignores_ca_bundle(patch_nginx_manager: No
     ca_bundle.write_text("cert", encoding="utf-8")
     config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
 
-    keys = nginx_manager._get_location_config_keys(config, "upstream", ca_bundle_path=ca_bundle)
+    keys = nginx_manager._get_location_config_keys(config, "upstream", backend_ca_path=ca_bundle)
 
     key_strings = [k.as_strings for k in keys]
     assert not any("proxy_ssl" in s for s in key_strings)
@@ -327,8 +326,8 @@ def test_update_config_with_cache_cert_adds_ssl_directives(
     monkeypatch, patch_nginx_manager: None, tmp_path
 ):
     """
-    arrange: Valid config and a cache_cert_path pointing to a PEM file.
-    act: Call update_and_load_config with cache_cert_path set.
+    arrange: Valid config and a frontend_cert_path pointing to a PEM file.
+    act: Call update_and_load_config with frontend_cert_path set.
     assert: The nginx site config contains ssl listen, ssl_certificate, ssl_certificate_key.
     """
     mock_instance_name = "mock-test_0"
@@ -347,7 +346,7 @@ def test_update_config_with_cache_cert_adds_ssl_directives(
     }
 
     nginx_manager.update_and_load_config(
-        sample_data, mock_instance_name, cache_cert_path=cert_file
+        sample_data, mock_instance_name, frontend_cert_path=cert_file
     )
 
     config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()

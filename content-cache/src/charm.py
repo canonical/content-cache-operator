@@ -11,8 +11,6 @@ from pathlib import Path
 
 import ops
 from charmlibs.interfaces.certificate_transfer import (
-    CertificatesAvailableEvent,
-    CertificatesRemovedEvent,
     CertificateTransferRequires,
 )
 from charms.grafana_agent.v0.cos_agent import COSAgentProvider
@@ -26,6 +24,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
 import ca_certs
 import certificates
 import nginx_manager
+from certificates import FRONTEND_CERT_COMMON_NAME
 from errors import (
     CACertificateFileError,
     IntegrationDataError,
@@ -72,18 +71,16 @@ class ContentCacheCharm(ops.CharmBase):
 
         self._stored.set_default(port_map={})
         self._stored.set_default(next_port_offset=0)
-        self._stored.set_default(cache_cert_cn="")
 
         self._cos_agent = COSAgentProvider(charm=self)
         self._certificate_transfer = CertificateTransferRequires(
             self, CERTIFICATE_TRANSFER_INTEGRATION_NAME
         )
-        bind_ip = str(self.model.get_binding(CERTIFICATE_INTEGRATION_NAME).network.bind_address)
         self._tls_certificates = TLSCertificatesRequiresV4(
             charm=self,
             relationship_name=CERTIFICATE_INTEGRATION_NAME,
             certificate_requests=[
-                CertificateRequestAttributes(common_name=bind_ip, sans_ip=[bind_ip])
+                CertificateRequestAttributes(common_name=FRONTEND_CERT_COMMON_NAME)
             ],
             mode=Mode.UNIT,
         )
@@ -101,11 +98,11 @@ class ContentCacheCharm(ops.CharmBase):
         )
         framework.observe(
             self._certificate_transfer.on.certificate_set_updated,
-            self._on_certificates_available,
+            self._on_certificate_transfer_changed,
         )
         framework.observe(
             self._certificate_transfer.on.certificates_removed,
-            self._on_certificates_removed,
+            self._on_certificate_transfer_changed,
         )
         framework.observe(
             self.on[CERTIFICATE_INTEGRATION_NAME].relation_created,
@@ -147,64 +144,38 @@ class ContentCacheCharm(ops.CharmBase):
         event.relation.data[self.unit]["cache-backend"] = ""
         self._load_nginx_config()
 
-    def _sync_ca_certs_from_relations(self) -> None:
-        """Write CA certs from all active cert-transfer relations to disk.
+    def _rebuild_ca_bundle(self) -> None:
+        """Rebuild the CA bundle from all active cert-transfer relations.
 
-        This is a best-effort sync called when the CA bundle is missing but HTTPS
-        backends are configured.  It handles the race where cache_config_relation_changed
-        fires before certificate_set_updated has had a chance to write the bundle.
+        Reads all active ``receive-ca-cert`` relations and writes every CA cert
+        found to a single bundle file, replacing any previously written bundle.
+        Handles V1 (app databag, JSON-encoded list) and V0 (unit databag,
+        ``ca``/``chain`` fields) provider formats.
 
-        Reads relation databags directly (bypassing the library parser) to handle
-        both V1 (app databag, JSON-encoded "certificates" list) and V0 (unit databag,
-        "ca"/"chain" fields) provider formats, including older providers that only
-        write "ca" without "chain".
+        Raises:
+            CACertificateFileError: If writing the bundle file fails.
         """
+        all_certs: list[str] = []
         for rel in self.model.relations[CERTIFICATE_TRANSFER_INTEGRATION_NAME]:
             if not rel.active:
                 continue
             certs = _certs_from_relation(rel)
-            if not certs:
+            if certs:
+                all_certs.extend(certs)
+            else:
                 logger.debug("No cert data found in relation %s databags", rel.id)
-                continue
-            try:
-                ca_certs.write_ca_cert(rel.id, certs)
-                logger.debug("Synced CA cert from relation %s", rel.id)
-            except CACertificateFileError:
-                logger.exception(
-                    "Failed to sync CA certificate for relation %s during nginx config load",
-                    rel.id,
-                )
-
-    def _on_certificates_available(self, event: CertificatesAvailableEvent) -> None:
-        """Handle certificate-transfer certificates available event."""
-        if event.certificates:
-            try:
-                ca_certs.write_ca_cert(event.relation_id, list(event.certificates))
-            except CACertificateFileError:
-                logger.exception(
-                    "Failed to write CA certificate for relation %s", event.relation_id
-                )
-                self.unit.status = ops.BlockedStatus("Failed to write CA certificate to disk")
-                return
-        else:
-            # Library returned empty certificates — the provider may not have written its
-            # data yet, or the library failed to parse the databag.  Fall through to
-            # _load_nginx_config() which calls _sync_ca_certs_from_relations() and reads
-            # the provider's databag directly, bypassing the library parser.
-            logger.debug(
-                "Empty certificate set from library for relation %s; "
-                "will attempt direct databag read in _load_nginx_config",
-                event.relation_id,
-            )
-        self._load_nginx_config()
-
-    def _on_certificates_removed(self, event: CertificatesRemovedEvent) -> None:
-        """Handle certificate-transfer certificates removed event."""
         try:
-            ca_certs.remove_ca_cert(event.relation_id)
+            ca_certs.write_ca_bundle(all_certs)
         except CACertificateFileError:
-            logger.exception("Failed to remove CA certificate for relation %s", event.relation_id)
-            self.unit.status = ops.BlockedStatus("Failed to remove CA certificate from disk")
+            logger.exception("Failed to write CA bundle")
+            self.unit.status = ops.BlockedStatus("Failed to write CA certificate to disk")
+            raise
+
+    def _on_certificate_transfer_changed(self, _: ops.EventBase) -> None:
+        """Handle any certificate-transfer change — rebuild bundle and reconfigure."""
+        try:
+            self._rebuild_ca_bundle()
+        except CACertificateFileError:
             return
         self._load_nginx_config()
 
@@ -214,10 +185,8 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_tls_certificate_available(self, _: CertificateAvailableEvent) -> None:
         """Handle TLS certificate available event — write cert and serve HTTPS."""
-        bind_ip = str(self.model.get_binding(CERTIFICATE_INTEGRATION_NAME).network.bind_address)
         try:
-            cert_map = certificates.write_certificates(
-                [CertificateRequestAttributes(common_name=bind_ip, sans_ip=[bind_ip])],
+            certificates.write_certificate(
                 "root",
                 nginx_manager.NGINX_CERTIFICATES_PATH,
                 self._tls_certificates,
@@ -233,36 +202,29 @@ class ContentCacheCharm(ops.CharmBase):
             logger.warning("TLS certificate not yet available; waiting for next event")
             self.unit.status = ops.WaitingStatus(WAIT_FOR_TLS_CERT_MESSAGE)
             return
-        if cert_map:
-            self._stored.cache_cert_cn = bind_ip
         self._load_nginx_config()
 
     def _on_tls_certificates_relation_broken(self, _: ops.RelationBrokenEvent) -> None:
         """Handle certificates relation broken — delete cert and revert to HTTP."""
-        cn: str = self._stored.cache_cert_cn  # type: ignore[assignment]
-        if cn:
-            cert_path = nginx_manager.NGINX_CERTIFICATES_PATH / f"{cn}.pem"
-            try:
-                cert_path.unlink(missing_ok=True)
-            except OSError:
-                logger.exception("Failed to remove certificate file %s", cert_path)
-                self.unit.status = ops.BlockedStatus("Failed to remove TLS certificate file")
-                return
-            self._stored.cache_cert_cn = ""
+        cert_path = nginx_manager.NGINX_CERTIFICATES_PATH / f"{FRONTEND_CERT_COMMON_NAME}.pem"
+        try:
+            cert_path.unlink(missing_ok=True)
+        except OSError:
+            logger.exception("Failed to remove certificate file %s", cert_path)
+            self.unit.status = ops.BlockedStatus("Failed to remove TLS certificate file")
+            return
         self._load_nginx_config(tls_cert_removed=True)
 
     def _get_cache_cert_path(self) -> Path | None:
-        """Return the cache cert path if TLS termination is active, else None.
+        """Return the frontend cert path if TLS termination is active, else None.
 
         Returns None if no certificates relation is present or the certificate
-        has not yet been issued; does not set unit status.
+        file has not yet been written; does not set unit status.
         """
         if self.model.get_relation(CERTIFICATE_INTEGRATION_NAME) is None:
             return None
-        cn: str = self._stored.cache_cert_cn  # type: ignore[assignment]
-        if not cn:
-            return None
-        return nginx_manager.NGINX_CERTIFICATES_PATH / f"{cn}.pem"
+        cert_path = nginx_manager.NGINX_CERTIFICATES_PATH / f"{FRONTEND_CERT_COMMON_NAME}.pem"
+        return cert_path if cert_path.exists() else None
 
     def _update_status_with_nginx(self) -> None:
         """Set the charm status according to nginx status."""
@@ -316,8 +278,8 @@ class ContentCacheCharm(ops.CharmBase):
             nginx_manager.update_and_load_config(
                 ported_config,
                 self._get_instance_name(),
-                ca_bundle_path=ca_bundle_path,
-                cache_cert_path=cache_cert_path,
+                backend_ca_path=ca_bundle_path,
+                frontend_cert_path=cache_cert_path,
             )
         except NginxFileError:
             logger.exception(
@@ -341,25 +303,23 @@ class ContentCacheCharm(ops.CharmBase):
             self._clear_cache_backend()
 
     def _resolve_ca_bundle_path(self, nginx_config: NginxConfig) -> Path | None:
-        """Return the CA bundle path, syncing cert-transfer relations if needed.
+        """Return the CA bundle path, rebuilding it from relations if needed.
 
-        If HTTPS backends are configured but no bundle exists yet, proactively
-        reads all certificate-transfer relations before returning.
+        Always rebuilds the bundle from all active ``receive-ca-cert`` relations
+        so the on-disk state is consistent with the current set of relations.
 
         Returns:
-            The CA bundle path if it exists, otherwise None.
+            The CA bundle path if any certs were available, otherwise None.
         """
         any_https = any(
             str(config.backends[0].scheme) == "https" for _, config in nginx_config.items()
         )
-        ca_bundle_path = ca_certs.get_ca_bundle_path()
-        if any_https and ca_bundle_path is None:
-            # The CA bundle may not have been written yet if this hook fires before
-            # the certificate_set_updated event.  Proactively read all cert-transfer
-            # relations so we don't stay in WaitingStatus unnecessarily.
-            self._sync_ca_certs_from_relations()
-            ca_bundle_path = ca_certs.get_ca_bundle_path()
-        return ca_bundle_path
+        if any_https:
+            try:
+                self._rebuild_ca_bundle()
+            except CACertificateFileError:
+                return None
+        return ca_certs.get_ca_bundle_path()
 
     def _write_cache_backends(self, ported_config: dict, cache_cert_path: Path | None) -> None:
         """Write cache-backend URLs to all cache-config relation databags."""

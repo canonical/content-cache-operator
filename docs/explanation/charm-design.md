@@ -237,7 +237,7 @@ The field is updated if the port changes. When the relation is removed, the fiel
 
 ## CA certificate trust for HTTPS backends
 
-When using HTTPS backend URLs, the content-cache charm can receive the backend CA
+When using HTTPS backend URLs, the content-cache charm must receive the backend CA
 certificate via the `receive-ca-cert` relation. The charm stores received certificates at
 `/etc/nginx/certs/ca-<relation-id>.pem` and regenerates a merged bundle at
 `/etc/nginx/certs/ca-bundle.pem` whenever the relation changes.
@@ -246,8 +246,6 @@ Nginx is configured with:
 
 - `proxy_ssl_trusted_certificate /etc/nginx/certs/ca-bundle.pem` — trust the provided CA
 - `proxy_ssl_verify on` — verify backend certificates against the CA
-- `proxy_ssl_name <backend-hostname>` — verify the cert against the correct hostname
-- `proxy_ssl_server_name on` — send SNI (Server Name Indication) so backends using name-based virtual hosting present the correct certificate
 
 Multiple `receive-ca-cert` providers are supported; all CA certificates are merged into
 one bundle.
