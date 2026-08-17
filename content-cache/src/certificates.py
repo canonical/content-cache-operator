@@ -83,9 +83,9 @@ def _store_certificate(  # pragma: no cover
     """
     logger.info("Storing the frontend TLS certificate")
 
-    parts = [provider_certificate.certificate]
+    parts = [str(provider_certificate.certificate)]
     if provider_certificate.chain:
-        parts.extend(provider_certificate.chain)
+        parts.extend(str(c) for c in provider_certificate.chain)
     parts.append(str(private_key))
     pem_file_content = "\n".join(parts)
     pem_file_path = certificates_path / f"{FRONTEND_CERT_COMMON_NAME}.pem"
