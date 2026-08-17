@@ -104,6 +104,17 @@ class ContentCacheCharm(ops.CharmBase):
             self._certificate_transfer.on.certificates_removed,
             self._on_certificate_transfer_changed,
         )
+        # Also observe raw relation events to handle V0-format providers
+        # (e.g. self-signed-certificates) that the library doesn't parse and
+        # therefore never fires certificate_set_updated / certificates_removed for.
+        framework.observe(
+            self.on[CERTIFICATE_TRANSFER_INTEGRATION_NAME].relation_changed,
+            self._on_certificate_transfer_changed,
+        )
+        framework.observe(
+            self.on[CERTIFICATE_TRANSFER_INTEGRATION_NAME].relation_broken,
+            self._on_certificate_transfer_changed,
+        )
         framework.observe(
             self.on[CERTIFICATE_INTEGRATION_NAME].relation_created,
             self._on_tls_certificates_relation_created,
