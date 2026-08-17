@@ -204,7 +204,7 @@ def test_get_location_config_keys_https_with_ca_bundle(patch_nginx_manager: None
     arrange: A LocationConfig with https backends and a CA bundle path.
     act: Call _get_location_config_keys with backend_ca_path set.
     assert: proxy_ssl_trusted_certificate and proxy_ssl_verify on present; no proxy_ssl_name
-        or proxy_ssl_server_name (server name verification disabled per weiiwang01 review).
+        or proxy_ssl_server_name (server name verification is disabled).
     """
     ca_bundle = tmp_path / "ca-bundle.pem"
     ca_bundle.write_text("cert", encoding="utf-8")
