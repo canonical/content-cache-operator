@@ -373,22 +373,13 @@ async def deploy_self_cert_https_app(
                 return
             for entry in json.loads(raw):
                 if entry.get("certificate_signing_request", "").strip() == csr_pem:
-                    # chain[0] is the leaf cert itself; chain[1:] are intermediate CAs.
-                    # Include intermediates so nginx can verify the full TLS chain.
-                    chain = entry.get("chain") or []
-                    intermediates = chain[1:] if len(chain) > 1 else []
-                    self._start_server(entry["certificate"], intermediates)
+                    self._start_server(entry["certificate"])
                     self.unit.status = ops.ActiveStatus()
                     return
 
-        def _start_server(self, cert_pem: str, intermediates: list = None):
-            """Write cert+key PEM (with any intermediate CAs) and restart HTTPS service."""
-            parts = [cert_pem.strip()]
-            for ca in (intermediates or []):
-                if ca:
-                    parts.append(ca.strip())
-            parts.append(KEY_PATH.read_text())
-            SERVER_PEM.write_text("\\n".join(parts))
+        def _start_server(self, cert_pem: str):
+            """Write cert+key PEM and restart the systemd HTTPS service."""
+            SERVER_PEM.write_text(cert_pem.strip() + "\\n" + KEY_PATH.read_text())
             test_server = Path(os.getcwd()) / "src" / "test_server.py"
             SERVICE_PATH.write_text(
                 "[Unit]\\n"

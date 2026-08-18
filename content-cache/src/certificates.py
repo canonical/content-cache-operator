@@ -85,7 +85,9 @@ def _store_certificate(  # pragma: no cover
 
     parts = [str(provider_certificate.certificate)]
     if provider_certificate.chain:
-        parts.extend(str(c) for c in provider_certificate.chain)
+        # chain[0] is the leaf cert itself (same as provider_certificate.certificate);
+        # chain[1:] contains intermediate CA certs that nginx needs to complete the chain.
+        parts.extend(str(c) for c in provider_certificate.chain[1:])
     parts.append(str(private_key))
     pem_file_content = "\n".join(parts)
     pem_file_path = certificates_path / f"{FRONTEND_CERT_COMMON_NAME}.pem"

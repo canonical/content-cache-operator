@@ -288,6 +288,21 @@ async def test_healthchecks_ssl_verify(
         await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
         response = await cache_tester.query_cache(path="/", protocol="http")
+
+        # Collect diagnostic info to help debug SSL verification failures
+        unit = app.units[0]
+        nginx_error_task = await unit.run("tail -50 /var/log/nginx/error.log 2>/dev/null || echo '(no error log)'")
+        nginx_error_result = await nginx_error_task.wait()
+        ca_bundle_task = await unit.run("cat /etc/nginx/ca-bundle.pem 2>/dev/null || echo '(no ca bundle)'")
+        ca_bundle_result = await ca_bundle_task.wait()
+        nginx_conf_task = await unit.run("grep -r 'proxy_ssl' /etc/nginx/sites-available/ 2>/dev/null | head -20 || echo '(no nginx sites)'")
+        nginx_conf_result = await nginx_conf_task.wait()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("nginx error log:\n%s", nginx_error_result.results.get("stdout", ""))
+        logger.info("CA bundle:\n%s", ca_bundle_result.results.get("stdout", ""))
+        logger.info("nginx proxy_ssl config:\n%s", nginx_conf_result.results.get("stdout", ""))
+
         assert response.status_code == expected_http_code
 
         if expected_http_code == 200:
