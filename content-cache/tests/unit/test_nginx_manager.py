@@ -206,7 +206,7 @@ def test_get_location_config_keys_https_with_ca_bundle(
     arrange: A LocationConfig with https backends and a CA bundle present on disk.
     act: Call _get_location_config_keys.
     assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, and proxy_ssl_name set to
-        the first backend's hostname so nginx verifies against the actual host, not the
+        the first backend hostname so nginx verifies against the actual host, not the
         upstream block name.
     """
     ca_bundle = tmp_path / "ca-bundle.pem"

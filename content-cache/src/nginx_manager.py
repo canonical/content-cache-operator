@@ -537,7 +537,7 @@ def _get_location_config_keys(
     ]
 
     if scheme == "https" and ca_certs.get_ca_bundle_path() is not None:
-        # Use the backend's actual hostname/IP for SSL verification, not the upstream
+        # Use the backend actual hostname/IP for SSL verification, not the upstream
         # block name (e.g. "backend-{id}"), which would never match the cert's CN/SAN.
         # All backends in a location must share the same hostname for proxy_ssl to work.
         backend_host = config.backends[0].host
