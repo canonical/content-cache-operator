@@ -203,7 +203,8 @@ def test_get_location_config_keys_https_with_ca_bundle(
     patch_nginx_manager: None, tmp_path, monkeypatch
 ):
     """
-    arrange: A LocationConfig with https backends, a CA bundle present on disk, and ssl_verify=true.
+    arrange: A LocationConfig with https backends, a CA bundle present on disk,
+        and ssl_verify=true.
     act: Call _get_location_config_keys.
     assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, and proxy_ssl_name set to
         the first backend hostname so nginx verifies against the actual host, not the
@@ -233,7 +234,8 @@ def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
     patch_nginx_manager: None, tmp_path, monkeypatch
 ):
     """
-    arrange: A LocationConfig with https backends, a CA bundle present on disk, and ssl_verify=false.
+    arrange: A LocationConfig with https backends, a CA bundle present on disk,
+        and ssl_verify=false.
     act: Call _get_location_config_keys.
     assert: No proxy_ssl_verify directives added — CA bundle only used when ssl_verify is true.
     """

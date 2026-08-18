@@ -213,8 +213,8 @@ def test_unique_port_allocated_per_relation(ctx: scenario.Context, monkeypatch):
     """
     # Override the mock to return a port-aware URL so we can distinguish allocations.
     monkeypatch.setattr(
-        "charm.get_cache_backends_urls",
-        lambda charm, relation, port, has_cache_cert=False: [f"http://10.0.0.1:{port}"],
+        "charm.get_cache_backend_url",
+        lambda charm, relation, port, has_cache_cert=False: f"http://10.0.0.1:{port}",
     )
     rel1 = scenario.Relation(
         endpoint=CACHE_CONFIG_INTEGRATION_NAME,
@@ -237,18 +237,18 @@ def test_unique_port_allocated_per_relation(ctx: scenario.Context, monkeypatch):
     out2 = ctx.run(ctx.on.relation_changed(rel2), state_after_rel1)
 
     def extract_port(out: scenario.State, relation_id: int) -> int:
-        """Extract the allocated port number from the cache-backends URL in relation data.
+        """Extract the allocated port number from the cache-backend URL in relation data.
 
         Args:
             out: The output state from scenario run.
             relation_id: The relation ID to look up.
 
         Returns:
-            The port number, or -1 if no cache-backends is set.
+            The port number, or -1 if no cache-backend is set.
         """
         rel = out.get_relation(relation_id)
-        urls = json.loads(rel.local_unit_data.get("cache-backends", "[]"))
-        return int(urls[0].rsplit(":", 1)[-1]) if urls else -1
+        url = rel.local_unit_data.get("cache-backend", "")
+        return int(url.rsplit(":", 1)[-1]) if url else -1
 
     port1 = extract_port(out1, rel1.id)
     port2 = extract_port(out2, rel2.id)
@@ -274,17 +274,17 @@ def test_port_stable_for_same_relation(
     rel1 = out1.get_relation(cache_config_relation.id)
     rel2 = out2.get_relation(cache_config_relation.id)
 
-    assert rel1.local_unit_data.get("cache-backends") == rel2.local_unit_data.get("cache-backends")
+    assert rel1.local_unit_data.get("cache-backend") == rel2.local_unit_data.get("cache-backend")
 
 
-def test_load_nginx_config_writes_cache_backends(
+def test_load_nginx_config_writes_cache_backend(
     ctx: scenario.Context,
     cache_config_relation: scenario.Relation,
 ):
     """
-    arrange: A working charm with get_cache_backends_urls mocked in the fixture.
+    arrange: A working charm with get_cache_backend_url mocked in the fixture.
     act: Fire relation-changed with valid data.
-    assert: cache-backends is written to unit relation data with the expected URL.
+    assert: cache-backend is written to unit relation data with the expected URL.
     """
     out = ctx.run(
         ctx.on.relation_changed(cache_config_relation),
@@ -292,11 +292,8 @@ def test_load_nginx_config_writes_cache_backends(
     )
     assert out.unit_status == scenario.ActiveStatus()
     out_rel = out.get_relation(cache_config_relation.id)
-    cache_backends = out_rel.local_unit_data.get("cache-backends", "")
-    assert cache_backends != ""
-    urls = json.loads(cache_backends)
-    assert len(urls) == 1
-    assert urls[0] == "http://10.0.0.1:8080"
+    cache_backend = out_rel.local_unit_data.get("cache-backend", "")
+    assert cache_backend == "http://10.0.0.1:8080"
 
 
 def test_relation_broken_clears_cache_backends(
@@ -429,7 +426,8 @@ def test_certificate_available_file_error_sets_blocked(
     """
     mock_nginx_manager.update_and_load_config.reset_mock()
     monkeypatch.setattr(
-        "charm.ca_certs.write_ca_cert", MagicMock(side_effect=CACertificateFileError("disk error"))
+        "charm.ca_certs.write_ca_bundle",
+        MagicMock(side_effect=CACertificateFileError("disk error")),
     )
     cert_rel = scenario.Relation(
         endpoint=CERT_TRANSFER_INTEGRATION_NAME,
@@ -463,7 +461,7 @@ def test_certificate_removed_file_error_sets_blocked(
     )
     mock_nginx_manager.update_and_load_config.reset_mock()
     monkeypatch.setattr(
-        "charm.ca_certs.remove_ca_cert",
+        "charm.ca_certs.write_ca_bundle",
         MagicMock(side_effect=CACertificateFileError("disk error")),
     )
     out = ctx.run(
@@ -523,10 +521,15 @@ def test_tls_certificate_available_writes_cert_and_reloads(
         harness.add_relation(CERTIFICATE_INTEGRATION_NAME, remote_app="cache-lego")
         mock_nginx_manager.update_and_load_config.reset_mock()
 
-        with patch(
-            "charm.certificates.write_certificates",
-            return_value={"10.0.0.1": Path("/etc/nginx/certs/10.0.0.1.pem")},
-        ) as mock_write:
+        with (
+            patch(
+                "charm.certificates.write_certificate",
+                return_value={"10.0.0.1": Path("/etc/nginx/certs/10.0.0.1.pem")},
+            ) as mock_write,
+            patch.object(
+                harness.charm, "_get_cache_cert_path", return_value=Path("/fake/cert.pem")
+            ),
+        ):
             harness.charm._on_tls_certificate_available(MagicMock())
 
         mock_write.assert_called_once()
@@ -559,7 +562,7 @@ def test_tls_certificate_available_write_error_sets_blocked(
         mock_nginx_manager.update_and_load_config.reset_mock()
 
         with patch(
-            "charm.certificates.write_certificates",
+            "charm.certificates.write_certificate",
             side_effect=TLSCertificateFileError("disk error"),
         ):
             harness.charm._on_tls_certificate_available(MagicMock())

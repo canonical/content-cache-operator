@@ -293,14 +293,15 @@ def read_file(juju: jubilant.Juju, unit_name: str, path: Path) -> str:
 
 
 def get_cache_backends(juju: jubilant.Juju, unit_name: str) -> list[str]:
-    """Get the cache-backends value from the unit's cache-config relation data.
+    """Get the cache-backend URL from the unit's cache-config relation data.
 
     Args:
         juju: The jubilant Juju instance.
         unit_name: The content-cache unit name to query.
 
     Returns:
-        The list of cache-backend URLs published on the first cache-config relation.
+        A list containing the cache-backend URL published on the first cache-config relation,
+        or an empty list if no URL is set.
     """
     rel_ids_result = juju.exec("relation-ids cache-config", unit=unit_name)
     assert rel_ids_result.return_code == 0, f"Failed to get relation IDs: {rel_ids_result.stderr}"
@@ -309,14 +310,14 @@ def get_cache_backends(juju: jubilant.Juju, unit_name: str) -> list[str]:
     rel_id = rel_ids[0]
 
     result = juju.exec(
-        f"relation-get -r {rel_id} cache-backends -- {unit_name}",
+        f"relation-get -r {rel_id} cache-backend -- {unit_name}",
         unit=unit_name,
     )
-    assert result.return_code == 0, f"Failed to get cache-backends: {result.stderr}"
+    assert result.return_code == 0, f"Failed to get cache-backend: {result.stderr}"
     raw = result.stdout.strip()
     if not raw:
         return []
-    return json.loads(raw)
+    return [raw]
 
 
 def run_in_unit(juju: jubilant.Juju, unit_name: str, command: str) -> tuple[int, str, str]:
