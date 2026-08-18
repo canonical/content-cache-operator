@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Each revision is versioned by the date of the revision.
 
+## 2026-08-18
+
+### Added
+
+- The content-cache charm now verifies backend TLS certificates when HTTPS backend URLs are
+  configured. Integrate a CA certificate provider via the new `receive-ca-cert` relation
+  (interface: `certificate_transfer`) to supply the CA bundle. nginx is configured with
+  `proxy_ssl_verify on`, `proxy_ssl_trusted_certificate`, and `proxy_ssl_name` pointing to
+  the backend hostname. If HTTPS backends are configured but no CA certificate has been
+  provided, the charm enters `WaitingStatus` until the relation is established. Multiple
+  providers are supported; all CA certificates are merged into a single bundle at
+  `/etc/nginx/certs/ca-bundle.pem`.
+
 ## 2026-07-16
 
 ### Changed

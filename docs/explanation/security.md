@@ -50,9 +50,10 @@ component placed in front of the charm, such as a load balancer, reverse proxy, 
 
 ### Backend protocol
 
-The `protocol` configuration option on `content-cache-backends-config` controls whether nginx
-contacts backends over HTTP or HTTPS. The configuration defaults to `https`. Operators should keep this
-default unless backends do not support HTTPS.
+Backends are specified as full URLs in the form `<http|https>://<ip>:<port>` via the
+`backends` configuration option on `content-cache-backends-config`. The URL scheme controls
+whether nginx contacts backends over HTTP or HTTPS. Operators should use HTTPS backend URLs
+unless backends do not support TLS.
 
 ### Backend SSL certificate verification
 

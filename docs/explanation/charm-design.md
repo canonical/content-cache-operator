@@ -170,7 +170,7 @@ The checker uses fall/rise thresholds to avoid flapping:
 - A backend is marked up again after 2 consecutive successes (`rise=2`)
 
 The following example shows the generated Lua block for a single backend
-using non-default values for `healthcheck-path` and `protocol`:
+using a non-default value for `healthcheck-path`:
 
 ```lua
 ok, err = hc.spawn_checker{
@@ -246,6 +246,9 @@ Nginx is configured with:
 
 - `proxy_ssl_trusted_certificate /etc/nginx/certs/ca-bundle.pem` — trust the provided CA
 - `proxy_ssl_verify on` — verify backend certificates against the CA
+- `proxy_ssl_name <backend-host>` — set the hostname for TLS SNI (Server Name Indication) and certificate verification,
+  using the first backend's hostname so nginx verifies against the actual backend host rather
+  than the internal upstream block name
 
 Multiple `receive-ca-cert` providers are supported; all CA certificates are merged into
 one bundle.

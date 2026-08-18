@@ -316,14 +316,15 @@ class ContentCacheCharm(ops.CharmBase):
         """Rebuild the CA bundle and confirm it is present when https backends are configured.
 
         Returns:
-            True if the CA bundle is available (or not needed), False if it is missing.
+            True if the CA bundle is available (or not needed), False if it is missing or
+            could not be rebuilt.
         """
         if not any_https:
             return True
         try:
             self._rebuild_ca_bundle()
         except CACertificateFileError:
-            pass
+            return False
         return ca_certs.get_ca_bundle_path() is not None
 
     def _write_cache_backends(self, ported_config: dict, cache_cert_path: Path | None) -> None:
