@@ -203,8 +203,9 @@ def test_get_location_config_keys_https_with_ca_bundle(patch_nginx_manager: None
     """
     arrange: A LocationConfig with https backends and a CA bundle path.
     act: Call _get_location_config_keys with backend_ca_path set.
-    assert: proxy_ssl_trusted_certificate and proxy_ssl_verify on present; no proxy_ssl_name
-        or proxy_ssl_server_name (server name verification is disabled).
+    assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, and proxy_ssl_name set to
+        the first backend's hostname so nginx verifies against the actual host, not the
+        upstream block name.
     """
     ca_bundle = tmp_path / "ca-bundle.pem"
     ca_bundle.write_text("cert", encoding="utf-8")
@@ -221,8 +222,7 @@ def test_get_location_config_keys_https_with_ca_bundle(patch_nginx_manager: None
     key_strings = [k.as_strings for k in keys]
     assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
     assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
-    assert not any("proxy_ssl_name" in s for s in key_strings)
-    assert not any("proxy_ssl_server_name" in s for s in key_strings)
+    assert any("proxy_ssl_name" in s and "10.10.1.1" in s for s in key_strings)
 
 
 def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
@@ -247,6 +247,7 @@ def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
     key_strings = [k.as_strings for k in keys]
     assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
     assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
+    assert any("proxy_ssl_name" in s and "10.10.1.1" in s for s in key_strings)
 
 
 def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: None):

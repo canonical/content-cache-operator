@@ -4,7 +4,6 @@
 """Integration tests for the content-cache's active healthchecks."""
 
 import asyncio
-import logging
 from typing import List
 
 import pytest
@@ -289,38 +288,6 @@ async def test_healthchecks_ssl_verify(
         await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
         response = await cache_tester.query_cache(path="/", protocol="http")
-
-        # Collect diagnostic info
-        diag_logger = logging.getLogger(__name__)
-        unit = app.units[0]
-        backend_unit = https_cert_ok_app.units[0] if use_cert_ok_app else https_ok_app.units[0]
-        backend_ip = await backend_unit.get_public_address()
-
-        nginx_error_task = await unit.run(
-            "tail -200 /var/log/nginx/error.log 2>/dev/null || echo '(no error log)'"
-        )
-        nginx_error_result = await nginx_error_task.wait()
-
-        ca_bundle_task = await unit.run(
-            "cat /etc/nginx/certs/ca-bundle.pem 2>/dev/null || echo '(no ca bundle at /etc/nginx/certs/ca-bundle.pem)'"
-        )
-        ca_bundle_result = await ca_bundle_task.wait()
-
-        hc_status_task = await unit.run(
-            "curl -s 127.0.0.1/nginx_backends_status 2>/dev/null || echo '(no hc status)'"
-        )
-        hc_status_result = await hc_status_task.wait()
-
-        backend_check_task = await unit.run(
-            f"curl -sk --max-time 3 https://{backend_ip}:443/health -o /dev/null -w '%{{http_code}}' 2>&1 || echo 'UNREACHABLE'"
-        )
-        backend_check_result = await backend_check_task.wait()
-
-        diag_logger.info("nginx error log (last 200):\n%s", nginx_error_result.results.get("stdout", ""))
-        diag_logger.info("CA bundle (/etc/nginx/certs/ca-bundle.pem):\n%s", ca_bundle_result.results.get("stdout", ""))
-        diag_logger.info("nginx healthcheck status:\n%s", hc_status_result.results.get("stdout", ""))
-        diag_logger.info("backend %s:443/health HTTP code: %s", backend_ip, backend_check_result.results.get("stdout", ""))
-
         assert response.status_code == expected_http_code
 
         if expected_http_code == 200:
