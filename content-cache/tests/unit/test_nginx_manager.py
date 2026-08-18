@@ -199,6 +199,98 @@ def test_healthcheck_worker_upstream_entries_carry_ports(patch_nginx_manager: No
     assert any("10.10.2.2:9090" in s for s in key_strings)
 
 
+def test_get_location_config_keys_https_with_ca_bundle(
+    patch_nginx_manager: None, tmp_path, monkeypatch
+):
+    """
+    arrange: A LocationConfig with https backends and a CA bundle present on disk.
+    act: Call _get_location_config_keys.
+    assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, and proxy_ssl_name set to
+        the first backend hostname so nginx verifies against the actual host, not the
+        upstream block name.
+    """
+    ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text("cert", encoding="utf-8")
+    monkeypatch.setattr("ca_certs.get_ca_bundle_path", lambda: ca_bundle)
+    monkeypatch.setattr("ca_certs.CA_BUNDLE_PATH", ca_bundle)
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        "backends": '["https://10.10.1.1:443"]',
+        "healthcheck_ssl_verify": "true",
+    }
+    config = LocationConfig.from_integration_data(data)
+    upstream = "test-upstream"
+
+    keys = nginx_manager._get_location_config_keys(config, upstream)
+
+    key_strings = [k.as_strings for k in keys]
+    assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
+    assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
+    assert any("proxy_ssl_name" in s and "10.10.1.1" in s for s in key_strings)
+
+
+def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
+    patch_nginx_manager: None, tmp_path, monkeypatch
+):
+    """
+    arrange: A LocationConfig with https backends, a CA bundle present, and ssl_verify=false.
+    act: Call _get_location_config_keys.
+    assert: proxy_ssl directives are present — healthcheck ssl_verify does not affect proxy SSL.
+    """
+    ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text("cert", encoding="utf-8")
+    monkeypatch.setattr("ca_certs.get_ca_bundle_path", lambda: ca_bundle)
+    monkeypatch.setattr("ca_certs.CA_BUNDLE_PATH", ca_bundle)
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        "backends": '["https://10.10.1.1:443"]',
+        "healthcheck_ssl_verify": "false",
+    }
+    config = LocationConfig.from_integration_data(data)
+
+    keys = nginx_manager._get_location_config_keys(config, "upstream")
+
+    key_strings = [k.as_strings for k in keys]
+    assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
+    assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
+    assert any("proxy_ssl_name" in s and "10.10.1.1" in s for s in key_strings)
+
+
+def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: None, monkeypatch):
+    """
+    arrange: A LocationConfig with https backends but no CA bundle on disk.
+    act: Call _get_location_config_keys.
+    assert: No proxy_ssl directives in the keys.
+    """
+    monkeypatch.setattr("ca_certs.get_ca_bundle_path", lambda: None)
+    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    config = LocationConfig.from_integration_data(data)
+
+    keys = nginx_manager._get_location_config_keys(config, "upstream")
+
+    key_strings = [k.as_strings for k in keys]
+    assert not any("proxy_ssl" in s for s in key_strings)
+
+
+def test_get_location_config_keys_http_ignores_ca_bundle(
+    patch_nginx_manager: None, tmp_path, monkeypatch
+):
+    """
+    arrange: A LocationConfig with http backends even though a CA bundle is present on disk.
+    act: Call _get_location_config_keys.
+    assert: No proxy_ssl directives added for http backends.
+    """
+    ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text("cert", encoding="utf-8")
+    monkeypatch.setattr("ca_certs.get_ca_bundle_path", lambda: ca_bundle)
+    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+
+    keys = nginx_manager._get_location_config_keys(config, "upstream")
+
+    key_strings = [k.as_strings for k in keys]
+    assert not any("proxy_ssl" in s for s in key_strings)
+
+
 def test_health_check(monkeypatch, patch_nginx_manager: None):
     """
     arrange: Patch the requests.get to return successful health check.
@@ -239,3 +331,63 @@ def test_file_errors(monkeypatch, patch_nginx_manager: None):
 
     with pytest.raises(NginxFileError):
         nginx_manager._store_and_enable_site_config("mock-host", {})
+
+
+def test_update_config_with_cache_cert_adds_ssl_directives(
+    monkeypatch, patch_nginx_manager: None, tmp_path
+):
+    """
+    arrange: Valid config and a frontend_cert_path pointing to a PEM file.
+    act: Call update_and_load_config with frontend_cert_path set.
+    assert: The nginx site config contains ssl listen, ssl_certificate, ssl_certificate_key.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    cert_file = tmp_path / "cache.pem"
+    cert_file.write_text("cert-content")
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(
+        sample_data, mock_instance_name, frontend_cert_path=cert_file
+    )
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert f"listen {port} ssl" in config_content
+    assert f"ssl_certificate {cert_file}" in config_content
+    assert f"ssl_certificate_key {cert_file}" in config_content
+
+
+def test_update_config_without_cache_cert_no_ssl_directives(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: Valid config, no cache_cert_path.
+    act: Call update_and_load_config without cache_cert_path.
+    assert: The nginx site config does not contain ssl directives.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "ssl" not in config_content

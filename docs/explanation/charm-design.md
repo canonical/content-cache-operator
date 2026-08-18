@@ -170,7 +170,7 @@ The checker uses fall/rise thresholds to avoid flapping:
 - A backend is marked up again after 2 consecutive successes (`rise=2`)
 
 The following example shows the generated Lua block for a single backend
-using non-default values for `healthcheck-path` and `protocol`:
+using a non-default value for `healthcheck-path`:
 
 ```lua
 ok, err = hc.spawn_checker{
@@ -217,8 +217,10 @@ juju config backends backends=https://185.125.90.20:443
 
 When the URL scheme is `https`, nginx connects to the backend over TLS.
 All backends in a single relation must use the same scheme.
-The charm does not manage TLS certificates for the incoming (listening) side.
-TLS termination for incoming client traffic is expected to be handled by an upstream ingress
+The charm does not manage TLS certificates for the incoming (listening) side by default.
+TLS termination for incoming client traffic can be enabled via the `certificates` relation
+(interface: `tls-certificates`) with a provider such as `lego`.
+Without that relation, TLS termination is expected to be handled by an upstream ingress
 (such as `haproxy` with the `ingress-configurator` charm).
 
 ## Cache-backend published address
@@ -232,3 +234,29 @@ An ingress component can read this value to replace its HAProxy-backend address 
 the content-cache unit address.
 
 The field is updated if the port changes. When the relation is removed, the field is cleared.
+
+## CA certificate trust for HTTPS backends
+
+When using HTTPS backend URLs, the content-cache charm must receive the backend CA
+certificate via the `receive-ca-cert` relation. The charm stores received certificates at
+`/etc/nginx/certs/ca-<relation-id>.pem` and regenerates a merged bundle at
+`/etc/nginx/certs/ca-bundle.pem` whenever the relation changes.
+
+Nginx is configured with:
+
+- `proxy_ssl_trusted_certificate /etc/nginx/certs/ca-bundle.pem` — trust the provided CA
+- `proxy_ssl_verify on` — verify backend certificates against the CA
+- `proxy_ssl_name <backend-host>` — set the hostname for TLS SNI (Server Name Indication) and certificate verification,
+  using the first backend hostname so nginx verifies against the actual backend host rather
+  than the internal upstream block name
+
+Multiple `receive-ca-cert` providers are supported; all CA certificates are merged into
+one bundle.
+
+If HTTPS backends are configured but no CA certificate has been received, the charm enters
+`WaitingStatus`. When the `receive-ca-cert` relation is removed, the CA bundle is cleared
+and the charm returns to `WaitingStatus` until a new CA is provided.
+
+The `receive-ca-cert` relation does not affect HTTP backends.
+If all your backends are HTTP, the charm will ignore
+`receive-ca-cert` and nginx will serve traffic as normal.

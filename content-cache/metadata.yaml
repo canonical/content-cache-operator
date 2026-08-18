@@ -36,3 +36,5 @@ provides:
 requires:
   certificates:
     interface: tls-certificates
+  receive-ca-cert:
+    interface: certificate_transfer

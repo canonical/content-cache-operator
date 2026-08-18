@@ -13,7 +13,6 @@ from state import (
     BACKENDS_FIELD_NAME,
     PROXY_CACHE_VALID_FIELD_NAME,
     LocationConfig,
-    _get_listen_protocol,
     get_cache_backend_url,
 )
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
@@ -100,17 +99,34 @@ def test_config_mixed_scheme_raises():
     assert "mixed" in str(err.value).lower() or "scheme" in str(err.value).lower()
 
 
-def test_get_listen_protocol_returns_http():
+def test_get_cache_backend_url_uses_https_when_has_cache_cert():
     """
-    arrange: A mock charm (no TLS cert).
-    act: Call _get_listen_protocol.
-    assert: Returns "http".
+    arrange: A mock charm with a bind address and has_cache_cert=True.
+    act: Call get_cache_backend_url.
+    assert: Returns an https:// URL.
     """
     charm = MagicMock()
+    charm.model.get_binding.return_value.network.bind_address = "10.0.0.1"
+    relation = MagicMock()
 
-    result = _get_listen_protocol(charm)
+    result = get_cache_backend_url(charm, relation, 30000, has_cache_cert=True)
 
-    assert result == "http"
+    assert result.startswith("https://")
+
+
+def test_get_cache_backend_url_uses_http_by_default():
+    """
+    arrange: A mock charm with a bind address and has_cache_cert=False (default).
+    act: Call get_cache_backend_url.
+    assert: Returns an http:// URL.
+    """
+    charm = MagicMock()
+    charm.model.get_binding.return_value.network.bind_address = "10.0.0.1"
+    relation = MagicMock()
+
+    result = get_cache_backend_url(charm, relation, 30000)
+
+    assert result.startswith("http://")
 
 
 def test_get_cache_backend_url_http():

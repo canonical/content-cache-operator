@@ -370,27 +370,11 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
     return configurations
 
 
-def _get_listen_protocol(charm: ops.CharmBase) -> str:
-    """Get the protocol the content-cache is listening on.
-
-    Returns "http" unconditionally in this story. Designed as a hook-in point
-    for Story 4 (certificate-transfer), which will return "https" when a TLS
-    certificate is present.
-
-    Args:
-        charm: The charm instance (reserved for future TLS detection).
-
-    Returns:
-        The protocol string ("http" or "https").
-    """
-    _ = charm  # reserved for Story 4 TLS detection
-    return "http"
-
-
 def get_cache_backend_url(
     charm: ops.CharmBase,
     relation: ops.Relation,
     port: int,
+    has_cache_cert: bool = False,
 ) -> str:
     """Return the cache-backend URL for a given relation and port.
 
@@ -398,10 +382,12 @@ def get_cache_backend_url(
         charm: The charm instance used to look up the binding address.
         relation: The relation to get the binding address for.
         port: The nginx listening port allocated for this relation.
+        has_cache_cert: Whether a TLS termination cert is present, determines
+            whether to use https or http in the returned URL.
 
     Returns:
         A URL in the form protocol://ip:port.
     """
     ip = charm.model.get_binding(relation).network.bind_address
-    protocol = _get_listen_protocol(charm)
+    protocol = "https" if has_cache_cert else "http"
     return f"{protocol}://{ip}:{port}"

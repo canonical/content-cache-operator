@@ -32,6 +32,14 @@ SAMPLE_INTEGRATION_DATA = {
 }
 
 
+@pytest.fixture(name="patch_ca_certs", scope="function", autouse=True)
+def patch_ca_certs_fixture(monkeypatch, tmp_path: Path) -> None:
+    """Patch the ca_certs module to use a temporary directory."""
+    certs_dir = tmp_path / "certs"
+    monkeypatch.setattr("ca_certs.CA_CERTS_DIR", certs_dir)
+    monkeypatch.setattr("ca_certs.CA_BUNDLE_PATH", certs_dir / "ca-bundle.pem")
+
+
 @pytest.fixture(name="patch_nginx_manager", scope="function")
 def patch_nginx_manager_fixture(monkeypatch, tmp_path: Path) -> None:
     """Patch the nginx_manager module."""
@@ -76,6 +84,7 @@ def harness_fixture(monkeypatch, mock_nginx_manager: MagicMock) -> Iterator[Harn
     The mock_nginx_manager is to ensure the nginx_manager module is patched.
     """
     harness = Harness(ContentCacheCharm)
+    harness.add_network("10.0.0.1", endpoint="certificates")
     harness.begin_with_initial_hooks()
     yield harness
     harness.cleanup()

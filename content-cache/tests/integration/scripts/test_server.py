@@ -26,6 +26,7 @@ class HTTPServerArgs:
     status_code: int
     message: str
     https: bool
+    cert: str | None = None
 
 
 class SimpleServer(HTTPServer):
@@ -51,6 +52,12 @@ def get_args():
         "--message", type=str, default="Test message", help="The body of the response."
     )
     parser.add_argument("--https", action="store_true", help="Enable HTTPS")
+    parser.add_argument(
+        "--cert",
+        type=str,
+        default=None,
+        help="Path to PEM cert+key file for HTTPS. Defaults to certificate.pem in script dir.",
+    )
     args = parser.parse_args()
 
     return HTTPServerArgs(
@@ -60,6 +67,7 @@ def get_args():
         status_code=args.status,
         message=args.message,
         https=args.https,
+        cert=args.cert,
     )
 
 
@@ -112,7 +120,7 @@ def main():
     request_handler = create_request_handler(args.path, args.status_code, args.message)
     server = SimpleServer((args.ip, args.port), request_handler)
     if args.https:
-        certfile = os.path.dirname(__file__) + "/certificate.pem"
+        certfile = args.cert or (os.path.dirname(__file__) + "/certificate.pem")
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain(certfile=certfile)
         server.socket = context.wrap_socket(server.socket, server_side=True)

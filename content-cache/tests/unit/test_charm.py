@@ -12,8 +12,10 @@ from ops.testing import Harness
 import state
 from charm import (
     CACHE_CONFIG_INTEGRATION_NAME,
+    CERTIFICATE_INTEGRATION_NAME,
     NGINX_NOT_READY_MESSAGE,
     WAIT_FOR_CONFIG_MESSAGE,
+    WAIT_FOR_TLS_CERT_MESSAGE,
     ContentCacheCharm,
 )
 from errors import NginxConfigurationAggregateError, NginxConfigurationError, NginxFileError
@@ -366,3 +368,41 @@ def test_cache_backend_not_written_when_unchanged(
 
     cache_backend_writes = [c for c in mock_setitem.call_args_list if c.args[1] == "cache-backend"]
     assert len(cache_backend_writes) == 0, "cache-backend should not be written when unchanged"
+
+
+def test_tls_certificates_relation_broken_reverts_to_http(
+    harness: Harness,
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+    monkeypatch,
+    tmp_path,
+):
+    """
+    arrange: A charm with a certificates relation and a cert file on disk (simulating a TLS
+        cert that was previously issued).
+    act: Remove the certificates relation (relation_broken).
+    assert: The charm does not get stuck in WaitingStatus — it calls update_and_load_config
+        and ends in ActiveStatus, not WaitingStatus("Waiting for TLS certificate").
+    """
+    certs_path = tmp_path / "certs"
+    certs_path.mkdir()
+    monkeypatch.setattr("charm.nginx_manager.NGINX_CERTIFICATES_PATH", certs_path)
+
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    assert charm.unit.status == ops.ActiveStatus()
+
+    cert_rel_id = harness.add_relation(CERTIFICATE_INTEGRATION_NAME, remote_app="lego")
+    cert_file = certs_path / "content-cache-charm.pem"
+    cert_file.write_text("fake-cert", encoding="utf-8")
+
+    mock_nginx_manager.update_and_load_config.reset_mock()
+    harness.remove_relation(cert_rel_id)
+
+    assert charm.unit.status != ops.WaitingStatus(
+        WAIT_FOR_TLS_CERT_MESSAGE
+    ), "Charm must not be stuck in WaitingStatus after certificates relation is removed"
+    mock_nginx_manager.update_and_load_config.assert_called()
