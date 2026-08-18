@@ -266,7 +266,7 @@ class ContentCacheCharm(ops.CharmBase):
             for rel_id, config in nginx_config.items()
         }
 
-        ca_bundle_path = self._resolve_ca_bundle_path(nginx_config)
+        ca_bundle_path = ca_certs.get_ca_bundle_path()
         if ca_bundle_path is None and any(
             str(config.backends[0].scheme) == "https" for _, config in nginx_config.items()
         ):
@@ -289,7 +289,6 @@ class ContentCacheCharm(ops.CharmBase):
             nginx_manager.update_and_load_config(
                 ported_config,
                 self._get_instance_name(),
-                backend_ca_path=ca_bundle_path,
                 frontend_cert_path=cache_cert_path,
             )
         except NginxFileError:
@@ -312,25 +311,6 @@ class ContentCacheCharm(ops.CharmBase):
             self._write_cache_backends(ported_config, cache_cert_path)
         else:
             self._clear_cache_backend()
-
-    def _resolve_ca_bundle_path(self, nginx_config: NginxConfig) -> Path | None:
-        """Return the CA bundle path, rebuilding it from relations if needed.
-
-        Always rebuilds the bundle from all active ``receive-ca-cert`` relations
-        so the on-disk state is consistent with the current set of relations.
-
-        Returns:
-            The CA bundle path if any certs were available, otherwise None.
-        """
-        any_https = any(
-            str(config.backends[0].scheme) == "https" for _, config in nginx_config.items()
-        )
-        if any_https:
-            try:
-                self._rebuild_ca_bundle()
-            except CACertificateFileError:
-                return None
-        return ca_certs.get_ca_bundle_path()
 
     def _write_cache_backends(self, ported_config: dict, cache_cert_path: Path | None) -> None:
         """Write cache-backend URLs to all cache-config relation databags."""

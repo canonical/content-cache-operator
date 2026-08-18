@@ -13,6 +13,7 @@ from pathlib import Path
 import nginx
 import requests
 
+import ca_certs
 from errors import (
     NginxConfigurationAggregateError,
     NginxConfigurationError,
@@ -69,11 +70,9 @@ class TLSConfig:
     """TLS configuration for nginx.
 
     Attrs:
-        backend_ca_path: Path to the CA bundle for proxy SSL verification, or None.
         frontend_cert_path: Path to the combined cert+key PEM for TLS termination, or None.
     """
 
-    backend_ca_path: Path | None = None
     frontend_cert_path: Path | None = None
 
 
@@ -191,7 +190,6 @@ def _systemctl_status_check() -> bool:  # pragma: no cover
 def update_and_load_config(
     configuration: dict[int, tuple[int, LocationConfig]],
     instance_name: str,
-    backend_ca_path: Path | None = None,
     frontend_cert_path: Path | None = None,
 ) -> None:
     """Update the nginx configuration files and load them.
@@ -201,7 +199,6 @@ def update_and_load_config(
             Each value is a tuple of (port, LocationConfig).
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
-        backend_ca_path: Path to the CA bundle for proxy SSL verification, or None.
         frontend_cert_path: Path to the combined cert+key PEM for TLS termination, or None.
 
     Raises:
@@ -211,7 +208,7 @@ def update_and_load_config(
     # This will reset the file permissions.
     _reset_nginx_files(instance_name)
 
-    tls = TLSConfig(backend_ca_path=backend_ca_path, frontend_cert_path=frontend_cert_path)
+    tls = TLSConfig(frontend_cert_path=frontend_cert_path)
     errored_identifiers: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
     healthcheck_workers_lua_code = ""
@@ -446,9 +443,7 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals
         upstream_config = nginx.Upstream(upstream, *upstream_keys)
         nginx_config.add(upstream_config)
 
-        location_keys = _get_location_config_keys(
-            configuration, upstream, backend_ca_path=resolved_tls.backend_ca_path
-        )
+        location_keys = _get_location_config_keys(configuration, upstream)
         server_config.add(nginx.Location("/", *location_keys))
 
         lua_healthcheck_workers += _get_upstream_healthchecks_worker(upstream, configuration)
@@ -526,14 +521,12 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
 def _get_location_config_keys(
     config: LocationConfig,
     upstream: str,
-    backend_ca_path: Path | None = None,
 ) -> tuple[nginx.Key, ...]:
     """Create the nginx keys for location configuration.
 
     Args:
         config: The location configurations.
         upstream: The upstream hostname for the backends.
-        backend_ca_path: Path to the CA bundle for proxy SSL verification, or None.
 
     Returns:
         The nginx.Key for the Location configuration.
@@ -543,14 +536,14 @@ def _get_location_config_keys(
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
     ]
 
-    if scheme == "https" and backend_ca_path is not None:
+    if scheme == "https" and ca_certs.get_ca_bundle_path() is not None:
         # Use the backend's actual hostname/IP for SSL verification, not the upstream
         # block name (e.g. "backend-{id}"), which would never match the cert's CN/SAN.
         # All backends in a location must share the same hostname for proxy_ssl to work.
         backend_host = config.backends[0].host
         keys.extend(
             [
-                nginx.Key("proxy_ssl_trusted_certificate", str(backend_ca_path)),
+                nginx.Key("proxy_ssl_trusted_certificate", str(ca_certs.CA_BUNDLE_PATH)),
                 nginx.Key("proxy_ssl_verify", "on"),
                 nginx.Key("proxy_ssl_name", backend_host),
             ]
