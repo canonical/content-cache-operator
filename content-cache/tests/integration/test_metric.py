@@ -48,7 +48,7 @@ def test_metric_log(
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     cache_tester.setup_config(config)
     cache_tester.integrate_config()
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(lambda s: jubilant.all_active(s, app, config_app), timeout=10 * 60)
 
     response = cache_tester.query_cache(path="/")
     assert response.status_code == 200
@@ -111,7 +111,7 @@ def test_integrate_with_cos(
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     cache_tester.setup_config(config)
     cache_tester.integrate_config()
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(lambda s: jubilant.all_active(s, app, config_app), timeout=10 * 60)
     response = cache_tester.query_cache(path="/")
     assert response.status_code == 200, "Test arrange failure"
 
@@ -121,7 +121,7 @@ def test_integrate_with_cos(
         f"{app}:{COS_AGENT_INTEGRATION_NAME}",
     )
 
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(lambda s: jubilant.all_active(s, app, config_app, metric_app), timeout=10 * 60)
 
     # 2.
     juju.remove_relation(
@@ -129,4 +129,4 @@ def test_integrate_with_cos(
         f"{metric_app}:{COS_AGENT_INTEGRATION_NAME}",
     )
 
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(lambda s: jubilant.all_active(s, app, config_app), timeout=10 * 60)

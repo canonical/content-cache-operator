@@ -81,7 +81,7 @@ def test_charm_integrate_with_no_data(
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
     cache_tester.setup_config(config)
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(lambda s: jubilant.all_active(s, app, config_app), timeout=10 * 60)
     response = cache_tester.query_cache(path="/")
     assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
@@ -124,7 +124,7 @@ def test_charm_integrate_with_data(
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     cache_tester.setup_config(config)
     cache_tester.integrate_config()
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(lambda s: jubilant.all_active(s, app, config_app), timeout=10 * 60)
 
     response = cache_tester.query_cache(path="/")
     assert response.status_code == 200
@@ -205,7 +205,10 @@ def test_charm_with_two_config_app(
     cache_tester.integrate_config()
     cache_tester.integrate_config_alt()
 
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(
+        lambda s: jubilant.all_active(s, app, config_app, config_alt_app),
+        timeout=10 * 60,
+    )
 
     response = cache_tester.query_cache(path="/", port=8080)
     response_alt = cache_tester.query_cache(path="/", port=8081)
@@ -244,7 +247,7 @@ def test_charm_with_failover(
     config[FAIL_TIMEOUT_CONFIG_NAME] = "5s"
     cache_tester.setup_config(config)
     cache_tester.integrate_config()
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(lambda s: jubilant.all_active(s, app, config_app), timeout=10 * 60)
 
     response = cache_tester.query_cache(path="/")
     assert response.status_code == 200
@@ -271,7 +274,7 @@ def test_cache_backends_published(
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
     cache_tester.setup_config(config)
     cache_tester.integrate_config()
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(lambda s: jubilant.all_active(s, app, config_app), timeout=10 * 60)
 
     unit_name = f"{app}/0"
     backends = get_cache_backends(juju, unit_name)

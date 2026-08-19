@@ -71,7 +71,7 @@ def test_healthchecks_healthy(
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     cache_tester.setup_config(config)
     cache_tester.integrate_config()
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(lambda s: jubilant.all_active(s, app, config_app), timeout=10 * 60)
 
     response = cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == 200
@@ -196,7 +196,7 @@ def test_healthchecks_custom_status(
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
     cache_tester.setup_config(config)
     cache_tester.integrate_config()
-    juju.wait(jubilant.all_active, timeout=10 * 60)
+    juju.wait(lambda s: jubilant.all_active(s, app, config_app), timeout=10 * 60)
 
     time.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
@@ -248,7 +248,7 @@ def test_healthchecks_ssl_verify(
     try:
         cache_tester.setup_config(config)
         cache_tester.integrate_config()
-        juju.wait(jubilant.all_active, timeout=10 * 60)
+        juju.wait(lambda s: jubilant.all_active(s, app, config_app), timeout=10 * 60)
 
         time.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
