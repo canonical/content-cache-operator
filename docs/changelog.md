@@ -8,6 +8,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Each revision is versioned by the date of the revision.
 
+## 2026-08-18
+
+### Added
+
+- The content-cache charm now verifies backend TLS certificates when HTTPS backend URLs are
+  configured. Integrate a CA certificate provider via the new `receive-ca-cert` relation
+  (interface: `certificate_transfer`) to supply the CA bundle. nginx is configured with
+  `proxy_ssl_verify on`, `proxy_ssl_trusted_certificate`, and `proxy_ssl_name` pointing to
+  the backend hostname. If HTTPS backends are configured but no CA certificate has been
+  provided, the charm enters `WaitingStatus` until the relation is established. Multiple
+  providers are supported; all CA certificates are merged into a single bundle at
+  `/etc/nginx/certs/ca-bundle.pem`.
+
+## 2026-07-16
+
+### Changed
+
+- The `backends` configuration option on `content-cache-backends-config` now accepts URLs in the
+  form `<http|https>://<ip>:<port>` instead of bare IP addresses with a separate `protocol` option.
+  The `protocol` option has been removed.
+
+### Added
+
+- The content-cache charm now publishes a `cache-backend` field to the `cache-config` relation
+  data after nginx becomes active. The field contains a URL representing the address and port
+  at which this unit is listening, so ingress components can discover it automatically.
+
+## 2026-06-18
+
+- Migrated the RTD documentation URL under the Canonical domain.
+
 ## 2025-05-06
 
 ### **Changed**
@@ -57,7 +88,7 @@ Each revision is versioned by the date of the revision.
 
 - Support for fail-timeout, backends-path, proxy-cache-valid configuration options from integration with Content Cache Backends Config charm.
 
-# 2024-10-07
+## 2024-10-07
 
 ## **Added**
 

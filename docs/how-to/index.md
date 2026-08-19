@@ -13,7 +13,7 @@ setting up monitoring, upgrading, and contributing to the project.
 
 ```{toctree}
 :maxdepth: 1
-Enable HTTPS <enable-https>
+Connect to HTTPS backends <enable-https>
 Enable COS <enable-cos>
 Upgrade <upgrade>
 Contribute <contribute>

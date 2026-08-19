@@ -14,28 +14,20 @@ from juju.application import Application
 from juju.model import Model
 from juju.unit import Unit
 
-from state import CACHE_CONFIG_INTEGRATION_NAME, CERTIFICATE_INTEGRATION_NAME
+from state import CACHE_CONFIG_INTEGRATION_NAME
 
 logger = logging.getLogger(__name__)
 
 TEST_SERVER_PATH = Path("tests/integration/scripts/test_server.py")
 TEST_SERVER_CERTIFICATE = Path("tests/integration/scripts/certificate.pem")
 
-HOSTNAME_CONFIG_NAME = "hostname"
-PATH_CONFIG_NAME = "path"
 BACKENDS_CONFIG_NAME = "backends"
-BACKENDS_PATH_CONFIG_NAME = "backends-path"
 HEALTHCHECK_INTERVAL_CONFIG_NAME = "healthcheck-interval"
 HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
 HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
 HEALTHCHECK_VALID_STATUS_CONFIG_NAME = "healthcheck-valid-status"
-PROTOCOL_CONFIG_NAME = "protocol"
 FAIL_TIMEOUT_CONFIG_NAME = "fail-timeout"
 PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
-
-
-class TestSetupError(Exception):
-    """Represent error in test setup."""
 
 
 class CacheTester:
@@ -46,11 +38,7 @@ class CacheTester:
     """
 
     BASE_CONFIG = {
-        HOSTNAME_CONFIG_NAME: "",
-        PATH_CONFIG_NAME: "/",
         BACKENDS_CONFIG_NAME: "",
-        BACKENDS_PATH_CONFIG_NAME: "/",
-        PROTOCOL_CONFIG_NAME: "https",
         FAIL_TIMEOUT_CONFIG_NAME: "30s",
         PROXY_CACHE_VALID_CONFIG_NAME: "[]",
     }
@@ -61,7 +49,6 @@ class CacheTester:
         app: Application,
         config_app: Application,
         config_alt_app: Application,
-        cert_app: Application | None = None,
     ):
         """Initialize the object.
 
@@ -70,13 +57,11 @@ class CacheTester:
             app: The content-cache application.
             config_app: The configuration charm application.
             config_alt_app: The alternative configuration charm application.
-            cert_app: The TLS certification charm application.
         """
         self._model = model
         self._app = app
         self._config_app = config_app
         self._config_alt_app = config_alt_app
-        self._cert_app = cert_app
         self._reset_after_run = True
 
     async def integrate_config(self) -> None:
@@ -91,19 +76,6 @@ class CacheTester:
         await self._model.integrate(
             f"{self._config_alt_app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
             f"{self._app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
-        )
-
-    async def integrate_cert(self) -> None:
-        """Integrate the TLS certification application.
-
-        Raises:
-            TestSetupError: The TLS certificate application is not provided.
-        """
-        if self._cert_app is None:
-            raise TestSetupError("TLS certificate application not provided")
-        await self._model.integrate(
-            f"{self._app.name}:{CERTIFICATE_INTEGRATION_NAME}",
-            f"{self._cert_app.name}:{CERTIFICATE_INTEGRATION_NAME}",
         )
 
     async def setup_config(self, configuration: dict[str, str]) -> None:
@@ -123,25 +95,24 @@ class CacheTester:
         await self._config_alt_app.set_config(configuration)
 
     async def query_cache(
-        self, path: str, hostname: str, protocol: str = "http"
+        self, path: str, port: int = 30000, protocol: str = "http"
     ) -> requests.Response:
         """Test the content cache with a request.
 
         Args:
             path: The URL path to the content-cache.
-            hostname: The hostname of the content-cache.
+            port: The nginx listening port allocated for the relation.
             protocol: The protocol to make the request.
 
         Returns:
             Whether the cache is working.
         """
         ip = await get_app_ip(self._app)
-        url = f"{protocol}://{ip}{path}"
-        logger.info(f"Querying cache on {url} with Host: {hostname}")
+        url = f"{protocol}://{ip}:{port}{path}"
+        logger.info(f"Querying cache on {url}")
 
         response = requests.get(
             url,
-            headers={"Host": hostname},
             allow_redirects=False,
             verify=False,
             timeout=300,
@@ -152,15 +123,13 @@ class CacheTester:
     async def reset(self) -> None:
         """Reset the state of the applications."""
         if self._config_app.related_applications(CACHE_CONFIG_INTEGRATION_NAME):
-            await self._config_app.remove_relation(
-                CACHE_CONFIG_INTEGRATION_NAME, self._app.name, True
-            )
+            # Do NOT use block_until_done=True — it calls block_until() with no timeout
+            # and can hang forever if hook processing stalls.
+            await self._config_app.remove_relation(CACHE_CONFIG_INTEGRATION_NAME, self._app.name)
         if self._config_alt_app.related_applications(CACHE_CONFIG_INTEGRATION_NAME):
             await self._config_alt_app.remove_relation(
-                CACHE_CONFIG_INTEGRATION_NAME, self._app.name, True
+                CACHE_CONFIG_INTEGRATION_NAME, self._app.name
             )
-        if self._app.related_applications(CERTIFICATE_INTEGRATION_NAME):
-            await self._app.remove_relation(CERTIFICATE_INTEGRATION_NAME, self._app.name, True)
         await self.reset_config()
 
     async def reset_config(self) -> None:
@@ -274,6 +243,186 @@ async def deploy_http_app(
     return app
 
 
+async def deploy_self_cert_https_app(
+    app_name: str, path: str, status: int, message: str, model: Model
+) -> Application:
+    """Deploy an HTTPS test app that gets its cert signed by a tls-certificates CA.
+
+    The app generates a private key and CSR with its own IP as a Subject Alternative Name,
+    writes the CSR to the ``require-tls-certificates`` relation, and starts the HTTPS server
+    once the signed cert arrives.
+
+    After deploying, integrate ``<app_name>:require-tls-certificates`` with the CA charm's
+    ``certificates`` endpoint and wait for the app to become active.
+
+    Args:
+        app_name: The application name for the any-charm deployment.
+        path: URL path that the server will respond to.
+        status: HTTP status code the server returns on ``path``.
+        message: Response body the server returns on ``path``.
+        model: The libjuju Model to deploy into.
+
+    Returns:
+        The deployed Juju Application.
+    """
+    test_server_content = TEST_SERVER_PATH.read_text()
+
+    # The inner any-charm code.  Values of path/status/message are baked in by
+    # the outer f-string at deploy time; other {{}}/{{var}} escapes produce
+    # single-brace expressions that are evaluated inside the charm at runtime.
+    any_charm_content = textwrap.dedent(f'''\
+    import json
+    import logging
+    import os
+    import socket
+    import subprocess
+    from pathlib import Path
+
+    import ops
+    from any_charm_base import AnyCharmBase
+
+    logger = logging.getLogger(__name__)
+
+    SERVICE_NAME = "test-https-cert"
+    SERVICE_PATH = Path("/etc/systemd/system/" + SERVICE_NAME + ".service")
+    CERT_DIR = Path("/etc/test-certs")
+    SERVER_PEM = CERT_DIR / "server.pem"
+    KEY_PATH = CERT_DIR / "server.key"
+    CSR_PATH = CERT_DIR / "server.csr"
+    SAN_CONF = CERT_DIR / "san.cnf"
+
+
+    def _get_own_ip() -> str:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("10.255.255.255", 1))
+            return s.getsockname()[0]
+        finally:
+            s.close()
+
+
+    def _ensure_key_and_csr() -> str:
+        """Generate key + CSR for this unit's IP if not already present; return IP."""
+        ip = _get_own_ip()
+        if KEY_PATH.exists() and CSR_PATH.exists():
+            return ip
+        CERT_DIR.mkdir(parents=True, exist_ok=True)
+        SAN_CONF.write_text(
+            "[req]\\n"
+            "req_extensions = v3_req\\n"
+            "distinguished_name = req_dn\\n"
+            "[req_dn]\\n"
+            "[v3_req]\\n"
+            "subjectAltName = IP:" + ip + "\\n"
+        )
+        subprocess.run(
+            ["openssl", "genrsa", "-out", str(KEY_PATH), "2048"],
+            check=True, capture_output=True,
+        )
+        subprocess.run(
+            [
+                "openssl", "req", "-new",
+                "-key", str(KEY_PATH),
+                "-out", str(CSR_PATH),
+                "-subj", "/CN=" + ip,
+                "-config", str(SAN_CONF),
+            ],
+            check=True, capture_output=True,
+        )
+        logger.info("Generated key and CSR for IP %s", ip)
+        return ip
+
+
+    class AnyCharm(AnyCharmBase):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.framework.observe(self.on.install, self._on_install)
+            self.framework.observe(
+                self.on["require-tls-certificates"].relation_joined,
+                self._submit_csr,
+            )
+            self.framework.observe(
+                self.on["require-tls-certificates"].relation_changed,
+                self._on_cert_relation_changed,
+            )
+
+        def _on_start_(self, event):
+            """Override AnyCharmBase to keep WaitingStatus until cert arrives."""
+            self.unit.status = ops.WaitingStatus("Waiting for TLS certificate")
+
+        def _on_install(self, event):
+            _ensure_key_and_csr()
+            self.unit.status = ops.WaitingStatus("Waiting for TLS certificate")
+
+        def _submit_csr(self, event):
+            """Write CSR to the tls-certificates relation unit data (v4 unit-mode)."""
+            _ensure_key_and_csr()
+            csr_pem = CSR_PATH.read_text()
+            event.relation.data[self.unit]["certificate_signing_requests"] = json.dumps(
+                [{{"certificate_signing_request": csr_pem, "ca": False}}]
+            )
+
+        def _on_cert_relation_changed(self, event):
+            """Read signed cert from provider and start the HTTPS server."""
+            if not CSR_PATH.exists():
+                return
+            csr_pem = CSR_PATH.read_text().strip()
+            # Certs are in the PROVIDER APP databag (tls-certificates v4), not unit databag.
+            raw = event.relation.data[event.relation.app].get("certificates")
+            if not raw:
+                return
+            for entry in json.loads(raw):
+                if entry.get("certificate_signing_request", "").strip() == csr_pem:
+                    self._start_server(entry["certificate"])
+                    self.unit.status = ops.ActiveStatus()
+                    return
+
+        def _start_server(self, cert_pem: str):
+            """Write cert+key PEM and restart the systemd HTTPS service."""
+            SERVER_PEM.write_text(cert_pem.strip() + "\\n" + KEY_PATH.read_text())
+            test_server = Path(os.getcwd()) / "src" / "test_server.py"
+            SERVICE_PATH.write_text(
+                "[Unit]\\n"
+                "Description=Test HTTPS server (CA-issued cert)\\n"
+                "After=network.target\\n"
+                "\\n"
+                "[Service]\\n"
+                "Type=simple\\n"
+                "User=root\\n"
+                "ExecStart=/usr/bin/env python3 " + str(test_server)
+                + " --path {path} --status {status} --message {message}"
+                  " --port 443 --https --cert " + str(SERVER_PEM) + "\\n"
+                "Restart=on-failure\\n"
+                "\\n"
+                "[Install]\\n"
+                "WantedBy=multi-user.target\\n"
+            )
+            subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
+            subprocess.run(["systemctl", "enable", SERVICE_NAME], capture_output=True)
+            subprocess.run(["systemctl", "restart", SERVICE_NAME], capture_output=True)
+    ''')
+
+    src_overwrite = {
+        "test_server.py": test_server_content,
+        "any_charm.py": any_charm_content,
+    }
+
+    app: Application
+    if app_name in model.applications:
+        logging.info("Found existing %s application. Reconfiguring it.", app_name)
+        app = model.applications[app_name]
+        await app.set_config({"src-overwrite": json.dumps(src_overwrite)})
+    else:
+        app = await model.deploy(
+            "any-charm",
+            application_name=app_name,
+            channel="beta",
+            config={"src-overwrite": json.dumps(src_overwrite)},
+        )
+
+    return app
+
+
 async def get_app_ip(app: Application) -> str:
     """Get the IP for a unit of the application.
 
@@ -306,6 +455,32 @@ async def read_file(unit: Unit, path: Path) -> str:
     assert stdout is not None, f"Failed to read file {path} to stdout: {stderr}"
     logging.debug("File content of %s: %s", path, stdout)
     return stdout.strip()
+
+
+async def get_cache_backend(unit: Unit) -> str:
+    """Get the cache-backend value from the unit's cache-config relation data.
+
+    Args:
+        unit: The content-cache unit to query.
+
+    Returns:
+        The cache-backend URL published on the first cache-config relation, or empty string.
+    """
+    return_code, rel_ids_stdout, stderr = await run_in_unit(
+        unit=unit,
+        command="relation-ids cache-config",
+    )
+    assert return_code == 0, f"Failed to get relation IDs: {stderr}"
+    rel_ids = (rel_ids_stdout or "").split()
+    assert rel_ids, "No cache-config relations found"
+    rel_id = rel_ids[0]
+
+    return_code, stdout, stderr = await run_in_unit(
+        unit=unit,
+        command=f"relation-get -r {rel_id} cache-backend -- {unit.name}",
+    )
+    assert return_code == 0, f"Failed to get cache-backend: {stderr}"
+    return (stdout or "").strip()
 
 
 async def run_in_unit(

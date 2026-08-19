@@ -3,7 +3,6 @@
 
 """The charm state and configurations."""
 
-import enum
 import json
 import logging
 import re
@@ -17,10 +16,7 @@ from errors import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
-HOSTNAME_CONFIG_NAME = "hostname"
-PATH_CONFIG_NAME = "path"
 BACKENDS_CONFIG_NAME = "backends"
-PROTOCOL_CONFIG_NAME = "protocol"
 FAIL_TIMEOUT_CONFIG_NAME = "fail-timeout"
 BACKENDS_PATH_CONFIG_NAME = "backends-path"
 HEALTHCHECK_INTERVAL_CONFIG_NAME = "healthcheck-interval"
@@ -28,50 +24,6 @@ HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
 HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
 HEALTHCHECK_VALID_STATUS_CONFIG_NAME = "healthcheck-valid-status"
 PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
-
-
-class Protocol(str, enum.Enum):
-    """Protocol to request backends.
-
-    Attributes:
-        HTTP: Use HTTP for requests.
-        HTTPS: Use HTTPS for requests.
-    """
-
-    HTTP = "http"
-    HTTPS = "https"
-
-
-def _validate_hostname_value(value: str) -> str:
-    """Validate the value as a hostname.
-
-    Validation performed:
-    - The hostname must be of length 255 or below.
-    - The hostname must be consist of a certain characters.
-
-    Args:
-        value: The value to validate.
-
-    Raises:
-        ValueError: The validation failed.
-
-    Returns:
-        The value after validation.
-    """
-    if len(value) > 255:
-        raise ValueError("Hostname cannot be longer than 255")
-
-    valid_segment = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
-    for segment in value.split("."):
-        if valid_segment.fullmatch(segment) is None:
-            raise ValueError(
-                (
-                    "Each Hostname segment must be less than 64 in length, and consist of "
-                    "alphanumeric and hyphen"
-                )
-            )
-
-    return value
 
 
 def _validate_path_value(value: str) -> str:
@@ -160,36 +112,40 @@ class Configuration(pydantic.BaseModel):
     """Represents the configuration.
 
     Attributes:
-        hostname: The hostname for the virtual host for this set of configuration.
-        path: The path for this set of configuration.
-        backends: The backends for this set of configuration.
-        protocol: The protocol to request the backends with. Can be http or https.
+        backends: The backends for this configuration as full URLs.
         fail_timeout: The time to wait before using a backend after failure.
-        backends_path: The path to request the backends.
         proxy_cache_valid: The cache valid duration.
         healthcheck: The healthcheck configuration.
     """
 
-    hostname: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_hostname_value),
-    ]
-    path: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_path_value),
-    ]
-    backends: tuple[pydantic.IPvAnyAddress, ...]
-    protocol: Protocol
+    backends: tuple[pydantic.AnyHttpUrl, ...]
     fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
-    backends_path: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_path_value),
-    ]
     proxy_cache_valid: tuple[str, ...]
     healthcheck: HealthcheckConfig
+
+    @pydantic.field_validator("backends")
+    @classmethod
+    def validate_backends_scheme(
+        cls, value: tuple[pydantic.AnyHttpUrl, ...]
+    ) -> tuple[pydantic.AnyHttpUrl, ...]:
+        """Validate that all backends share the same URL scheme.
+
+        Args:
+            value: The backends tuple to validate.
+
+        Raises:
+            ValueError: Backends have mixed schemes.
+
+        Returns:
+            The value after validation.
+        """
+        if len(value) > 1:
+            schemes = {url.scheme for url in value}
+            if len(schemes) > 1:
+                raise ValueError(
+                    f"All backends must share the same scheme; found mixed schemes: {schemes}"
+                )
+        return value
 
     @pydantic.field_validator("proxy_cache_valid")
     @classmethod
@@ -228,19 +184,15 @@ class Configuration(pydantic.BaseModel):
         Returns:
             The object.
         """
-        hostname = typing.cast(str, charm.config.get(HOSTNAME_CONFIG_NAME, "")).strip()
-        path = typing.cast(str, charm.config.get(PATH_CONFIG_NAME, "")).strip()
-        protocol = typing.cast(str, charm.config.get(PROTOCOL_CONFIG_NAME, "")).lower().strip()
         backends_str = typing.cast(str, charm.config.get(BACKENDS_CONFIG_NAME, "")).strip()
         if not backends_str:
             raise ConfigurationError("Empty backends configuration found")
         fail_timeout = typing.cast(str, charm.config.get(FAIL_TIMEOUT_CONFIG_NAME, "")).strip()
-        backends_path = typing.cast(str, charm.config.get(BACKENDS_PATH_CONFIG_NAME, "")).strip()
         proxy_cache_valid_str = typing.cast(
             str, charm.config.get(PROXY_CACHE_VALID_CONFIG_NAME, "")
         ).strip()
 
-        backends = tuple(ip.strip() for ip in backends_str.split(","))
+        backends = tuple(url.strip() for url in backends_str.split(","))
         try:
             proxy_cache_valid = json.loads(proxy_cache_valid_str)
         except json.JSONDecodeError as err:
@@ -257,12 +209,8 @@ class Configuration(pydantic.BaseModel):
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
             return cls(
-                hostname=hostname,
-                path=path,
                 backends=backends,  # type: ignore
-                protocol=protocol,  # type: ignore
                 fail_timeout=fail_timeout,
-                backends_path=backends_path,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck=healthcheck_config,
             )

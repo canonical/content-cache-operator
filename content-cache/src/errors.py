@@ -62,3 +62,7 @@ class TLSCertificateNotAvailableError(TLSCertificateError):
 
 class TLSCertificateFileError(TLSCertificateError):
     """Represents failure in writing TLS certificates to file."""
+
+
+class CACertificateFileError(Exception):
+    """Represents failure in writing or removing a CA certificate file."""

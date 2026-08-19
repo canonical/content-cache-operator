@@ -14,12 +14,18 @@ from juju.application import Application
 from juju.model import Model
 from pytest_operator.plugin import OpsTest
 
-from tests.integration.helpers import CacheTester, deploy_http_app, get_app_ip
+from tests.integration.helpers import (
+    CacheTester,
+    deploy_http_app,
+    deploy_self_cert_https_app,
+    get_app_ip,
+)
 
 logger = logging.getLogger(__name__)
 
 CONFIG_CHARM_NAME = "content-cache-backends-config"
 CERT_CHARM_NAME = "self-signed-certificates"
+CACHE_LEGO_CHARM_NAME = "self-signed-certificates"
 METRIC_CHARM_NAME = "grafana-agent"
 
 
@@ -45,6 +51,12 @@ def config_alt_app_name_fixture() -> str:
 def cert_app_name_fixture() -> str:
     """The application name for the TLS certificate charm."""
     return "cert"
+
+
+@pytest.fixture(name="cache_lego_app_name", scope="module")
+def cache_lego_app_name_fixture() -> str:
+    """The application name for the cache-side TLS certificate provider charm."""
+    return "cache-lego"
 
 
 @pytest.fixture(name="metric_app_name", scope="module")
@@ -90,6 +102,7 @@ async def deploy_applications_fixture(
     config_app_name: str,
     config_alt_app_name: str,
     cert_app_name: str,
+    cache_lego_app_name: str,
     metric_app_name: str,
     pytestconfig: pytest.Config,
 ) -> AsyncIterator[dict[str, Application]]:
@@ -101,6 +114,7 @@ async def deploy_applications_fixture(
                 config_app_name: model.applications[config_app_name],
                 config_alt_app_name: model.applications[config_alt_app_name],
                 cert_app_name: model.applications[cert_app_name],
+                cache_lego_app_name: model.applications[cache_lego_app_name],
                 metric_app_name: model.applications[metric_app_name],
             }
         except KeyError as err:
@@ -121,6 +135,9 @@ async def deploy_applications_fixture(
     cert_app_deploy = model.deploy(
         CERT_CHARM_NAME, cert_app_name, channel="latest/edge", base="ubuntu@22.04"
     )
+    cache_lego_app_deploy = model.deploy(
+        CACHE_LEGO_CHARM_NAME, cache_lego_app_name, channel="latest/edge", base="ubuntu@22.04"
+    )
     metric_app_deploy = model.deploy(
         METRIC_CHARM_NAME,
         metric_app_name,
@@ -128,16 +145,24 @@ async def deploy_applications_fixture(
         base="ubuntu@24.04",
         num_units=0,
     )
-    app, config_app, config_alt_app, cert_app, metric_app = await asyncio.gather(
-        app_deploy, config_app_deploy, config_alt_app_deploy, cert_app_deploy, metric_app_deploy
+    app, config_app, config_alt_app, cert_app, cache_lego_app, metric_app = await asyncio.gather(
+        app_deploy,
+        config_app_deploy,
+        config_alt_app_deploy,
+        cert_app_deploy,
+        cache_lego_app_deploy,
+        metric_app_deploy,
     )
     await model.wait_for_idle([app.name], status="blocked", timeout=15 * 60)
-    await model.wait_for_idle([cert_app.name], status="active", timeout=15 * 60)
+    await model.wait_for_idle(
+        [cert_app.name, cache_lego_app.name], status="active", timeout=15 * 60
+    )
     yield {
         app_name: app,
         config_app_name: config_app,
         config_alt_app_name: config_alt_app,
         cert_app_name: cert_app,
+        cache_lego_app_name: cache_lego_app,
         metric_app_name: metric_app,
     }
 
@@ -174,18 +199,20 @@ async def cert_app_fixture(
     yield applications[cert_app_name]
 
 
+@pytest_asyncio.fixture(name="cache_lego_app", scope="module")
+async def cache_lego_app_fixture(
+    cache_lego_app_name: str, applications: dict[str, Application]
+) -> AsyncIterator[Application]:
+    """The cache-side TLS certificate provider charm for testing the certificates relation."""
+    yield applications[cache_lego_app_name]
+
+
 @pytest_asyncio.fixture(name="metric_app", scope="module")
 async def metric_app_fixture(
     metric_app_name: str, applications: dict[str, Application]
 ) -> AsyncIterator[Application]:
     """The metric agent charm application for testing."""
     yield applications[metric_app_name]
-
-
-@pytest.fixture(name="http_ok_path", scope="module")
-def http_ok_path_fixture() -> str:
-    """The path for http_ok_app."""
-    return f"/test-{secrets.token_urlsafe(4)}"
 
 
 @pytest.fixture(name="http_ok_message", scope="module")
@@ -196,11 +223,11 @@ def http_ok_message_fixture() -> str:
 
 @pytest_asyncio.fixture(name="http_ok_app", scope="module")
 async def http_ok_app_fixture(
-    model: Model, http_ok_path: str, http_ok_message: str, pytestconfig: pytest.Config
+    model: Model, http_ok_message: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The test HTTP application that returns OK."""
     app = await deploy_http_app(
-        app_name="http-ok", path=http_ok_path, status=200, message=http_ok_message, model=model
+        app_name="http-ok", path="/", status=200, message=http_ok_message, model=model
     )
     await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
 
@@ -209,16 +236,43 @@ async def http_ok_app_fixture(
 
 @pytest_asyncio.fixture(name="https_ok_app", scope="module")
 async def https_ok_app_fixture(
-    model: Model, http_ok_path: str, http_ok_message: str, pytestconfig: pytest.Config
+    model: Model, http_ok_message: str, pytestconfig: pytest.Config
 ) -> AsyncIterator[Application]:
     """The test HTTPS application that returns OK."""
     app = await deploy_http_app(
         app_name="https-ok",
-        path=http_ok_path,
+        path="/",
         status=200,
         message=http_ok_message,
         model=model,
         https=True,
+    )
+    await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
+
+    yield app
+
+
+@pytest_asyncio.fixture(name="https_cert_ok_app", scope="module")
+async def https_cert_ok_app_fixture(
+    model: Model, http_ok_message: str, cert_app: Application
+) -> AsyncIterator[Application]:
+    """HTTPS test app that gets its cert signed by cert_app's CA.
+
+    The backend cert is trusted by the cert_app CA bundle, so proxy_ssl_verify
+    will pass when content-cache receives the CA via receive-ca-cert.  The Lua
+    health checker uses the system cert store, so ssl_verify=true still fails for
+    self-signed CAs that are not installed system-wide.
+    """
+    app = await deploy_self_cert_https_app(
+        app_name="https-cert-ok",
+        path="/",
+        status=200,
+        message=http_ok_message,
+        model=model,
+    )
+    await model.integrate(
+        f"{app.name}:require-tls-certificates",
+        f"{cert_app.name}:certificates",
     )
     await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
 
@@ -251,11 +305,10 @@ async def cache_tester_fixture(
     app: Application,
     config_app: Application,
     config_alt_app: Application,
-    cert_app: Application,
 ) -> AsyncIterator[CacheTester]:
     """Get the cache tester."""
     unit = app.units[0]
-    tester = CacheTester(model, app, config_app, config_alt_app, cert_app)
+    tester = CacheTester(model, app, config_app, config_alt_app)
 
     yield tester
 
@@ -267,4 +320,14 @@ async def cache_tester_fixture(
 
     await model.wait_for_idle([app.name], status="blocked", timeout=10 * 60)
     assert unit.workload_status_message == "Waiting for integration with config charm"
-    # The configuration charm is removed due to being subordinate charm with no relation.
+    # Wait for config app units to be fully removed before the next test runs.
+    # Config app scales to 0 units when the relation is removed, but Juju takes
+    # a moment to complete the unit removal. Without this wait, the next test
+    # may create a new relation while a previous unit is still being torn down,
+    # causing race conditions.
+    deadline = 60
+    poll_interval = 1
+    elapsed = 0
+    while (config_app.units or config_alt_app.units) and elapsed < deadline:
+        await asyncio.sleep(poll_interval)
+        elapsed += poll_interval

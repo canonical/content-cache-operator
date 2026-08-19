@@ -17,9 +17,5 @@ It is a machine charm that manages an NGINX instance configured as a content cac
 
 ## Content Cache Backends Config
 
-```{warning}
-This charm works with a WIP content-cache charm rewrite. This charm does not work with the current content-cache charm.
-```
-
-The [Content Cache Backends Config](https://charmhub.io/content-cache-backends-config) charm is a subordinate charm to the Content Cache charm. It provides the Content Cache charm with the configuration required to expose a set of backend services behind the caching capabilities of the Content Cache charm. 
+The [Content Cache Backends Config](https://charmhub.io/content-cache-backends-config) charm is a subordinate charm to the Content Cache charm. It provides the Content Cache charm with the configuration required to expose a set of backend services behind the caching capabilities of the Content Cache charm.
 

@@ -4,158 +4,35 @@
 """Test the charm state."""
 
 import json
-from ipaddress import IPv4Address
+from unittest.mock import MagicMock
 
 import pytest
 
 from errors import ConfigurationError
-from src.state import HOSTNAME_FIELD_NAME, PATH_FIELD_NAME
 from state import (
     BACKENDS_FIELD_NAME,
-    BACKENDS_PATH_FIELD_NAME,
-    PROTOCOL_FIELD_NAME,
     PROXY_CACHE_VALID_FIELD_NAME,
     LocationConfig,
+    get_cache_backend_url,
 )
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
 
 def test_config_from_integration_data():
     """
-    arrange: Valid sample integration data.
+    arrange: Valid sample integration data with URL-format backends.
     act: Create the config from the data.
     assert: The configurations are correctly parsed.
     """
     config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
 
-    assert config.hostname == "example.com"
-    assert config.path == "/"
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
+    assert len(config.backends) == 2
+    assert config.backends[0].host == "10.10.1.1"
+    assert config.backends[0].scheme == "http"
+    assert config.backends[1].host == "10.10.2.2"
     assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
     assert config.healthcheck_config.ssl_verify is False
-
-
-def test_config_subdomain_integration_data():
-    """
-    arrange: Valid sample integration data with subdomain in hostname.
-    act: Create the config from the data.
-    assert: The configurations are correctly parsed.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_FIELD_NAME] = "hello.example.8d8c.com"
-    config = LocationConfig.from_integration_data(data)
-
-    assert config.hostname == "hello.example.8d8c.com"
-    assert config.path == "/"
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
-    assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
-    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
-
-
-def test_config_with_empty_hostname_integration_data():
-    """
-    arrange: Sample integration data with empty hostname.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_FIELD_NAME] = ""
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert (
-        str(err.value) == "Config error: ['hostname = : String should have at least 1 character']"
-    )
-
-
-def test_config_with_long_hostname_integration_data():
-    """
-    arrange: Sample integration data with long hostname.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_FIELD_NAME] = "a" * 256
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "Value error, Hostname cannot be longer than 255" in str(err.value)
-
-
-def test_config_with_invalid_hostname_integration_data():
-    """
-    arrange: Sample integration data with hostname with invalid character.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[HOSTNAME_FIELD_NAME] = "example?.com"
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "must be less than 64 in length, and consist of alphanumeric and hyphen" in str(
-        err.value
-    )
-
-
-def test_config_with_empty_path_integration_data():
-    """
-    arrange: Sample integration data with empty path.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PATH_FIELD_NAME] = ""
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert str(err.value) == "Config error: ['path = : String should have at least 1 character']"
-
-
-def test_config_with_invalid_path_integration_data():
-    """
-    arrange: Sample integration data with path with invalid character.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PATH_FIELD_NAME] = "/^"
-
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert (
-        str(err.value)
-        == "Config error: ['path = /^: Value error, Path contains non-allowed character']"
-    )
-
-
-def test_config_long_path_integration_data():
-    """
-    arrange: Valid sample integration data with long paths.
-    act: Create the config from the data.
-    assert: The configurations are correctly parsed.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PATH_FIELD_NAME] = "/path/to/somewhere"
-    data[BACKENDS_PATH_FIELD_NAME] = "/here/there"
-    config = LocationConfig.from_integration_data(data)
-    assert config.hostname == "example.com"
-    assert config.path == "/path/to/somewhere"
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
-    assert config.fail_timeout == "30s"
-    assert config.backends_path == "/here/there"
-    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
 
 
 @pytest.mark.parametrize(
@@ -171,9 +48,9 @@ def test_config_long_path_integration_data():
             id="incorrect backends format",
         ),
         pytest.param(
-            '["10.10.1"]',
-            "Config error: ['backends = 10.10.1: value is not a valid IPv4 or IPv6 address']",
-            id="incorrect IP format",
+            '["10.10.1.1"]',
+            "Config error: ['backends = 10.10.1.1:",
+            id="bare IP rejected",
         ),
     ],
 )
@@ -189,26 +66,84 @@ def test_config_with_invalid_backends_integration_data(invalid_backends, error_m
     with pytest.raises(ConfigurationError) as err:
         LocationConfig.from_integration_data(data)
 
-    assert str(err.value) == error_message
+    assert error_message in str(err.value)
 
 
-def test_config_http_protocol_integration_data():
+def test_config_https_backends_integration_data():
     """
-    arrange: Valid sample integration data with http as protocol.
+    arrange: Valid sample integration data with https URL backends.
     act: Create the config from the data.
-    assert: The configurations are correctly parsed.
+    assert: The configurations are correctly parsed with https scheme.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROTOCOL_FIELD_NAME] = "http"
+    data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443", "https://10.10.2.2:443"]'
     config = LocationConfig.from_integration_data(data)
 
-    assert config.hostname == "example.com"
-    assert config.path == "/"
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "http"
-    assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
-    assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
+    assert len(config.backends) == 2
+    assert config.backends[0].scheme == "https"
+    assert config.backends[1].scheme == "https"
+
+
+def test_config_mixed_scheme_raises():
+    """
+    arrange: Integration data with backends of mixed http/https schemes.
+    act: Create the config from the data.
+    assert: ConfigurationError is raised.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[BACKENDS_FIELD_NAME] = '["http://10.10.1.1:80", "https://10.10.2.2:443"]'
+
+    with pytest.raises(ConfigurationError) as err:
+        LocationConfig.from_integration_data(data)
+
+    assert "mixed" in str(err.value).lower() or "scheme" in str(err.value).lower()
+
+
+def test_get_cache_backend_url_uses_https_when_has_cache_cert():
+    """
+    arrange: A mock charm with a bind address and has_cache_cert=True.
+    act: Call get_cache_backend_url.
+    assert: Returns an https:// URL.
+    """
+    charm = MagicMock()
+    charm.model.get_binding.return_value.network.bind_address = "10.0.0.1"
+    relation = MagicMock()
+
+    result = get_cache_backend_url(charm, relation, 30000, has_cache_cert=True)
+
+    assert result.startswith("https://")
+
+
+def test_get_cache_backend_url_uses_http_by_default():
+    """
+    arrange: A mock charm with a bind address and has_cache_cert=False (default).
+    act: Call get_cache_backend_url.
+    assert: Returns an http:// URL.
+    """
+    charm = MagicMock()
+    charm.model.get_binding.return_value.network.bind_address = "10.0.0.1"
+    relation = MagicMock()
+
+    result = get_cache_backend_url(charm, relation, 30000)
+
+    assert result.startswith("http://")
+
+
+def test_get_cache_backend_url_http():
+    """
+    arrange: A mock charm with a bind address and a relation.
+    act: Call get_cache_backend_url with port 8080.
+    assert: Returns an http URL containing the bind IP and port.
+    """
+    charm = MagicMock()
+    rel = MagicMock()
+    charm.model.get_binding.return_value.network.bind_address = "10.1.2.3"
+    port = 8080
+
+    result = get_cache_backend_url(charm, rel, port)
+
+    assert result == "http://10.1.2.3:8080"
+    charm.model.get_binding.assert_called_once_with(rel)
 
 
 @pytest.mark.parametrize(
@@ -295,19 +230,15 @@ def test_config_valid_proxy_cache_valid_integration_data(proxy_cache_valid: str)
     """
     arrange: Sample integration data with valid proxy_cache_valid.
     act: Create the config from the data.
-    assert: Exception raised with the correct error message.
+    assert: Configuration parsed correctly with expected proxy_cache_valid.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
     data[PROXY_CACHE_VALID_FIELD_NAME] = proxy_cache_valid
 
     config = LocationConfig.from_integration_data(data)
 
-    assert config.hostname == "example.com"
-    assert config.path == "/"
-    assert config.backends == (IPv4Address("10.10.1.1"), IPv4Address("10.10.2.2"))
-    assert config.protocol == "https"
+    assert len(config.backends) == 2
     assert config.fail_timeout == "30s"
-    assert config.backends_path == "/"
     assert config.healthcheck_config.path == "/"
     assert config.healthcheck_config.interval == 2000
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
