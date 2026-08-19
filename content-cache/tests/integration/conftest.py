@@ -74,8 +74,8 @@ def deploy_applications_fixture(
         }
 
     juju.deploy(charm_file, APP_NAME, base="ubuntu@24.04")
-    juju.deploy(config_charm_file, CONFIG_APP_NAME, base="ubuntu@24.04", num_units=0)
-    juju.deploy(config_charm_file, CONFIG_ALT_APP_NAME, base="ubuntu@24.04", num_units=0)
+    juju.deploy(config_charm_file, CONFIG_APP_NAME, base="ubuntu@24.04")
+    juju.deploy(config_charm_file, CONFIG_ALT_APP_NAME, base="ubuntu@24.04")
     juju.deploy(CERT_CHARM_NAME, CERT_APP_NAME, channel="latest/edge", base="ubuntu@22.04")
     juju.deploy(
         CACHE_LEGO_CHARM_NAME, CACHE_LEGO_APP_NAME, channel="latest/edge", base="ubuntu@22.04"
@@ -85,7 +85,6 @@ def deploy_applications_fixture(
         METRIC_APP_NAME,
         channel="1/stable",
         base="ubuntu@24.04",
-        num_units=0,
     )
     juju.wait(
         lambda s: s.apps[APP_NAME].app_status.current in ("active", "blocked"),
