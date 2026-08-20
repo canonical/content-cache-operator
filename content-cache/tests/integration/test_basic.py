@@ -60,6 +60,7 @@ def test_charm_integrate_with_no_data(
     cache_tester.integrate_config()
     juju.wait(
         lambda s: s.apps[app].units[f"{app}/0"].workload_status.current == "blocked"
+        and f"{config_app}/0" in s.apps[config_app].units
         and s.apps[config_app].units[f"{config_app}/0"].workload_status.current == "blocked",
         timeout=10 * 60,
     )
