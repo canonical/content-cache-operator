@@ -8,7 +8,7 @@ myst:
 
 # Tutorial
 
-Coming soon.
+Coming soon (thanks for your patience)
 
 <!--
 Follow our step-by-step tutorial to get started with the Content Cache charms.
