@@ -203,7 +203,8 @@ def test_get_location_config_keys_https_with_ca_bundle(
     patch_nginx_manager: None, tmp_path, monkeypatch
 ):
     """
-    arrange: A LocationConfig with https backends and a CA bundle present on disk.
+    arrange: A LocationConfig with https backends, a CA bundle present on disk,
+        and ssl_verify=true.
     act: Call _get_location_config_keys.
     assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, and proxy_ssl_name set to
         the first backend hostname so nginx verifies against the actual host, not the
@@ -233,9 +234,10 @@ def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
     patch_nginx_manager: None, tmp_path, monkeypatch
 ):
     """
-    arrange: A LocationConfig with https backends, a CA bundle present, and ssl_verify=false.
+    arrange: A LocationConfig with https backends, a CA bundle present on disk,
+        and ssl_verify=false.
     act: Call _get_location_config_keys.
-    assert: proxy_ssl directives are present — healthcheck ssl_verify does not affect proxy SSL.
+    assert: No proxy_ssl_verify directives added — CA bundle only used when ssl_verify is true.
     """
     ca_bundle = tmp_path / "ca-bundle.pem"
     ca_bundle.write_text("cert", encoding="utf-8")
@@ -251,9 +253,7 @@ def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
     keys = nginx_manager._get_location_config_keys(config, "upstream")
 
     key_strings = [k.as_strings for k in keys]
-    assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
-    assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
-    assert any("proxy_ssl_name" in s and "10.10.1.1" in s for s in key_strings)
+    assert not any("proxy_ssl" in s for s in key_strings)
 
 
 def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: None, monkeypatch):
@@ -391,3 +391,111 @@ def test_update_config_without_cache_cert_no_ssl_directives(
 
     config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
     assert "ssl" not in config_content
+
+
+def test_proxy_cache_path_includes_inactive(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Configuration with cache_inactive set.
+    act: Generate nginx site config.
+    assert: proxy_cache_path directive contains inactive= parameter.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {
+                    **SAMPLE_INTEGRATION_DATA,
+                    "backends": '["http://10.10.10.1:80"]',
+                    "cache_inactive": "1h",
+                }
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "inactive=1h" in config_content
+
+
+def test_proxy_cache_path_includes_max_size(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Configuration with cache_max_size set.
+    act: Generate nginx site config.
+    assert: proxy_cache_path directive contains max_size= parameter.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {
+                    **SAMPLE_INTEGRATION_DATA,
+                    "backends": '["http://10.10.10.1:80"]',
+                    "cache_max_size": "2g",
+                }
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "max_size=2g" in config_content
+
+
+def test_proxy_cache_path_no_max_size_when_empty(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Configuration with empty cache_max_size.
+    act: Generate nginx site config.
+    assert: proxy_cache_path directive does not contain max_size= parameter.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "max_size" not in config_content
+
+
+def test_location_contains_proxy_cache_lock(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: Valid configuration.
+    act: Generate nginx site config.
+    assert: Location block contains proxy_cache_lock on.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {
+        1: (
+            port,
+            LocationConfig.from_integration_data(
+                {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
+            ),
+        )
+    }
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "proxy_cache_lock on" in config_content

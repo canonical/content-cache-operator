@@ -8,11 +8,8 @@ import logging
 import textwrap
 from pathlib import Path
 
+import jubilant
 import requests
-from juju.action import Action
-from juju.application import Application
-from juju.model import Model
-from juju.unit import Unit
 
 from state import CACHE_CONFIG_INTEGRATION_NAME
 
@@ -45,57 +42,57 @@ class CacheTester:
 
     def __init__(
         self,
-        model: Model,
-        app: Application,
-        config_app: Application,
-        config_alt_app: Application,
+        juju: jubilant.Juju,
+        app: str,
+        config_app: str,
+        config_alt_app: str,
     ):
         """Initialize the object.
 
         Args:
-            model: The juju model containing the applications.
-            app: The content-cache application.
-            config_app: The configuration charm application.
-            config_alt_app: The alternative configuration charm application.
+            juju: The jubilant Juju instance.
+            app: The content-cache application name.
+            config_app: The configuration charm application name.
+            config_alt_app: The alternative configuration charm application name.
         """
-        self._model = model
+        self._juju = juju
         self._app = app
         self._config_app = config_app
         self._config_alt_app = config_alt_app
         self._reset_after_run = True
 
-    async def integrate_config(self) -> None:
+    def integrate_config(self) -> None:
         """Integrate the configuration application."""
-        await self._model.integrate(
-            f"{self._config_app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
-            f"{self._app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
+        self._juju.integrate(
+            f"{self._config_app}:{CACHE_CONFIG_INTEGRATION_NAME}",
+            f"{self._app}:{CACHE_CONFIG_INTEGRATION_NAME}",
         )
 
-    async def integrate_config_alt(self) -> None:
+    def integrate_config_alt(self) -> None:
         """Integrate the alternative configuration application."""
-        await self._model.integrate(
-            f"{self._config_alt_app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
-            f"{self._app.name}:{CACHE_CONFIG_INTEGRATION_NAME}",
+        self._juju.integrate(
+            f"{self._config_alt_app}:{CACHE_CONFIG_INTEGRATION_NAME}",
+            f"{self._app}:{CACHE_CONFIG_INTEGRATION_NAME}",
         )
 
-    async def setup_config(self, configuration: dict[str, str]) -> None:
+    def setup_config(self, configuration: dict[str, str]) -> None:
         """Set up configuration on the configuration charm.
 
         Args:
             configuration: The configuration for the configuration charm.
         """
-        await self._config_app.set_config(configuration)
+        self._juju.config(self._config_app, configuration)
 
-    async def setup_config_alt(self, configuration: dict[str, str]) -> None:
+    def setup_config_alt(self, configuration: dict[str, str]) -> None:
         """Set up configuration on the alternative configuration charm.
 
         Args:
             configuration: The configuration for the alternative configuration charm.
         """
-        await self._config_alt_app.set_config(configuration)
+        self._juju.config(self._config_alt_app, configuration)
 
-    async def query_cache(
-        self, path: str, port: int = 30000, protocol: str = "http"
+    def query_cache(
+        self, path: str, port: int = 8080, protocol: str = "http"
     ) -> requests.Response:
         """Test the content cache with a request.
 
@@ -105,11 +102,11 @@ class CacheTester:
             protocol: The protocol to make the request.
 
         Returns:
-            Whether the cache is working.
+            The HTTP response from the cache.
         """
-        ip = await get_app_ip(self._app)
+        ip = get_app_ip(self._juju, self._app)
         url = f"{protocol}://{ip}:{port}{path}"
-        logger.info(f"Querying cache on {url}")
+        logger.info("Querying cache on %s", url)
 
         response = requests.get(
             url,
@@ -120,40 +117,56 @@ class CacheTester:
 
         return response
 
-    async def reset(self) -> None:
+    def reset(self) -> None:
         """Reset the state of the applications."""
-        if self._config_app.related_applications(CACHE_CONFIG_INTEGRATION_NAME):
-            # Do NOT use block_until_done=True — it calls block_until() with no timeout
-            # and can hang forever if hook processing stalls.
-            await self._config_app.remove_relation(CACHE_CONFIG_INTEGRATION_NAME, self._app.name)
-        if self._config_alt_app.related_applications(CACHE_CONFIG_INTEGRATION_NAME):
-            await self._config_alt_app.remove_relation(
-                CACHE_CONFIG_INTEGRATION_NAME, self._app.name
-            )
-        await self.reset_config()
+        st = self._juju.status()
+        if self._config_app in st.apps:
+            config_app_data = st.apps[self._config_app]
+            if any(
+                CACHE_CONFIG_INTEGRATION_NAME in r
+                for r in getattr(config_app_data, "relations", {})
+            ):
+                self._juju.remove_relation(
+                    f"{self._config_app}:{CACHE_CONFIG_INTEGRATION_NAME}",
+                    f"{self._app}:{CACHE_CONFIG_INTEGRATION_NAME}",
+                )
+        if self._config_alt_app in st.apps:
+            config_alt_app_data = st.apps[self._config_alt_app]
+            if any(
+                CACHE_CONFIG_INTEGRATION_NAME in r
+                for r in getattr(config_alt_app_data, "relations", {})
+            ):
+                self._juju.remove_relation(
+                    f"{self._config_alt_app}:{CACHE_CONFIG_INTEGRATION_NAME}",
+                    f"{self._app}:{CACHE_CONFIG_INTEGRATION_NAME}",
+                )
+        self.reset_config()
 
-    async def reset_config(self) -> None:
+    def reset_config(self) -> None:
         """Reset the configuration of configuration charm application."""
-        await self._config_app.set_config(CacheTester.BASE_CONFIG)
+        self._juju.config(self._config_app, CacheTester.BASE_CONFIG)
 
 
-async def deploy_http_app(
-    app_name: str, path: str, status: int, message: str, model: Model, https: bool = False
-) -> Application:
+def deploy_http_app(
+    juju: jubilant.Juju,
+    app_name: str,
+    path: str,
+    status: int,
+    message: str,
+    https: bool = False,
+) -> str:
     """Deploy a testing HTTP server application for testing.
 
-    The testing HTTP server application is within an any charm instance.
-
     Args:
+        juju: The jubilant Juju instance.
         app_name: The application name of the any charm.
         path: The URL path to the test server.
         status: The status code for the test response.
         message: The message in the test response.
-        model: The model to deploy the any charm.
         https: Run server in HTTPS mode on port 443.
 
     Returns:
-        The juju application with the testing HTTP server.
+        The application name.
     """
     if https:
         port = 443
@@ -164,7 +177,7 @@ async def deploy_http_app(
 
     test_server_content = TEST_SERVER_PATH.read_text()
     certificate_content = TEST_SERVER_CERTIFICATE.read_text()
-    any_charm_content = textwrap.dedent(f'''
+    any_charm_content = textwrap.dedent(f"""
     import logging
     import os
     import subprocess
@@ -188,7 +201,7 @@ async def deploy_http_app(
             test_server_path = Path(os.getcwd()) / "src" / "test_server.py"
             SERVICE_PATH.write_text(
                 textwrap.dedent(
-                    """
+                    \"\"\"
                     [Unit]
                     Description=Test HTTP server
                     After=network.target
@@ -196,14 +209,14 @@ async def deploy_http_app(
                     [Service]
                     Type=simple
                     User=root
-                    ExecStart=/usr/bin/env python3 """
+                    ExecStart=/usr/bin/env python3 \"\"\"
                     + str(test_server_path)
-                    + """ --path {path} --status {status} --message {message} --port {port} {flags}
+                    + \"\"\" --path {path} --status {status} --message {message} --port {port} {flags}
                     Restart=on-failure
 
                     [Install]
                     WantedBy=multi-user.target
-                    """
+                    \"\"\"
                 )
             )
 
@@ -219,7 +232,7 @@ async def deploy_http_app(
             self.generate_config()
             subprocess.run(["systemctl", "daemon-reload"])
             subprocess.run(["systemctl", "restart", SERVICE_NAME])
-    ''')
+    """)
 
     src_overwrite = {
         "test_server.py": test_server_content,
@@ -227,279 +240,96 @@ async def deploy_http_app(
         "certificate.pem": certificate_content,
     }
 
-    app: Application
-    if app_name in model.applications:
-        logging.info(f"Found existing {app_name} application. Reconfiguring it.")
-        app = model.applications[app_name]
-        await app.set_config({"src-overwrite": json.dumps(src_overwrite)})
-    else:
-        app = await model.deploy(
-            "any-charm",
-            application_name=app_name,
-            channel="beta",
-            config={"src-overwrite": json.dumps(src_overwrite)},
-        )
-
-    return app
-
-
-async def deploy_self_cert_https_app(
-    app_name: str, path: str, status: int, message: str, model: Model
-) -> Application:
-    """Deploy an HTTPS test app that gets its cert signed by a tls-certificates CA.
-
-    The app generates a private key and CSR with its own IP as a Subject Alternative Name,
-    writes the CSR to the ``require-tls-certificates`` relation, and starts the HTTPS server
-    once the signed cert arrives.
-
-    After deploying, integrate ``<app_name>:require-tls-certificates`` with the CA charm's
-    ``certificates`` endpoint and wait for the app to become active.
-
-    Args:
-        app_name: The application name for the any-charm deployment.
-        path: URL path that the server will respond to.
-        status: HTTP status code the server returns on ``path``.
-        message: Response body the server returns on ``path``.
-        model: The libjuju Model to deploy into.
-
-    Returns:
-        The deployed Juju Application.
-    """
-    test_server_content = TEST_SERVER_PATH.read_text()
-
-    # The inner any-charm code.  Values of path/status/message are baked in by
-    # the outer f-string at deploy time; other {{}}/{{var}} escapes produce
-    # single-brace expressions that are evaluated inside the charm at runtime.
-    any_charm_content = textwrap.dedent(f'''\
-    import json
-    import logging
-    import os
-    import socket
-    import subprocess
-    from pathlib import Path
-
-    import ops
-    from any_charm_base import AnyCharmBase
-
-    logger = logging.getLogger(__name__)
-
-    SERVICE_NAME = "test-https-cert"
-    SERVICE_PATH = Path("/etc/systemd/system/" + SERVICE_NAME + ".service")
-    CERT_DIR = Path("/etc/test-certs")
-    SERVER_PEM = CERT_DIR / "server.pem"
-    KEY_PATH = CERT_DIR / "server.key"
-    CSR_PATH = CERT_DIR / "server.csr"
-    SAN_CONF = CERT_DIR / "san.cnf"
-
-
-    def _get_own_ip() -> str:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            s.connect(("10.255.255.255", 1))
-            return s.getsockname()[0]
-        finally:
-            s.close()
-
-
-    def _ensure_key_and_csr() -> str:
-        """Generate key + CSR for this unit's IP if not already present; return IP."""
-        ip = _get_own_ip()
-        if KEY_PATH.exists() and CSR_PATH.exists():
-            return ip
-        CERT_DIR.mkdir(parents=True, exist_ok=True)
-        SAN_CONF.write_text(
-            "[req]\\n"
-            "req_extensions = v3_req\\n"
-            "distinguished_name = req_dn\\n"
-            "[req_dn]\\n"
-            "[v3_req]\\n"
-            "subjectAltName = IP:" + ip + "\\n"
-        )
-        subprocess.run(
-            ["openssl", "genrsa", "-out", str(KEY_PATH), "2048"],
-            check=True, capture_output=True,
-        )
-        subprocess.run(
-            [
-                "openssl", "req", "-new",
-                "-key", str(KEY_PATH),
-                "-out", str(CSR_PATH),
-                "-subj", "/CN=" + ip,
-                "-config", str(SAN_CONF),
-            ],
-            check=True, capture_output=True,
-        )
-        logger.info("Generated key and CSR for IP %s", ip)
-        return ip
-
-
-    class AnyCharm(AnyCharmBase):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.framework.observe(self.on.install, self._on_install)
-            self.framework.observe(
-                self.on["require-tls-certificates"].relation_joined,
-                self._submit_csr,
-            )
-            self.framework.observe(
-                self.on["require-tls-certificates"].relation_changed,
-                self._on_cert_relation_changed,
-            )
-
-        def _on_start_(self, event):
-            """Override AnyCharmBase to keep WaitingStatus until cert arrives."""
-            self.unit.status = ops.WaitingStatus("Waiting for TLS certificate")
-
-        def _on_install(self, event):
-            _ensure_key_and_csr()
-            self.unit.status = ops.WaitingStatus("Waiting for TLS certificate")
-
-        def _submit_csr(self, event):
-            """Write CSR to the tls-certificates relation unit data (v4 unit-mode)."""
-            _ensure_key_and_csr()
-            csr_pem = CSR_PATH.read_text()
-            event.relation.data[self.unit]["certificate_signing_requests"] = json.dumps(
-                [{{"certificate_signing_request": csr_pem, "ca": False}}]
-            )
-
-        def _on_cert_relation_changed(self, event):
-            """Read signed cert from provider and start the HTTPS server."""
-            if not CSR_PATH.exists():
-                return
-            csr_pem = CSR_PATH.read_text().strip()
-            # Certs are in the PROVIDER APP databag (tls-certificates v4), not unit databag.
-            raw = event.relation.data[event.relation.app].get("certificates")
-            if not raw:
-                return
-            for entry in json.loads(raw):
-                if entry.get("certificate_signing_request", "").strip() == csr_pem:
-                    self._start_server(entry["certificate"])
-                    self.unit.status = ops.ActiveStatus()
-                    return
-
-        def _start_server(self, cert_pem: str):
-            """Write cert+key PEM and restart the systemd HTTPS service."""
-            SERVER_PEM.write_text(cert_pem.strip() + "\\n" + KEY_PATH.read_text())
-            test_server = Path(os.getcwd()) / "src" / "test_server.py"
-            SERVICE_PATH.write_text(
-                "[Unit]\\n"
-                "Description=Test HTTPS server (CA-issued cert)\\n"
-                "After=network.target\\n"
-                "\\n"
-                "[Service]\\n"
-                "Type=simple\\n"
-                "User=root\\n"
-                "ExecStart=/usr/bin/env python3 " + str(test_server)
-                + " --path {path} --status {status} --message {message}"
-                  " --port 443 --https --cert " + str(SERVER_PEM) + "\\n"
-                "Restart=on-failure\\n"
-                "\\n"
-                "[Install]\\n"
-                "WantedBy=multi-user.target\\n"
-            )
-            subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
-            subprocess.run(["systemctl", "enable", SERVICE_NAME], capture_output=True)
-            subprocess.run(["systemctl", "restart", SERVICE_NAME], capture_output=True)
-    ''')
-
-    src_overwrite = {
-        "test_server.py": test_server_content,
-        "any_charm.py": any_charm_content,
-    }
-
-    app: Application
-    if app_name in model.applications:
+    juju_status = juju.status()
+    if app_name in juju_status.apps:
         logging.info("Found existing %s application. Reconfiguring it.", app_name)
-        app = model.applications[app_name]
-        await app.set_config({"src-overwrite": json.dumps(src_overwrite)})
+        juju.config(app_name, {"src-overwrite": json.dumps(src_overwrite)})
     else:
-        app = await model.deploy(
+        juju.deploy(
             "any-charm",
-            application_name=app_name,
+            app_name,
             channel="beta",
             config={"src-overwrite": json.dumps(src_overwrite)},
         )
 
-    return app
+    return app_name
 
 
-async def get_app_ip(app: Application) -> str:
+def get_app_ip(juju: jubilant.Juju, app_name: str) -> str:
     """Get the IP for a unit of the application.
 
     Args:
-        app: The application to get the public IP.
+        juju: The jubilant Juju instance.
+        app_name: The application name to get the public IP.
 
     Returns:
-        The public IP of the application.
+        The public IP of the application's first unit.
     """
-    assert app.units
-    unit: Unit = app.units[0]
-    return await unit.get_public_address()
+    status = juju.status()
+    units = status.apps[app_name].units
+    assert units, f"No units found for app {app_name}"
+    unit = next(iter(units.values()))
+    return unit.public_address
 
 
-async def read_file(unit: Unit, path: Path) -> str:
+def read_file(juju: jubilant.Juju, unit_name: str, path: Path) -> str:
     """Read a file on the Juju unit.
 
     Args:
-        unit: The Juju unit to read file on.
+        juju: The jubilant Juju instance.
+        unit_name: The Juju unit name to read file on.
         path: The path of the file to read.
 
     Returns:
         The file content.
     """
-    return_code, stdout, stderr = await run_in_unit(
-        unit=unit,
-        command=f"if [ -f {path} ]; then cat {path}; else echo ''; fi",
+    result = juju.exec(
+        f"if [ -f {path} ]; then cat {path}; else echo ''; fi",
+        unit=unit_name,
     )
-    assert return_code == 0, f"Failed to read file {path}: {stderr}"
-    assert stdout is not None, f"Failed to read file {path} to stdout: {stderr}"
-    logging.debug("File content of %s: %s", path, stdout)
-    return stdout.strip()
+    assert result.return_code == 0, f"Failed to read file {path}: {result.stderr}"
+    logging.debug("File content of %s: %s", path, result.stdout)
+    return result.stdout.strip()
 
 
-async def get_cache_backend(unit: Unit) -> str:
-    """Get the cache-backend value from the unit's cache-config relation data.
+def get_cache_backends(juju: jubilant.Juju, unit_name: str) -> list[str]:
+    """Get the cache-backend URL from the unit's cache-config relation data.
 
     Args:
-        unit: The content-cache unit to query.
+        juju: The jubilant Juju instance.
+        unit_name: The content-cache unit name to query.
 
     Returns:
-        The cache-backend URL published on the first cache-config relation, or empty string.
+        A list containing the cache-backend URL published on the first cache-config relation,
+        or an empty list if no URL is set.
     """
-    return_code, rel_ids_stdout, stderr = await run_in_unit(
-        unit=unit,
-        command="relation-ids cache-config",
-    )
-    assert return_code == 0, f"Failed to get relation IDs: {stderr}"
-    rel_ids = (rel_ids_stdout or "").split()
+    rel_ids_result = juju.exec("relation-ids cache-config", unit=unit_name)
+    assert rel_ids_result.return_code == 0, f"Failed to get relation IDs: {rel_ids_result.stderr}"
+    rel_ids = rel_ids_result.stdout.split()
     assert rel_ids, "No cache-config relations found"
     rel_id = rel_ids[0]
 
-    return_code, stdout, stderr = await run_in_unit(
-        unit=unit,
-        command=f"relation-get -r {rel_id} cache-backend -- {unit.name}",
+    result = juju.exec(
+        f"relation-get -r {rel_id} cache-backend -- {unit_name}",
+        unit=unit_name,
     )
-    assert return_code == 0, f"Failed to get cache-backend: {stderr}"
-    return (stdout or "").strip()
+    assert result.return_code == 0, f"Failed to get cache-backend: {result.stderr}"
+    raw = result.stdout.strip()
+    if not raw:
+        return []
+    return [raw]
 
 
-async def run_in_unit(
-    unit: Unit, command: str, timeout=None
-) -> tuple[int, str | None, str | None]:
+def run_in_unit(juju: jubilant.Juju, unit_name: str, command: str) -> tuple[int, str, str]:
     """Run a command in the Juju unit.
 
     Args:
-        unit:The Juju unit to run the command in.
+        juju: The jubilant Juju instance.
+        unit_name: The Juju unit name to run the command in.
         command: The command to run.
-        timeout: The time in seconds for the command run to be consider as failure.
 
     Returns:
         The return code, stdout, and stderr.
     """
-    run: Action = await unit.run(command, timeout)
-    await run.wait()
-    return (
-        run.results["return-code"],
-        run.results.get("stdout", None),
-        run.results.get("stderr", None),
-    )
+    result = juju.exec(command, unit=unit_name)
+    return result.return_code, result.stdout, result.stderr

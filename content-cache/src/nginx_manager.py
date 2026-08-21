@@ -388,6 +388,28 @@ def _create_status_page_config() -> None:
     _store_and_enable_site_config("nginx_status", nginx_config)
 
 
+def _build_proxy_cache_path(
+    cache_dir: Path,
+    identifier: str,
+    config: LocationConfig,
+) -> str:
+    """Build the proxy_cache_path directive value.
+
+    Args:
+        cache_dir: The directory to store cache files.
+        identifier: The unique cache zone identifier.
+        config: The location configuration with cache parameters.
+
+    Returns:
+        The proxy_cache_path value string.
+    """
+    value = f"{cache_dir} use_temp_path=off levels=1:2 keys_zone={identifier}:10m"
+    value += f" inactive={config.cache_inactive}"
+    if config.cache_max_size:
+        value += f" max_size={config.cache_max_size}"
+    return value
+
+
 def _create_virtualhost_config(  # pylint: disable=too-many-locals
     identifier: str,
     port: int,
@@ -418,7 +440,7 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals
         nginx_config = nginx.Conf(
             nginx.Key(
                 "proxy_cache_path",
-                f"{server_cache_dir} use_temp_path=off levels=1:2 keys_zone={identifier}:10m",
+                _build_proxy_cache_path(server_cache_dir, identifier, configuration),
             ),
         )
         listen_value = f"{port} ssl" if resolved_tls.frontend_cert_path else str(port)
@@ -534,9 +556,11 @@ def _get_location_config_keys(
     scheme = config.backends[0].scheme
     keys: list[nginx.Key] = [
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
+        nginx.Key("proxy_cache_lock", "on"),
     ]
 
-    if scheme == "https" and ca_certs.get_ca_bundle_path() is not None:
+    ssl_verify = config.healthcheck_config.ssl_verify
+    if scheme == "https" and ca_certs.get_ca_bundle_path() is not None and ssl_verify:
         # Use the backend actual hostname/IP for SSL verification, not the upstream
         # block name (e.g. "backend-{id}"), which would never match the cert's CN/SAN.
         # All backends in a location must share the same hostname for proxy_ssl to work.

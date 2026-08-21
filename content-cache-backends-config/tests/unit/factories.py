@@ -10,6 +10,8 @@ import factory
 
 from src.state import (
     BACKENDS_CONFIG_NAME,
+    CACHE_INACTIVE_CONFIG_NAME,
+    CACHE_MAX_SIZE_CONFIG_NAME,
     FAIL_TIMEOUT_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
@@ -56,5 +58,7 @@ class MockCharmFactory(factory.Factory):
             HEALTHCHECK_SSL_VERIFY_CONFIG_NAME: False,
             HEALTHCHECK_VALID_STATUS_CONFIG_NAME: "200",
             PROXY_CACHE_VALID_CONFIG_NAME: "[]",
+            CACHE_INACTIVE_CONFIG_NAME: "10m",
+            CACHE_MAX_SIZE_CONFIG_NAME: "",
         }
     )

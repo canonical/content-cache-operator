@@ -12,6 +12,8 @@ from factories import MockCharmFactory  # pylint: disable=import-error
 from errors import ConfigurationError
 from src.state import (
     BACKENDS_CONFIG_NAME,
+    CACHE_INACTIVE_CONFIG_NAME,
+    CACHE_MAX_SIZE_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
@@ -236,6 +238,8 @@ def test_configuration_to_data():
     assert data["healthcheck_ssl_verify"] == "false"
     assert data["healthcheck_valid_status"] == "[200]"
     assert data["proxy_cache_valid"] == "[]"
+    assert data["cache_inactive"] == "10m"
+    assert data.get("cache_max_size", "") == ""
 
 
 def test_configuration_to_data_model_dump_error(monkeypatch):
@@ -318,3 +322,75 @@ def test_invalid_healthcheck_interval(bad_value, error_msg):
         Configuration.from_charm(charm)
 
     assert str(err.value) == f"Config error: ['interval = {bad_value}: {error_msg}']"
+
+
+@pytest.mark.parametrize("value", ["10m", "1h", "7d", "30s"])
+def test_cache_inactive_valid(value: str):
+    """
+    arrange: Mock charm with valid cache-inactive values.
+    act: Create the configuration from the charm.
+    assert: cache_inactive is set correctly.
+    """
+    charm = MockCharmFactory()
+    charm.config[CACHE_INACTIVE_CONFIG_NAME] = value
+
+    config = Configuration.from_charm(charm)
+
+    assert config.cache_inactive == value
+
+
+@pytest.mark.parametrize("value", ["0m", "-1h", "abc", "10x"])
+def test_cache_inactive_invalid(value: str):
+    """
+    arrange: Mock charm with invalid cache-inactive values.
+    act: Create the configuration from the charm.
+    assert: ConfigurationError raised.
+    """
+    charm = MockCharmFactory()
+    charm.config[CACHE_INACTIVE_CONFIG_NAME] = value
+
+    with pytest.raises(ConfigurationError):
+        Configuration.from_charm(charm)
+
+
+@pytest.mark.parametrize("value", ["512m", "2g", "1t", "100k", "1G"])
+def test_cache_max_size_valid(value: str):
+    """
+    arrange: Mock charm with valid cache-max-size values.
+    act: Create the configuration from the charm.
+    assert: cache_max_size is set (lowercased).
+    """
+    charm = MockCharmFactory()
+    charm.config[CACHE_MAX_SIZE_CONFIG_NAME] = value
+
+    config = Configuration.from_charm(charm)
+
+    assert config.cache_max_size == value.lower()
+
+
+@pytest.mark.parametrize("value", ["0m", "-1g", "abc", "10x"])
+def test_cache_max_size_invalid(value: str):
+    """
+    arrange: Mock charm with invalid cache-max-size values.
+    act: Create the configuration from the charm.
+    assert: ConfigurationError raised.
+    """
+    charm = MockCharmFactory()
+    charm.config[CACHE_MAX_SIZE_CONFIG_NAME] = value
+
+    with pytest.raises(ConfigurationError):
+        Configuration.from_charm(charm)
+
+
+def test_cache_max_size_empty_allowed():
+    """
+    arrange: Mock charm with empty cache-max-size.
+    act: Create the configuration from the charm.
+    assert: cache_max_size is empty string (no limit).
+    """
+    charm = MockCharmFactory()
+    charm.config[CACHE_MAX_SIZE_CONFIG_NAME] = ""
+
+    config = Configuration.from_charm(charm)
+
+    assert config.cache_max_size == ""
