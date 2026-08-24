@@ -96,3 +96,4 @@ Thinking about using the content cache charm for your next project?
     How-to guides <how-to/index>
     Reference <reference/index>
     Explanation <explanation/index>
+    Changelog <changelog>
