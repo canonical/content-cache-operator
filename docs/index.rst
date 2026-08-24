@@ -1,12 +1,11 @@
 .. meta::
-   :description: Discover the .. meta::
    :description: Discover the content cache charm, a Juju operator that deploys and manages NGINX.
 
 .. vale Canonical.007-Headings-sentence-case = NO
 
 .. _index:
 
-Content cache operator
+Content cache operators
 ========================
 
 .. vale Canonical.007-Headings-sentence-case = YES
@@ -14,9 +13,9 @@ Content cache operator
 A `Juju <https://juju.is/>`_ `charm <https://documentation.ubuntu.com/juju/3.6/reference/charm/>`_
 deploying and managing a static web content cache with NGINX on VMs. 
 
-This machine charm manages a NGINX instance configured as a content cache. The configuration for the locations of cache is managed with the [Content Cache Backends Config subordinate charm](https://charmhub.io/content-cache-backends-config). Each Content Cache Backends Config charm stores the configuration for a location and the associated set of backends.
+This machine charm manages a NGINX instance configured as a content cache. The configuration for the locations of cache is managed with the `Content Cache Backends Config subordinate charm <https://charmhub.io/content-cache-backends-config>`_. Each Content Cache Backends Config charm stores the configuration for a location and the associated set of backends.
 
-This charm should be used for caching static web content. When a client makes a request, this charm checks if the requested content is cached and valid. If not this charm will query the backends hosts for the content to refresh the cache. This process works well for static content that does not change based on the client. For these type of content, the cache can greatly reduce the load on the backend hosts.
+This charm should be used for caching static web content. When a client makes a request, this charm checks if the requested content is cached and valid. For an invalid cache, this charm will query the backends hosts for the content to refresh the cache. This process works well for static content that does not change based on the client. For this type of content, the cache can greatly reduce the load on the backend hosts.
 
 Like any Juju charm, this charm supports one-line deployment, configuration, integration,
 scaling, and more. 
@@ -56,7 +55,7 @@ This documentation uses the `Diátaxis documentation structure <https://diataxis
 - :ref:`How-to guides <how_to_index>` assume you have basic familiarity with the content cache charm. Learn more about setting up, using, maintaining, and contributing to this charm.
 - :ref:`Reference <reference_index>` provides a guide to actions, configurations, relations, and other technical details.
 - :ref:`Explanation <explanation_index>` includes topic overviews, background and context and detailed discussion.
-- :ref:`Release notes <changelog>` holds all the release notes for the charm, including any system or upgrade requirements.
+- The :ref:`changelog <changelog>` holds all the user-relevant changes for the project.
 
 Contributing to this documentation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -106,4 +105,4 @@ Thinking about using the content cache charm for your next project?
     How-to guides <how-to/index>
     Reference <reference/index>
     Explanation <explanation/index>
-    Release notes <changelog>
+    Changelog <changelog>
