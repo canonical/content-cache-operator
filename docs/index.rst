@@ -33,18 +33,14 @@ In this documentation
 .. list-table::
     :header-rows: 0
 
-    * - Get started
-      - :ref:`Guided tutorial <tutorial_index>`
     * - Deployment
       - :ref:`Enable COS <how_to_enable_cos>`
     * - Operations
       - :ref:`Upgrade <how_to_upgrade>`
-    * - Product-specific feature
-      - :ref:`Connect to HTTPS backends <how_to_enable_https>`
     * - Design
       - :ref:`Caching behavior <explanation_caching_behavior>` | :ref:`Charm design <explanation_charm_design>` | :ref:`Components <reference_components>`
     * - Security
-      - :ref:`Overview <explanation_security>`
+      - :ref:`Overview <explanation_security>` | :ref:`Connect to HTTPS backends <how_to_enable_https>`
 
 How this documentation is organized
 ------------------------------------
@@ -55,7 +51,6 @@ This documentation uses the `Diátaxis documentation structure <https://diataxis
 - :ref:`How-to guides <how_to_index>` assume you have basic familiarity with the content cache charm. Learn more about setting up, using, maintaining, and contributing to this charm.
 - :ref:`Reference <reference_index>` provides a guide to actions, configurations, relations, and other technical details.
 - :ref:`Explanation <explanation_index>` includes topic overviews, background and context and detailed discussion.
-- The :ref:`changelog <changelog>` holds all the user-relevant changes for the project.
 
 Contributing to this documentation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -86,10 +81,6 @@ Get involved
 - `Join our online chat <https://matrix.to/#/#charmhub-charmdev:ubuntu.com>`_
 - :ref:`Contribute <how_to_contribute>`
 
-Releases
-^^^^^^^^
-
-- :ref:`Release notes <changelog>`
 
 Thinking about using the content cache charm for your next project?
 `Get in touch <https://matrix.to/#/#charmhub-charmdev:ubuntu.com>`_!
@@ -105,4 +96,3 @@ Thinking about using the content cache charm for your next project?
     How-to guides <how-to/index>
     Reference <reference/index>
     Explanation <explanation/index>
-    Changelog <changelog>
