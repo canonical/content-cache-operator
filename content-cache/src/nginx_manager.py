@@ -13,7 +13,6 @@ from pathlib import Path
 import nginx
 import requests
 
-import ca_certs
 from errors import (
     NginxConfigurationAggregateError,
     NginxConfigurationError,
@@ -558,20 +557,6 @@ def _get_location_config_keys(
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
         nginx.Key("proxy_cache_lock", "on"),
     ]
-
-    ssl_verify = config.healthcheck_config.ssl_verify
-    if scheme == "https" and ca_certs.get_ca_bundle_path() is not None and ssl_verify:
-        # Use the backend actual hostname/IP for SSL verification, not the upstream
-        # block name (e.g. "backend-{id}"), which would never match the cert's CN/SAN.
-        # All backends in a location must share the same hostname for proxy_ssl to work.
-        backend_host = config.backends[0].host
-        keys.extend(
-            [
-                nginx.Key("proxy_ssl_trusted_certificate", str(ca_certs.CA_BUNDLE_PATH)),
-                nginx.Key("proxy_ssl_verify", "on"),
-                nginx.Key("proxy_ssl_name", backend_host),
-            ]
-        )
 
     for cache_valid in config.proxy_cache_valid:
         keys.append(nginx.Key("proxy_cache_valid", cache_valid))

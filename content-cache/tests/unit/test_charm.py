@@ -351,14 +351,14 @@ def test_certificate_available_writes_cert_and_reloads(
     assert out.unit_status == scenario.ActiveStatus()
 
 
-def test_certificate_removed_deletes_cert_and_sets_waiting(
+def test_certificate_removed_deletes_cert_and_stays_active(
     ctx: scenario.Context,
     mock_nginx_manager: MagicMock,
 ):
     """
     arrange: A charm with HTTPS backends and a CA cert via certificate-transfer.
     act: Fire relation-broken on certificate-transfer.
-    assert: Charm moves to WaitingStatus.
+    assert: Charm stays Active — no CA bundle gate since proxy_ssl_verify is off.
     """
     https_data = dict(SAMPLE_INTEGRATION_DATA)
     https_data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
@@ -376,14 +376,14 @@ def test_certificate_removed_deletes_cert_and_sets_waiting(
         ctx.on.relation_broken(cert_rel),
         scenario.State(relations={config_rel, cert_rel}),
     )
-    assert isinstance(out.unit_status, scenario.WaitingStatus)
+    assert out.unit_status == scenario.ActiveStatus()
 
 
-def test_https_backends_without_ca_bundle_sets_waiting(ctx: scenario.Context):
+def test_https_backends_without_ca_bundle_stays_active(ctx: scenario.Context):
     """
     arrange: A charm with no certificate_transfer relation.
     act: Fire relation-changed with HTTPS backends.
-    assert: Charm enters WaitingStatus waiting for CA certificate.
+    assert: Charm enters ActiveStatus — no CA bundle required since proxy_ssl_verify is off.
     """
     https_data = dict(SAMPLE_INTEGRATION_DATA)
     https_data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
@@ -393,8 +393,7 @@ def test_https_backends_without_ca_bundle_sets_waiting(ctx: scenario.Context):
         remote_app_data=https_data,
     )
     out = ctx.run(ctx.on.relation_changed(rel), scenario.State(relations={rel}))
-    assert isinstance(out.unit_status, scenario.WaitingStatus)
-    assert "CA certificate" in out.unit_status.message
+    assert out.unit_status == scenario.ActiveStatus()
 
 
 def test_http_backends_without_ca_bundle_stays_active(

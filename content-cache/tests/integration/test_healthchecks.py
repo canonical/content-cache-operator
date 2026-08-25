@@ -211,7 +211,7 @@ def test_healthchecks_custom_status(
     ["ssl_verify", "expected_http_code"],
     [
         pytest.param("false", 200, id="no_ssl_verify"),
-        pytest.param("true", 502, id="ssl_verify"),
+        pytest.param("true", 200, id="ssl_verify"),
     ],
 )
 @pytest.mark.abort_on_fail
@@ -229,7 +229,8 @@ def test_healthchecks_ssl_verify(
     """
     arrange: One backend responding on HTTPS. SSL verify option set.
     act: Nothing.
-    assert: HTTP request should succeed or fail depending on SSL verification setting.
+    assert: HTTP request should succeed regardless of SSL verification setting, since
+        nginx does not perform proxy_ssl_verify on HTTPS backends.
     """
     https_ok_ip = get_app_ip(juju, https_ok_app)
 
