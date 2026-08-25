@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Each revision is versioned by the date of the revision.
 
+## 2026-08-21
+
+### Removed
+
+- Ejected the outdated "Deploy content-cache" tutorial from the documentation.
+  The tutorial no longer reflects a possible deployment schema for the charms,
+  and work is planned to replace the tutorial with an accurate setup.
+
 ## 2026-08-18
 
 ### Added
