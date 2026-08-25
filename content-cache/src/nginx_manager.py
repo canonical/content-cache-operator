@@ -190,6 +190,7 @@ def update_and_load_config(
     configuration: dict[int, tuple[int, LocationConfig]],
     instance_name: str,
     frontend_cert_path: Path | None = None,
+    backend_ca_cert_paths: dict[int, Path | None] | None = None,
 ) -> None:
     """Update the nginx configuration files and load them.
 
@@ -199,6 +200,8 @@ def update_and_load_config(
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
         frontend_cert_path: Path to the combined cert+key PEM for TLS termination, or None.
+        backend_ca_cert_paths: Optional mapping from relation ID to the backend CA cert path
+            (or None) for each HTTPS backend.
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
@@ -211,8 +214,9 @@ def update_and_load_config(
     errored_identifiers: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
     healthcheck_workers_lua_code = ""
-    for _, (port, config) in configuration.items():
+    for rel_id, (port, config) in configuration.items():
         identifier = str(port)
+        backend_ca_cert_path = (backend_ca_cert_paths or {}).get(rel_id)
         try:
             vhost_healthcheck_worker_lua_code = _create_virtualhost_config(
                 identifier,
@@ -220,6 +224,7 @@ def update_and_load_config(
                 config,
                 instance_name,
                 tls,
+                backend_ca_cert_path=backend_ca_cert_path,
             )
             healthcheck_workers_lua_code += vhost_healthcheck_worker_lua_code
         except NginxConfigurationError as err:
@@ -415,6 +420,7 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals
     configuration: LocationConfig,
     instance_name: str,
     tls: TLSConfig | None = None,
+    backend_ca_cert_path: Path | None = None,
 ) -> str:
     """Create the nginx configuration file for a virtual host listening on a given port.
 
@@ -425,6 +431,7 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
         tls: Optional TLS configuration (CA bundle and cache cert paths).
+        backend_ca_cert_path: Path to the CA certificate used to verify the backend, or None.
 
     Raises:
         NginxConfigurationError: Failed to convert the configuration to nginx format.
@@ -464,7 +471,7 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals
         upstream_config = nginx.Upstream(upstream, *upstream_keys)
         nginx_config.add(upstream_config)
 
-        location_keys = _get_location_config_keys(configuration, upstream)
+        location_keys = _get_location_config_keys(configuration, upstream, backend_ca_cert_path)
         server_config.add(nginx.Location("/", *location_keys))
 
         lua_healthcheck_workers += _get_upstream_healthchecks_worker(upstream, configuration)
@@ -542,12 +549,14 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
 def _get_location_config_keys(
     config: LocationConfig,
     upstream: str,
+    backend_ca_cert_path: Path | None = None,
 ) -> tuple[nginx.Key, ...]:
     """Create the nginx keys for location configuration.
 
     Args:
         config: The location configurations.
         upstream: The upstream hostname for the backends.
+        backend_ca_cert_path: Path to the CA certificate for backend TLS verification, or None.
 
     Returns:
         The nginx.Key for the Location configuration.
@@ -557,6 +566,16 @@ def _get_location_config_keys(
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
         nginx.Key("proxy_cache_lock", "on"),
     ]
+
+    if scheme == "https" and backend_ca_cert_path is not None:
+        keys.extend([
+            nginx.Key("proxy_set_header", f"Host {config.backend_hostname}"),
+            nginx.Key("proxy_ssl_name", config.backend_hostname),
+            nginx.Key("proxy_ssl_server_name", "on"),
+            nginx.Key("proxy_ssl_verify", "on"),
+            nginx.Key("proxy_ssl_verify_depth", "10"),
+            nginx.Key("proxy_ssl_trusted_certificate", str(backend_ca_cert_path)),
+        ])
 
     for cache_valid in config.proxy_cache_valid:
         keys.append(nginx.Key("proxy_cache_valid", cache_valid))
