@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 
 from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 
 from errors import CACertificateFileError
@@ -108,42 +109,41 @@ def find_cert_by_fingerprint(fingerprint: str, pem_certs: list[str]) -> str | No
             continue
         try:
             cert_fingerprint = _cert_sha256_fingerprint(pem)
-        except Exception:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        except (ValueError, UnsupportedAlgorithm):
             continue
         if cert_fingerprint == normalised:
             return pem
     return None
 
 
-def write_backend_ca_cert(identifier: str, cert_pem: str) -> Path:
-    """Write a per-relation backend CA certificate to disk.
+BACKEND_CA_BUNDLE_PATH = CA_CERTS_DIR / "backend-ca-bundle.pem"
+
+
+def write_backend_ca_bundle(certs: list[str]) -> Path | None:
+    """Write all matched backend CA certificates to a single bundle file.
+
+    Replaces any previously written bundle. If the list is empty, removes the
+    bundle file so nginx is not configured with an empty trust store. This
+    mirrors the holistic approach used by :func:`write_ca_bundle` for frontend
+    client CA certificates.
 
     Args:
-        identifier: The per-relation identifier to embed in the filename.
-        cert_pem: The PEM-encoded CA certificate to write.
-
-    Raises:
-        CACertificateFileError: If the certificate file cannot be written.
+        certs: PEM-encoded CA certificate strings to trust for backend connections.
 
     Returns:
-        The path to the written certificate file.
+        The path to the written bundle, or None if the list was empty.
+
+    Raises:
+        CACertificateFileError: If a file operation fails.
     """
     try:
+        if not certs:
+            BACKEND_CA_BUNDLE_PATH.unlink(missing_ok=True)
+            return None
         CA_CERTS_DIR.mkdir(parents=True, exist_ok=True)
-        path = CA_CERTS_DIR / f"backend-{identifier}-ca.pem"
-        path.write_text(cert_pem, encoding="utf-8")
-        path.chmod(0o644)
-        return path
+        BACKEND_CA_BUNDLE_PATH.write_text("\n".join(certs), encoding="utf-8")
+        BACKEND_CA_BUNDLE_PATH.chmod(0o644)
+        return BACKEND_CA_BUNDLE_PATH
     except (PermissionError, OSError, IOError) as err:
-        logger.exception("Failed to write backend CA cert for %s", identifier)
-        raise CACertificateFileError(f"Unable to write backend CA cert for {identifier}") from err
-
-
-def remove_backend_ca_cert(identifier: str) -> None:
-    """Remove a per-relation backend CA certificate file.
-
-    Args:
-        identifier: The per-relation identifier used in the filename.
-    """
-    path = CA_CERTS_DIR / f"backend-{identifier}-ca.pem"
-    path.unlink(missing_ok=True)
+        logger.exception("Failed to write backend CA bundle")
+        raise CACertificateFileError("Unable to write backend CA bundle") from err

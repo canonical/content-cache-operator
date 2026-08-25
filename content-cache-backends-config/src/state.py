@@ -33,6 +33,9 @@ def _validate_hostname_value(value: str) -> str:
     if len(value) > 255:
         raise ValueError("Hostname cannot be longer than 255")
 
+    # (?!-)        — segment must not start with a hyphen
+    # [A-Z\d-]{1,63} — segment consists of alphanumeric characters and hyphens, max 63 chars
+    # (?<!-)$      — segment must not end with a hyphen
     valid_segment = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     for segment in value.split("."):
         if valid_segment.fullmatch(segment) is None:
@@ -82,6 +85,9 @@ def _validate_fingerprint_value(value: str) -> str:
     """Validate the value as a colon-separated SHA-256 hex fingerprint."""
     if not value:
         return value
+    # [0-9A-Fa-f]{2}           — one two-digit hex byte
+    # (:[0-9A-Fa-f]{2}){31}    — followed by 31 more colon-separated hex bytes
+    # Together: 32 bytes = SHA-256 digest, 95 characters total
     pattern = re.compile(r"^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){31}$")
     if not pattern.match(value):
         raise ValueError(
@@ -263,7 +269,8 @@ class Configuration(pydantic.BaseModel):
         healthcheck_config = HealthcheckConfig.from_charm(charm)
 
         try:
-            # Ignore type check and let pydantic handle the type with validation errors.
+            # Pydantic's AfterValidator-annotated fields accept plain str at construction time,
+            # but mypy cannot infer this from the annotated type alone; hence the type ignores.
             return cls(
                 backends=backends,  # type: ignore
                 fail_timeout=fail_timeout,

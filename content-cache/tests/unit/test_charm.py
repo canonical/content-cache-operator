@@ -475,10 +475,10 @@ def test_https_backend_fingerprint_hit_stays_active(
     assert: The charm stays active.
     """
     fake_cert = "-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----"
-    cert_path = Path("/etc/nginx/certs/backend-30000-ca.pem")
+    bundle_path = Path("/etc/nginx/certs/backend-ca-bundle.pem")
     monkeypatch.setattr("ca_certs.load_system_ca_certs", lambda: [])
     monkeypatch.setattr("ca_certs.find_cert_by_fingerprint", lambda *_: fake_cert)
-    monkeypatch.setattr("ca_certs.write_backend_ca_cert", lambda *_: cert_path)
+    monkeypatch.setattr("ca_certs.write_backend_ca_bundle", lambda *_: bundle_path)
 
     data = dict(SAMPLE_INTEGRATION_DATA)
     data[state.BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'

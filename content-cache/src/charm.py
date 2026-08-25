@@ -147,9 +147,7 @@ class ContentCacheCharm(ops.CharmBase):
     def _on_cache_config_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
         """Handle config relation broken event."""
         port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
-        port = port_map.pop(str(event.relation.id), None)
-        if port is not None:
-            ca_certs.remove_backend_ca_cert(str(port))
+        port_map.pop(str(event.relation.id), None)
         if not port_map:
             self._stored.next_port_offset = 0
         self.unit.set_ports(*port_map.values())
@@ -274,9 +272,9 @@ class ContentCacheCharm(ops.CharmBase):
             for rel_id, config in nginx_config.items()
         }
 
-        backend_ca_cert_paths: dict[int, Path | None] = {}
         all_ca_pems = self._get_all_ca_cert_pems()
-        for rel_id, (port, config) in ported_config.items():
+        matched_ca_pems: list[str] = []
+        for rel_id, (_port, config) in ported_config.items():
             if config.backend_ca_fingerprint:
                 cert_pem = ca_certs.find_cert_by_fingerprint(
                     config.backend_ca_fingerprint, all_ca_pems
@@ -290,9 +288,10 @@ class ContentCacheCharm(ops.CharmBase):
                     )
                     self._clear_cache_backend()
                     return
-                backend_ca_cert_paths[rel_id] = ca_certs.write_backend_ca_cert(str(port), cert_pem)
-            else:
-                backend_ca_cert_paths[rel_id] = None
+                matched_ca_pems.append(cert_pem)
+
+        # All HTTPS backends share a single bundle rebuilt on every config load.
+        backend_ca_bundle_path = ca_certs.write_backend_ca_bundle(matched_ca_pems)
 
         cache_cert_path = self._get_cache_cert_path()
         if (
@@ -310,7 +309,7 @@ class ContentCacheCharm(ops.CharmBase):
                 ported_config,
                 self._get_instance_name(),
                 frontend_cert_path=cache_cert_path,
-                backend_ca_cert_paths=backend_ca_cert_paths,
+                backend_ca_bundle_path=backend_ca_bundle_path,
             )
         except NginxFileError:
             logger.exception(

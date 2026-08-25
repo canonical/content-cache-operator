@@ -190,7 +190,7 @@ def update_and_load_config(
     configuration: dict[int, tuple[int, LocationConfig]],
     instance_name: str,
     frontend_cert_path: Path | None = None,
-    backend_ca_cert_paths: dict[int, Path | None] | None = None,
+    backend_ca_bundle_path: Path | None = None,
 ) -> None:
     """Update the nginx configuration files and load them.
 
@@ -200,8 +200,8 @@ def update_and_load_config(
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
         frontend_cert_path: Path to the combined cert+key PEM for TLS termination, or None.
-        backend_ca_cert_paths: Optional mapping from relation ID to the backend CA cert path
-            (or None) for each HTTPS backend.
+        backend_ca_bundle_path: Path to the backend CA bundle used to verify all HTTPS backends,
+            or None if no backend CA verification is required.
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
@@ -214,9 +214,8 @@ def update_and_load_config(
     errored_identifiers: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
     healthcheck_workers_lua_code = ""
-    for rel_id, (port, config) in configuration.items():
+    for _rel_id, (port, config) in configuration.items():
         identifier = str(port)
-        backend_ca_cert_path = (backend_ca_cert_paths or {}).get(rel_id)
         try:
             vhost_healthcheck_worker_lua_code = _create_virtualhost_config(
                 identifier,
@@ -224,7 +223,9 @@ def update_and_load_config(
                 config,
                 instance_name,
                 tls,
-                backend_ca_cert_path=backend_ca_cert_path,
+                backend_ca_cert_path=(
+                    backend_ca_bundle_path if config.backend_ca_fingerprint else None
+                ),
             )
             healthcheck_workers_lua_code += vhost_healthcheck_worker_lua_code
         except NginxConfigurationError as err:

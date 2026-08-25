@@ -243,42 +243,55 @@ def test_load_system_ca_certs_returns_empty_when_no_bundle(monkeypatch, tmp_path
     assert ca_certs.load_system_ca_certs() == []
 
 
-def test_write_backend_ca_cert_creates_file_and_returns_path(tmp_path, monkeypatch):
+def test_write_backend_ca_bundle_creates_file_and_returns_path(tmp_path, monkeypatch):
     """
-    arrange: A backend CA certificate PEM string.
-    act: Call write_backend_ca_cert.
-    assert: The expected file is created and returned.
+    arrange: Two backend CA certificate PEM strings.
+    act: Call write_backend_ca_bundle.
+    assert: A single bundle file is created and the path is returned.
     """
     monkeypatch.setattr("ca_certs.CA_CERTS_DIR", tmp_path)
+    monkeypatch.setattr("ca_certs.BACKEND_CA_BUNDLE_PATH", tmp_path / "backend-ca-bundle.pem")
     cert_pem, _ = _make_self_signed_cert()
 
-    path = ca_certs.write_backend_ca_cert("8080", cert_pem)
+    path = ca_certs.write_backend_ca_bundle([cert_pem])
 
-    assert path == tmp_path / "backend-8080-ca.pem"
+    assert path == tmp_path / "backend-ca-bundle.pem"
     assert path.read_text(encoding="utf-8") == cert_pem
 
 
-def test_remove_backend_ca_cert_deletes_file(tmp_path, monkeypatch):
+def test_write_backend_ca_bundle_removes_file_when_empty(tmp_path, monkeypatch):
     """
-    arrange: A backend CA cert file exists.
-    act: Call remove_backend_ca_cert.
-    assert: The file is deleted.
+    arrange: An existing backend CA bundle file.
+    act: Call write_backend_ca_bundle with an empty list.
+    assert: The bundle file is removed and None is returned.
     """
+    bundle_path = tmp_path / "backend-ca-bundle.pem"
+    bundle_path.write_text("old", encoding="utf-8")
     monkeypatch.setattr("ca_certs.CA_CERTS_DIR", tmp_path)
-    cert_path = tmp_path / "backend-8080-ca.pem"
-    cert_path.write_text("cert", encoding="utf-8")
+    monkeypatch.setattr("ca_certs.BACKEND_CA_BUNDLE_PATH", bundle_path)
 
-    ca_certs.remove_backend_ca_cert("8080")
+    result = ca_certs.write_backend_ca_bundle([])
 
-    assert not cert_path.exists()
+    assert result is None
+    assert not bundle_path.exists()
 
 
-def test_remove_backend_ca_cert_noop_when_missing(tmp_path, monkeypatch):
+def test_write_backend_ca_bundle_raises_on_permission_error(tmp_path, monkeypatch):
     """
-    arrange: No backend CA cert file exists.
-    act: Call remove_backend_ca_cert.
-    assert: No exception is raised.
+    arrange: CA_CERTS_DIR write is forbidden.
+    act: Call write_backend_ca_bundle.
+    assert: CACertificateFileError is raised.
     """
+    from errors import CACertificateFileError
+
     monkeypatch.setattr("ca_certs.CA_CERTS_DIR", tmp_path)
+    monkeypatch.setattr("ca_certs.BACKEND_CA_BUNDLE_PATH", tmp_path / "backend-ca-bundle.pem")
 
-    ca_certs.remove_backend_ca_cert("8080")
+    cert_pem, _ = _make_self_signed_cert()
+    (tmp_path / "backend-ca-bundle.pem").write_text("old", encoding="utf-8")
+    (tmp_path / "backend-ca-bundle.pem").chmod(0o000)
+    try:
+        with pytest.raises(CACertificateFileError):
+            ca_certs.write_backend_ca_bundle([cert_pem])
+    finally:
+        (tmp_path / "backend-ca-bundle.pem").chmod(0o644)

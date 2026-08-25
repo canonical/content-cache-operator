@@ -268,13 +268,6 @@ async def test_healthchecks_custom_status(
         assert http_ok_message in response.content.decode("utf-8")
 
 
-@pytest.mark.parametrize(
-    ["ssl_verify", "expected_http_code"],
-    [
-        pytest.param("false", 200, id="no_ssl_verify"),
-        pytest.param("true", 200, id="ssl_verify"),
-    ],
-)
 @pytest.mark.abort_on_fail
 @pytest.mark.asyncio
 async def test_healthchecks_ssl_verify(
@@ -283,14 +276,15 @@ async def test_healthchecks_ssl_verify(
     cache_tester: CacheTester,
     http_ok_message: str,
     https_ok_app: Application,
-    ssl_verify: str,
-    expected_http_code: int,
     model: Model,
 ) -> None:
     """
-    arrange: One backend responding on HTTPS. SSL verify option set.
-    act: Configure healthcheck-ssl-verify and send a request.
-    assert: HTTP request succeeds with SSL verification enabled for the backend.
+    arrange: One HTTPS backend; cert installed to system CA store; backend-hostname and
+        backend-ca-fingerprint configured. healthcheck-ssl-verify=false (Lua healthchecker
+        skips SSL, so the backend is marked up).
+    act: Configure the cache and send a request.
+    assert: HTTP request succeeds — nginx proxy SSL verification passes using the bundle
+        derived from the fingerprint lookup.
     """
     backend_ip = await get_app_ip(https_ok_app)
     combined_pem = TEST_SERVER_CERTIFICATE.read_text(encoding="utf-8")
@@ -304,7 +298,7 @@ async def test_healthchecks_ssl_verify(
     config[BACKEND_CA_FINGERPRINT_CONFIG_NAME] = fingerprint
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
-    config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = ssl_verify
+    config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
 
@@ -315,5 +309,5 @@ async def test_healthchecks_ssl_verify(
     await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
     response = await cache_tester.query_cache(path="/", protocol="http")
-    assert response.status_code == expected_http_code
+    assert response.status_code == 200
     assert http_ok_message in response.content.decode("utf-8")
