@@ -130,7 +130,11 @@ def test_get_upstream_config_keys_https(patch_nginx_manager: None):
     act: Call _get_upstream_config_keys.
     assert: Keys contain host:port entries.
     """
-    data = {**SAMPLE_INTEGRATION_DATA, **SAMPLE_HTTPS_EXTRA, "backends": '["https://10.10.1.1:443"]'}
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
+        "backends": '["https://10.10.1.1:443"]',
+    }
     config = LocationConfig.from_integration_data(data)
     keys = nginx_manager._get_upstream_config_keys(config)
 
@@ -158,7 +162,11 @@ def test_get_location_config_keys_https(patch_nginx_manager: None):
     act: Call _get_location_config_keys.
     assert: proxy_pass uses https scheme.
     """
-    data = {**SAMPLE_INTEGRATION_DATA, **SAMPLE_HTTPS_EXTRA, "backends": '["https://10.10.1.1:443"]'}
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
+        "backends": '["https://10.10.1.1:443"]',
+    }
     config = LocationConfig.from_integration_data(data)
     upstream = "test-upstream"
     keys = nginx_manager._get_location_config_keys(config, upstream)
@@ -236,7 +244,11 @@ def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: N
     act: Call _get_location_config_keys without a CA cert path.
     assert: No proxy_ssl directives in the keys.
     """
-    data = {**SAMPLE_INTEGRATION_DATA, **SAMPLE_HTTPS_EXTRA, "backends": '["https://10.10.1.1:443"]'}
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
+        "backends": '["https://10.10.1.1:443"]',
+    }
     config = LocationConfig.from_integration_data(data)
 
     keys = nginx_manager._get_location_config_keys(config, "upstream")
@@ -255,10 +267,16 @@ def test_get_location_config_keys_https_with_ca_cert_path_adds_directives(
     """
     ca_cert = tmp_path / "backend-8080-ca.pem"
     ca_cert.write_text("cert", encoding="utf-8")
-    data = {**SAMPLE_INTEGRATION_DATA, **SAMPLE_HTTPS_EXTRA, "backends": '["https://10.10.1.1:443"]'}
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
+        "backends": '["https://10.10.1.1:443"]',
+    }
     config = LocationConfig.from_integration_data(data)
 
-    keys = nginx_manager._get_location_config_keys(config, "upstream", backend_ca_cert_path=ca_cert)
+    keys = nginx_manager._get_location_config_keys(
+        config, "upstream", backend_ca_cert_path=ca_cert
+    )
 
     key_strings = [k.as_strings for k in keys]
     assert any("proxy_set_header" in s and "Host" in s for s in key_strings)

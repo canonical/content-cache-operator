@@ -161,8 +161,7 @@ def _make_self_signed_cert(common_name: str = "localhost") -> tuple[str, str]:
     )
     cert_pem = cert.public_bytes(serialization.Encoding.PEM).decode()
     der = cert.public_bytes(serialization.Encoding.DER)
-    digest = hashlib.sha256(der).hexdigest().upper()
-    fingerprint = ":".join(digest[i : i + 2] for i in range(0, 64, 2))
+    fingerprint = ":".join(f"{b:02X}" for b in hashlib.sha256(der).digest())
     return cert_pem, fingerprint
 
 

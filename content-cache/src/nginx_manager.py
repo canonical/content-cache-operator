@@ -414,7 +414,7 @@ def _build_proxy_cache_path(
     return value
 
 
-def _create_virtualhost_config(  # pylint: disable=too-many-locals
+def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
     identifier: str,
     port: int,
     configuration: LocationConfig,
@@ -568,14 +568,16 @@ def _get_location_config_keys(
     ]
 
     if scheme == "https" and backend_ca_cert_path is not None:
-        keys.extend([
-            nginx.Key("proxy_set_header", f"Host {config.backend_hostname}"),
-            nginx.Key("proxy_ssl_name", config.backend_hostname),
-            nginx.Key("proxy_ssl_server_name", "on"),
-            nginx.Key("proxy_ssl_verify", "on"),
-            nginx.Key("proxy_ssl_verify_depth", "10"),
-            nginx.Key("proxy_ssl_trusted_certificate", str(backend_ca_cert_path)),
-        ])
+        keys.extend(
+            [
+                nginx.Key("proxy_set_header", f"Host {config.backend_hostname}"),
+                nginx.Key("proxy_ssl_name", config.backend_hostname),
+                nginx.Key("proxy_ssl_server_name", "on"),
+                nginx.Key("proxy_ssl_verify", "on"),
+                nginx.Key("proxy_ssl_verify_depth", "10"),
+                nginx.Key("proxy_ssl_trusted_certificate", str(backend_ca_cert_path)),
+            ]
+        )
 
     for cache_valid in config.proxy_cache_valid:
         keys.append(nginx.Key("proxy_cache_valid", cache_valid))

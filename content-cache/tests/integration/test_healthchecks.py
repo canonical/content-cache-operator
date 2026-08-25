@@ -3,14 +3,20 @@
 
 """Integration tests for the content-cache's active healthchecks."""
 
+import base64
 import time
+from pathlib import Path
 
 import jubilant
 import pytest
 import requests
+from cryptography.hazmat.primitives import hashes
+from cryptography.x509 import load_pem_x509_certificate
 
 from nginx_manager import NGINX_BACKENDS_STATUS_URL_PATH
 from tests.integration.helpers import (
+    BACKEND_CA_FINGERPRINT_CONFIG_NAME,
+    BACKEND_HOSTNAME_CONFIG_NAME,
     BACKENDS_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
@@ -23,8 +29,61 @@ from tests.integration.helpers import (
 
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
 CERT_TRANSFER_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
+TEST_SERVER_CERTIFICATE = Path("tests/integration/scripts/certificate.pem")
 
 HEALTHCHECK_INTERVAL = 2000
+
+
+def _get_cert_fingerprint(cert_pem: str) -> str:
+    """Return the SHA-256 fingerprint of a PEM-encoded certificate.
+
+    Args:
+        cert_pem: PEM-encoded certificate (cert-only, no private key).
+
+    Returns:
+        Colon-separated uppercase hex SHA-256 fingerprint.
+    """
+    cert = load_pem_x509_certificate(cert_pem.encode())
+    return ":".join(f"{b:02X}" for b in cert.fingerprint(hashes.SHA256()))
+
+
+def _extract_cert_pem(combined_pem: str) -> str:
+    """Extract only the certificate portion from a combined cert+key PEM string.
+
+    Args:
+        combined_pem: PEM string that may contain both certificate and private key.
+
+    Returns:
+        PEM string with only the certificate block(s).
+    """
+    lines = combined_pem.splitlines(keepends=True)
+    cert_lines: list[str] = []
+    in_cert = False
+    for line in lines:
+        if line.startswith("-----BEGIN CERTIFICATE-----"):
+            in_cert = True
+        if in_cert:
+            cert_lines.append(line)
+        if line.startswith("-----END CERTIFICATE-----"):
+            in_cert = False
+    return "".join(cert_lines)
+
+
+def _install_ca_cert_on_unit(juju: jubilant.Juju, unit_name: str, cert_pem: str) -> None:
+    """Install a CA certificate to the system CA store on a juju unit.
+
+    Args:
+        juju: The jubilant Juju instance.
+        unit_name: The unit to install the cert on (e.g. "content-cache/0").
+        cert_pem: PEM-encoded CA certificate to install.
+    """
+    encoded = base64.b64encode(cert_pem.encode()).decode()
+    juju.exec(
+        f"bash -c 'echo {encoded} | base64 -d"
+        " > /usr/local/share/ca-certificates/test-backend.crt"
+        " && update-ca-certificates'",
+        unit=unit_name,
+    )
 
 
 def get_nginx_status(juju: jubilant.Juju, app: str, path: str) -> str:
@@ -228,14 +287,23 @@ def test_healthchecks_ssl_verify(
 ) -> None:
     """
     arrange: One backend responding on HTTPS. SSL verify option set.
+        backend-hostname=localhost and backend-ca-fingerprint set; cert installed to
+        system CA store on the content-cache unit.
     act: Nothing.
-    assert: HTTP request should succeed regardless of SSL verification setting, since
-        nginx does not perform proxy_ssl_verify on HTTPS backends.
+    assert: HTTP request should succeed with SSL verification enabled for the backend.
     """
     https_ok_ip = get_app_ip(juju, https_ok_app)
 
+    # Compute fingerprint and install the test server's CA cert to the system CA store.
+    combined_pem = TEST_SERVER_CERTIFICATE.read_text()
+    cert_pem = _extract_cert_pem(combined_pem)
+    fingerprint = _get_cert_fingerprint(cert_pem)
+    _install_ca_cert_on_unit(juju, f"{app}/0", cert_pem)
+
     config = dict(CacheTester.BASE_CONFIG)
     config[BACKENDS_CONFIG_NAME] = f"https://{https_ok_ip}:443"
+    config[BACKEND_HOSTNAME_CONFIG_NAME] = "localhost"
+    config[BACKEND_CA_FINGERPRINT_CONFIG_NAME] = fingerprint
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = ssl_verify

@@ -78,7 +78,9 @@ def test_config_https_backends_integration_data():
     data = dict(SAMPLE_INTEGRATION_DATA)
     data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443", "https://10.10.2.2:443"]'
     data["backend_hostname"] = "test.example.com"
-    data["backend_ca_fingerprint"] = "96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6"
+    data["backend_ca_fingerprint"] = (
+        "96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6"
+    )
     config = LocationConfig.from_integration_data(data)
 
     assert len(config.backends) == 2

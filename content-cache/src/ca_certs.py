@@ -93,8 +93,7 @@ def _cert_sha256_fingerprint(cert_pem: str) -> str:
     """
     cert = x509.load_pem_x509_certificate(cert_pem.encode())
     der = cert.public_bytes(serialization.Encoding.DER)
-    digest = hashlib.sha256(der).hexdigest().upper()
-    return ":".join(digest[i : i + 2] for i in range(0, 64, 2))
+    return ":".join(f"{b:02X}" for b in hashlib.sha256(der).digest())
 
 
 def find_cert_by_fingerprint(fingerprint: str, pem_certs: list[str]) -> str | None:
@@ -118,7 +117,7 @@ def find_cert_by_fingerprint(fingerprint: str, pem_certs: list[str]) -> str | No
             fp = _cert_sha256_fingerprint(pem)
             if fp == normalised:
                 return pem
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             continue
     return None
 
@@ -147,9 +146,7 @@ def write_backend_ca_cert(identifier: str, cert_pem: str) -> Path:
         return path
     except (PermissionError, OSError, IOError) as err:
         logger.exception("Failed to write backend CA cert for %s", identifier)
-        raise CACertificateFileError(
-            f"Unable to write backend CA cert for {identifier}"
-        ) from err
+        raise CACertificateFileError(f"Unable to write backend CA cert for {identifier}") from err
 
 
 def remove_backend_ca_cert(identifier: str) -> None:

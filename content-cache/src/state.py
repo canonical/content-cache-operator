@@ -251,9 +251,6 @@ class LocationConfig(pydantic.BaseModel):
     def validate_https_requires_backend_fields(self) -> "LocationConfig":
         """Validate that HTTPS backends have backend_hostname and backend_ca_fingerprint.
 
-        Args:
-            self: The model instance after field validation.
-
         Raises:
             ValueError: Either field is missing for HTTPS backends.
 
