@@ -643,7 +643,7 @@ def test_https_backend_fingerprint_miss_sets_blocked(
         remote_app_name="config",
         remote_app_data=https_data,
     )
-    out = ctx.run(ctx.on.config_changed(), scenario.State(relations={rel}))
+    out = ctx.run(ctx.on.relation_changed(rel), scenario.State(relations={rel}))
     assert isinstance(out.unit_status, scenario.BlockedStatus)
     assert SAMPLE_FINGERPRINT in out.unit_status.message
 
@@ -677,5 +677,5 @@ def test_https_backend_fingerprint_hit_stays_active(
         remote_app_name="config",
         remote_app_data=https_data,
     )
-    out = ctx.run(ctx.on.config_changed(), scenario.State(relations={rel}))
+    out = ctx.run(ctx.on.relation_changed(rel), scenario.State(relations={rel}))
     assert out.unit_status == scenario.ActiveStatus()

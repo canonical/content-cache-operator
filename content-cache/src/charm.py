@@ -147,7 +147,9 @@ class ContentCacheCharm(ops.CharmBase):
     def _on_cache_config_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
         """Handle config relation broken event."""
         port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
-        port_map.pop(str(event.relation.id), None)
+        port = port_map.pop(str(event.relation.id), None)
+        if port is not None:
+            ca_certs.remove_backend_ca_cert(str(port))
         if not port_map:
             self._stored.next_port_offset = 0
         self.unit.set_ports(*port_map.values())
@@ -188,6 +190,21 @@ class ContentCacheCharm(ops.CharmBase):
         except CACertificateFileError:
             return
         self._load_nginx_config()
+
+    def _get_all_ca_cert_pems(self) -> list[str]:
+        """Collect all available CA certificate PEM strings.
+
+        Returns certs from the certificate_transfer relation (checked first)
+        followed by certs from the system CA bundle.
+
+        Returns:
+            A list of PEM-encoded CA certificate strings.
+        """
+        relation_certs: list[str] = []
+        for rel in self.model.relations[CERTIFICATE_TRANSFER_INTEGRATION_NAME]:
+            relation_certs.extend(_certs_from_relation(rel))
+        system_certs = ca_certs.load_system_ca_certs()
+        return relation_certs + system_certs
 
     def _on_tls_certificates_relation_created(self, _: ops.RelationCreatedEvent) -> None:
         """Handle certificates relation created — enter WaitingStatus until cert arrives."""
@@ -265,6 +282,28 @@ class ContentCacheCharm(ops.CharmBase):
             for rel_id, config in nginx_config.items()
         }
 
+        # Resolve backend CA certs by fingerprint for each HTTPS relation.
+        backend_ca_cert_paths: dict[int, Path | None] = {}
+        all_ca_pems = self._get_all_ca_cert_pems()
+        for rel_id, (port, config) in ported_config.items():
+            if config.backend_ca_fingerprint:
+                cert_pem = ca_certs.find_cert_by_fingerprint(
+                    config.backend_ca_fingerprint, all_ca_pems
+                )
+                if cert_pem is None:
+                    logger.error(
+                        "No CA cert matching fingerprint %s", config.backend_ca_fingerprint
+                    )
+                    self.unit.status = ops.BlockedStatus(
+                        f"No CA cert matching fingerprint {config.backend_ca_fingerprint}"
+                    )
+                    self._clear_cache_backend()
+                    return
+                cert_path = ca_certs.write_backend_ca_cert(str(port), cert_pem)
+                backend_ca_cert_paths[rel_id] = cert_path
+            else:
+                backend_ca_cert_paths[rel_id] = None
+
         cache_cert_path = self._get_cache_cert_path()
         if (
             cache_cert_path is None
@@ -281,6 +320,7 @@ class ContentCacheCharm(ops.CharmBase):
                 ported_config,
                 self._get_instance_name(),
                 frontend_cert_path=cache_cert_path,
+                backend_ca_cert_paths=backend_ca_cert_paths,
             )
         except NginxFileError:
             logger.exception(
