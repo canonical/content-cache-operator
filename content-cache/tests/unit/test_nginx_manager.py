@@ -13,6 +13,12 @@ from errors import NginxFileError
 from state import LocationConfig
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
+SAMPLE_FINGERPRINT = "96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6"
+SAMPLE_HTTPS_EXTRA = {
+    "backend_hostname": "test.example.com",
+    "backend_ca_fingerprint": SAMPLE_FINGERPRINT,
+}
+
 
 def test_reset_files_with_missing_dir(patch_nginx_manager: None):
     """
@@ -75,6 +81,7 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
             LocationConfig.from_integration_data(
                 {
                     **SAMPLE_INTEGRATION_DATA,
+                    **SAMPLE_HTTPS_EXTRA,
                     "backends": '["https://10.10.10.1:443", "https://10.10.10.2:443"]',
                 }
             ),
@@ -123,7 +130,7 @@ def test_get_upstream_config_keys_https(patch_nginx_manager: None):
     act: Call _get_upstream_config_keys.
     assert: Keys contain host:port entries.
     """
-    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    data = {**SAMPLE_INTEGRATION_DATA, **SAMPLE_HTTPS_EXTRA, "backends": '["https://10.10.1.1:443"]'}
     config = LocationConfig.from_integration_data(data)
     keys = nginx_manager._get_upstream_config_keys(config)
 
@@ -151,7 +158,7 @@ def test_get_location_config_keys_https(patch_nginx_manager: None):
     act: Call _get_location_config_keys.
     assert: proxy_pass uses https scheme.
     """
-    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    data = {**SAMPLE_INTEGRATION_DATA, **SAMPLE_HTTPS_EXTRA, "backends": '["https://10.10.1.1:443"]'}
     config = LocationConfig.from_integration_data(data)
     upstream = "test-upstream"
     keys = nginx_manager._get_location_config_keys(config, upstream)
@@ -210,6 +217,7 @@ def test_get_location_config_keys_https_never_sets_proxy_ssl_verify(
     """
     data = {
         **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
         "backends": '["https://10.10.1.1:443"]',
         "healthcheck_ssl_verify": "true",
     }
@@ -224,11 +232,11 @@ def test_get_location_config_keys_https_never_sets_proxy_ssl_verify(
 
 def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: None):
     """
-    arrange: A LocationConfig with https backends but no CA bundle on disk.
-    act: Call _get_location_config_keys.
+    arrange: A LocationConfig with https backends; no backend_ca_cert_path passed.
+    act: Call _get_location_config_keys without a CA cert path.
     assert: No proxy_ssl directives in the keys.
     """
-    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    data = {**SAMPLE_INTEGRATION_DATA, **SAMPLE_HTTPS_EXTRA, "backends": '["https://10.10.1.1:443"]'}
     config = LocationConfig.from_integration_data(data)
 
     keys = nginx_manager._get_location_config_keys(config, "upstream")

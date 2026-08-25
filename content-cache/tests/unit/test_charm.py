@@ -31,6 +31,11 @@ from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 CERT_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
 CERTIFICATE_INTEGRATION_NAME = "certificates"
 SAMPLE_CA_CERT = "-----BEGIN CERTIFICATE-----\nMIIFake\n-----END CERTIFICATE-----"
+SAMPLE_FINGERPRINT = "96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6"
+SAMPLE_HTTPS_EXTRA = {
+    "backend_hostname": "test.example.com",
+    "backend_ca_fingerprint": SAMPLE_FINGERPRINT,
+}
 
 
 @pytest.fixture(name="ctx")
@@ -354,14 +359,23 @@ def test_certificate_available_writes_cert_and_reloads(
 def test_certificate_removed_deletes_cert_and_stays_active(
     ctx: scenario.Context,
     mock_nginx_manager: MagicMock,
+    monkeypatch,
 ):
     """
     arrange: A charm with HTTPS backends and a CA cert via certificate-transfer.
     act: Fire relation-broken on certificate-transfer.
     assert: Charm stays Active — no CA bundle gate since proxy_ssl_verify is off.
     """
+    import ca_certs as _ca_certs
+
+    monkeypatch.setattr(_ca_certs, "find_cert_by_fingerprint", lambda fp, certs: SAMPLE_CA_CERT)
+    monkeypatch.setattr(_ca_certs, "load_system_ca_certs", lambda: [])
+    monkeypatch.setattr(
+        _ca_certs, "write_backend_ca_cert", lambda ident, pem: Path(f"/tmp/backend-{ident}-ca.pem")
+    )
     https_data = dict(SAMPLE_INTEGRATION_DATA)
     https_data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+    https_data.update(SAMPLE_HTTPS_EXTRA)
     config_rel = scenario.Relation(
         endpoint=CACHE_CONFIG_INTEGRATION_NAME,
         remote_app_name="config",
@@ -379,11 +393,11 @@ def test_certificate_removed_deletes_cert_and_stays_active(
     assert out.unit_status == scenario.ActiveStatus()
 
 
-def test_https_backends_without_ca_bundle_stays_active(ctx: scenario.Context):
+def test_https_backends_without_ca_fields_sets_blocked(ctx: scenario.Context):
     """
-    arrange: A charm with no certificate_transfer relation.
-    act: Fire relation-changed with HTTPS backends.
-    assert: Charm enters ActiveStatus — no CA bundle required since proxy_ssl_verify is off.
+    arrange: A charm with HTTPS backends but no backend_hostname or backend_ca_fingerprint.
+    act: Fire relation-changed.
+    assert: Charm enters BlockedStatus — both fields are required for HTTPS backends.
     """
     https_data = dict(SAMPLE_INTEGRATION_DATA)
     https_data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
@@ -393,7 +407,7 @@ def test_https_backends_without_ca_bundle_stays_active(ctx: scenario.Context):
         remote_app_data=https_data,
     )
     out = ctx.run(ctx.on.relation_changed(rel), scenario.State(relations={rel}))
-    assert out.unit_status == scenario.ActiveStatus()
+    assert isinstance(out.unit_status, scenario.BlockedStatus)
 
 
 def test_http_backends_without_ca_bundle_stays_active(
@@ -603,4 +617,65 @@ def test_tls_certificates_relation_broken_reverts_to_http(
     mock_nginx_manager.update_and_load_config.assert_called()
     call_kwargs = mock_nginx_manager.update_and_load_config.call_args.kwargs
     assert call_kwargs.get("cache_cert_path") is None
+    assert out.unit_status == scenario.ActiveStatus()
+
+
+def test_https_backend_fingerprint_miss_sets_blocked(
+    ctx: scenario.Context,
+    mock_nginx_manager: MagicMock,
+    monkeypatch,
+):
+    """
+    arrange: HTTPS backend with fingerprint; no matching cert available.
+    act: Fire config-changed.
+    assert: Charm enters BlockedStatus with fingerprint in message.
+    """
+    import ca_certs as _ca_certs
+
+    monkeypatch.setattr(_ca_certs, "find_cert_by_fingerprint", lambda fp, certs: None)
+    monkeypatch.setattr(_ca_certs, "load_system_ca_certs", lambda: [])
+
+    https_data = dict(SAMPLE_INTEGRATION_DATA)
+    https_data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+    https_data.update(SAMPLE_HTTPS_EXTRA)
+    rel = scenario.Relation(
+        endpoint=CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app_name="config",
+        remote_app_data=https_data,
+    )
+    out = ctx.run(ctx.on.config_changed(), scenario.State(relations={rel}))
+    assert isinstance(out.unit_status, scenario.BlockedStatus)
+    assert SAMPLE_FINGERPRINT in out.unit_status.message
+
+
+def test_https_backend_fingerprint_hit_stays_active(
+    ctx: scenario.Context,
+    mock_nginx_manager: MagicMock,
+    monkeypatch,
+):
+    """
+    arrange: HTTPS backend with fingerprint; a matching cert is returned.
+    act: Fire config-changed.
+    assert: Charm enters ActiveStatus.
+    """
+    import ca_certs as _ca_certs
+
+    fake_cert = "-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----"
+    monkeypatch.setattr(_ca_certs, "find_cert_by_fingerprint", lambda fp, certs: fake_cert)
+    monkeypatch.setattr(_ca_certs, "load_system_ca_certs", lambda: [])
+    monkeypatch.setattr(
+        _ca_certs,
+        "write_backend_ca_cert",
+        lambda ident, pem: Path(f"/tmp/backend-{ident}-ca.pem"),
+    )
+
+    https_data = dict(SAMPLE_INTEGRATION_DATA)
+    https_data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+    https_data.update(SAMPLE_HTTPS_EXTRA)
+    rel = scenario.Relation(
+        endpoint=CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app_name="config",
+        remote_app_data=https_data,
+    )
+    out = ctx.run(ctx.on.config_changed(), scenario.State(relations={rel}))
     assert out.unit_status == scenario.ActiveStatus()

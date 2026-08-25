@@ -25,6 +25,8 @@ HEALTHCHECK_VALID_STATUS_FIELD_NAME = "healthcheck_valid_status"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
 CACHE_INACTIVE_FIELD_NAME = "cache_inactive"
 CACHE_MAX_SIZE_FIELD_NAME = "cache_max_size"
+BACKEND_HOSTNAME_FIELD_NAME = "backend_hostname"
+BACKEND_CA_FINGERPRINT_FIELD_NAME = "backend_ca_fingerprint"
 
 
 def _validate_hostname_value(value: str) -> str:
@@ -82,6 +84,29 @@ def _validate_path_value(value: str) -> str:
     if valid_path.fullmatch(value) is None:
         raise ValueError("Path contains non-allowed character")
     return value
+
+
+def _validate_fingerprint_value(value: str) -> str:
+    """Validate the value as a colon-separated SHA-256 hex fingerprint.
+
+    Args:
+        value: The value to validate. Empty string is allowed (means not configured).
+
+    Raises:
+        ValueError: The validation failed.
+
+    Returns:
+        The value after validation, uppercased.
+    """
+    if not value:
+        return value
+    pattern = re.compile(r"^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){31}$")
+    if not pattern.match(value):
+        raise ValueError(
+            "backend-ca-fingerprint must be a colon-separated SHA-256 hex fingerprint "
+            "(e.g. 96:BC:EC:06:...)"
+        )
+    return value.upper()
 
 
 class HealthcheckConfig(pydantic.BaseModel):
@@ -151,6 +176,8 @@ class LocationConfig(pydantic.BaseModel):
         healthcheck_config: The healthcheck configuration.
         cache_inactive: Time after which an unaccessed item is evicted from the disk cache.
         cache_max_size: Maximum total disk size for the cache; empty string means no limit.
+        backend_hostname: Hostname for SNI and Host header when proxying to HTTPS backends.
+        backend_ca_fingerprint: SHA-256 fingerprint of the CA cert for backend TLS verification.
     """
 
     backends: tuple[pydantic.AnyHttpUrl, ...]
@@ -159,6 +186,11 @@ class LocationConfig(pydantic.BaseModel):
     healthcheck_config: HealthcheckConfig
     cache_inactive: str = "10m"
     cache_max_size: str = ""
+    backend_hostname: str = ""
+    backend_ca_fingerprint: typing.Annotated[
+        str,
+        pydantic.AfterValidator(_validate_fingerprint_value),
+    ] = ""
 
     @pydantic.field_validator("backends")
     @classmethod
@@ -215,6 +247,26 @@ class LocationConfig(pydantic.BaseModel):
             _check_nginx_time_str(time_str)
         return value
 
+    @pydantic.model_validator(mode="after")
+    def validate_https_requires_backend_fields(self) -> "LocationConfig":
+        """Validate that HTTPS backends have backend_hostname and backend_ca_fingerprint.
+
+        Args:
+            self: The model instance after field validation.
+
+        Raises:
+            ValueError: Either field is missing for HTTPS backends.
+
+        Returns:
+            The validated model.
+        """
+        if self.backends and self.backends[0].scheme == "https":
+            if not self.backend_hostname or not self.backend_ca_fingerprint:
+                raise ValueError(
+                    "backend-hostname and backend-ca-fingerprint are required for HTTPS backends"
+                )
+        return self
+
     @classmethod
     def from_integration_data(cls, data: ops.RelationDataContent) -> "LocationConfig":
         """Initialize object from the charm.
@@ -241,6 +293,8 @@ class LocationConfig(pydantic.BaseModel):
 
         cache_inactive = data.get(CACHE_INACTIVE_FIELD_NAME, "10m").strip() or "10m"
         cache_max_size = data.get(CACHE_MAX_SIZE_FIELD_NAME, "").strip()
+        backend_hostname = data.get(BACKEND_HOSTNAME_FIELD_NAME, "").strip()
+        backend_ca_fingerprint = data.get(BACKEND_CA_FINGERPRINT_FIELD_NAME, "").strip()
 
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
@@ -251,10 +305,13 @@ class LocationConfig(pydantic.BaseModel):
                 healthcheck_config=healthcheck_config,
                 cache_inactive=cache_inactive,
                 cache_max_size=cache_max_size,
+                backend_hostname=backend_hostname,
+                backend_ca_fingerprint=backend_ca_fingerprint,  # type: ignore
             )
         except pydantic.ValidationError as err:
             err_msg = [
-                f'{error["loc"][0]} = {error["input"]}: {error["msg"]}' for error in err.errors()
+                f'{error["loc"][0] if error["loc"] else "model"} = {error["input"]}: {error["msg"]}'
+                for error in err.errors()
             ]
             logger.error("Found integration data error: %s", err_msg)
             raise ConfigurationError(f"Config error: {err_msg}") from err
