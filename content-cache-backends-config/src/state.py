@@ -28,6 +28,8 @@ CACHE_INACTIVE_CONFIG_NAME = "cache-inactive"
 CACHE_MAX_SIZE_CONFIG_NAME = "cache-max-size"
 CACHE_INACTIVE_FIELD_NAME = "cache_inactive"
 CACHE_MAX_SIZE_FIELD_NAME = "cache_max_size"
+BACKEND_HOSTNAME_CONFIG_NAME = "backend-hostname"
+BACKEND_CA_FINGERPRINT_CONFIG_NAME = "backend-ca-fingerprint"
 
 
 def _validate_path_value(value: str) -> str:
@@ -53,6 +55,30 @@ def _validate_path_value(value: str) -> str:
     if valid_path.fullmatch(value) is None:
         raise ValueError("Path contains non-allowed character")
     return value
+
+
+def _validate_fingerprint_value(value: str) -> str:
+    """Validate the value as a colon-separated SHA-256 hex fingerprint.
+
+    Args:
+        value: The value to validate. Empty string is allowed (means not configured).
+
+    Raises:
+        ValueError: The validation failed.
+
+    Returns:
+        The value after validation, uppercased.
+    """
+    if not value:
+        return value
+    pattern = re.compile(r"^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){31}$")
+    if not pattern.match(value):
+        raise ValueError(
+            "backend-ca-fingerprint must be a colon-separated SHA-256 hex fingerprint "
+            "consisting of 32 two-digit hex groups separated by colons "
+            "(e.g. 96:BC:EC:06:...)"
+        )
+    return value.upper()
 
 
 class HealthcheckConfig(pydantic.BaseModel):
@@ -122,6 +148,8 @@ class Configuration(pydantic.BaseModel):
         healthcheck: The healthcheck configuration.
         cache_inactive: Time after which an unaccessed item is evicted from the disk cache.
         cache_max_size: Maximum total disk size for the cache; empty string means no limit.
+        backend_hostname: Hostname for SNI and Host header when proxying to HTTPS backends.
+        backend_ca_fingerprint: SHA-256 fingerprint of the CA cert for backend TLS verification.
     """
 
     backends: tuple[pydantic.AnyHttpUrl, ...]
@@ -130,6 +158,11 @@ class Configuration(pydantic.BaseModel):
     healthcheck: HealthcheckConfig
     cache_inactive: str
     cache_max_size: str
+    backend_hostname: str = ""
+    backend_ca_fingerprint: typing.Annotated[
+        str,
+        pydantic.AfterValidator(_validate_fingerprint_value),
+    ] = ""
 
     @pydantic.field_validator("backends")
     @classmethod
@@ -260,6 +293,12 @@ class Configuration(pydantic.BaseModel):
             str, charm.config.get(CACHE_INACTIVE_CONFIG_NAME, "10m")
         ).strip()
         cache_max_size = typing.cast(str, charm.config.get(CACHE_MAX_SIZE_CONFIG_NAME, "")).strip()
+        backend_hostname = typing.cast(
+            str, charm.config.get(BACKEND_HOSTNAME_CONFIG_NAME, "")
+        ).strip()
+        backend_ca_fingerprint = typing.cast(
+            str, charm.config.get(BACKEND_CA_FINGERPRINT_CONFIG_NAME, "")
+        ).strip()
 
         try:
             # Ignore type check and let pydantic handle the type with validation errors.
@@ -270,6 +309,8 @@ class Configuration(pydantic.BaseModel):
                 healthcheck=healthcheck_config,
                 cache_inactive=cache_inactive,
                 cache_max_size=cache_max_size,
+                backend_hostname=backend_hostname,
+                backend_ca_fingerprint=backend_ca_fingerprint,  # type: ignore
             )
         except pydantic.ValidationError as err:
             err_msg = [

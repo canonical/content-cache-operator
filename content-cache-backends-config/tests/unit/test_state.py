@@ -394,3 +394,62 @@ def test_cache_max_size_empty_allowed():
     config = Configuration.from_charm(charm)
 
     assert config.cache_max_size == ""
+
+
+def test_configuration_from_charm_with_backend_hostname():
+    """
+    arrange: Charm config includes backend-hostname.
+    act: Call Configuration.from_charm.
+    assert: Configuration has backend_hostname set.
+    """
+    charm = MockCharmFactory()
+    charm.config["backend-hostname"] = "radosgw.ps7.canonical.com"
+
+    config = Configuration.from_charm(charm)
+
+    assert config.backend_hostname == "radosgw.ps7.canonical.com"
+
+
+def test_configuration_from_charm_with_backend_ca_fingerprint():
+    """
+    arrange: Charm config includes backend-ca-fingerprint (lowercase).
+    act: Call Configuration.from_charm.
+    assert: Configuration has backend_ca_fingerprint normalised to uppercase.
+    """
+    charm = MockCharmFactory()
+    fingerprint = "96:bc:ec:06:26:49:76:f3:74:60:77:9a:cf:28:c5:a7:cf:e8:a3:c0:aa:e1:1a:8f:fc:ee:05:c0:bd:df:08:c6"
+    charm.config["backend-ca-fingerprint"] = fingerprint
+
+    config = Configuration.from_charm(charm)
+
+    assert config.backend_ca_fingerprint == fingerprint.upper()
+
+
+def test_configuration_rejects_invalid_fingerprint():
+    """
+    arrange: Charm config has a fingerprint with wrong format.
+    act: Call Configuration.from_charm.
+    assert: ConfigurationError is raised.
+    """
+    charm = MockCharmFactory()
+    charm.config["backend-ca-fingerprint"] = "not-a-fingerprint"
+
+    with pytest.raises(ConfigurationError):
+        Configuration.from_charm(charm)
+
+
+def test_configuration_to_integration_data_includes_backend_fields():
+    """
+    arrange: Configuration with backend-hostname and fingerprint set.
+    act: Call to_integration_data.
+    assert: Both fields appear in the output dict.
+    """
+    charm = MockCharmFactory()
+    charm.config["backend-hostname"] = "radosgw.ps7.canonical.com"
+    charm.config["backend-ca-fingerprint"] = "96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6"
+
+    config = Configuration.from_charm(charm)
+    data = config.to_integration_data()
+
+    assert data["backend_hostname"] == "radosgw.ps7.canonical.com"
+    assert "96:BC:EC" in data["backend_ca_fingerprint"]

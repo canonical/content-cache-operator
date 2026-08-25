@@ -10,6 +10,8 @@ import factory
 
 from src.state import (
     BACKENDS_CONFIG_NAME,
+    BACKEND_CA_FINGERPRINT_CONFIG_NAME,
+    BACKEND_HOSTNAME_CONFIG_NAME,
     CACHE_INACTIVE_CONFIG_NAME,
     CACHE_MAX_SIZE_CONFIG_NAME,
     FAIL_TIMEOUT_CONFIG_NAME,
@@ -60,5 +62,7 @@ class MockCharmFactory(factory.Factory):
             PROXY_CACHE_VALID_CONFIG_NAME: "[]",
             CACHE_INACTIVE_CONFIG_NAME: "10m",
             CACHE_MAX_SIZE_CONFIG_NAME: "",
+            BACKEND_HOSTNAME_CONFIG_NAME: "",
+            BACKEND_CA_FINGERPRINT_CONFIG_NAME: "",
         }
     )
