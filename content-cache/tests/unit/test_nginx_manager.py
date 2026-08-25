@@ -13,6 +13,15 @@ from errors import NginxFileError
 from state import LocationConfig
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
+SAMPLE_FINGERPRINT = (
+    "96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:"
+    "CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6"
+)
+SAMPLE_HTTPS_EXTRA = {
+    "backend_hostname": "test.example.com",
+    "backend_ca_fingerprint": SAMPLE_FINGERPRINT,
+}
+
 
 def test_reset_files_with_missing_dir(patch_nginx_manager: None):
     """
@@ -75,6 +84,7 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
             LocationConfig.from_integration_data(
                 {
                     **SAMPLE_INTEGRATION_DATA,
+                    **SAMPLE_HTTPS_EXTRA,
                     "backends": '["https://10.10.10.1:443", "https://10.10.10.2:443"]',
                 }
             ),
@@ -123,7 +133,11 @@ def test_get_upstream_config_keys_https(patch_nginx_manager: None):
     act: Call _get_upstream_config_keys.
     assert: Keys contain host:port entries.
     """
-    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
+        "backends": '["https://10.10.1.1:443"]',
+    }
     config = LocationConfig.from_integration_data(data)
     keys = nginx_manager._get_upstream_config_keys(config)
 
@@ -151,7 +165,11 @@ def test_get_location_config_keys_https(patch_nginx_manager: None):
     act: Call _get_location_config_keys.
     assert: proxy_pass uses https scheme.
     """
-    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
+        "backends": '["https://10.10.1.1:443"]',
+    }
     config = LocationConfig.from_integration_data(data)
     upstream = "test-upstream"
     keys = nginx_manager._get_location_config_keys(config, upstream)
@@ -199,77 +217,77 @@ def test_healthcheck_worker_upstream_entries_carry_ports(patch_nginx_manager: No
     assert any("10.10.2.2:9090" in s for s in key_strings)
 
 
-def test_get_location_config_keys_https_with_ca_bundle(
-    patch_nginx_manager: None, tmp_path, monkeypatch
+def test_get_location_config_keys_https_never_sets_proxy_ssl_verify(
+    patch_nginx_manager: None,
 ):
     """
-    arrange: A LocationConfig with https backends and a CA bundle present on disk.
+    arrange: A LocationConfig with https backends.
     act: Call _get_location_config_keys.
-    assert: proxy_ssl_trusted_certificate, proxy_ssl_verify on, and proxy_ssl_name set to
-        the first backend hostname so nginx verifies against the actual host, not the
-        upstream block name.
+    assert: No proxy_ssl directives in the keys — nginx proxies HTTPS without certificate
+        verification by default.
     """
-    ca_bundle = tmp_path / "ca-bundle.pem"
-    ca_bundle.write_text("cert", encoding="utf-8")
-    monkeypatch.setattr("ca_certs.get_ca_bundle_path", lambda: ca_bundle)
-    monkeypatch.setattr("ca_certs.CA_BUNDLE_PATH", ca_bundle)
     data = {
         **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
         "backends": '["https://10.10.1.1:443"]',
         "healthcheck_ssl_verify": "true",
     }
     config = LocationConfig.from_integration_data(data)
-    upstream = "test-upstream"
 
-    keys = nginx_manager._get_location_config_keys(config, upstream)
-
-    key_strings = [k.as_strings for k in keys]
-    assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
-    assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
-    assert any("proxy_ssl_name" in s and "10.10.1.1" in s for s in key_strings)
-
-
-def test_get_location_config_keys_https_with_ca_bundle_ssl_verify_false(
-    patch_nginx_manager: None, tmp_path, monkeypatch
-):
-    """
-    arrange: A LocationConfig with https backends, a CA bundle present, and ssl_verify=false.
-    act: Call _get_location_config_keys.
-    assert: proxy_ssl directives are present — healthcheck ssl_verify does not affect proxy SSL.
-    """
-    ca_bundle = tmp_path / "ca-bundle.pem"
-    ca_bundle.write_text("cert", encoding="utf-8")
-    monkeypatch.setattr("ca_certs.get_ca_bundle_path", lambda: ca_bundle)
-    monkeypatch.setattr("ca_certs.CA_BUNDLE_PATH", ca_bundle)
-    data = {
-        **SAMPLE_INTEGRATION_DATA,
-        "backends": '["https://10.10.1.1:443"]',
-        "healthcheck_ssl_verify": "false",
-    }
-    config = LocationConfig.from_integration_data(data)
-
-    keys = nginx_manager._get_location_config_keys(config, "upstream")
+    keys = nginx_manager._get_location_config_keys(config, "test-upstream")
 
     key_strings = [k.as_strings for k in keys]
-    assert any("proxy_ssl_trusted_certificate" in s for s in key_strings)
-    assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
-    assert any("proxy_ssl_name" in s and "10.10.1.1" in s for s in key_strings)
+    assert not any("proxy_ssl" in s for s in key_strings)
+    assert any("proxy_pass" in s and "https" in s for s in key_strings)
 
 
-def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: None, monkeypatch):
+def test_get_location_config_keys_https_without_ca_bundle(patch_nginx_manager: None):
     """
-    arrange: A LocationConfig with https backends but no CA bundle on disk.
-    act: Call _get_location_config_keys.
+    arrange: A LocationConfig with https backends; no backend_ca_cert_path passed.
+    act: Call _get_location_config_keys without a CA cert path.
     assert: No proxy_ssl directives in the keys.
     """
-    monkeypatch.setattr("ca_certs.get_ca_bundle_path", lambda: None)
-    data = {**SAMPLE_INTEGRATION_DATA, "backends": '["https://10.10.1.1:443"]'}
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
+        "backends": '["https://10.10.1.1:443"]',
+    }
     config = LocationConfig.from_integration_data(data)
 
     keys = nginx_manager._get_location_config_keys(config, "upstream")
 
     key_strings = [k.as_strings for k in keys]
     assert not any("proxy_ssl" in s for s in key_strings)
+
+
+def test_get_location_config_keys_https_with_ca_cert_path_adds_directives(
+    patch_nginx_manager: None, tmp_path
+):
+    """
+    arrange: A LocationConfig with https backends and a backend_ca_cert_path provided.
+    act: Call _get_location_config_keys with the CA cert path.
+    assert: All proxy_ssl and Host header directives are present.
+    """
+    ca_cert = tmp_path / "backend-8080-ca.pem"
+    ca_cert.write_text("cert", encoding="utf-8")
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
+        "backends": '["https://10.10.1.1:443"]',
+    }
+    config = LocationConfig.from_integration_data(data)
+
+    keys = nginx_manager._get_location_config_keys(
+        config, "upstream", backend_ca_cert_path=ca_cert
+    )
+
+    key_strings = [k.as_strings for k in keys]
+    assert any("proxy_set_header" in s and "Host test.example.com" in s for s in key_strings)
+    assert any("proxy_ssl_name" in s and "test.example.com" in s for s in key_strings)
+    assert any("proxy_ssl_server_name" in s and "on" in s for s in key_strings)
+    assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
+    assert any("proxy_ssl_verify_depth" in s and "10" in s for s in key_strings)
+    assert any("proxy_ssl_trusted_certificate" in s and str(ca_cert) in s for s in key_strings)
 
 
 def test_get_location_config_keys_http_ignores_ca_bundle(

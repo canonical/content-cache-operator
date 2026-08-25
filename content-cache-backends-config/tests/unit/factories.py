@@ -9,6 +9,8 @@ from unittest.mock import MagicMock
 import factory
 
 from src.state import (
+    BACKEND_CA_FINGERPRINT_CONFIG_NAME,
+    BACKEND_HOSTNAME_CONFIG_NAME,
     BACKENDS_CONFIG_NAME,
     FAIL_TIMEOUT_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
@@ -56,5 +58,7 @@ class MockCharmFactory(factory.Factory):
             HEALTHCHECK_SSL_VERIFY_CONFIG_NAME: False,
             HEALTHCHECK_VALID_STATUS_CONFIG_NAME: "200",
             PROXY_CACHE_VALID_CONFIG_NAME: "[]",
+            BACKEND_HOSTNAME_CONFIG_NAME: "",
+            BACKEND_CA_FINGERPRINT_CONFIG_NAME: "",
         }
     )

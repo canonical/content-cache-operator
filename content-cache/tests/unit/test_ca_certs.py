@@ -127,3 +127,158 @@ def test_write_ca_bundle_raises_on_permission_error(monkeypatch):
 
     with pytest.raises(CACertificateFileError):
         ca_certs.write_ca_bundle(["cert-A"])
+
+
+def _make_self_signed_cert(common_name: str = "localhost") -> tuple[str, str]:
+    """Return a self-signed cert PEM and SHA-256 fingerprint."""
+    import datetime
+    import hashlib
+
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.x509.oid import NameOID
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+        .not_valid_after(
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=3650)
+        )
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(key, hashes.SHA256())
+    )
+    cert_pem = cert.public_bytes(serialization.Encoding.PEM).decode()
+    der = cert.public_bytes(serialization.Encoding.DER)
+    fingerprint = ":".join(f"{byte:02X}" for byte in hashlib.sha256(der).digest())
+    return cert_pem, fingerprint
+
+
+def test_find_cert_by_fingerprint_returns_matching_cert():
+    """
+    arrange: A list of PEM certs containing a match.
+    act: Call find_cert_by_fingerprint with the matching fingerprint.
+    assert: The matching PEM string is returned.
+    """
+    cert_pem, fingerprint = _make_self_signed_cert("match")
+    other_pem, _ = _make_self_signed_cert("other")
+
+    result = ca_certs.find_cert_by_fingerprint(fingerprint, [other_pem, cert_pem])
+
+    assert result == cert_pem.strip()
+
+
+def test_find_cert_by_fingerprint_returns_none_when_no_match():
+    """
+    arrange: A list of PEM certs with no match.
+    act: Call find_cert_by_fingerprint with a non-matching fingerprint.
+    assert: None is returned.
+    """
+    cert_pem, _ = _make_self_signed_cert()
+    fingerprint = (
+        "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:"
+        "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99"
+    )
+
+    result = ca_certs.find_cert_by_fingerprint(fingerprint, [cert_pem])
+
+    assert result is None
+
+
+def test_find_cert_by_fingerprint_is_case_insensitive():
+    """
+    arrange: A cert and a lowercase fingerprint.
+    act: Call find_cert_by_fingerprint.
+    assert: The cert is found.
+    """
+    cert_pem, fingerprint = _make_self_signed_cert()
+
+    result = ca_certs.find_cert_by_fingerprint(fingerprint.lower(), [cert_pem])
+
+    assert result == cert_pem.strip()
+
+
+def test_find_cert_by_fingerprint_skips_invalid_pem():
+    """
+    arrange: An invalid PEM followed by a valid cert.
+    act: Call find_cert_by_fingerprint.
+    assert: The valid cert is found without raising.
+    """
+    cert_pem, fingerprint = _make_self_signed_cert()
+
+    result = ca_certs.find_cert_by_fingerprint(fingerprint, ["not-a-cert", cert_pem])
+
+    assert result == cert_pem.strip()
+
+
+def test_load_system_ca_certs_returns_list(monkeypatch, tmp_path):
+    """
+    arrange: A fake system CA bundle with two certs.
+    act: Call load_system_ca_certs.
+    assert: Both certs are returned.
+    """
+    cert1, _ = _make_self_signed_cert("ca1")
+    cert2, _ = _make_self_signed_cert("ca2")
+    bundle = tmp_path / "ca-certificates.crt"
+    bundle.write_text(cert1 + "\n" + cert2, encoding="utf-8")
+    monkeypatch.setattr("ca_certs.SYSTEM_CA_BUNDLE_PATH", bundle)
+
+    assert ca_certs.load_system_ca_certs() == [cert1.strip(), cert2.strip()]
+
+
+def test_load_system_ca_certs_returns_empty_when_no_bundle(monkeypatch, tmp_path):
+    """
+    arrange: No system CA bundle exists.
+    act: Call load_system_ca_certs.
+    assert: An empty list is returned.
+    """
+    monkeypatch.setattr("ca_certs.SYSTEM_CA_BUNDLE_PATH", tmp_path / "missing.crt")
+
+    assert ca_certs.load_system_ca_certs() == []
+
+
+def test_write_backend_ca_cert_creates_file_and_returns_path(tmp_path, monkeypatch):
+    """
+    arrange: A backend CA certificate PEM string.
+    act: Call write_backend_ca_cert.
+    assert: The expected file is created and returned.
+    """
+    monkeypatch.setattr("ca_certs.CA_CERTS_DIR", tmp_path)
+    cert_pem, _ = _make_self_signed_cert()
+
+    path = ca_certs.write_backend_ca_cert("8080", cert_pem)
+
+    assert path == tmp_path / "backend-8080-ca.pem"
+    assert path.read_text(encoding="utf-8") == cert_pem
+
+
+def test_remove_backend_ca_cert_deletes_file(tmp_path, monkeypatch):
+    """
+    arrange: A backend CA cert file exists.
+    act: Call remove_backend_ca_cert.
+    assert: The file is deleted.
+    """
+    monkeypatch.setattr("ca_certs.CA_CERTS_DIR", tmp_path)
+    cert_path = tmp_path / "backend-8080-ca.pem"
+    cert_path.write_text("cert", encoding="utf-8")
+
+    ca_certs.remove_backend_ca_cert("8080")
+
+    assert not cert_path.exists()
+
+
+def test_remove_backend_ca_cert_noop_when_missing(tmp_path, monkeypatch):
+    """
+    arrange: No backend CA cert file exists.
+    act: Call remove_backend_ca_cert.
+    assert: No exception is raised.
+    """
+    monkeypatch.setattr("ca_certs.CA_CERTS_DIR", tmp_path)
+
+    ca_certs.remove_backend_ca_cert("8080")

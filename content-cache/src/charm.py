@@ -48,7 +48,6 @@ WAIT_FOR_CONFIG_MESSAGE = "Waiting for integration with config charm"
 NGINX_NOT_READY_MESSAGE = "Nginx is not ready"
 RECEIVED_NGINX_CONFIG_MESSAGE = "Received nginx configuration"
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
-WAIT_FOR_CA_CERT_MESSAGE = "Waiting for CA certificate via certificate-transfer"
 CERTIFICATE_INTEGRATION_NAME = "certificates"
 WAIT_FOR_TLS_CERT_MESSAGE = "Waiting for TLS certificate"
 
@@ -148,7 +147,9 @@ class ContentCacheCharm(ops.CharmBase):
     def _on_cache_config_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
         """Handle config relation broken event."""
         port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
-        port_map.pop(str(event.relation.id), None)
+        port = port_map.pop(str(event.relation.id), None)
+        if port is not None:
+            ca_certs.remove_backend_ca_cert(str(port))
         if not port_map:
             self._stored.next_port_offset = 0
         self.unit.set_ports(*port_map.values())
@@ -189,6 +190,13 @@ class ContentCacheCharm(ops.CharmBase):
         except CACertificateFileError:
             return
         self._load_nginx_config()
+
+    def _get_all_ca_cert_pems(self) -> list[str]:
+        """Collect CA certificate PEM strings from relations, then the system bundle."""
+        relation_certs: list[str] = []
+        for rel in self.model.relations[CERTIFICATE_TRANSFER_INTEGRATION_NAME]:
+            relation_certs.extend(_certs_from_relation(rel))
+        return relation_certs + ca_certs.load_system_ca_certs()
 
     def _on_tls_certificates_relation_created(self, _: ops.RelationCreatedEvent) -> None:
         """Handle certificates relation created — enter WaitingStatus until cert arrives."""
@@ -266,13 +274,25 @@ class ContentCacheCharm(ops.CharmBase):
             for rel_id, config in nginx_config.items()
         }
 
-        any_https = any(
-            str(config.backends[0].scheme) == "https" for _, config in nginx_config.items()
-        )
-        if not self._ensure_ca_bundle_ready(any_https):
-            self.unit.status = ops.WaitingStatus(WAIT_FOR_CA_CERT_MESSAGE)
-            self._clear_cache_backend()
-            return
+        backend_ca_cert_paths: dict[int, Path | None] = {}
+        all_ca_pems = self._get_all_ca_cert_pems()
+        for rel_id, (port, config) in ported_config.items():
+            if config.backend_ca_fingerprint:
+                cert_pem = ca_certs.find_cert_by_fingerprint(
+                    config.backend_ca_fingerprint, all_ca_pems
+                )
+                if cert_pem is None:
+                    logger.error(
+                        "No CA cert matching fingerprint %s", config.backend_ca_fingerprint
+                    )
+                    self.unit.status = ops.BlockedStatus(
+                        f"No CA cert matching fingerprint {config.backend_ca_fingerprint}"
+                    )
+                    self._clear_cache_backend()
+                    return
+                backend_ca_cert_paths[rel_id] = ca_certs.write_backend_ca_cert(str(port), cert_pem)
+            else:
+                backend_ca_cert_paths[rel_id] = None
 
         cache_cert_path = self._get_cache_cert_path()
         if (
@@ -290,6 +310,7 @@ class ContentCacheCharm(ops.CharmBase):
                 ported_config,
                 self._get_instance_name(),
                 frontend_cert_path=cache_cert_path,
+                backend_ca_cert_paths=backend_ca_cert_paths,
             )
         except NginxFileError:
             logger.exception(
@@ -311,21 +332,6 @@ class ContentCacheCharm(ops.CharmBase):
             self._write_cache_backends(ported_config, cache_cert_path)
         else:
             self._clear_cache_backend()
-
-    def _ensure_ca_bundle_ready(self, any_https: bool) -> bool:
-        """Rebuild the CA bundle and confirm it is present when https backends are configured.
-
-        Returns:
-            True if the CA bundle is available (or not needed), False if it is missing or
-            could not be rebuilt.
-        """
-        if not any_https:
-            return True
-        try:
-            self._rebuild_ca_bundle()
-        except CACertificateFileError:
-            return False
-        return ca_certs.get_ca_bundle_path() is not None
 
     def _write_cache_backends(self, ported_config: dict, cache_cert_path: Path | None) -> None:
         """Write cache-backend URLs to all cache-config relation databags."""

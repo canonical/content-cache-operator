@@ -3,6 +3,7 @@
 
 """Unit test for the charm."""
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import ops
@@ -20,6 +21,15 @@ from charm import (
 )
 from errors import NginxConfigurationAggregateError, NginxConfigurationError, NginxFileError
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
+
+SAMPLE_FINGERPRINT = (
+    "96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:"
+    "CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6"
+)
+SAMPLE_HTTPS_EXTRA = {
+    "backend_hostname": "test.example.com",
+    "backend_ca_fingerprint": SAMPLE_FINGERPRINT,
+}
 
 
 def test_start_no_relation(charm: ContentCacheCharm, mock_nginx_manager: MagicMock):
@@ -406,3 +416,78 @@ def test_tls_certificates_relation_broken_reverts_to_http(
         WAIT_FOR_TLS_CERT_MESSAGE
     ), "Charm must not be stuck in WaitingStatus after certificates relation is removed"
     mock_nginx_manager.update_and_load_config.assert_called()
+
+
+def test_https_backends_without_ca_fields_sets_blocked(harness: Harness, charm: ContentCacheCharm):
+    """
+    arrange: A charm with HTTPS backends but no backend_hostname/backend_ca_fingerprint.
+    act: Add the config relation.
+    assert: The charm enters BlockedStatus.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[state.BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=data,
+    )
+
+    assert isinstance(charm.unit.status, ops.BlockedStatus)
+    assert "backend-hostname and backend-ca-fingerprint are required" in charm.unit.status.message
+
+
+def test_https_backend_fingerprint_miss_sets_blocked(
+    harness: Harness,
+    charm: ContentCacheCharm,
+    monkeypatch,
+):
+    """
+    arrange: HTTPS backend with fingerprint; no matching cert is available.
+    act: Add the config relation.
+    assert: The charm enters BlockedStatus with the fingerprint in the message.
+    """
+    monkeypatch.setattr("ca_certs.load_system_ca_certs", lambda: [])
+    monkeypatch.setattr("ca_certs.find_cert_by_fingerprint", lambda *_: None)
+
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[state.BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+    data.update(SAMPLE_HTTPS_EXTRA)
+
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=data,
+    )
+
+    assert isinstance(charm.unit.status, ops.BlockedStatus)
+    assert SAMPLE_FINGERPRINT in charm.unit.status.message
+
+
+def test_https_backend_fingerprint_hit_stays_active(
+    harness: Harness,
+    charm: ContentCacheCharm,
+    monkeypatch,
+):
+    """
+    arrange: HTTPS backend with fingerprint; a matching cert is found and written.
+    act: Add the config relation.
+    assert: The charm stays active.
+    """
+    fake_cert = "-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----"
+    cert_path = Path("/etc/nginx/certs/backend-30000-ca.pem")
+    monkeypatch.setattr("ca_certs.load_system_ca_certs", lambda: [])
+    monkeypatch.setattr("ca_certs.find_cert_by_fingerprint", lambda *_: fake_cert)
+    monkeypatch.setattr("ca_certs.write_backend_ca_cert", lambda *_: cert_path)
+
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[state.BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+    data.update(SAMPLE_HTTPS_EXTRA)
+
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=data,
+    )
+
+    assert charm.unit.status == ops.ActiveStatus()

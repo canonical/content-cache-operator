@@ -4,15 +4,22 @@
 """Integration tests for the content-cache's active healthchecks."""
 
 import asyncio
+import base64
+from pathlib import Path
 from typing import List
 
 import pytest
 import requests
+from cryptography.hazmat.primitives import hashes
+from cryptography.x509 import load_pem_x509_certificate
 from juju.application import Application
 from juju.model import Model
+from juju.unit import Unit
 
 from nginx_manager import NGINX_BACKENDS_STATUS_URL_PATH
 from tests.integration.helpers import (
+    BACKEND_CA_FINGERPRINT_CONFIG_NAME,
+    BACKEND_HOSTNAME_CONFIG_NAME,
     BACKENDS_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
@@ -23,10 +30,44 @@ from tests.integration.helpers import (
     get_app_ip,
 )
 
-CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
-CERT_TRANSFER_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
+TEST_SERVER_CERTIFICATE = Path("tests/integration/scripts/certificate.pem")
 
 HEALTHCHECK_INTERVAL = 2000
+
+
+def _get_cert_fingerprint(cert_pem: str) -> str:
+    """Return the SHA-256 fingerprint of a PEM-encoded certificate."""
+    cert = load_pem_x509_certificate(cert_pem.encode())
+    return ":".join(f"{byte:02X}" for byte in cert.fingerprint(hashes.SHA256()))
+
+
+def _extract_cert_pem(combined_pem: str) -> str:
+    """Extract the certificate block from a combined cert+key PEM."""
+    lines = combined_pem.splitlines(keepends=True)
+    cert_lines: list[str] = []
+    in_cert = False
+    for line in lines:
+        if line.startswith("-----BEGIN CERTIFICATE-----"):
+            in_cert = True
+        if in_cert:
+            cert_lines.append(line)
+        if line.startswith("-----END CERTIFICATE-----"):
+            in_cert = False
+    return "".join(cert_lines)
+
+
+async def _install_ca_cert_on_unit(unit: Unit, cert_pem: str) -> None:
+    """Install a CA certificate into the system CA store on a unit."""
+    encoded = base64.b64encode(cert_pem.encode()).decode()
+    task = await unit.run(
+        "bash -c 'echo "
+        f"{encoded}"
+        " | base64 -d > /usr/local/share/ca-certificates/test-backend.crt"
+        " && update-ca-certificates'"
+    )
+    result = await task.wait()
+    if result.results["return-code"]:
+        raise RuntimeError(f"Unable to install CA cert on {unit.name}: {result.results['stderr']}")
 
 
 async def get_nginx_status(app: Application, path: str) -> str:
@@ -228,17 +269,10 @@ async def test_healthchecks_custom_status(
 
 
 @pytest.mark.parametrize(
-    ["use_cert_ok_app", "ssl_verify", "expected_http_code"],
+    ["ssl_verify", "expected_http_code"],
     [
-        # ssl_verify=false: backend cert IS signed by cert_app's CA.
-        # Proxy SSL verification passes (cert trusted by CA bundle) and the health check
-        # skips SSL verification (ssl_verify=false) so the backend is marked healthy → 200.
-        pytest.param(True, "false", 200, id="no_ssl_verify"),
-        # ssl_verify=true: backend cert is NOT signed by cert_app's CA (hardcoded
-        # self-signed cert from https_ok_app). The Lua health checker uses the system cert
-        # store; cert_app's CA is not installed there, so the health check marks the backend
-        # as unhealthy → 502 Bad Gateway.
-        pytest.param(False, "true", 502, id="ssl_verify"),
+        pytest.param("false", 200, id="no_ssl_verify"),
+        pytest.param("true", 200, id="ssl_verify"),
     ],
 )
 @pytest.mark.abort_on_fail
@@ -246,56 +280,40 @@ async def test_healthchecks_custom_status(
 async def test_healthchecks_ssl_verify(
     app: Application,
     config_app: Application,
-    cert_app: Application,
     cache_tester: CacheTester,
     http_ok_message: str,
     https_ok_app: Application,
-    https_cert_ok_app: Application,
-    use_cert_ok_app: bool,
     ssl_verify: str,
     expected_http_code: int,
     model: Model,
 ) -> None:
     """
-    arrange: An HTTPS backend — either cert_app-signed (use_cert_ok_app=True) or
-        hardcoded self-signed (use_cert_ok_app=False) — with cert_app's CA provided to
-        content-cache via receive-ca-cert.
+    arrange: One backend responding on HTTPS. SSL verify option set.
     act: Configure healthcheck-ssl-verify and send a request.
-    assert: ssl_verify=false with a trusted backend cert returns 200 (proxy SSL passes,
-        healthcheck skips SSL).  ssl_verify=true with an untrusted backend cert returns 502
-        (Lua health checker marks the backend as unhealthy).
+    assert: HTTP request succeeds with SSL verification enabled for the backend.
     """
-    backend_app = https_cert_ok_app if use_cert_ok_app else https_ok_app
-    backend_ip = await get_app_ip(backend_app)
+    backend_ip = await get_app_ip(https_ok_app)
+    combined_pem = TEST_SERVER_CERTIFICATE.read_text(encoding="utf-8")
+    cert_pem = _extract_cert_pem(combined_pem)
+    fingerprint = _get_cert_fingerprint(cert_pem)
+    await _install_ca_cert_on_unit(app.units[0], cert_pem)
 
     config = dict(CacheTester.BASE_CONFIG)
     config[BACKENDS_CONFIG_NAME] = f"https://{backend_ip}:443"
+    config[BACKEND_HOSTNAME_CONFIG_NAME] = "localhost"
+    config[BACKEND_CA_FINGERPRINT_CONFIG_NAME] = fingerprint
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = ssl_verify
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
     config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
 
-    await model.integrate(
-        f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
-        f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
-    )
-    try:
-        await cache_tester.setup_config(config)
-        await cache_tester.integrate_config()
-        await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
+    await cache_tester.setup_config(config)
+    await cache_tester.integrate_config()
+    await model.wait_for_idle([app.name, config_app.name], status="active", timeout=10 * 60)
 
-        await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
+    await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
-        response = await cache_tester.query_cache(path="/", protocol="http")
-        assert response.status_code == expected_http_code
-
-        if expected_http_code == 200:
-            assert http_ok_message in response.content.decode("utf-8")
-    finally:
-        # Always remove the cert integration so the next parametrised run can
-        # re-add it cleanly. Without this, the second run would find the
-        # relation already exists and fail before integrate_config() is called,
-        # leaving content-cache stuck in "Waiting for integration with config
-        # charm" state.
-        await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, True)
+    response = await cache_tester.query_cache(path="/", protocol="http")
+    assert response.status_code == expected_http_code
+    assert http_ok_message in response.content.decode("utf-8")

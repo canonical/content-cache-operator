@@ -47,3 +47,20 @@ options:
       (https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid).
     type: string
     default: '[]'
+  backend-hostname:
+    description: |
+      The hostname to use as the SNI and HTTP Host header when proxying to HTTPS backends.
+      Required when backends use https://. Must be a valid DNS hostname (max 255 characters,
+      alphanumeric segments separated by dots).
+    type: string
+    default: ""
+  backend-ca-fingerprint:
+    description: |
+      The SHA-256 fingerprint of the CA certificate used to verify the backend's TLS
+      certificate. Format: colon-separated uppercase hex, 95 characters
+      (e.g. 96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6).
+      Required when backends use https://. The matching certificate is searched first in
+      the certificate_transfer relation, then in the system CA bundle
+      (/etc/ssl/certs/ca-certificates.crt).
+    type: string
+    default: ""

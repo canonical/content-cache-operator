@@ -17,6 +17,11 @@ from state import (
 )
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
+SAMPLE_FINGERPRINT = (
+    "96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:"
+    "CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6"
+)
+
 
 def test_config_from_integration_data():
     """
@@ -71,17 +76,50 @@ def test_config_with_invalid_backends_integration_data(invalid_backends, error_m
 
 def test_config_https_backends_integration_data():
     """
-    arrange: Valid sample integration data with https URL backends.
+    arrange: Valid sample integration data with https URL backends and required HTTPS fields.
     act: Create the config from the data.
     assert: The configurations are correctly parsed with https scheme.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
     data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443", "https://10.10.2.2:443"]'
+    data["backend_hostname"] = "test.example.com"
+    data["backend_ca_fingerprint"] = SAMPLE_FINGERPRINT
     config = LocationConfig.from_integration_data(data)
 
     assert len(config.backends) == 2
     assert config.backends[0].scheme == "https"
     assert config.backends[1].scheme == "https"
+
+
+def test_config_https_backends_require_backend_fields():
+    """
+    arrange: HTTPS integration data without backend-hostname/backend-ca-fingerprint.
+    act: Create the config from the data.
+    assert: ConfigurationError is raised.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+
+    with pytest.raises(ConfigurationError) as err:
+        LocationConfig.from_integration_data(data)
+
+    assert "backend-hostname and backend-ca-fingerprint are required" in str(err.value)
+
+
+def test_config_normalises_backend_ca_fingerprint():
+    """
+    arrange: HTTPS integration data with a lowercase fingerprint.
+    act: Create the config from the data.
+    assert: The fingerprint is normalised to uppercase.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+    data["backend_hostname"] = "test.example.com"
+    data["backend_ca_fingerprint"] = SAMPLE_FINGERPRINT.lower()
+
+    config = LocationConfig.from_integration_data(data)
+
+    assert config.backend_ca_fingerprint == SAMPLE_FINGERPRINT
 
 
 def test_config_mixed_scheme_raises():
