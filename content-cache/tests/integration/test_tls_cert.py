@@ -46,7 +46,8 @@ async def test_certificate_transfer_full_lifecycle(
         own local CA (not trusted by the system CA store). healthcheck-ssl-verify=false so
         the Lua healthchecker always marks the backend as up; only nginx proxy SSL verify
         changes.
-    act: Integrate certificate-transfer (https_cert_ok_app:provide-certificate-transfer → cache:receive-ca-cert),
+    act: Integrate certificate-transfer
+        (https_cert_ok_app:provide-certificate-transfer → cache:receive-ca-cert),
         then remove it.
     assert:
         - Before integration: request returns 502 — cert_app CA not in combined bundle,

@@ -360,8 +360,14 @@ async def deploy_self_cert_https_app(
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.framework.observe(self.on.install, self._on_install)
+            # Use relation_created (not relation_joined) because Juju only fires
+            # relation_joined on the provider side after the requirer unit completes
+            # its relation_joined hook — in practice this may never happen in our
+            # test setup.  relation_created always fires when the relation is created,
+            # giving us a reliable place to write data to the unit databag BEFORE
+            # the requirer's first relation_changed hook runs.
             self.framework.observe(
-                self.on["provide-certificate-transfer"].relation_joined,
+                self.on["provide-certificate-transfer"].relation_created,
                 self._on_send_ca_cert_joined,
             )
 
