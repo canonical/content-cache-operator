@@ -13,6 +13,7 @@ from pathlib import Path
 import nginx
 import requests
 
+import ca_certs
 from errors import (
     NginxConfigurationAggregateError,
     NginxConfigurationError,
@@ -42,8 +43,6 @@ NGINX_USER = "www-data"
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
 
-# Path to the Ubuntu system CA bundle used to verify HTTPS backend connections.
-SYSTEM_CA_BUNDLE_PATH = Path("/etc/ssl/certs/ca-certificates.crt")
 NGINX_HEALTH_CHECK_TIMEOUT = 300
 NGINX_CACHE_LOG_FORMAT_NAME = "cache"
 NGINX_CACHE_LOG_FORMAT = (
@@ -539,8 +538,8 @@ def _get_location_config_keys(
     ]
 
     if scheme == "https" and config.backend_hostname:
-        # Use the Ubuntu system CA bundle so that publicly trusted certs (e.g.
-        # Let's Encrypt / ISRG Root X1) are verified without manual configuration.
+        # Use the combined CA bundle (system CAs + any operator-supplied certs
+        # from receive-ca-cert) so both public and private backend CAs are trusted.
         keys.extend(
             [
                 nginx.Key("proxy_set_header", f"Host {config.backend_hostname}"),
@@ -548,7 +547,7 @@ def _get_location_config_keys(
                 nginx.Key("proxy_ssl_server_name", "on"),
                 nginx.Key("proxy_ssl_verify", "on"),
                 nginx.Key("proxy_ssl_verify_depth", "10"),
-                nginx.Key("proxy_ssl_trusted_certificate", str(SYSTEM_CA_BUNDLE_PATH)),
+                nginx.Key("proxy_ssl_trusted_certificate", str(ca_certs.CA_BUNDLE_PATH)),
             ]
         )
 

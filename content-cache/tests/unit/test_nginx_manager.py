@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
+import ca_certs
 import nginx_manager
 from errors import NginxFileError
 from state import LocationConfig
@@ -237,7 +238,7 @@ def test_get_location_config_keys_https_with_backend_hostname_adds_ssl_directive
     assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
     assert any("proxy_ssl_verify_depth" in s and "10" in s for s in key_strings)
     assert any(
-        "proxy_ssl_trusted_certificate" in s and str(nginx_manager.SYSTEM_CA_BUNDLE_PATH) in s
+        "proxy_ssl_trusted_certificate" in s and str(ca_certs.CA_BUNDLE_PATH) in s
         for s in key_strings
     )
     assert any("proxy_pass" in s and "https" in s for s in key_strings)
@@ -262,13 +263,13 @@ def test_get_location_config_keys_https_without_hostname_has_no_ssl_directives(
         LocationConfig.from_integration_data(data)
 
 
-def test_get_location_config_keys_https_uses_system_ca_bundle(
+def test_get_location_config_keys_https_uses_combined_ca_bundle(
     patch_nginx_manager: None,
 ):
     """
     arrange: A LocationConfig with https backends and backend_hostname set.
     act: Call _get_location_config_keys.
-    assert: proxy_ssl_trusted_certificate points to the system CA bundle.
+    assert: proxy_ssl_trusted_certificate points to the combined CA bundle.
     """
     data = {
         **SAMPLE_INTEGRATION_DATA,
@@ -286,22 +287,17 @@ def test_get_location_config_keys_https_uses_system_ca_bundle(
     assert any("proxy_ssl_verify" in s and "on" in s for s in key_strings)
     assert any("proxy_ssl_verify_depth" in s and "10" in s for s in key_strings)
     assert any(
-        "proxy_ssl_trusted_certificate" in s and "/etc/ssl/certs/ca-certificates.crt" in s
+        "proxy_ssl_trusted_certificate" in s and str(ca_certs.CA_BUNDLE_PATH) in s
         for s in key_strings
     )
 
 
-def test_get_location_config_keys_http_ignores_ca_bundle(
-    patch_nginx_manager: None, tmp_path, monkeypatch
-):
+def test_get_location_config_keys_http_has_no_ssl_directives(patch_nginx_manager: None):
     """
-    arrange: A LocationConfig with http backends even though a CA bundle is present on disk.
+    arrange: A LocationConfig with http backends.
     act: Call _get_location_config_keys.
     assert: No proxy_ssl directives added for http backends.
     """
-    ca_bundle = tmp_path / "ca-bundle.pem"
-    ca_bundle.write_text("cert", encoding="utf-8")
-    monkeypatch.setattr("ca_certs.get_ca_bundle_path", lambda: ca_bundle)
     config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
 
     keys = nginx_manager._get_location_config_keys(config, "upstream")

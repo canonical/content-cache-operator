@@ -130,6 +130,10 @@ class ContentCacheCharm(ops.CharmBase):
     def _on_start(self, _: ops.StartEvent) -> None:
         """Handle start event."""
         self._nginx_initialize()
+        try:
+            self._rebuild_ca_bundle()
+        except CACertificateFileError:
+            return
         self._load_nginx_config()
 
     def _on_stop(self, _: ops.StopEvent) -> None:

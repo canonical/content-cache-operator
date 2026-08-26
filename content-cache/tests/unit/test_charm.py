@@ -389,7 +389,7 @@ def test_tls_certificates_relation_broken_reverts_to_http(
         and ends in ActiveStatus, not WaitingStatus("Waiting for TLS certificate").
     """
     certs_path = tmp_path / "certs"
-    certs_path.mkdir()
+    certs_path.mkdir(exist_ok=True)
     monkeypatch.setattr("charm.nginx_manager.NGINX_CERTIFICATES_PATH", certs_path)
 
     harness.add_relation(
