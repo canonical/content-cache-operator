@@ -4,7 +4,14 @@
 """Integration tests for HTTPS backend support via certificate_transfer and tls-certificates."""
 
 import pytest
-from helpers import BACKENDS_CONFIG_NAME, CacheTester, get_cache_backend, run_in_unit
+from helpers import (
+    BACKEND_HOSTNAME_CONFIG_NAME,
+    BACKENDS_CONFIG_NAME,
+    CacheTester,
+    get_app_ip,
+    get_cache_backend,
+    run_in_unit,
+)
 from juju.application import Application
 from juju.model import Model
 from pytest_operator.plugin import OpsTest
@@ -21,18 +28,20 @@ async def test_certificate_transfer_full_lifecycle(
     model: Model,
     app: Application,
     cert_app: Application,
+    https_ok_app: Application,
     cache_tester,
-    http_ok_ip: str,
 ) -> None:
     """
-    arrange: Content-cache with HTTP backend configured.
+    arrange: Content-cache with HTTPS backend configured, no certificate-transfer yet.
     act: Integrate certificate-transfer, then remove it.
-    assert: Content-cache remains Active throughout the lifecycle — the CA bundle from
-        certificate-transfer is written/removed but no longer gates the Active status.
+    assert: Content-cache is Active after integration (combined bundle updated with cert_app's CA)
+        and remains Active after removal (bundle retains system CAs, no longer WaitingStatus).
     """
     await cache_tester.integrate_config()
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
+    https_ok_ip = await get_app_ip(https_ok_app)
+    config[BACKENDS_CONFIG_NAME] = f"https://{https_ok_ip}:443"
+    config[BACKEND_HOSTNAME_CONFIG_NAME] = "localhost"
     await cache_tester.setup_config(config)
     await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
 
