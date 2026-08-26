@@ -10,15 +10,12 @@ from typing import List
 
 import pytest
 import requests
-from cryptography.hazmat.primitives import hashes
-from cryptography.x509 import load_pem_x509_certificate
 from juju.application import Application
 from juju.model import Model
 from juju.unit import Unit
 
 from nginx_manager import NGINX_BACKENDS_STATUS_URL_PATH
 from tests.integration.helpers import (
-    BACKEND_CA_FINGERPRINT_CONFIG_NAME,
     BACKEND_HOSTNAME_CONFIG_NAME,
     BACKENDS_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
@@ -33,12 +30,6 @@ from tests.integration.helpers import (
 TEST_SERVER_CERTIFICATE = Path("tests/integration/scripts/certificate.pem")
 
 HEALTHCHECK_INTERVAL = 2000
-
-
-def _get_cert_fingerprint(cert_pem: str) -> str:
-    """Return the SHA-256 fingerprint of a PEM-encoded certificate."""
-    cert = load_pem_x509_certificate(cert_pem.encode())
-    return ":".join(f"{byte:02X}" for byte in cert.fingerprint(hashes.SHA256()))
 
 
 def _extract_cert_pem(combined_pem: str) -> str:
@@ -279,23 +270,20 @@ async def test_healthchecks_ssl_verify(
     model: Model,
 ) -> None:
     """
-    arrange: One HTTPS backend; cert installed to system CA store; backend-hostname and
-        backend-ca-fingerprint configured. healthcheck-ssl-verify=false (Lua healthchecker
-        skips SSL, so the backend is marked up).
+    arrange: One HTTPS backend; backend cert installed to the system CA store; backend-hostname
+        configured. healthcheck-ssl-verify=false (Lua healthchecker skips SSL verification
+        to avoid hostname mismatch, while nginx proxy SSL verification uses the system CA bundle).
     act: Configure the cache and send a request.
-    assert: HTTP request succeeds — nginx proxy SSL verification passes using the bundle
-        derived from the fingerprint lookup.
+    assert: HTTP request succeeds — nginx proxy SSL verification passes using the system CA bundle.
     """
     backend_ip = await get_app_ip(https_ok_app)
     combined_pem = TEST_SERVER_CERTIFICATE.read_text(encoding="utf-8")
     cert_pem = _extract_cert_pem(combined_pem)
-    fingerprint = _get_cert_fingerprint(cert_pem)
     await _install_ca_cert_on_unit(app.units[0], cert_pem)
 
     config = dict(CacheTester.BASE_CONFIG)
     config[BACKENDS_CONFIG_NAME] = f"https://{backend_ip}:443"
     config[BACKEND_HOSTNAME_CONFIG_NAME] = "localhost"
-    config[BACKEND_CA_FINGERPRINT_CONFIG_NAME] = fingerprint
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/health"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"

@@ -189,13 +189,6 @@ class ContentCacheCharm(ops.CharmBase):
             return
         self._load_nginx_config()
 
-    def _get_all_ca_cert_pems(self) -> list[str]:
-        """Collect CA certificate PEM strings from relations, then the system bundle."""
-        relation_certs: list[str] = []
-        for rel in self.model.relations[CERTIFICATE_TRANSFER_INTEGRATION_NAME]:
-            relation_certs.extend(_certs_from_relation(rel))
-        return relation_certs + ca_certs.load_system_ca_certs()
-
     def _on_tls_certificates_relation_created(self, _: ops.RelationCreatedEvent) -> None:
         """Handle certificates relation created — enter WaitingStatus until cert arrives."""
         self._load_nginx_config()
@@ -272,27 +265,6 @@ class ContentCacheCharm(ops.CharmBase):
             for rel_id, config in nginx_config.items()
         }
 
-        all_ca_pems = self._get_all_ca_cert_pems()
-        matched_ca_pems: list[str] = []
-        for rel_id, (_port, config) in ported_config.items():
-            if config.backend_ca_fingerprint:
-                cert_pem = ca_certs.find_cert_by_fingerprint(
-                    config.backend_ca_fingerprint, all_ca_pems
-                )
-                if cert_pem is None:
-                    logger.error(
-                        "No CA cert matching fingerprint %s", config.backend_ca_fingerprint
-                    )
-                    self.unit.status = ops.BlockedStatus(
-                        f"No CA cert matching fingerprint {config.backend_ca_fingerprint}"
-                    )
-                    self._clear_cache_backend()
-                    return
-                matched_ca_pems.append(cert_pem)
-
-        # All HTTPS backends share a single bundle rebuilt on every config load.
-        backend_ca_bundle_path = ca_certs.write_backend_ca_bundle(matched_ca_pems)
-
         cache_cert_path = self._get_cache_cert_path()
         if (
             cache_cert_path is None
@@ -309,7 +281,6 @@ class ContentCacheCharm(ops.CharmBase):
                 ported_config,
                 self._get_instance_name(),
                 frontend_cert_path=cache_cert_path,
-                backend_ca_bundle_path=backend_ca_bundle_path,
             )
         except NginxFileError:
             logger.exception(

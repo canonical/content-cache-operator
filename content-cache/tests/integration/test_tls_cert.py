@@ -25,15 +25,16 @@ async def test_certificate_transfer_full_lifecycle(
     http_ok_ip: str,
 ) -> None:
     """
-    arrange: Content-cache with HTTPS backend configured, no certificate-transfer yet.
+    arrange: Content-cache with HTTP backend configured.
     act: Integrate certificate-transfer, then remove it.
-    assert: Content-cache reaches Active status after integration, then returns to
-        WaitingStatus after removal (CA bundle cleared).
+    assert: Content-cache remains Active throughout the lifecycle — the CA bundle from
+        certificate-transfer is written/removed but no longer gates the Active status.
     """
     await cache_tester.integrate_config()
     config = dict(CacheTester.BASE_CONFIG)
-    config[BACKENDS_CONFIG_NAME] = f"https://{http_ok_ip}:443"
+    config[BACKENDS_CONFIG_NAME] = f"http://{http_ok_ip}:80"
     await cache_tester.setup_config(config)
+    await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
 
     try:
         await model.integrate(
@@ -44,13 +45,9 @@ async def test_certificate_transfer_full_lifecycle(
         assert app.units[0].workload_status == "active"
 
         await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name)
-        await model.wait_for_idle([app.name], status="waiting", timeout=5 * 60)
-        assert "CA certificate" in app.units[0].workload_status_message
+        await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
+        assert app.units[0].workload_status == "active"
     finally:
-        # Ensure the cert relation is removed even if the test fails, so the
-        # next test starts with a clean state.  Do NOT use block_until_done=True
-        # here: that calls block_until() with no timeout and can hang forever if
-        # the relation removal stalls.
         if app.related_applications(CERTIFICATE_TRANSFER_INTEGRATION_NAME):
             await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name)
 

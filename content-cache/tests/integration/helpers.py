@@ -23,7 +23,6 @@ TEST_SERVER_CERTIFICATE = Path("tests/integration/scripts/certificate.pem")
 
 BACKENDS_CONFIG_NAME = "backends"
 BACKEND_HOSTNAME_CONFIG_NAME = "backend-hostname"
-BACKEND_CA_FINGERPRINT_CONFIG_NAME = "backend-ca-fingerprint"
 HEALTHCHECK_INTERVAL_CONFIG_NAME = "healthcheck-interval"
 HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
 HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"

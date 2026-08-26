@@ -25,7 +25,6 @@ HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
 HEALTHCHECK_VALID_STATUS_CONFIG_NAME = "healthcheck-valid-status"
 PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
 BACKEND_HOSTNAME_CONFIG_NAME = "backend-hostname"
-BACKEND_CA_FINGERPRINT_CONFIG_NAME = "backend-ca-fingerprint"
 
 
 def _validate_hostname_value(value: str) -> str:
@@ -79,23 +78,6 @@ def _validate_optional_hostname_value(value: str) -> str:
     if not value:
         return value
     return _validate_hostname_value(value)
-
-
-def _validate_fingerprint_value(value: str) -> str:
-    """Validate the value as a colon-separated SHA-256 hex fingerprint."""
-    if not value:
-        return value
-    # [0-9A-Fa-f]{2}           — one two-digit hex byte
-    # (:[0-9A-Fa-f]{2}){31}    — followed by 31 more colon-separated hex bytes
-    # Together: 32 bytes = SHA-256 digest, 95 characters total
-    pattern = re.compile(r"^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){31}$")
-    if not pattern.match(value):
-        raise ValueError(
-            "backend-ca-fingerprint must be a colon-separated SHA-256 hex fingerprint "
-            "consisting of 32 two-digit hex groups separated by colons "
-            "(e.g. 96:BC:EC:06:...)"
-        )
-    return value.upper()
 
 
 class HealthcheckConfig(pydantic.BaseModel):
@@ -164,7 +146,6 @@ class Configuration(pydantic.BaseModel):
         proxy_cache_valid: The cache valid duration.
         healthcheck: The healthcheck configuration.
         backend_hostname: Hostname used for backend SNI and Host header.
-        backend_ca_fingerprint: SHA-256 fingerprint of the backend CA certificate.
     """
 
     backends: tuple[pydantic.AnyHttpUrl, ...]
@@ -173,10 +154,6 @@ class Configuration(pydantic.BaseModel):
     healthcheck: HealthcheckConfig
     backend_hostname: typing.Annotated[
         str, pydantic.AfterValidator(_validate_optional_hostname_value)
-    ] = ""
-    backend_ca_fingerprint: typing.Annotated[
-        str,
-        pydantic.AfterValidator(_validate_fingerprint_value),
     ] = ""
 
     @pydantic.field_validator("backends")
@@ -250,9 +227,6 @@ class Configuration(pydantic.BaseModel):
         backend_hostname = typing.cast(
             str, charm.config.get(BACKEND_HOSTNAME_CONFIG_NAME, "")
         ).strip()
-        backend_ca_fingerprint = typing.cast(
-            str, charm.config.get(BACKEND_CA_FINGERPRINT_CONFIG_NAME, "")
-        ).strip()
 
         backends = tuple(url.strip() for url in backends_str.split(","))
         try:
@@ -277,7 +251,6 @@ class Configuration(pydantic.BaseModel):
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck=healthcheck_config,
                 backend_hostname=backend_hostname,
-                backend_ca_fingerprint=backend_ca_fingerprint,  # type: ignore
             )
         except pydantic.ValidationError as err:
             err_msg = [

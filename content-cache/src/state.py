@@ -24,7 +24,6 @@ HEALTHCHECK_SSL_VERIFY_FIELD_NAME = "healthcheck_ssl_verify"
 HEALTHCHECK_VALID_STATUS_FIELD_NAME = "healthcheck_valid_status"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
 BACKEND_HOSTNAME_FIELD_NAME = "backend_hostname"
-BACKEND_CA_FINGERPRINT_FIELD_NAME = "backend_ca_fingerprint"
 
 
 def _validate_hostname_value(value: str) -> str:
@@ -89,19 +88,6 @@ def _validate_optional_hostname_value(value: str) -> str:
     if not value:
         return value
     return _validate_hostname_value(value)
-
-
-def _validate_fingerprint_value(value: str) -> str:
-    """Validate the value as a colon-separated SHA-256 hex fingerprint."""
-    if not value:
-        return value
-    pattern = re.compile(r"^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){31}$")
-    if not pattern.match(value):
-        raise ValueError(
-            "backend-ca-fingerprint must be a colon-separated SHA-256 hex fingerprint "
-            "(e.g. 96:BC:EC:06:...)"
-        )
-    return value.upper()
 
 
 class HealthcheckConfig(pydantic.BaseModel):
@@ -170,7 +156,6 @@ class LocationConfig(pydantic.BaseModel):
         proxy_cache_valid: The cache valid duration.
         healthcheck_config: The healthcheck configuration.
         backend_hostname: Hostname used for backend SNI and Host header.
-        backend_ca_fingerprint: SHA-256 fingerprint of the backend CA certificate.
     """
 
     backends: tuple[pydantic.AnyHttpUrl, ...]
@@ -179,10 +164,6 @@ class LocationConfig(pydantic.BaseModel):
     healthcheck_config: HealthcheckConfig
     backend_hostname: typing.Annotated[
         str, pydantic.AfterValidator(_validate_optional_hostname_value)
-    ] = ""
-    backend_ca_fingerprint: typing.Annotated[
-        str,
-        pydantic.AfterValidator(_validate_fingerprint_value),
     ] = ""
 
     @pydantic.field_validator("backends")
@@ -241,20 +222,18 @@ class LocationConfig(pydantic.BaseModel):
         return value
 
     @pydantic.model_validator(mode="after")
-    def validate_https_requires_backend_fields(self) -> "LocationConfig":
-        """Validate that HTTPS backends provide backend-hostname and fingerprint.
+    def validate_https_requires_backend_hostname(self) -> "LocationConfig":
+        """Validate that HTTPS backends provide backend-hostname.
 
         Raises:
-            ValueError: Either required HTTPS field is missing.
+            ValueError: backend-hostname is missing for an HTTPS backend.
 
         Returns:
             The validated location configuration.
         """
         if self.backends and self.backends[0].scheme == "https":
-            if not self.backend_hostname or not self.backend_ca_fingerprint:
-                raise ValueError(
-                    "backend-hostname and backend-ca-fingerprint are required for HTTPS backends"
-                )
+            if not self.backend_hostname:
+                raise ValueError("backend-hostname is required for HTTPS backends")
         return self
 
     @classmethod
@@ -274,7 +253,6 @@ class LocationConfig(pydantic.BaseModel):
         fail_timeout = data.get(FAIL_TIMEOUT_FIELD_NAME, "").strip()
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
         backend_hostname = data.get(BACKEND_HOSTNAME_FIELD_NAME, "").strip()
-        backend_ca_fingerprint = data.get(BACKEND_CA_FINGERPRINT_FIELD_NAME, "").strip()
 
         proxy_cache_valid = _parse_list(
             PROXY_CACHE_VALID_FIELD_NAME, proxy_cache_valid_str, raise_if_empty=False
@@ -291,7 +269,6 @@ class LocationConfig(pydantic.BaseModel):
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck_config=healthcheck_config,
                 backend_hostname=backend_hostname,
-                backend_ca_fingerprint=backend_ca_fingerprint,  # type: ignore
             )
         except pydantic.ValidationError as err:
             err_msg = [
