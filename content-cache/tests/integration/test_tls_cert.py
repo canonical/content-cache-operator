@@ -37,16 +37,17 @@ async def test_certificate_transfer_full_lifecycle(
     ops_test: OpsTest,
     model: Model,
     app: Application,
-    cert_app: Application,
     https_cert_ok_app: Application,
     http_ok_message: str,
     cache_tester,
 ) -> None:
     """
-    arrange: Content-cache with HTTPS backend whose cert is signed by cert_app's CA
-        (not trusted by the system CA store). healthcheck-ssl-verify=false so the Lua
-        healthchecker always marks the backend as up; only nginx proxy SSL verify changes.
-    act: Integrate certificate-transfer, then remove it.
+    arrange: Content-cache with HTTPS backend whose cert is signed by https_cert_ok_app's
+        own local CA (not trusted by the system CA store). healthcheck-ssl-verify=false so
+        the Lua healthchecker always marks the backend as up; only nginx proxy SSL verify
+        changes.
+    act: Integrate certificate-transfer (https_cert_ok_app:send-ca-cert → cache:receive-ca-cert),
+        then remove it.
     assert:
         - Before integration: request returns 502 — cert_app CA not in combined bundle,
           nginx proxy_ssl_verify fails.
@@ -70,33 +71,35 @@ async def test_certificate_transfer_full_lifecycle(
     await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
     await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
 
-    # Phase 1: no cert-transfer — cert_app CA not in bundle — proxy SSL verify fails.
+    # Phase 1: no cert-transfer — https_cert_ok_app's local CA not in bundle — proxy SSL fails.
     response = await cache_tester.query_cache(path="/", protocol="http")
     assert response.status_code == 502, "Expected 502 before cert-transfer: CA not trusted"
 
     try:
         await model.integrate(
-            f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
+            f"{https_cert_ok_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
             f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
         )
         await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
 
-        # Phase 2: cert-transfer integrated — cert_app CA in bundle — proxy SSL verify passes.
+        # Phase 2: cert-transfer integrated — local CA in bundle — proxy SSL verify passes.
         response = await cache_tester.query_cache(path="/", protocol="http")
         assert response.status_code == 200, "Expected 200 after cert-transfer: CA now trusted"
         assert http_ok_message in response.content.decode("utf-8")
 
-        await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name)
+        await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, https_cert_ok_app.name)
         await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
 
-        # Phase 3: cert-transfer removed — cert_app CA gone from bundle — proxy SSL verify fails.
+        # Phase 3: cert-transfer removed — local CA gone from bundle — proxy SSL verify fails.
         response = await cache_tester.query_cache(path="/", protocol="http")
         assert (
             response.status_code == 502
         ), "Expected 502 after cert-transfer removal: CA untrusted"
     finally:
         if app.related_applications(CERTIFICATE_TRANSFER_INTEGRATION_NAME):
-            await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name)
+            await app.remove_relation(
+                CERTIFICATE_TRANSFER_INTEGRATION_NAME, https_cert_ok_app.name
+            )
 
 
 @pytest.mark.abort_on_fail

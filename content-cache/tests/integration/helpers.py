@@ -247,17 +247,16 @@ async def deploy_http_app(
 async def deploy_self_cert_https_app(
     app_name: str, path: str, status: int, message: str, model: Model
 ) -> Application:
-    """Deploy an HTTPS test app that gets its cert signed by a tls-certificates CA.
+    """Deploy a self-contained HTTPS test app that generates its own CA and server cert.
 
-    The app generates a private key and CSR with ``DNS:localhost`` as Subject Alternative
-    Name (not the unit IP), writes the CSR to the ``require-tls-certificates`` relation,
-    and starts the HTTPS server once the signed cert arrives.
+    The anyCharm generates a local CA and a server cert (signed by that CA) with
+    ``DNS:localhost`` as Subject Alternative Name at install time.  No external CA charm
+    is required.  The app also provides the ``send-ca-cert`` endpoint (built into
+    any-charm) so callers can push the CA cert into a content-cache's combined bundle via
+    ``receive-ca-cert``.
 
-    Using ``DNS:localhost`` allows nginx ``proxy_ssl_name=localhost`` to verify the cert
-    via OpenSSL's ``X509_check_host()``, which only matches DNS SANs (not IP SANs).
-
-    After deploying, integrate ``<app_name>:require-tls-certificates`` with the CA charm's
-    ``certificates`` endpoint and wait for the app to become active.
+    Using ``DNS:localhost`` allows ``proxy_ssl_name=localhost`` to satisfy OpenSSL's
+    ``X509_check_host()`` which matches DNS SANs (not IP SANs).
 
     Args:
         app_name: The application name for the any-charm deployment.
@@ -275,7 +274,6 @@ async def deploy_self_cert_https_app(
     # the outer f-string at deploy time; other {{}}/{{var}} escapes produce
     # single-brace expressions that are evaluated inside the charm at runtime.
     any_charm_content = textwrap.dedent(f'''\
-    import json
     import logging
     import os
     import subprocess
@@ -289,43 +287,73 @@ async def deploy_self_cert_https_app(
     SERVICE_NAME = "test-https-cert"
     SERVICE_PATH = Path("/etc/systemd/system/" + SERVICE_NAME + ".service")
     CERT_DIR = Path("/etc/test-certs")
-    SERVER_PEM = CERT_DIR / "server.pem"
-    KEY_PATH = CERT_DIR / "server.key"
-    CSR_PATH = CERT_DIR / "server.csr"
+    CA_KEY_PATH = CERT_DIR / "ca.key"
+    CA_CERT_PATH = CERT_DIR / "ca.pem"
+    SERVER_KEY_PATH = CERT_DIR / "server.key"
+    SERVER_CERT_PATH = CERT_DIR / "server.pem"
     SAN_CONF = CERT_DIR / "san.cnf"
+    EXT_CONF = CERT_DIR / "ext.cnf"
 
 
-    def _ensure_key_and_csr() -> None:
-        """Generate key + CSR with DNS:localhost SAN if not already present."""
-        if KEY_PATH.exists() and CSR_PATH.exists():
+    def _generate_certs() -> None:
+        """Generate a local CA and a server cert signed by it (DNS:localhost SAN)."""
+        if CA_CERT_PATH.exists() and SERVER_CERT_PATH.exists():
             return
         CERT_DIR.mkdir(parents=True, exist_ok=True)
-        # Use DNS:localhost so that nginx proxy_ssl_name=localhost matches the SAN.
-        # OpenSSL's X509_check_host() matches DNS SANs, not IP SANs, so an IP-based
-        # proxy_ssl_name would fail hostname verification even with a valid IP SAN.
-        SAN_CONF.write_text(
-            "[req]\\n"
-            "req_extensions = v3_req\\n"
-            "distinguished_name = req_dn\\n"
-            "[req_dn]\\n"
-            "[v3_req]\\n"
-            "subjectAltName = DNS:localhost\\n"
-        )
+        # Local CA
         subprocess.run(
-            ["openssl", "genrsa", "-out", str(KEY_PATH), "2048"],
+            ["openssl", "genrsa", "-out", str(CA_KEY_PATH), "2048"],
             check=True, capture_output=True,
         )
         subprocess.run(
             [
+                "openssl", "req", "-new", "-x509",
+                "-key", str(CA_KEY_PATH),
+                "-out", str(CA_CERT_PATH),
+                "-days", "3650",
+                "-subj", "/CN=test-local-ca",
+            ],
+            check=True, capture_output=True,
+        )
+        # Server key
+        subprocess.run(
+            ["openssl", "genrsa", "-out", str(SERVER_KEY_PATH), "2048"],
+            check=True, capture_output=True,
+        )
+        # Server CSR with DNS:localhost SAN
+        # OpenSSL X509_check_host() only matches DNS SANs (not IP SANs), so we must
+        # use DNS:localhost to satisfy proxy_ssl_name=localhost verification.
+        SAN_CONF.write_text(
+            "[req]\\nreq_extensions = v3_req\\ndistinguished_name = req_dn\\n"
+            "[req_dn]\\n[v3_req]\\nsubjectAltName = DNS:localhost\\n"
+        )
+        subprocess.run(
+            [
                 "openssl", "req", "-new",
-                "-key", str(KEY_PATH),
-                "-out", str(CSR_PATH),
+                "-key", str(SERVER_KEY_PATH),
+                "-out", str(CERT_DIR / "server.csr"),
                 "-subj", "/CN=localhost",
                 "-config", str(SAN_CONF),
             ],
             check=True, capture_output=True,
         )
-        logger.info("Generated key and CSR for DNS:localhost")
+        # Sign server cert with local CA
+        EXT_CONF.write_text("[v3_req]\\nsubjectAltName = DNS:localhost\\n")
+        subprocess.run(
+            [
+                "openssl", "x509", "-req",
+                "-in", str(CERT_DIR / "server.csr"),
+                "-CA", str(CA_CERT_PATH),
+                "-CAkey", str(CA_KEY_PATH),
+                "-CAcreateserial",
+                "-out", str(SERVER_CERT_PATH),
+                "-days", "3650",
+                "-extfile", str(EXT_CONF),
+                "-extensions", "v3_req",
+            ],
+            check=True, capture_output=True,
+        )
+        logger.info("Generated local CA and server cert (DNS:localhost)")
 
 
     class AnyCharm(AnyCharmBase):
@@ -333,52 +361,33 @@ async def deploy_self_cert_https_app(
             super().__init__(*args, **kwargs)
             self.framework.observe(self.on.install, self._on_install)
             self.framework.observe(
-                self.on["require-tls-certificates"].relation_joined,
-                self._submit_csr,
+                self.on["send-ca-cert"].relation_joined,
+                self._on_send_ca_cert_joined,
             )
-            self.framework.observe(
-                self.on["require-tls-certificates"].relation_changed,
-                self._on_cert_relation_changed,
-            )
-
-        def _on_start_(self, event):
-            """Override AnyCharmBase to keep WaitingStatus until cert arrives."""
-            self.unit.status = ops.WaitingStatus("Waiting for TLS certificate")
 
         def _on_install(self, event):
-            _ensure_key_and_csr()
-            self.unit.status = ops.WaitingStatus("Waiting for TLS certificate")
+            _generate_certs()
+            server_cert_pem = SERVER_CERT_PATH.read_text()
+            self._start_server(server_cert_pem)
+            self.unit.status = ops.ActiveStatus()
 
-        def _submit_csr(self, event):
-            """Write CSR to the tls-certificates relation unit data (v4 unit-mode)."""
-            _ensure_key_and_csr()
-            csr_pem = CSR_PATH.read_text()
-            event.relation.data[self.unit]["certificate_signing_requests"] = json.dumps(
-                [{{"certificate_signing_request": csr_pem, "ca": False}}]
-            )
-
-        def _on_cert_relation_changed(self, event):
-            """Read signed cert from provider and start the HTTPS server."""
-            if not CSR_PATH.exists():
-                return
-            csr_pem = CSR_PATH.read_text().strip()
-            # Certs are in the PROVIDER APP databag (tls-certificates v4), not unit databag.
-            raw = event.relation.data[event.relation.app].get("certificates")
-            if not raw:
-                return
-            for entry in json.loads(raw):
-                if entry.get("certificate_signing_request", "").strip() == csr_pem:
-                    self._start_server(entry["certificate"])
-                    self.unit.status = ops.ActiveStatus()
-                    return
+        def _on_send_ca_cert_joined(self, event):
+            """Send the local CA cert in V0 unit-databag format (certificate_transfer)."""
+            _generate_certs()
+            ca_pem = CA_CERT_PATH.read_text()
+            event.relation.data[self.unit]["ca"] = ca_pem
+            event.relation.data[self.unit]["chain"] = "[]"
 
         def _start_server(self, cert_pem: str):
-            """Write cert+key PEM and restart the systemd HTTPS service."""
-            SERVER_PEM.write_text(cert_pem.strip() + "\\n" + KEY_PATH.read_text())
+            """Write cert+key PEM bundle and start the systemd HTTPS service."""
+            # PEM bundle: server cert followed by server key
+            SERVER_CERT_PATH.write_text(cert_pem.strip() + "\\n")
+            bundle = cert_pem.strip() + "\\n" + SERVER_KEY_PATH.read_text()
+            (CERT_DIR / "bundle.pem").write_text(bundle)
             test_server = Path(os.getcwd()) / "src" / "test_server.py"
             SERVICE_PATH.write_text(
                 "[Unit]\\n"
-                "Description=Test HTTPS server (CA-issued cert)\\n"
+                "Description=Test HTTPS server (local CA cert)\\n"
                 "After=network.target\\n"
                 "\\n"
                 "[Service]\\n"
@@ -386,7 +395,7 @@ async def deploy_self_cert_https_app(
                 "User=root\\n"
                 "ExecStart=/usr/bin/env python3 " + str(test_server)
                 + " --path {path} --status {status} --message {message}"
-                  " --port 443 --https --cert " + str(SERVER_PEM) + "\\n"
+                  " --port 443 --https --cert " + str(CERT_DIR / "bundle.pem") + "\\n"
                 "Restart=on-failure\\n"
                 "\\n"
                 "[Install]\\n"

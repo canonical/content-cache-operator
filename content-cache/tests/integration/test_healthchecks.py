@@ -231,13 +231,13 @@ async def test_healthchecks_custom_status(
 @pytest.mark.parametrize(
     ["use_cert_ok_app", "ssl_verify", "expected_http_code"],
     [
-        # ssl_verify=false: backend cert IS signed by cert_app's CA (in combined bundle via
-        # receive-ca-cert). Proxy SSL verification passes; healthcheck skips SSL so backend
-        # is marked healthy → 200.
+        # ssl_verify=false: backend cert IS signed by https_cert_ok_app's own CA (in combined
+        # bundle via receive-ca-cert). Proxy SSL verification passes; healthcheck skips SSL so
+        # backend is marked healthy → 200.
         pytest.param(True, "false", 200, id="no_ssl_verify"),
-        # ssl_verify=true: backend cert is NOT signed by cert_app's CA (hardcoded self-signed
-        # cert). Lua healthchecker uses system CA store; that CA is not installed there, so
-        # the healthcheck marks the backend unhealthy → 502 Bad Gateway.
+        # ssl_verify=true: backend cert is NOT signed by a CA in the system store (hardcoded
+        # self-signed cert). Lua healthchecker uses system CA store; backend marked unhealthy
+        # → 502 Bad Gateway.
         pytest.param(False, "true", 502, id="ssl_verify"),
     ],
 )
@@ -246,7 +246,6 @@ async def test_healthchecks_custom_status(
 async def test_healthchecks_ssl_verify(
     app: Application,
     config_app: Application,
-    cert_app: Application,
     cache_tester: CacheTester,
     http_ok_message: str,
     https_ok_app: Application,
@@ -257,9 +256,9 @@ async def test_healthchecks_ssl_verify(
     model: Model,
 ) -> None:
     """
-    arrange: Two HTTPS backends — one whose cert is signed by cert_app's CA (trusted via the
-        combined CA bundle from receive-ca-cert), one with a hardcoded self-signed cert.
-        cert_app's CA is pushed into the charm's combined bundle via receive-ca-cert.
+    arrange: Two HTTPS backends — one whose cert is signed by https_cert_ok_app's own local CA
+        (pushed into the content-cache combined bundle via receive-ca-cert), and one with a
+        hardcoded self-signed cert not in the system store.
     act: Configure healthcheck-ssl-verify and send a request.
     assert: ssl_verify=false with a trusted backend cert returns 200 (proxy SSL passes,
         healthcheck skips SSL). ssl_verify=true with an untrusted backend cert returns 502
@@ -271,10 +270,13 @@ async def test_healthchecks_ssl_verify(
     # Use "localhost" as backend-hostname so nginx proxy_ssl_name matches the cert SAN.
     backend_hostname = "localhost"
 
-    await model.integrate(
-        f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
-        f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
-    )
+    # For no_ssl_verify: push https_cert_ok_app's local CA into the combined bundle so that
+    # nginx proxy_ssl_verify passes.  For ssl_verify: no CA push needed (test expects 502).
+    if use_cert_ok_app:
+        await model.integrate(
+            f"{https_cert_ok_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",
+            f"{app.name}:{CERTIFICATE_TRANSFER_INTEGRATION_NAME}",
+        )
     try:
         config = dict(CacheTester.BASE_CONFIG)
         config[BACKENDS_CONFIG_NAME] = f"https://{backend_ip}:443"
@@ -297,4 +299,7 @@ async def test_healthchecks_ssl_verify(
         if expected_http_code == 200:
             assert http_ok_message in response.content.decode("utf-8")
     finally:
-        await app.remove_relation(CERTIFICATE_TRANSFER_INTEGRATION_NAME, cert_app.name, True)
+        if use_cert_ok_app:
+            await app.remove_relation(
+                CERTIFICATE_TRANSFER_INTEGRATION_NAME, https_cert_ok_app.name, True
+            )
