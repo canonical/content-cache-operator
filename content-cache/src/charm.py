@@ -475,14 +475,24 @@ def _certs_from_v0_unit_databags(rel: ops.Relation) -> list[str]:
     Tries "chain" first, then falls back to "ca".  "chain" may be stored
     as a JSON-encoded list or as a raw PEM string.
 
+    Note: we iterate ``rel.data`` (whose internal ``_data`` dict is populated
+    at ``Relation`` creation time) rather than ``rel.units``.  The V1
+    ``CertificateTransferRequires`` library calls ``relation.units.pop()``
+    which mutates the live ``rel.units`` set, so any code that runs
+    *after* the V1 library handler (including handlers invoked via the
+    ``certificate_set_updated`` custom event) would see an empty set if we
+    iterated ``rel.units`` instead.
+
     Args:
         rel: The cert-transfer relation.
 
     Returns:
         Cert list extracted from the first unit that has data, or empty list.
     """
-    for unit in rel.units:
-        unit_data = rel.data.get(unit)
+    for entity in rel.data:
+        if not isinstance(entity, ops.Unit):
+            continue
+        unit_data = rel.data.get(entity)
         if not unit_data:
             continue
         certs = _parse_chain_field(unit_data.get("chain", ""))
