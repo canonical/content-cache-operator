@@ -249,9 +249,12 @@ async def deploy_self_cert_https_app(
 ) -> Application:
     """Deploy an HTTPS test app that gets its cert signed by a tls-certificates CA.
 
-    The app generates a private key and CSR with its own IP as a Subject Alternative Name,
-    writes the CSR to the ``require-tls-certificates`` relation, and starts the HTTPS server
-    once the signed cert arrives.
+    The app generates a private key and CSR with ``DNS:localhost`` as Subject Alternative
+    Name (not the unit IP), writes the CSR to the ``require-tls-certificates`` relation,
+    and starts the HTTPS server once the signed cert arrives.
+
+    Using ``DNS:localhost`` allows nginx ``proxy_ssl_name=localhost`` to verify the cert
+    via OpenSSL's ``X509_check_host()``, which only matches DNS SANs (not IP SANs).
 
     After deploying, integrate ``<app_name>:require-tls-certificates`` with the CA charm's
     ``certificates`` endpoint and wait for the app to become active.
@@ -275,7 +278,6 @@ async def deploy_self_cert_https_app(
     import json
     import logging
     import os
-    import socket
     import subprocess
     from pathlib import Path
 
@@ -293,28 +295,21 @@ async def deploy_self_cert_https_app(
     SAN_CONF = CERT_DIR / "san.cnf"
 
 
-    def _get_own_ip() -> str:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            s.connect(("10.255.255.255", 1))
-            return s.getsockname()[0]
-        finally:
-            s.close()
-
-
-    def _ensure_key_and_csr() -> str:
-        """Generate key + CSR for this unit's IP if not already present; return IP."""
-        ip = _get_own_ip()
+    def _ensure_key_and_csr() -> None:
+        """Generate key + CSR with DNS:localhost SAN if not already present."""
         if KEY_PATH.exists() and CSR_PATH.exists():
-            return ip
+            return
         CERT_DIR.mkdir(parents=True, exist_ok=True)
+        # Use DNS:localhost so that nginx proxy_ssl_name=localhost matches the SAN.
+        # OpenSSL's X509_check_host() matches DNS SANs, not IP SANs, so an IP-based
+        # proxy_ssl_name would fail hostname verification even with a valid IP SAN.
         SAN_CONF.write_text(
             "[req]\\n"
             "req_extensions = v3_req\\n"
             "distinguished_name = req_dn\\n"
             "[req_dn]\\n"
             "[v3_req]\\n"
-            "subjectAltName = IP:" + ip + "\\n"
+            "subjectAltName = DNS:localhost\\n"
         )
         subprocess.run(
             ["openssl", "genrsa", "-out", str(KEY_PATH), "2048"],
@@ -325,13 +320,12 @@ async def deploy_self_cert_https_app(
                 "openssl", "req", "-new",
                 "-key", str(KEY_PATH),
                 "-out", str(CSR_PATH),
-                "-subj", "/CN=" + ip,
+                "-subj", "/CN=localhost",
                 "-config", str(SAN_CONF),
             ],
             check=True, capture_output=True,
         )
-        logger.info("Generated key and CSR for IP %s", ip)
-        return ip
+        logger.info("Generated key and CSR for DNS:localhost")
 
 
     class AnyCharm(AnyCharmBase):

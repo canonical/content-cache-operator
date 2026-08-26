@@ -267,9 +267,9 @@ async def test_healthchecks_ssl_verify(
     """
     backend_app = https_cert_ok_app if use_cert_ok_app else https_ok_app
     backend_ip = await get_app_ip(backend_app)
-    # https_cert_ok_app cert has the backend IP as an IP SAN — use IP as backend-hostname.
-    # https_ok_app cert has DNS:localhost SAN — use "localhost" as backend-hostname.
-    backend_hostname = backend_ip if use_cert_ok_app else "localhost"
+    # Both https_cert_ok_app and https_ok_app serve a cert with DNS:localhost SAN.
+    # Use "localhost" as backend-hostname so nginx proxy_ssl_name matches the cert SAN.
+    backend_hostname = "localhost"
 
     await model.integrate(
         f"{cert_app.name}:{CERT_TRANSFER_PROVIDER_ENDPOINT_NAME}",

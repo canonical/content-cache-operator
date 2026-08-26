@@ -60,7 +60,7 @@ async def test_certificate_transfer_full_lifecycle(
     await cache_tester.integrate_config()
     config = dict(CacheTester.BASE_CONFIG)
     config[BACKENDS_CONFIG_NAME] = f"https://{backend_ip}:443"
-    config[BACKEND_HOSTNAME_CONFIG_NAME] = backend_ip
+    config[BACKEND_HOSTNAME_CONFIG_NAME] = "localhost"
     config[HEALTHCHECK_PATH_CONFIG_NAME] = "/"
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
