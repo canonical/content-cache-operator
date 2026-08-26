@@ -251,9 +251,9 @@ async def deploy_self_cert_https_app(
 
     The anyCharm generates a local CA and a server cert (signed by that CA) with
     ``DNS:localhost`` as Subject Alternative Name at install time.  No external CA charm
-    is required.  The app also provides the ``send-ca-cert`` endpoint (built into
-    any-charm) so callers can push the CA cert into a content-cache's combined bundle via
-    ``receive-ca-cert``.
+    is required.  The app also provides the ``provide-certificate-transfer`` endpoint
+    (built into any-charm) so callers can push the CA cert into a content-cache's combined
+    bundle via ``receive-ca-cert``.
 
     Using ``DNS:localhost`` allows ``proxy_ssl_name=localhost`` to satisfy OpenSSL's
     ``X509_check_host()`` which matches DNS SANs (not IP SANs).
@@ -361,7 +361,7 @@ async def deploy_self_cert_https_app(
             super().__init__(*args, **kwargs)
             self.framework.observe(self.on.install, self._on_install)
             self.framework.observe(
-                self.on["send-ca-cert"].relation_joined,
+                self.on["provide-certificate-transfer"].relation_joined,
                 self._on_send_ca_cert_joined,
             )
 

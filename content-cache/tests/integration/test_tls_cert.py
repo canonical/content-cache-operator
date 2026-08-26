@@ -24,7 +24,7 @@ from juju.model import Model
 from pytest_operator.plugin import OpsTest
 
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
-CERT_TRANSFER_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
+CERT_TRANSFER_PROVIDER_ENDPOINT_NAME = "provide-certificate-transfer"
 CACHE_LEGO_CERT_PROVIDER_ENDPOINT_NAME = "certificates"
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
 CERTIFICATES_INTEGRATION_NAME = "certificates"
@@ -46,7 +46,7 @@ async def test_certificate_transfer_full_lifecycle(
         own local CA (not trusted by the system CA store). healthcheck-ssl-verify=false so
         the Lua healthchecker always marks the backend as up; only nginx proxy SSL verify
         changes.
-    act: Integrate certificate-transfer (https_cert_ok_app:send-ca-cert → cache:receive-ca-cert),
+    act: Integrate certificate-transfer (https_cert_ok_app:provide-certificate-transfer → cache:receive-ca-cert),
         then remove it.
     assert:
         - Before integration: request returns 502 — cert_app CA not in combined bundle,

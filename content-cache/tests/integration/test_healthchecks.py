@@ -25,7 +25,7 @@ from tests.integration.helpers import (
 )
 
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
-CERT_TRANSFER_PROVIDER_ENDPOINT_NAME = "send-ca-cert"
+CERT_TRANSFER_PROVIDER_ENDPOINT_NAME = "provide-certificate-transfer"
 
 HEALTHCHECK_INTERVAL = 2000
 
