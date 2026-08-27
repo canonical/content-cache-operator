@@ -42,6 +42,7 @@ NGINX_USER = "www-data"
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
+
 NGINX_HEALTH_CHECK_TIMEOUT = 300
 NGINX_CACHE_LOG_FORMAT_NAME = "cache"
 NGINX_CACHE_LOG_FORMAT = (
@@ -108,7 +109,7 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
     logger.info("Installing and enabling nginx")
     # The install, systemctl enable, and systemctl start are idempotent.
     return_code, _, stderr = execute_command(
-        ["sudo", "apt", "install", "nginx", "lua-resty-core", "-yq"]
+        ["sudo", "apt", "install", "nginx", "lua-resty-core", "ca-certificates", "-yq"]
     )
     if return_code != 0:
         raise NginxSetupError(f"Failed to install nginx: {stderr}")
@@ -212,7 +213,7 @@ def update_and_load_config(
     errored_identifiers: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
     healthcheck_workers_lua_code = ""
-    for _, (port, config) in configuration.items():
+    for _rel_id, (port, config) in configuration.items():
         identifier = str(port)
         try:
             vhost_healthcheck_worker_lua_code = _create_virtualhost_config(
@@ -388,7 +389,7 @@ def _create_status_page_config() -> None:
     _store_and_enable_site_config("nginx_status", nginx_config)
 
 
-def _create_virtualhost_config(  # pylint: disable=too-many-locals
+def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
     identifier: str,
     port: int,
     configuration: LocationConfig,
@@ -536,16 +537,17 @@ def _get_location_config_keys(
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
     ]
 
-    if scheme == "https" and ca_certs.get_ca_bundle_path() is not None:
-        # Use the backend actual hostname/IP for SSL verification, not the upstream
-        # block name (e.g. "backend-{id}"), which would never match the cert's CN/SAN.
-        # All backends in a location must share the same hostname for proxy_ssl to work.
-        backend_host = config.backends[0].host
+    if scheme == "https" and config.backend_hostname:
+        # Use the combined CA bundle (system CAs + any operator-supplied certs
+        # from receive-ca-cert) so both public and private backend CAs are trusted.
         keys.extend(
             [
-                nginx.Key("proxy_ssl_trusted_certificate", str(ca_certs.CA_BUNDLE_PATH)),
+                nginx.Key("proxy_set_header", f"Host {config.backend_hostname}"),
+                nginx.Key("proxy_ssl_name", config.backend_hostname),
+                nginx.Key("proxy_ssl_server_name", "on"),
                 nginx.Key("proxy_ssl_verify", "on"),
-                nginx.Key("proxy_ssl_name", backend_host),
+                nginx.Key("proxy_ssl_verify_depth", "10"),
+                nginx.Key("proxy_ssl_trusted_certificate", str(ca_certs.CA_BUNDLE_PATH)),
             ]
         )
 

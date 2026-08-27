@@ -21,6 +21,10 @@ from charm import (
 from errors import NginxConfigurationAggregateError, NginxConfigurationError, NginxFileError
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
+SAMPLE_HTTPS_EXTRA = {
+    "backend_hostname": "test.example.com",
+}
+
 
 def test_start_no_relation(charm: ContentCacheCharm, mock_nginx_manager: MagicMock):
     """
@@ -385,7 +389,7 @@ def test_tls_certificates_relation_broken_reverts_to_http(
         and ends in ActiveStatus, not WaitingStatus("Waiting for TLS certificate").
     """
     certs_path = tmp_path / "certs"
-    certs_path.mkdir()
+    certs_path.mkdir(exist_ok=True)
     monkeypatch.setattr("charm.nginx_manager.NGINX_CERTIFICATES_PATH", certs_path)
 
     harness.add_relation(
@@ -406,3 +410,44 @@ def test_tls_certificates_relation_broken_reverts_to_http(
         WAIT_FOR_TLS_CERT_MESSAGE
     ), "Charm must not be stuck in WaitingStatus after certificates relation is removed"
     mock_nginx_manager.update_and_load_config.assert_called()
+
+
+def test_https_backends_without_hostname_sets_blocked(harness: Harness, charm: ContentCacheCharm):
+    """
+    arrange: A charm with HTTPS backends but no backend_hostname.
+    act: Add the config relation.
+    assert: The charm enters BlockedStatus.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[state.BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=data,
+    )
+
+    assert isinstance(charm.unit.status, ops.BlockedStatus)
+    assert "backend-hostname is required" in charm.unit.status.message
+
+
+def test_https_backend_with_hostname_stays_active(
+    harness: Harness,
+    charm: ContentCacheCharm,
+):
+    """
+    arrange: HTTPS backend with backend_hostname set.
+    act: Add the config relation.
+    assert: The charm stays active (system CA bundle is used automatically).
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[state.BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+    data.update(SAMPLE_HTTPS_EXTRA)
+
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=data,
+    )
+
+    assert charm.unit.status == ops.ActiveStatus()

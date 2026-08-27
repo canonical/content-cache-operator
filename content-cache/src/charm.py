@@ -48,7 +48,6 @@ WAIT_FOR_CONFIG_MESSAGE = "Waiting for integration with config charm"
 NGINX_NOT_READY_MESSAGE = "Nginx is not ready"
 RECEIVED_NGINX_CONFIG_MESSAGE = "Received nginx configuration"
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
-WAIT_FOR_CA_CERT_MESSAGE = "Waiting for CA certificate via certificate-transfer"
 CERTIFICATE_INTEGRATION_NAME = "certificates"
 WAIT_FOR_TLS_CERT_MESSAGE = "Waiting for TLS certificate"
 
@@ -131,6 +130,10 @@ class ContentCacheCharm(ops.CharmBase):
     def _on_start(self, _: ops.StartEvent) -> None:
         """Handle start event."""
         self._nginx_initialize()
+        try:
+            self._rebuild_ca_bundle()
+        except CACertificateFileError:
+            return
         self._load_nginx_config()
 
     def _on_stop(self, _: ops.StopEvent) -> None:
@@ -266,14 +269,6 @@ class ContentCacheCharm(ops.CharmBase):
             for rel_id, config in nginx_config.items()
         }
 
-        any_https = any(
-            str(config.backends[0].scheme) == "https" for _, config in nginx_config.items()
-        )
-        if not self._ensure_ca_bundle_ready(any_https):
-            self.unit.status = ops.WaitingStatus(WAIT_FOR_CA_CERT_MESSAGE)
-            self._clear_cache_backend()
-            return
-
         cache_cert_path = self._get_cache_cert_path()
         if (
             cache_cert_path is None
@@ -311,21 +306,6 @@ class ContentCacheCharm(ops.CharmBase):
             self._write_cache_backends(ported_config, cache_cert_path)
         else:
             self._clear_cache_backend()
-
-    def _ensure_ca_bundle_ready(self, any_https: bool) -> bool:
-        """Rebuild the CA bundle and confirm it is present when https backends are configured.
-
-        Returns:
-            True if the CA bundle is available (or not needed), False if it is missing or
-            could not be rebuilt.
-        """
-        if not any_https:
-            return True
-        try:
-            self._rebuild_ca_bundle()
-        except CACertificateFileError:
-            return False
-        return ca_certs.get_ca_bundle_path() is not None
 
     def _write_cache_backends(self, ported_config: dict, cache_cert_path: Path | None) -> None:
         """Write cache-backend URLs to all cache-config relation databags."""
@@ -495,14 +475,24 @@ def _certs_from_v0_unit_databags(rel: ops.Relation) -> list[str]:
     Tries "chain" first, then falls back to "ca".  "chain" may be stored
     as a JSON-encoded list or as a raw PEM string.
 
+    Note: we iterate ``rel.data`` (whose internal ``_data`` dict is populated
+    at ``Relation`` creation time) rather than ``rel.units``.  The V1
+    ``CertificateTransferRequires`` library calls ``relation.units.pop()``
+    which mutates the live ``rel.units`` set, so any code that runs
+    *after* the V1 library handler (including handlers invoked via the
+    ``certificate_set_updated`` custom event) would see an empty set if we
+    iterated ``rel.units`` instead.
+
     Args:
         rel: The cert-transfer relation.
 
     Returns:
         Cert list extracted from the first unit that has data, or empty list.
     """
-    for unit in rel.units:
-        unit_data = rel.data.get(unit)
+    for entity in rel.data:
+        if not isinstance(entity, ops.Unit):
+            continue
+        unit_data = rel.data.get(entity)
         if not unit_data:
             continue
         certs = _parse_chain_field(unit_data.get("chain", ""))

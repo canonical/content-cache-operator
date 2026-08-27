@@ -7,92 +7,48 @@ import pytest
 
 import ca_certs
 
+FAKE_SYSTEM_CA_CONTENT = "# fake system CA\n"
 
-def test_write_ca_bundle_creates_bundle_file():
+
+def test_write_ca_bundle_always_includes_system_cas():
     """
-    arrange: An empty certs directory.
-    act: Write a bundle with one cert.
-    assert: The bundle file is created with the cert content.
+    arrange: No operator certs.
+    act: Write an empty bundle.
+    assert: The bundle file is created and contains the system CAs.
     """
-    ca_certs.write_ca_bundle(["cert-content-A"])
+    ca_certs.write_ca_bundle([])
 
     assert ca_certs.CA_BUNDLE_PATH.exists()
-    assert "cert-content-A" in ca_certs.CA_BUNDLE_PATH.read_text()
+    assert FAKE_SYSTEM_CA_CONTENT in ca_certs.CA_BUNDLE_PATH.read_text()
 
 
-def test_write_ca_bundle_multiple_certs():
+def test_write_ca_bundle_appends_operator_certs():
     """
-    arrange: An empty certs directory.
-    act: Write a bundle with two certs.
-    assert: The bundle file contains both certs.
+    arrange: Operator certs provided.
+    act: Write the bundle.
+    assert: The bundle contains both system CAs and the operator certs.
     """
-    ca_certs.write_ca_bundle(["cert-A", "cert-B"])
+    ca_certs.write_ca_bundle(["operator-cert-A", "operator-cert-B"])
 
     bundle = ca_certs.CA_BUNDLE_PATH.read_text()
-    assert "cert-A" in bundle
-    assert "cert-B" in bundle
+    assert FAKE_SYSTEM_CA_CONTENT in bundle
+    assert "operator-cert-A" in bundle
+    assert "operator-cert-B" in bundle
 
 
 def test_write_ca_bundle_replaces_previous():
     """
-    arrange: A bundle already written with one cert.
-    act: Overwrite the bundle with a different cert.
-    assert: Only the new cert is in the bundle.
+    arrange: A bundle already written with one operator cert.
+    act: Overwrite the bundle with a different operator cert.
+    assert: Only the new operator cert appears alongside the system CAs.
     """
     ca_certs.write_ca_bundle(["cert-old"])
     ca_certs.write_ca_bundle(["cert-new"])
 
     bundle = ca_certs.CA_BUNDLE_PATH.read_text()
+    assert FAKE_SYSTEM_CA_CONTENT in bundle
     assert "cert-new" in bundle
     assert "cert-old" not in bundle
-
-
-def test_write_ca_bundle_empty_removes_file():
-    """
-    arrange: A bundle already written.
-    act: Write an empty list.
-    assert: The bundle file is removed.
-    """
-    ca_certs.write_ca_bundle(["cert-A"])
-
-    ca_certs.write_ca_bundle([])
-
-    assert not ca_certs.CA_BUNDLE_PATH.exists()
-
-
-def test_write_ca_bundle_empty_noop_when_no_file():
-    """
-    arrange: No bundle exists.
-    act: Write an empty list.
-    assert: No error is raised and no file is created.
-    """
-    ca_certs.write_ca_bundle([])  # should not raise
-
-    assert not ca_certs.CA_BUNDLE_PATH.exists()
-
-
-def test_get_ca_bundle_path_returns_path_when_bundle_exists():
-    """
-    arrange: A bundle written.
-    act: Call get_ca_bundle_path.
-    assert: Returns the bundle path.
-    """
-    ca_certs.write_ca_bundle(["cert-A"])
-
-    result = ca_certs.get_ca_bundle_path()
-
-    assert result == ca_certs.CA_BUNDLE_PATH
-
-
-def test_get_ca_bundle_path_returns_none_when_no_bundle():
-    """
-    arrange: No bundle written.
-    act: Call get_ca_bundle_path.
-    assert: Returns None.
-    """
-    result = ca_certs.get_ca_bundle_path()
-
-    assert result is None
 
 
 def test_write_ca_bundle_has_correct_permissions():

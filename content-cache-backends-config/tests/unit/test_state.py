@@ -59,18 +59,34 @@ def test_valid_config():
 
 def test_https_backends():
     """
-    arrange: Mock charm with https URL-format backends configuration.
+    arrange: Mock charm with https URL-format backends configuration and backend-hostname set.
     act: Create the configuration from the charm.
     assert: Backends parsed with https scheme.
     """
     charm = MockCharmFactory()
     charm.config[BACKENDS_CONFIG_NAME] = "https://10.10.1.1:443,https://10.10.2.2:443"
+    charm.config["backend-hostname"] = "backend.example.com"
 
     config = Configuration.from_charm(charm)
 
     assert len(config.backends) == 2
     assert config.backends[0].scheme == "https"
     assert config.backends[1].scheme == "https"
+
+
+def test_https_backends_without_hostname_raises():
+    """
+    arrange: Mock charm with https backends but no backend-hostname.
+    act: Create the configuration from the charm.
+    assert: ConfigurationError raised.
+    """
+    charm = MockCharmFactory()
+    charm.config[BACKENDS_CONFIG_NAME] = "https://10.10.1.1:443"
+
+    with pytest.raises(ConfigurationError) as err:
+        Configuration.from_charm(charm)
+
+    assert "backend-hostname is required when backends use https://" in str(err.value)
 
 
 @pytest.mark.parametrize(
@@ -318,3 +334,32 @@ def test_invalid_healthcheck_interval(bad_value, error_msg):
         Configuration.from_charm(charm)
 
     assert str(err.value) == f"Config error: ['interval = {bad_value}: {error_msg}']"
+
+
+def test_configuration_from_charm_with_backend_hostname():
+    """
+    arrange: Charm config includes backend-hostname.
+    act: Call Configuration.from_charm.
+    assert: Configuration has backend_hostname set.
+    """
+    charm = MockCharmFactory()
+    charm.config["backend-hostname"] = "backend.example.com"
+
+    config = Configuration.from_charm(charm)
+
+    assert config.backend_hostname == "backend.example.com"
+
+
+def test_configuration_to_integration_data_includes_backend_hostname():
+    """
+    arrange: Configuration with backend-hostname set.
+    act: Call to_integration_data.
+    assert: backend_hostname appears in the output dict.
+    """
+    charm = MockCharmFactory()
+    charm.config["backend-hostname"] = "backend.example.com"
+
+    config = Configuration.from_charm(charm)
+    data = config.to_integration_data()
+
+    assert data["backend_hostname"] == "backend.example.com"

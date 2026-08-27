@@ -24,6 +24,28 @@ HEALTHCHECK_PATH_CONFIG_NAME = "healthcheck-path"
 HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
 HEALTHCHECK_VALID_STATUS_CONFIG_NAME = "healthcheck-valid-status"
 PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
+BACKEND_HOSTNAME_CONFIG_NAME = "backend-hostname"
+
+
+def _validate_hostname_value(value: str) -> str:
+    """Validate the value as a hostname."""
+    if len(value) > 255:
+        raise ValueError("Hostname cannot be longer than 255")
+
+    # (?!-)        — segment must not start with a hyphen
+    # [A-Z\d-]{1,63} — segment consists of alphanumeric characters and hyphens, max 63 chars
+    # (?<!-)$      — segment must not end with a hyphen
+    valid_segment = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
+    for segment in value.split("."):
+        if valid_segment.fullmatch(segment) is None:
+            raise ValueError(
+                (
+                    "Each Hostname segment must be less than 64 in length, and consist of "
+                    "alphanumeric and hyphen"
+                )
+            )
+
+    return value
 
 
 def _validate_path_value(value: str) -> str:
@@ -49,6 +71,13 @@ def _validate_path_value(value: str) -> str:
     if valid_path.fullmatch(value) is None:
         raise ValueError("Path contains non-allowed character")
     return value
+
+
+def _validate_optional_hostname_value(value: str) -> str:
+    """Validate an optional hostname value."""
+    if not value:
+        return value
+    return _validate_hostname_value(value)
 
 
 class HealthcheckConfig(pydantic.BaseModel):
@@ -116,12 +145,30 @@ class Configuration(pydantic.BaseModel):
         fail_timeout: The time to wait before using a backend after failure.
         proxy_cache_valid: The cache valid duration.
         healthcheck: The healthcheck configuration.
+        backend_hostname: Hostname used for backend SNI and Host header.
     """
 
     backends: tuple[pydantic.AnyHttpUrl, ...]
     fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     proxy_cache_valid: tuple[str, ...]
     healthcheck: HealthcheckConfig
+    backend_hostname: typing.Annotated[
+        str, pydantic.AfterValidator(_validate_optional_hostname_value)
+    ] = ""
+
+    @pydantic.model_validator(mode="after")
+    def validate_hostname_required_for_https(self) -> "Configuration":
+        """Validate that backend_hostname is set when backends use HTTPS.
+
+        Raises:
+            ValueError: backend-hostname is required for https backends.
+
+        Returns:
+            The validated model instance.
+        """
+        if any(url.scheme == "https" for url in self.backends) and not self.backend_hostname:
+            raise ValueError("backend-hostname is required when backends use https://")
+        return self
 
     @pydantic.field_validator("backends")
     @classmethod
@@ -191,6 +238,9 @@ class Configuration(pydantic.BaseModel):
         proxy_cache_valid_str = typing.cast(
             str, charm.config.get(PROXY_CACHE_VALID_CONFIG_NAME, "")
         ).strip()
+        backend_hostname = typing.cast(
+            str, charm.config.get(BACKEND_HOSTNAME_CONFIG_NAME, "")
+        ).strip()
 
         backends = tuple(url.strip() for url in backends_str.split(","))
         try:
@@ -207,16 +257,20 @@ class Configuration(pydantic.BaseModel):
         healthcheck_config = HealthcheckConfig.from_charm(charm)
 
         try:
-            # Ignore type check and let pydantic handle the type with validation errors.
+            # Pydantic's AfterValidator-annotated fields accept plain str at construction time,
+            # but mypy cannot infer this from the annotated type alone; hence the type ignores.
             return cls(
                 backends=backends,  # type: ignore
                 fail_timeout=fail_timeout,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck=healthcheck_config,
+                backend_hostname=backend_hostname,
             )
         except pydantic.ValidationError as err:
             err_msg = [
-                f'{error["loc"][0]} = {error["input"]}: {error["msg"]}' for error in err.errors()
+                f'{error["loc"][0] if error["loc"] else "model"}'
+                f' = {error["input"]}: {error["msg"]}'
+                for error in err.errors()
             ]
             logger.error("Found config error: %s", err_msg)
             raise ConfigurationError(f"Config error: {err_msg}") from err
