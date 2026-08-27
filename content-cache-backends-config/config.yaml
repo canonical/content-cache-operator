@@ -52,6 +52,6 @@ options:
       The hostname to use as the SNI and HTTP Host header when proxying to HTTPS backends.
       Required when backends use https://. Must be a valid DNS hostname (max 255 characters,
       alphanumeric segments separated by dots).
-      Example: backend-hostname=radosgw.ps7.canonical.com
+      Example: backend-hostname=backend.example.com
     type: string
     default: ""

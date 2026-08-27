@@ -156,6 +156,22 @@ class Configuration(pydantic.BaseModel):
         str, pydantic.AfterValidator(_validate_optional_hostname_value)
     ] = ""
 
+    @pydantic.model_validator(mode="after")
+    def validate_hostname_required_for_https(self) -> "Configuration":
+        """Validate that backend_hostname is set when backends use HTTPS.
+
+        Raises:
+            ValueError: backend-hostname is required for https backends.
+
+        Returns:
+            The validated model instance.
+        """
+        if any(url.scheme == "https" for url in self.backends) and not self.backend_hostname:
+            raise ValueError(
+                "backend-hostname is required when backends use https://"
+            )
+        return self
+
     @pydantic.field_validator("backends")
     @classmethod
     def validate_backends_scheme(
@@ -254,7 +270,8 @@ class Configuration(pydantic.BaseModel):
             )
         except pydantic.ValidationError as err:
             err_msg = [
-                f'{error["loc"][0]} = {error["input"]}: {error["msg"]}' for error in err.errors()
+                f'{error["loc"][0] if error["loc"] else "model"} = {error["input"]}: {error["msg"]}'
+                for error in err.errors()
             ]
             logger.error("Found config error: %s", err_msg)
             raise ConfigurationError(f"Config error: {err_msg}") from err

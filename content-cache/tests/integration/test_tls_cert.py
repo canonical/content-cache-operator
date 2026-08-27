@@ -67,7 +67,7 @@ async def test_certificate_transfer_full_lifecycle(
     config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = str(HEALTHCHECK_INTERVAL)
     config[HEALTHCHECK_SSL_VERIFY_CONFIG_NAME] = "false"
     config[HEALTHCHECK_VALID_STATUS_CONFIG_NAME] = "200"
-    config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 10s"]'
+    config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 1s"]'
     await cache_tester.setup_config(config)
     await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
     await asyncio.sleep(5 * HEALTHCHECK_INTERVAL / 1000)
