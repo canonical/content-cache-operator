@@ -33,13 +33,11 @@ In this documentation
 .. list-table::
     :header-rows: 0
 
-    * - Deployment
-      - :ref:`Enable COS <how_to_enable_cos>`
-    * - Operations
-      - :ref:`Upgrade <how_to_upgrade>`
-    * - Design
+    * - **Operations**
+      - :ref:`Enable COS <how_to_enable_cos>` | :ref:`Upgrade <how_to_upgrade>`
+    * - **Design**
       - :ref:`Caching behavior <explanation_caching_behavior>` | :ref:`Charm design <explanation_charm_design>` | :ref:`Components <reference_components>`
-    * - Security
+    * - **Security**
       - :ref:`Overview <explanation_security>` | :ref:`Connect to HTTPS backends <how_to_enable_https>`
 
 How this documentation is organized
