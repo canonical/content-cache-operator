@@ -109,7 +109,7 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
     logger.info("Installing and enabling nginx")
     # The install, systemctl enable, and systemctl start are idempotent.
     return_code, _, stderr = execute_command(
-        ["sudo", "apt", "install", "nginx", "lua-resty-core", "-yq"]
+        ["sudo", "apt", "install", "nginx", "lua-resty-core", "ca-certificates", "-yq"]
     )
     if return_code != 0:
         raise NginxSetupError(f"Failed to install nginx: {stderr}")
