@@ -167,9 +167,7 @@ class Configuration(pydantic.BaseModel):
             The validated model instance.
         """
         if any(url.scheme == "https" for url in self.backends) and not self.backend_hostname:
-            raise ValueError(
-                "backend-hostname is required when backends use https://"
-            )
+            raise ValueError("backend-hostname is required when backends use https://")
         return self
 
     @pydantic.field_validator("backends")
@@ -270,7 +268,8 @@ class Configuration(pydantic.BaseModel):
             )
         except pydantic.ValidationError as err:
             err_msg = [
-                f'{error["loc"][0] if error["loc"] else "model"} = {error["input"]}: {error["msg"]}'
+                f'{error["loc"][0] if error["loc"] else "model"}'
+                f' = {error["input"]}: {error["msg"]}'
                 for error in err.errors()
             ]
             logger.error("Found config error: %s", err_msg)
