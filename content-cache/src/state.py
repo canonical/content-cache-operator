@@ -23,6 +23,7 @@ HEALTHCHECK_PATH_FIELD_NAME = "healthcheck_path"
 HEALTHCHECK_SSL_VERIFY_FIELD_NAME = "healthcheck_ssl_verify"
 HEALTHCHECK_VALID_STATUS_FIELD_NAME = "healthcheck_valid_status"
 PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
+BACKEND_HOSTNAME_FIELD_NAME = "backend_hostname"
 
 
 def _validate_hostname_value(value: str) -> str:
@@ -80,6 +81,13 @@ def _validate_path_value(value: str) -> str:
     if valid_path.fullmatch(value) is None:
         raise ValueError("Path contains non-allowed character")
     return value
+
+
+def _validate_optional_hostname_value(value: str) -> str:
+    """Validate an optional hostname value."""
+    if not value:
+        return value
+    return _validate_hostname_value(value)
 
 
 class HealthcheckConfig(pydantic.BaseModel):
@@ -147,12 +155,16 @@ class LocationConfig(pydantic.BaseModel):
         fail_timeout: The time to wait before using a backend after failure.
         proxy_cache_valid: The cache valid duration.
         healthcheck_config: The healthcheck configuration.
+        backend_hostname: Hostname used for backend SNI and Host header.
     """
 
     backends: tuple[pydantic.AnyHttpUrl, ...]
     fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
     proxy_cache_valid: tuple[str, ...]
     healthcheck_config: HealthcheckConfig
+    backend_hostname: typing.Annotated[
+        str, pydantic.AfterValidator(_validate_optional_hostname_value)
+    ] = ""
 
     @pydantic.field_validator("backends")
     @classmethod
@@ -209,6 +221,21 @@ class LocationConfig(pydantic.BaseModel):
             _check_nginx_time_str(time_str)
         return value
 
+    @pydantic.model_validator(mode="after")
+    def validate_https_requires_backend_hostname(self) -> "LocationConfig":
+        """Validate that HTTPS backends provide backend-hostname.
+
+        Raises:
+            ValueError: backend-hostname is missing for an HTTPS backend.
+
+        Returns:
+            The validated location configuration.
+        """
+        if self.backends and self.backends[0].scheme == "https":
+            if not self.backend_hostname:
+                raise ValueError("backend-hostname is required for HTTPS backends")
+        return self
+
     @classmethod
     def from_integration_data(cls, data: ops.RelationDataContent) -> "LocationConfig":
         """Initialize object from the charm.
@@ -225,6 +252,7 @@ class LocationConfig(pydantic.BaseModel):
         backends_str = data.get(BACKENDS_FIELD_NAME, "").strip()
         fail_timeout = data.get(FAIL_TIMEOUT_FIELD_NAME, "").strip()
         proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
+        backend_hostname = data.get(BACKEND_HOSTNAME_FIELD_NAME, "").strip()
 
         proxy_cache_valid = _parse_list(
             PROXY_CACHE_VALID_FIELD_NAME, proxy_cache_valid_str, raise_if_empty=False
@@ -240,10 +268,12 @@ class LocationConfig(pydantic.BaseModel):
                 fail_timeout=fail_timeout,
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck_config=healthcheck_config,
+                backend_hostname=backend_hostname,
             )
         except pydantic.ValidationError as err:
             err_msg = [
-                f'{error["loc"][0]} = {error["input"]}: {error["msg"]}' for error in err.errors()
+                f'{error["loc"][0] if error["loc"] else "model"} = {error["input"]}: {error["msg"]}'
+                for error in err.errors()
             ]
             logger.error("Found integration data error: %s", err_msg)
             raise ConfigurationError(f"Config error: {err_msg}") from err

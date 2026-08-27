@@ -47,3 +47,11 @@ options:
       (https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid).
     type: string
     default: '[]'
+  backend-hostname:
+    description: |
+      The hostname to use as the SNI and HTTP Host header when proxying to HTTPS backends.
+      Required when backends use https://. Must be a valid DNS hostname (max 255 characters,
+      alphanumeric segments separated by dots).
+      Example: backend-hostname=backend.example.com
+    type: string
+    default: ""

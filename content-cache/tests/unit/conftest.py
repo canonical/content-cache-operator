@@ -36,8 +36,12 @@ SAMPLE_INTEGRATION_DATA = {
 def patch_ca_certs_fixture(monkeypatch, tmp_path: Path) -> None:
     """Patch the ca_certs module to use a temporary directory."""
     certs_dir = tmp_path / "certs"
+    certs_dir.mkdir(parents=True, exist_ok=True)
+    system_ca_file = tmp_path / "ca-certificates.crt"
+    system_ca_file.write_text("# fake system CA\n", encoding="utf-8")
     monkeypatch.setattr("ca_certs.CA_CERTS_DIR", certs_dir)
     monkeypatch.setattr("ca_certs.CA_BUNDLE_PATH", certs_dir / "ca-bundle.pem")
+    monkeypatch.setattr("ca_certs.SYSTEM_CA_BUNDLE_PATH", system_ca_file)
 
 
 @pytest.fixture(name="patch_nginx_manager", scope="function")

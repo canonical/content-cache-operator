@@ -254,14 +254,15 @@ async def https_ok_app_fixture(
 
 @pytest_asyncio.fixture(name="https_cert_ok_app", scope="module")
 async def https_cert_ok_app_fixture(
-    model: Model, http_ok_message: str, cert_app: Application
+    model: Model, http_ok_message: str
 ) -> AsyncIterator[Application]:
-    """HTTPS test app that gets its cert signed by cert_app's CA.
+    """HTTPS test app that generates its own local CA and server cert.
 
-    The backend cert is trusted by the cert_app CA bundle, so proxy_ssl_verify
-    will pass when content-cache receives the CA via receive-ca-cert.  The Lua
-    health checker uses the system cert store, so ssl_verify=true still fails for
-    self-signed CAs that are not installed system-wide.
+    The backend cert is signed by the app's own CA (not in Ubuntu's system CA store).
+    The app provides ``send-ca-cert`` so the CA can be pushed into a content-cache's
+    combined bundle via ``receive-ca-cert``, after which ``proxy_ssl_verify`` will pass.
+    The Lua health checker uses the system cert store, so ssl_verify=true still fails for
+    CAs that are not installed system-wide.
     """
     app = await deploy_self_cert_https_app(
         app_name="https-cert-ok",
@@ -269,10 +270,6 @@ async def https_cert_ok_app_fixture(
         status=200,
         message=http_ok_message,
         model=model,
-    )
-    await model.integrate(
-        f"{app.name}:require-tls-certificates",
-        f"{cert_app.name}:certificates",
     )
     await model.wait_for_idle([app.name], status="active", timeout=15 * 60)
 

@@ -71,17 +71,33 @@ def test_config_with_invalid_backends_integration_data(invalid_backends, error_m
 
 def test_config_https_backends_integration_data():
     """
-    arrange: Valid sample integration data with https URL backends.
+    arrange: Valid sample integration data with https URL backends and required HTTPS fields.
     act: Create the config from the data.
     assert: The configurations are correctly parsed with https scheme.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
     data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443", "https://10.10.2.2:443"]'
+    data["backend_hostname"] = "test.example.com"
     config = LocationConfig.from_integration_data(data)
 
     assert len(config.backends) == 2
     assert config.backends[0].scheme == "https"
     assert config.backends[1].scheme == "https"
+
+
+def test_config_https_backends_require_backend_fields():
+    """
+    arrange: HTTPS integration data without backend-hostname.
+    act: Create the config from the data.
+    assert: ConfigurationError is raised.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+
+    with pytest.raises(ConfigurationError) as err:
+        LocationConfig.from_integration_data(data)
+
+    assert "backend-hostname is required" in str(err.value)
 
 
 def test_config_mixed_scheme_raises():
