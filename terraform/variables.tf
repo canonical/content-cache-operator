@@ -7,6 +7,12 @@ variable "model" {
   default     = "content-cache"
 }
 
+variable "model_owner" {
+  description = "Owner of the existing Juju model to deploy into (see 'juju show-model')."
+  type        = string
+  default     = "admin"
+}
+
 variable "content_cache_channel" {
   description = "The channel to use when deploying the content-cache charm."
   type        = string

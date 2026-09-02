@@ -2,7 +2,8 @@
 # See LICENSE file for licensing details.
 
 data "juju_model" "cache" {
-  name = var.model
+  name  = var.model
+  owner = var.model_owner
 }
 
 module "content_cache" {
