@@ -1,4 +1,4 @@
-# Copyright 2025 Canonical Ltd.
+# Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 terraform {
@@ -33,11 +33,13 @@ resource "juju_integration" "content_cache_certificates" {
   model_uuid = var.model_uuid
 
   application {
-    name = "content-cache"
+    name     = "content-cache"
+    endpoint = "certificates"
   }
 
   application {
-    name = juju_application.self_signed_certificates.name
+    name     = juju_application.self_signed_certificates.name
+    endpoint = "certificates"
   }
 }
 

@@ -2,8 +2,8 @@
 
 This folder contains an example [Terraform][Terraform] deployment that composes the
 `content-cache` and `content-cache-backends-config` base modules together with a
-`self-signed-certificates` provider. It mirrors the topology used for staging (see
-`is-stg-content-cache`) so that the stack can be brought up for a GitOps / staging test.
+`self-signed-certificates` provider, so that the stack can be brought up for a GitOps /
+staging test.
 
 It deploys and integrates:
 
