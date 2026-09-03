@@ -1,6 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "automerge": true,
+  "customDatasources": {
+    "charmhubLatestEdge": {
+      "defaultRegistryUrlTemplate": "https://api.charmhub.io/v2/charms/info/{{packageName}}?fields=channel-map",
+      "format": "json",
+      "transformTemplates": [
+        "{\"releases\": [{\"version\": $string($$.(`channel-map`[channel.risk = 'edge' and channel.track = 'latest' and channel.base.architecture = 'amd64' and channel.base.channel = '24.04'].revision.revision))}]}"
+      ]
+    },
+    "charmhubTrack1Edge": {
+      "defaultRegistryUrlTemplate": "https://api.charmhub.io/v2/charms/info/{{packageName}}?fields=channel-map",
+      "format": "json",
+      "transformTemplates": [
+        "{\"releases\": [{\"version\": $string($$.(`channel-map`[channel.risk = 'edge' and channel.track = '1' and channel.base.architecture = 'amd64' and channel.base.channel = '24.04'].revision.revision))}]}"
+      ]
+    }
+  },
   "customManagers": [
     {
       "currentValueTemplate": "master",
@@ -31,11 +47,47 @@
       ],
       "matchStringsStrategy": "any",
       "packageNameTemplate": "https://github.com/openresty/lua-upstream-nginx-module.git"
+    },
+    {
+      "customType": "regex",
+      "datasourceTemplate": "custom.charmhubTrack1Edge",
+      "description": "Update pinned content-cache charm revision (track 1) in Terraform module tests",
+      "fileMatch": [
+        "^content-cache/terraform/.*\\.tftest\\.hcl$",
+        "^content-cache/terraform/.*\\.tf$"
+      ],
+      "matchStrings": [
+        "# renovate: depName=\"(?<packageName>[^\"]+)\"\\s*\\n\\s*(?<fieldName>[a-zA-Z0-9_]+)\\s*=\\s*(?<currentValue>\\d+)"
+      ],
+      "versioningTemplate": "semver-coerced"
+    },
+    {
+      "customType": "regex",
+      "datasourceTemplate": "custom.charmhubLatestEdge",
+      "description": "Update pinned content-cache-backends-config charm revision (latest track) in Terraform module tests",
+      "fileMatch": [
+        "^content-cache-backends-config/terraform/.*\\.tftest\\.hcl$",
+        "^content-cache-backends-config/terraform/.*\\.tf$"
+      ],
+      "matchStrings": [
+        "# renovate: depName=\"(?<packageName>[^\"]+)\"\\s*\\n\\s*(?<fieldName>[a-zA-Z0-9_]+)\\s*=\\s*(?<currentValue>\\d+)"
+      ],
+      "versioningTemplate": "semver-coerced"
     }
   ],
   "extends": [
     "config:recommended",
     "group:all"
+  ],
+  "packageRules": [
+    {
+      "automerge": true,
+      "enabled": true,
+      "matchDatasources": [
+        "custom.charmhubLatestEdge",
+        "custom.charmhubTrack1Edge"
+      ]
+    }
   ],
   "schedule": [
     "* * * * 0,6"

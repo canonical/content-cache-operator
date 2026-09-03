@@ -14,7 +14,7 @@ terraform {
 provider "juju" {}
 
 resource "juju_model" "test_model" {
-  name = "tf-testing-cc-backends-config"
+  name = "tf-testing-content-cache-backends-config"
 }
 
 output "model_uuid" {

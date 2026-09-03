@@ -44,11 +44,11 @@ variable "backends_config_revision" {
 }
 
 variable "backends_config" {
-  description = "Configuration for the content-cache-backends-config charm (location and backends)."
+  description = "Configuration for the content-cache-backends-config charm (location and backends). The default is a placeholder; override it with your own backend(s)."
   type        = map(string)
   default = {
-    backends               = "91.189.95.14"
-    hostname               = "discourse.staging.ubuntu.com"
+    backends               = "203.0.113.10"
+    hostname               = "example.com"
     protocol               = "https"
     healthcheck-ssl-verify = "false"
   }
