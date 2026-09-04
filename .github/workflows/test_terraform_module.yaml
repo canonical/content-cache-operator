@@ -1,0 +1,37 @@
+# Copyright 2026 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+name: Test Terraform Module
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "content-cache/terraform/**"
+      - "content-cache-backends-config/terraform/**"
+      - "terraform/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test-terraform:
+    uses: canonical/operator-workflows/.github/workflows/terraform_modules_test.yaml@main
+    with:
+      lxd-controller: true
+      k8s-controller: false
+      terraform-directories: '["content-cache/terraform", "content-cache-backends-config/terraform"]'
+  test-terraform-composition:
+    # Validates the example composition's wiring (module sources, variable
+    # pass-through, integration endpoints) using Terraform's native mock
+    # provider. This does not require a Juju controller, unlike the base
+    # module tests above.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install Terraform
+        run: sudo snap install terraform --classic
+      - name: Terraform init & test
+        run: |
+          terraform init -backend=false -input=false
+          terraform test
+        working-directory: ./terraform
