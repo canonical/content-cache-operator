@@ -280,6 +280,24 @@ def test_unique_port_allocated_per_relation(
     assert port_2 >= NGINX_PORT_RANGE_START
 
 
+def test_port_allocation_order_is_deterministic(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A leader charm with no ports allocated yet.
+    act: Allocate ports for several relations that all become valid in one reconcile,
+        passing their ids in a deliberately unsorted order.
+    assert: Ports are assigned by ascending relation id, regardless of input/set
+        iteration order, so allocation is reproducible.
+    """
+    relation_ids = {30, 10, 20}
+
+    port_map = charm._ensure_ports(relation_ids, relation_ids)
+
+    ports_by_id = {rid: port_map[str(rid)] for rid in relation_ids}
+    assert ports_by_id[10] < ports_by_id[20] < ports_by_id[30]
+
+
 def test_port_stable_for_same_relation(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):

@@ -452,8 +452,8 @@ def has_related_application(app: Application, endpoint_name: str) -> bool:
     for rel in app.relations:
         if rel.is_peer:
             continue
-        local_ep = next(ep for ep in rel.endpoints if ep.application_name == app.name)
-        if local_ep.name == endpoint_name:
+        local_ep = next((ep for ep in rel.endpoints if ep.application_name == app.name), None)
+        if local_ep is not None and local_ep.name == endpoint_name:
             return True
     return False
 

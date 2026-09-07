@@ -56,8 +56,8 @@ NGINX_PORT_RANGE_START = 30000
 NGINX_PORT_RANGE_SIZE = 200
 
 PEER_RELATION_NAME = "content-cache-peers"
-PORT_MAP_FIELD = "port_map"
-NEXT_OFFSET_FIELD = "next_offset"
+PORT_MAP_FIELD = "port-map"
+NEXT_OFFSET_FIELD = "next-offset"
 
 
 class ContentCacheCharm(ops.CharmBase):
@@ -472,7 +472,7 @@ class ContentCacheCharm(ops.CharmBase):
                 changed = True
 
         used = set(port_map.values())
-        for rid in valid_relation_ids:
+        for rid in sorted(valid_relation_ids):
             key = str(rid)
             if key in port_map:
                 continue
@@ -495,7 +495,7 @@ class ContentCacheCharm(ops.CharmBase):
             next_offset = 0
 
         if changed:
-            rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map)
+            rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map, sort_keys=True)
             rel.data[self.app][NEXT_OFFSET_FIELD] = str(next_offset)
         return port_map
 
@@ -517,7 +517,7 @@ class ContentCacheCharm(ops.CharmBase):
             return
         del port_map[str(relation_id)]
         next_offset = 0 if not port_map else self._read_next_offset()
-        rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map)
+        rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map, sort_keys=True)
         rel.data[self.app][NEXT_OFFSET_FIELD] = str(next_offset)
 
     def _nginx_initialize(self) -> None:
