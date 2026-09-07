@@ -159,6 +159,7 @@ class ContentCacheCharm(ops.CharmBase):
     def _on_cache_config_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
         """Handle config relation broken event."""
         event.relation.data[self.unit]["cache-backend"] = ""
+        self._release_port(event.relation.id)
         self._load_nginx_config(broken_relation_id=event.relation.id)
 
     def _on_peer_relation_changed(self, _: ops.RelationChangedEvent) -> None:
@@ -457,6 +458,27 @@ class ContentCacheCharm(ops.CharmBase):
             rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map)
             rel.data[self.app][NEXT_OFFSET_FIELD] = str(next_offset)
         return port_map
+
+    def _release_port(self, relation_id: int) -> None:
+        """Leader-only: remove a relation's port from the peer map.
+
+        Called on cache-config relation-broken so the port is freed even when no
+        valid config remains (in which case reconcile early-returns before
+        ``_ensure_ports`` would prune it).
+
+        Args:
+            relation_id: The id of the departing cache-config relation.
+        """
+        rel = self._peer_relation()
+        if rel is None or not self.unit.is_leader():
+            return
+        port_map = self._read_port_map()
+        if str(relation_id) not in port_map:
+            return
+        del port_map[str(relation_id)]
+        next_offset = 0 if not port_map else self._read_next_offset()
+        rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map)
+        rel.data[self.app][NEXT_OFFSET_FIELD] = str(next_offset)
 
     def _nginx_initialize(self) -> None:
         """Initialize the nginx instance.

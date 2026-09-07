@@ -390,6 +390,27 @@ def test_relation_broken_clears_cache_backends(
     assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
 
 
+def test_relation_broken_prunes_peer_port_map(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A leader charm with a cache-config relation that has a port allocated.
+    act: Remove the relation.
+    assert: The port is removed from the peer databag map and the charm blocks.
+    """
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    assert str(relation_id) in _peer_port_map(harness, charm)
+
+    harness.remove_relation(relation_id)
+
+    assert str(relation_id) not in _peer_port_map(harness, charm)
+    assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
+
+
 def test_cache_backend_cleared_when_config_fails(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):
