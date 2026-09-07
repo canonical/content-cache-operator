@@ -70,23 +70,33 @@ directive (set at the server block level) ties this location to its dedicated ca
 
 The charm allocates a unique TCP port to each `cache-config` relation. Ports are assigned
 from a fixed range starting at `30000` and are stable across charm restarts. The same
-relation always receives the same port for the lifetime of that relation, stored via Juju's
-`StoredState`.
+relation always receives the same port for its lifetime.
+
+To keep the backend list consumers see uniform, **all units of the content-cache
+application serve a given relation on the same port**. Port assignments are coordinated
+through a peer relation (`content-cache-peers`): the **leader** unit is the sole allocator
+and writes the relation-to-port map into the peer relation's application databag, which is
+the single source of truth. Every unit (leader and followers) reads that map and configures
+its nginx to listen on the assigned port. A follower that has not yet observed a port for a
+relation reports a waiting status until the leader publishes it.
 
 Ports are allocated monotonically, so that when a relation is removed
 and a new one is added, the new relation receives the next port in sequence rather than
 immediately reusing the freed port. This maximises the time before a port number is reused,
-reducing the risk of ingress routing conflicts during rapid relation cycling.
+reducing the risk of ingress routing conflicts during rapid relation cycling. Because the
+allocation state lives in the peer application databag, it survives leader changes: a newly
+elected leader continues from the existing map without reallocating ports.
 
-This means each configured backend is reachable at a distinct port on the content-cache
-unit's IP address:
+This means each configured backend is reachable at the same port across every unit, on that
+unit's own IP address:
 
 - `http://<unit-ip>:30000` contains the backends for the first `cache-config` relation
 - `http://<unit-ip>:30001` contains the backends for the second `cache-config` relation
 
 An ingress component (such as `haproxy` with the `ingress-configurator` charm) is expected
-to sit in front of the content-cache unit and route incoming requests to the appropriate
-port based on hostname or path rules.
+to sit in front of the content-cache units and route incoming requests to the appropriate
+port based on hostname or path rules, load-balancing across the units of a relation (same
+port, distinct IPs).
 
 ## Cache storage
 
