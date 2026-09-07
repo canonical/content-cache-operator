@@ -17,6 +17,7 @@ from helpers import (
     CacheTester,
     get_app_ip,
     get_cache_backend,
+    has_related_application,
     run_in_unit,
 )
 from juju.application import Application
@@ -97,7 +98,7 @@ async def test_certificate_transfer_full_lifecycle(
             response.status_code == 502
         ), "Expected 502 after cert-transfer removal: CA untrusted"
     finally:
-        if app.related_applications(CERTIFICATE_TRANSFER_INTEGRATION_NAME):
+        if has_related_application(app, CERTIFICATE_TRANSFER_INTEGRATION_NAME):
             await app.remove_relation(
                 CERTIFICATE_TRANSFER_INTEGRATION_NAME, https_cert_ok_app.name
             )
@@ -164,5 +165,5 @@ async def test_tls_termination_full_lifecycle(
     finally:
         # Ensure the certificates relation is removed even if the test fails.
         # Do NOT use block_until_done=True here — it has no timeout and can hang forever.
-        if app.related_applications(CERTIFICATES_INTEGRATION_NAME):
+        if has_related_application(app, CERTIFICATES_INTEGRATION_NAME):
             await app.remove_relation(CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name)

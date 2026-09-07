@@ -433,6 +433,31 @@ async def deploy_self_cert_https_app(
     return app
 
 
+def has_related_application(app: Application, endpoint_name: str) -> bool:
+    """Check whether the app has a relation on the given local endpoint.
+
+    A peer-relation-safe replacement for ``Application.related_applications``,
+    which raises ``ValueError: not enough values to unpack`` when the app (such as
+    content-cache, which declares a ``content-cache-peers`` peer relation) has any
+    peer relation: python-libjuju unconditionally unpacks ``Relation.endpoints`` as
+    a 2-tuple, but peer relations only ever have a single endpoint entry.
+
+    Args:
+        app: The application to check.
+        endpoint_name: The local endpoint name to look for.
+
+    Returns:
+        True if the app has an active relation on the given endpoint.
+    """
+    for rel in app.relations:
+        if rel.is_peer:
+            continue
+        local_ep = next(ep for ep in rel.endpoints if ep.application_name == app.name)
+        if local_ep.name == endpoint_name:
+            return True
+    return False
+
+
 async def get_app_ip(app: Application) -> str:
     """Get the IP for a unit of the application.
 
