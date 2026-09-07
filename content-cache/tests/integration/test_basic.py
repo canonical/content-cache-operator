@@ -5,6 +5,7 @@
 
 import json
 from asyncio import sleep
+from urllib.parse import urlparse
 
 import pytest
 from juju.application import Application
@@ -272,3 +273,15 @@ async def test_cache_backends_published(
 
     assert backend.startswith("http://")
     assert ":30000" in backend or ":30001" in backend
+
+    # Scale to 2 units: every unit must serve this relation on the SAME port
+    # (with distinct IPs), proving cross-unit port synchronization via the peer relation.
+    await app.add_unit(count=1)
+    await model.wait_for_idle([app.name], status="active", timeout=10 * 60)
+
+    backends = [await get_cache_backend(cache_unit) for cache_unit in app.units]
+    assert len(backends) >= 2, f"expected >= 2 content-cache units, got {backends}"
+    ports = {urlparse(cache_backend).port for cache_backend in backends}
+    hosts = {urlparse(cache_backend).hostname for cache_backend in backends}
+    assert len(ports) == 1, f"expected one shared port, got {ports} from {backends}"
+    assert len(hosts) == len(backends), f"expected distinct IPs per unit, got {hosts}"
