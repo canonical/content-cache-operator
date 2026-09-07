@@ -462,6 +462,38 @@ def test_relation_broken_prunes_peer_port_map(
     assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
 
 
+def test_relation_broken_excludes_stale_config_for_departing_relation(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A leader charm with a port already allocated for a relation, then release it
+        as `_on_cache_config_relation_broken` would.
+    act: Resolve the ported config with a stale ``nginx_config`` entry that still contains
+        the departing relation, as can happen when remote data for the breaking relation
+        is still visible.
+    assert: The departing relation is excluded from both port allocation and the returned
+        config (i.e. its port is not re-added to the peer map and it is not republished).
+    """
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    assert str(relation_id) in _peer_port_map(harness, charm)
+
+    charm._release_port(relation_id)
+    assert str(relation_id) not in _peer_port_map(harness, charm)
+
+    stale_nginx_config = {relation_id: MagicMock()}
+    resolved = charm._resolve_ported_config(stale_nginx_config, broken_relation_id=relation_id)
+
+    assert resolved is not None
+    ported_config, awaiting_port = resolved
+    assert relation_id not in ported_config
+    assert awaiting_port is False
+    assert str(relation_id) not in _peer_port_map(harness, charm)
+
+
 def test_cache_backend_cleared_when_config_fails(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):

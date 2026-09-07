@@ -163,7 +163,15 @@ class ContentCacheCharm(ops.CharmBase):
         self._load_nginx_config(broken_relation_id=event.relation.id)
 
     def _on_peer_relation_changed(self, _: ops.RelationChangedEvent) -> None:
-        """Handle peer relation changed: re-derive nginx from the shared port map."""
+        """Handle peer relation changed: re-derive nginx from the shared port map.
+
+        Peer relation-created can fire before the ``start`` hook has installed nginx
+        (e.g. on unit add). Skip reconciling in that case; ``_on_start`` will load the
+        config once nginx is installed, and later cache-config/peer events will pick up
+        any port map changes missed in the meantime.
+        """
+        if not Path(nginx_manager.NGINX_BIN).exists():
+            return
         self._load_nginx_config()
 
     def _rebuild_ca_bundle(self) -> None:
@@ -265,7 +273,10 @@ class ContentCacheCharm(ops.CharmBase):
 
         Args:
             nginx_config: The valid per-relation nginx configuration.
-            broken_relation_id: Id of a departing relation to exclude from pruning, if any.
+            broken_relation_id: Id of a departing relation to exclude from allocation,
+                publication and pruning, if any. During relation-broken, remote data for
+                this relation may still be visible to ops, so it must be excluded
+                explicitly rather than relying on it being absent from ``nginx_config``.
 
         Returns:
             A ``(ported_config, awaiting_port)`` tuple, or None if the peer relation is not
@@ -276,6 +287,13 @@ class ContentCacheCharm(ops.CharmBase):
             self.unit.status = ops.WaitingStatus(WAIT_FOR_PORT_MESSAGE)
             self._clear_cache_backend()
             return None
+
+        if broken_relation_id is not None:
+            nginx_config = {
+                rel_id: config
+                for rel_id, config in nginx_config.items()
+                if rel_id != broken_relation_id
+            }
 
         existing_ids = {rel.id for rel in self.model.relations[CACHE_CONFIG_INTEGRATION_NAME]}
         if broken_relation_id is not None:
