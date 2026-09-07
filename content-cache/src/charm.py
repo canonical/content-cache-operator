@@ -54,6 +54,10 @@ WAIT_FOR_TLS_CERT_MESSAGE = "Waiting for TLS certificate"
 NGINX_PORT_RANGE_START = 30000
 NGINX_PORT_RANGE_SIZE = 200
 
+PEER_RELATION_NAME = "content-cache-peers"
+PORT_MAP_FIELD = "port_map"
+NEXT_OFFSET_FIELD = "next_offset"
+
 
 class ContentCacheCharm(ops.CharmBase):
     """Charm the application."""
