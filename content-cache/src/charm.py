@@ -50,6 +50,7 @@ RECEIVED_NGINX_CONFIG_MESSAGE = "Received nginx configuration"
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
 CERTIFICATE_INTEGRATION_NAME = "certificates"
 WAIT_FOR_TLS_CERT_MESSAGE = "Waiting for TLS certificate"
+WAIT_FOR_PORT_MESSAGE = "Waiting for port assignment"
 
 NGINX_PORT_RANGE_START = 30000
 NGINX_PORT_RANGE_SIZE = 200
@@ -62,8 +63,6 @@ NEXT_OFFSET_FIELD = "next_offset"
 class ContentCacheCharm(ops.CharmBase):
     """Charm the application."""
 
-    _stored = ops.StoredState()
-
     def __init__(self, framework: ops.Framework) -> None:
         """Initialize the object.
 
@@ -71,9 +70,6 @@ class ContentCacheCharm(ops.CharmBase):
             framework: The ops framework.
         """
         super().__init__(framework)
-
-        self._stored.set_default(port_map={})
-        self._stored.set_default(next_port_offset=0)
 
         self._cos_agent = COSAgentProvider(charm=self)
         self._certificate_transfer = CertificateTransferRequires(
@@ -91,6 +87,14 @@ class ContentCacheCharm(ops.CharmBase):
         framework.observe(self.on.start, self._on_start)
         framework.observe(self.on.stop, self._on_stop)
         framework.observe(self.on.update_status, self._on_update_status)
+        framework.observe(
+            self.on[PEER_RELATION_NAME].relation_created,
+            self._on_peer_relation_changed,
+        )
+        framework.observe(
+            self.on[PEER_RELATION_NAME].relation_changed,
+            self._on_peer_relation_changed,
+        )
         framework.observe(
             self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_changed,
             self._on_cache_config_relation_changed,
@@ -154,12 +158,11 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_cache_config_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
         """Handle config relation broken event."""
-        port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
-        port_map.pop(str(event.relation.id), None)
-        if not port_map:
-            self._stored.next_port_offset = 0
-        self.unit.set_ports(*port_map.values())
         event.relation.data[self.unit]["cache-backend"] = ""
+        self._load_nginx_config(broken_relation_id=event.relation.id)
+
+    def _on_peer_relation_changed(self, _: ops.RelationChangedEvent) -> None:
+        """Handle peer relation changed: re-derive nginx from the shared port map."""
         self._load_nginx_config()
 
     def _rebuild_ca_bundle(self) -> None:
@@ -252,13 +255,17 @@ class ContentCacheCharm(ops.CharmBase):
 
         self.unit.status = ops.ActiveStatus()
 
-    def _load_nginx_config(self, tls_cert_removed: bool = False) -> None:
+    def _load_nginx_config(
+        self, tls_cert_removed: bool = False, broken_relation_id: int | None = None
+    ) -> None:
         """Validate the configuration and load to integration.
 
         Args:
             tls_cert_removed: Set to True when called from the certificates relation-broken
                 handler. Bypasses the "waiting for TLS cert" guard so nginx is reconfigured
                 back to HTTP even though the departing relation is still visible to ops.
+            broken_relation_id: When called from cache-config relation-broken, the id of the
+                departing relation, so its port is pruned even though ops may still list it.
 
         Raises:
             NginxFileError: File operation errors while updating nginx configuration files.
@@ -268,10 +275,28 @@ class ContentCacheCharm(ops.CharmBase):
             self._clear_cache_backend()
             return
 
-        ported_config = {
-            rel_id: (self._get_port_for_relation(rel_id), config)
-            for rel_id, config in nginx_config.items()
-        }
+        if self._peer_relation() is None:
+            self.unit.status = ops.WaitingStatus(WAIT_FOR_PORT_MESSAGE)
+            self._clear_cache_backend()
+            return
+
+        existing_ids = {rel.id for rel in self.model.relations[CACHE_CONFIG_INTEGRATION_NAME]}
+        if broken_relation_id is not None:
+            existing_ids.discard(broken_relation_id)
+
+        if self.unit.is_leader():
+            port_map = self._ensure_ports(set(nginx_config), existing_ids)
+        else:
+            port_map = self._read_port_map()
+
+        ported_config = {}
+        awaiting_port = False
+        for rel_id, config in nginx_config.items():
+            port = port_map.get(str(rel_id))
+            if port is None:
+                awaiting_port = True
+                continue
+            ported_config[rel_id] = (port, config)
 
         cache_cert_path = self._get_cache_cert_path()
         if (
@@ -280,6 +305,11 @@ class ContentCacheCharm(ops.CharmBase):
             and self.model.get_relation(CERTIFICATE_INTEGRATION_NAME) is not None
         ):
             self.unit.status = ops.WaitingStatus(WAIT_FOR_TLS_CERT_MESSAGE)
+            self._clear_cache_backend()
+            return
+
+        if not ported_config:
+            self.unit.status = ops.WaitingStatus(WAIT_FOR_PORT_MESSAGE)
             self._clear_cache_backend()
             return
 
@@ -304,9 +334,11 @@ class ContentCacheCharm(ops.CharmBase):
 
         self._update_status_with_nginx()
         if isinstance(self.unit.status, ops.ActiveStatus):
-            self.unit.status = ops.ActiveStatus(status_message)
-            port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
-            self.unit.set_ports(*port_map.values())
+            if awaiting_port:
+                self.unit.status = ops.WaitingStatus(WAIT_FOR_PORT_MESSAGE)
+            else:
+                self.unit.status = ops.ActiveStatus(status_message)
+            self.unit.set_ports(*{port for port, _ in ported_config.values()})
             self._write_cache_backends(ported_config, cache_cert_path)
         else:
             self._clear_cache_backend()
@@ -346,39 +378,85 @@ class ContentCacheCharm(ops.CharmBase):
         self.unit.status = ops.MaintenanceStatus(RECEIVED_NGINX_CONFIG_MESSAGE)
         return nginx_config
 
-    def _get_port_for_relation(self, relation_id: int) -> int:
-        """Get the nginx listening port assigned to a relation, allocating one if needed.
+    def _peer_relation(self) -> ops.Relation | None:
+        """Return the peer relation, or None if it is not yet established."""
+        return self.model.get_relation(PEER_RELATION_NAME)
 
-        Port assignments are persisted in StoredState so the same port is returned
-        across charm restarts for the same relation.
+    def _read_port_map(self) -> dict[str, int]:
+        """Read the relation-id -> port map from the peer app databag."""
+        rel = self._peer_relation()
+        if rel is None:
+            return {}
+        raw = rel.data[self.app].get(PORT_MAP_FIELD, "")
+        return json.loads(raw) if raw else {}
 
-        New ports are allocated monotonically (like Linux PIDs) to maximise the time
-        interval before a port number is reused after a relation is removed.
+    def _read_next_offset(self) -> int:
+        """Read the monotonic allocation cursor from the peer app databag."""
+        rel = self._peer_relation()
+        if rel is None:
+            return 0
+        raw = rel.data[self.app].get(NEXT_OFFSET_FIELD, "")
+        return int(raw) if raw else 0
+
+    def _ensure_ports(
+        self, valid_relation_ids: set[int], existing_relation_ids: set[int]
+    ) -> dict[str, int]:
+        """Leader-only: allocate ports for valid relations, prune removed ones.
+
+        The peer app databag is the single source of truth. Allocation is monotonic
+        (PID-like) to delay port reuse. Only the leader may call this.
 
         Args:
-            relation_id: The Juju relation ID.
+            valid_relation_ids: Relation ids that currently have valid config and need a port.
+            existing_relation_ids: Relation ids that still exist (used to prune stale entries).
 
         Returns:
-            The allocated port number.
+            The updated relation-id(str) -> port map.
+
+        Raises:
+            RuntimeError: If the port range is exhausted.
         """
-        key = str(relation_id)
-        port_map: dict[str, int] = self._stored.port_map  # type: ignore[assignment]
-        if key not in port_map:
-            used_ports = set(port_map.values())
-            next_offset: int = self._stored.next_port_offset  # type: ignore[assignment]
+        rel = self._peer_relation()
+        if rel is None:
+            return {}
+
+        port_map = self._read_port_map()
+        next_offset = self._read_next_offset()
+        changed = False
+
+        existing_keys = {str(rid) for rid in existing_relation_ids}
+        for key in list(port_map):
+            if key not in existing_keys:
+                del port_map[key]
+                changed = True
+
+        used = set(port_map.values())
+        for rid in valid_relation_ids:
+            key = str(rid)
+            if key in port_map:
+                continue
             for i in range(NGINX_PORT_RANGE_SIZE):
                 offset = (next_offset + i) % NGINX_PORT_RANGE_SIZE
                 candidate = NGINX_PORT_RANGE_START + offset
-                if candidate not in used_ports:
+                if candidate not in used:
                     port_map[key] = candidate
-                    self._stored.next_port_offset = (offset + 1) % NGINX_PORT_RANGE_SIZE
+                    used.add(candidate)
+                    next_offset = (offset + 1) % NGINX_PORT_RANGE_SIZE
+                    changed = True
                     break
             else:
                 raise RuntimeError(
                     f"Port range exhausted: all {NGINX_PORT_RANGE_SIZE} ports "
                     f"starting at {NGINX_PORT_RANGE_START} are in use"
                 )
-        return port_map[key]
+
+        if not port_map:
+            next_offset = 0
+
+        if changed:
+            rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map)
+            rel.data[self.app][NEXT_OFFSET_FIELD] = str(next_offset)
+        return port_map
 
     def _nginx_initialize(self) -> None:
         """Initialize the nginx instance.

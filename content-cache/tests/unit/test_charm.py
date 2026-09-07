@@ -3,6 +3,7 @@
 
 """Unit test for the charm."""
 
+import json
 from unittest.mock import MagicMock
 
 import ops
@@ -14,6 +15,9 @@ from charm import (
     CACHE_CONFIG_INTEGRATION_NAME,
     CERTIFICATE_INTEGRATION_NAME,
     NGINX_NOT_READY_MESSAGE,
+    NGINX_PORT_RANGE_START,
+    PEER_RELATION_NAME,
+    PORT_MAP_FIELD,
     WAIT_FOR_CONFIG_MESSAGE,
     WAIT_FOR_TLS_CERT_MESSAGE,
     ContentCacheCharm,
@@ -24,6 +28,13 @@ from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 SAMPLE_HTTPS_EXTRA = {
     "backend_hostname": "test.example.com",
 }
+
+
+def _peer_port_map(harness: Harness, charm: ContentCacheCharm) -> dict:
+    """Read the port_map JSON from the peer app databag."""
+    peer_rel_id = harness.model.get_relation(PEER_RELATION_NAME).id
+    raw = harness.get_relation_data(peer_rel_id, charm.app.name).get(PORT_MAP_FIELD, "")
+    return json.loads(raw) if raw else {}
 
 
 def test_start_no_relation(charm: ContentCacheCharm, mock_nginx_manager: MagicMock):
@@ -239,11 +250,13 @@ def test_get_nginx_config_returns_flat_per_relation_dict(
     assert config[relation_id].backends[1].host == "10.10.2.2"
 
 
-def test_unique_port_allocated_per_relation(harness: Harness, charm: ContentCacheCharm):
+def test_unique_port_allocated_per_relation(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
     """
-    arrange: Charm with two different cache-config integrations.
-    act: Add both integrations and query their ports.
-    assert: Each relation gets a unique port in the expected range.
+    arrange: A leader charm with two different cache-config integrations.
+    act: Add both integrations (each triggers reconcile).
+    assert: Each relation gets a unique port in the peer databag, in range.
     """
     rel_id_1 = harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
@@ -256,30 +269,84 @@ def test_unique_port_allocated_per_relation(harness: Harness, charm: ContentCach
         app_data=SAMPLE_INTEGRATION_DATA,
     )
 
-    port_1 = charm._get_port_for_relation(rel_id_1)
-    port_2 = charm._get_port_for_relation(rel_id_2)
+    port_map = _peer_port_map(harness, charm)
+    port_1 = port_map[str(rel_id_1)]
+    port_2 = port_map[str(rel_id_2)]
 
     assert port_1 != port_2
-    assert port_1 >= 8080
-    assert port_2 >= 8080
+    assert port_1 >= NGINX_PORT_RANGE_START
+    assert port_2 >= NGINX_PORT_RANGE_START
 
 
-def test_port_stable_for_same_relation(harness: Harness, charm: ContentCacheCharm):
+def test_port_stable_for_same_relation(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
     """
-    arrange: Charm with a cache-config integration.
-    act: Query the port for the same relation twice.
-    assert: Same port is returned both times (stable allocation).
+    arrange: A leader charm with a cache-config integration.
+    act: Reconcile twice (add relation, then update-status).
+    assert: The same port is retained for that relation.
     """
     rel_id = harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
         app_data=SAMPLE_INTEGRATION_DATA,
     )
+    port_first = _peer_port_map(harness, charm)[str(rel_id)]
 
-    port_first = charm._get_port_for_relation(rel_id)
-    port_second = charm._get_port_for_relation(rel_id)
+    harness.charm.on.update_status.emit()
 
+    port_second = _peer_port_map(harness, charm)[str(rel_id)]
     assert port_first == port_second
+
+
+def test_follower_uses_shared_port_from_peer_databag(
+    follower_harness: Harness, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A non-leader charm with a peer databag pre-seeded with a port for a relation.
+    act: Add a cache-config relation with valid data (triggers reconcile).
+    assert: The follower configures nginx with the shared port and does not mutate the map.
+    """
+    harness = follower_harness
+    charm = harness.charm
+    peer_rel_id = harness.model.get_relation(PEER_RELATION_NAME).id
+
+    rel_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    shared_port = NGINX_PORT_RANGE_START + 5
+    harness.update_relation_data(
+        peer_rel_id, charm.app.name, {PORT_MAP_FIELD: json.dumps({str(rel_id): shared_port})}
+    )
+    harness.charm.on.update_status.emit()
+
+    args, _ = mock_nginx_manager.update_and_load_config.call_args
+    ported_config = args[0]
+    assert ported_config[rel_id][0] == shared_port
+    raw = harness.get_relation_data(peer_rel_id, charm.app.name).get(PORT_MAP_FIELD, "")
+    assert json.loads(raw) == {str(rel_id): shared_port}
+
+
+def test_follower_waits_when_port_not_yet_assigned(
+    follower_harness: Harness, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A non-leader charm with an empty peer databag.
+    act: Add a cache-config relation with valid data.
+    assert: The unit is in WaitingStatus and writes no cache-backend.
+    """
+    harness = follower_harness
+    charm = harness.charm
+    rel_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+
+    assert isinstance(charm.unit.status, ops.WaitingStatus)
+    assert not harness.get_relation_data(rel_id, charm.unit.name).get("cache-backend")
 
 
 def test_load_nginx_config_writes_cache_backend(
