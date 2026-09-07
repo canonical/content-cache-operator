@@ -256,6 +256,46 @@ class ContentCacheCharm(ops.CharmBase):
 
         self.unit.status = ops.ActiveStatus()
 
+    def _resolve_ported_config(
+        self, nginx_config: NginxConfig, broken_relation_id: int | None
+    ) -> tuple[dict, bool] | None:
+        """Resolve each relation's config to its shared port.
+
+        The leader allocates/prunes ports in the peer databag; followers read them.
+
+        Args:
+            nginx_config: The valid per-relation nginx configuration.
+            broken_relation_id: Id of a departing relation to exclude from pruning, if any.
+
+        Returns:
+            A ``(ported_config, awaiting_port)`` tuple, or None if the peer relation is not
+            yet established (in which case the unit status is set to waiting and backends
+            are cleared).
+        """
+        if self._peer_relation() is None:
+            self.unit.status = ops.WaitingStatus(WAIT_FOR_PORT_MESSAGE)
+            self._clear_cache_backend()
+            return None
+
+        existing_ids = {rel.id for rel in self.model.relations[CACHE_CONFIG_INTEGRATION_NAME]}
+        if broken_relation_id is not None:
+            existing_ids.discard(broken_relation_id)
+
+        if self.unit.is_leader():
+            port_map = self._ensure_ports(set(nginx_config), existing_ids)
+        else:
+            port_map = self._read_port_map()
+
+        ported_config = {}
+        awaiting_port = False
+        for rel_id, config in nginx_config.items():
+            port = port_map.get(str(rel_id))
+            if port is None:
+                awaiting_port = True
+                continue
+            ported_config[rel_id] = (port, config)
+        return ported_config, awaiting_port
+
     def _load_nginx_config(
         self, tls_cert_removed: bool = False, broken_relation_id: int | None = None
     ) -> None:
@@ -276,28 +316,10 @@ class ContentCacheCharm(ops.CharmBase):
             self._clear_cache_backend()
             return
 
-        if self._peer_relation() is None:
-            self.unit.status = ops.WaitingStatus(WAIT_FOR_PORT_MESSAGE)
-            self._clear_cache_backend()
+        resolved = self._resolve_ported_config(nginx_config, broken_relation_id)
+        if resolved is None:
             return
-
-        existing_ids = {rel.id for rel in self.model.relations[CACHE_CONFIG_INTEGRATION_NAME]}
-        if broken_relation_id is not None:
-            existing_ids.discard(broken_relation_id)
-
-        if self.unit.is_leader():
-            port_map = self._ensure_ports(set(nginx_config), existing_ids)
-        else:
-            port_map = self._read_port_map()
-
-        ported_config = {}
-        awaiting_port = False
-        for rel_id, config in nginx_config.items():
-            port = port_map.get(str(rel_id))
-            if port is None:
-                awaiting_port = True
-                continue
-            ported_config[rel_id] = (port, config)
+        ported_config, awaiting_port = resolved
 
         cache_cert_path = self._get_cache_cert_path()
         if (

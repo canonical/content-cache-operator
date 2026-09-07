@@ -32,7 +32,9 @@ SAMPLE_HTTPS_EXTRA = {
 
 def _peer_port_map(harness: Harness, charm: ContentCacheCharm) -> dict:
     """Read the port_map JSON from the peer app databag."""
-    peer_rel_id = harness.model.get_relation(PEER_RELATION_NAME).id
+    peer_rel = harness.model.get_relation(PEER_RELATION_NAME)
+    assert peer_rel is not None
+    peer_rel_id = peer_rel.id
     raw = harness.get_relation_data(peer_rel_id, charm.app.name).get(PORT_MAP_FIELD, "")
     return json.loads(raw) if raw else {}
 
@@ -309,7 +311,9 @@ def test_follower_uses_shared_port_from_peer_databag(
     """
     harness = follower_harness
     charm = harness.charm
-    peer_rel_id = harness.model.get_relation(PEER_RELATION_NAME).id
+    peer_rel = harness.model.get_relation(PEER_RELATION_NAME)
+    assert peer_rel is not None
+    peer_rel_id = peer_rel.id
 
     rel_id = harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
@@ -347,6 +351,53 @@ def test_follower_waits_when_port_not_yet_assigned(
 
     assert isinstance(charm.unit.status, ops.WaitingStatus)
     assert not harness.get_relation_data(rel_id, charm.unit.name).get("cache-backend")
+
+
+def test_leader_change_preserves_existing_ports(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A leader charm with a relation and an allocated port.
+    act: Add a second relation (later reconcile).
+    assert: The first relation keeps its port; the second gets a different one.
+    """
+    rel_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    original_port = _peer_port_map(harness, charm)[str(rel_id)]
+
+    rel_id_2 = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config2",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    port_map = _peer_port_map(harness, charm)
+    assert port_map[str(rel_id)] == original_port
+    assert port_map[str(rel_id_2)] != original_port
+
+
+def test_waiting_when_peer_relation_absent(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A leader charm whose peer relation has been removed.
+    act: Add a cache-config relation with valid data.
+    assert: The unit waits for port assignment and does not crash.
+    """
+    peer_rel = harness.model.get_relation(PEER_RELATION_NAME)
+    assert peer_rel is not None
+    peer_rel_id = peer_rel.id
+    harness.remove_relation(peer_rel_id)
+
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+
+    assert isinstance(charm.unit.status, ops.WaitingStatus)
 
 
 def test_load_nginx_config_writes_cache_backend(
