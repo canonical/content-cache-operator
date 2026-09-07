@@ -89,6 +89,7 @@ def harness_fixture(monkeypatch, mock_nginx_manager: MagicMock) -> Iterator[Harn
     """
     harness = Harness(ContentCacheCharm)
     harness.add_network("10.0.0.1", endpoint="certificates")
+    harness.set_leader(True)
     harness.begin_with_initial_hooks()
     yield harness
     harness.cleanup()
@@ -98,3 +99,14 @@ def harness_fixture(monkeypatch, mock_nginx_manager: MagicMock) -> Iterator[Harn
 def charm_fixture(harness: Harness) -> ContentCacheCharm:
     """The charm fixture."""
     return harness.charm
+
+
+@pytest.fixture(name="follower_harness", scope="function")
+def follower_harness_fixture(monkeypatch, mock_nginx_manager: MagicMock) -> Iterator[Harness]:
+    """A non-leader harness for follower-side behavior."""
+    harness = Harness(ContentCacheCharm)
+    harness.add_network("10.0.0.1", endpoint="certificates")
+    harness.set_leader(False)
+    harness.begin_with_initial_hooks()
+    yield harness
+    harness.cleanup()

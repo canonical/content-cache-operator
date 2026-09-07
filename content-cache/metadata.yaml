@@ -38,3 +38,7 @@ requires:
     interface: tls-certificates
   receive-ca-cert:
     interface: certificate_transfer
+
+peers:
+  content-cache-peers:
+    interface: content-cache-peers
