@@ -495,6 +495,14 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
     scheme = config.backends[0].scheme
     valid_status_str = ",".join(str(status) for status in config.healthcheck_config.valid_status)
     hc_path = config.healthcheck_config.path
+    backend_hostname = config.backend_hostname
+    # Include a Host header when a backend hostname is configured so the health check
+    # request matches the real proxied request, allowing it to pass Host-header-based
+    # network ACLs (e.g. transparent proxies) that the backend may sit behind.
+    host_header = rf"\r\nHost: {backend_hostname}" if backend_hostname else ""
+    # https type only: sets the SNI/hostname used during the SSL handshake, mirroring the
+    # Host header above so certificate validation also targets the correct hostname.
+    host_option = f'\n            host = "{backend_hostname}",' if backend_hostname else ""
     # port is intentionally omitted so each peer uses its own port from the upstream block,
     # enabling per-peer healthchecks when backends use different ports.
     return rf"""ok, err = hc.spawn_checker{{
@@ -502,7 +510,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
             upstream = "{upstream}",
             type = "{scheme}",
 
-            http_req = "GET {hc_path} HTTP/1.0\r\n\r\n",
+            http_req = "GET {hc_path} HTTP/1.0{host_header}\r\n\r\n",
 
             interval = {config.healthcheck_config.interval},
             timeout = 1000,
@@ -510,7 +518,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
             rise = 2,
             valid_statuses = {{{valid_status_str}}},
             concurrency = 10,
-            ssl_verify = {str(config.healthcheck_config.ssl_verify).lower()}
+            ssl_verify = {str(config.healthcheck_config.ssl_verify).lower()},{host_option}
         }}
         if not ok then
             ngx.log(ngx.ERR, "failed to spawn health checker: ", err)
