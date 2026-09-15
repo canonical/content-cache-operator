@@ -42,6 +42,7 @@ NGINX_USER = "www-data"
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
+NGINX_STATUS_PORT = 30200
 
 NGINX_HEALTH_CHECK_TIMEOUT = 300
 NGINX_CACHE_LOG_FORMAT_NAME = "cache"
@@ -166,7 +167,7 @@ def health_check() -> bool:
     """
     try:
         response = requests.get(
-            f"http://localhost{NGINX_STATUS_URL_PATH}",
+            f"http://localhost:{NGINX_STATUS_PORT}{NGINX_STATUS_URL_PATH}",
             allow_redirects=False,
             timeout=NGINX_HEALTH_CHECK_TIMEOUT,
         )
@@ -370,6 +371,7 @@ def _create_status_page_config() -> None:
     # The following should not throw any nginx.ParseError as it is static.
     nginx_config = nginx.Conf(
         nginx.Server(
+            nginx.Key("listen", f"127.0.0.1:{NGINX_STATUS_PORT}"),
             # The standard nginx status page
             nginx.Location(
                 NGINX_STATUS_URL_PATH,

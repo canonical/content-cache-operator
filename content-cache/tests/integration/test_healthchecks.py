@@ -11,7 +11,7 @@ import requests
 from juju.application import Application
 from juju.model import Model
 
-from nginx_manager import NGINX_BACKENDS_STATUS_URL_PATH
+from nginx_manager import NGINX_BACKENDS_STATUS_URL_PATH, NGINX_STATUS_PORT
 from tests.integration.helpers import (
     BACKEND_HOSTNAME_CONFIG_NAME,
     BACKENDS_CONFIG_NAME,
@@ -44,7 +44,7 @@ async def get_nginx_status(app: Application, path: str) -> str:
         RuntimeError: if status cannot be fetched
     """
     unit = app.units[0]
-    command = f"curl 127.0.0.1/{path}"
+    command = f"curl 127.0.0.1:{NGINX_STATUS_PORT}/{path}"
     task = await unit.run(command)
     result = await task.wait()
 
