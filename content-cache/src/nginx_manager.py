@@ -42,6 +42,12 @@ NGINX_USER = "www-data"
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
+# The status page server has no reason to be reachable via the standard HTTP(S) ports: it is
+# restricted to 127.0.0.1 and only used internally for health checks. Explicitly listening on a
+# dedicated, non-standard port (rather than relying on nginx's default "listen 80") avoids a
+# bind() conflict when content-cache is co-located on the same unit as another service already
+# using ports 80/443 (e.g. the haproxy charm).
+NGINX_STATUS_PORT = 8080
 
 NGINX_HEALTH_CHECK_TIMEOUT = 300
 NGINX_CACHE_LOG_FORMAT_NAME = "cache"
@@ -166,7 +172,7 @@ def health_check() -> bool:
     """
     try:
         response = requests.get(
-            f"http://localhost{NGINX_STATUS_URL_PATH}",
+            f"http://localhost:{NGINX_STATUS_PORT}{NGINX_STATUS_URL_PATH}",
             allow_redirects=False,
             timeout=NGINX_HEALTH_CHECK_TIMEOUT,
         )
@@ -362,6 +368,7 @@ def _create_status_page_config() -> None:
     # The following should not throw any nginx.ParseError as it is static.
     nginx_config = nginx.Conf(
         nginx.Server(
+            nginx.Key("listen", f"127.0.0.1:{NGINX_STATUS_PORT}"),
             # The standard nginx status page
             nginx.Location(
                 NGINX_STATUS_URL_PATH,

@@ -107,6 +107,11 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert "interval = 2000" in healthchecks_config_file_content
     assert "ssl_verify = false" in healthchecks_config_file_content
 
+    status_page_config_file_content = nginx_manager._get_sites_available_path(
+        "nginx_status"
+    ).read_text()
+    assert f"listen 127.0.0.1:{nginx_manager.NGINX_STATUS_PORT}" in status_page_config_file_content
+
 
 def test_get_upstream_config_keys_http(patch_nginx_manager: None):
     """

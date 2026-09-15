@@ -94,10 +94,13 @@ and are readable by nginx at runtime.
 ### Status page access
 
 The nginx status page at `/nginx_status` and the backend health status page at
-`/nginx_backends_status` are restricted to `127.0.0.1` using the nginx
+`/nginx_backends_status` are served on a dedicated port (`127.0.0.1:8080`) that is separate from
+the ports used for cache traffic, and are further restricted to `127.0.0.1` using the nginx
 [`allow`/`deny` directives](https://nginx.org/en/docs/http/ngx_http_access_module.html).
-External clients cannot access these endpoints. This behavior is hard-coded in the generated nginx
-configuration and cannot be changed via charm configuration.
+External clients cannot access these endpoints. Serving them on their own port (rather than the
+standard HTTP/HTTPS ports) also avoids a `bind()` conflict when content-cache is co-located on the
+same unit as another service that already listens on ports 80/443. This behavior is hard-coded in
+the generated nginx configuration and cannot be changed via charm configuration.
 
 ### Subprocess security
 
