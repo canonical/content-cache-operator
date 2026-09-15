@@ -511,6 +511,9 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
     # https type only: sets the SNI/hostname used during the SSL handshake, mirroring the
     # Host header above so certificate validation also targets the correct hostname.
     host_option = f'\n            host = "{backend_hostname}",' if backend_hostname else ""
+    # Avoid a trailing comma after ssl_verify when no host option is being appended.
+    ssl_verify_suffix = f",{host_option}" if host_option else ""
+    ssl_verify_line = f"{str(config.healthcheck_config.ssl_verify).lower()}{ssl_verify_suffix}"
     # port is intentionally omitted so each peer uses its own port from the upstream block,
     # enabling per-peer healthchecks when backends use different ports.
     return rf"""ok, err = hc.spawn_checker{{
@@ -526,7 +529,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
             rise = 2,
             valid_statuses = {{{valid_status_str}}},
             concurrency = 10,
-            ssl_verify = {str(config.healthcheck_config.ssl_verify).lower()}{"" if not host_option else "," + host_option}
+            ssl_verify = {ssl_verify_line}
         }}
         if not ok then
             ngx.log(ngx.ERR, "failed to spawn health checker: ", err)
