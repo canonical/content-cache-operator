@@ -42,14 +42,6 @@ NGINX_USER = "www-data"
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
-# The status page server has no reason to be reachable via the standard HTTP(S) ports: it is
-# restricted to 127.0.0.1 and only used internally for health checks. Explicitly listening on a
-# dedicated, non-standard port (rather than relying on nginx's default "listen 80") avoids a
-# bind() conflict when content-cache is co-located on the same unit as another service already
-# using ports 80/443 (e.g. the haproxy charm). A common alternate port such as 8080 could still
-# collide with another co-located service, so this is instead pinned just above the dynamic cache
-# backend port range (30000-30199, see charm.NGINX_PORT_RANGE_START/NGINX_PORT_RANGE_SIZE) to make
-# a collision effectively impossible.
 NGINX_STATUS_PORT = 30200
 
 NGINX_HEALTH_CHECK_TIMEOUT = 300
