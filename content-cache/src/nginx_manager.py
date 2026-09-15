@@ -46,8 +46,11 @@ NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
 # restricted to 127.0.0.1 and only used internally for health checks. Explicitly listening on a
 # dedicated, non-standard port (rather than relying on nginx's default "listen 80") avoids a
 # bind() conflict when content-cache is co-located on the same unit as another service already
-# using ports 80/443 (e.g. the haproxy charm).
-NGINX_STATUS_PORT = 8080
+# using ports 80/443 (e.g. the haproxy charm). A common alternate port such as 8080 could still
+# collide with another co-located service, so this is instead pinned just above the dynamic cache
+# backend port range (30000-30199, see charm.NGINX_PORT_RANGE_START/NGINX_PORT_RANGE_SIZE) to make
+# a collision effectively impossible.
+NGINX_STATUS_PORT = 30200
 
 NGINX_HEALTH_CHECK_TIMEOUT = 300
 NGINX_CACHE_LOG_FORMAT_NAME = "cache"
