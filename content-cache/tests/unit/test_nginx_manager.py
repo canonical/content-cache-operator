@@ -106,6 +106,11 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     )  # per-peer ports used from upstream block
     assert "interval = 2000" in healthchecks_config_file_content
     assert "ssl_verify = false" in healthchecks_config_file_content
+    assert (
+        f"lua_ssl_trusted_certificate {ca_certs.CA_BUNDLE_PATH}"
+        in healthchecks_config_file_content
+    )
+    assert "lua_ssl_verify_depth" in healthchecks_config_file_content
 
 
 def test_get_upstream_config_keys_http(patch_nginx_manager: None):

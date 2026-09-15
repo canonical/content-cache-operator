@@ -342,6 +342,14 @@ def _create_healthcheck_module_config(healthcheck_workers_lua_code: str) -> None
         nginx.Key("lua_package_path", "/usr/share/lua/5.1/?.lua;;"),
         nginx.Key("lua_shared_dict", "healthcheck 1m"),
         nginx.Key("lua_socket_log_errors", "off"),
+        # lua-resty cosockets (used by the healthcheck module for "https" type
+        # checks) verify server certificates against lua_ssl_trusted_certificate,
+        # a directive distinct from proxy_ssl_trusted_certificate (used for the
+        # actual proxied requests). Without it, any HTTPS healthcheck with
+        # ssl_verify enabled fails with "unable to get local issuer certificate",
+        # even against publicly trusted certificates.
+        nginx.Key("lua_ssl_trusted_certificate", str(ca_certs.CA_BUNDLE_PATH)),
+        nginx.Key("lua_ssl_verify_depth", "10"),
         NginxLuaSection("init_worker_by_lua_block", lua_variables + healthcheck_workers_lua_code),
     )
 
