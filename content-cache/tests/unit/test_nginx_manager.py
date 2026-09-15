@@ -106,6 +106,11 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     )  # per-peer ports used from upstream block
     assert "interval = 2000" in healthchecks_config_file_content
     assert "ssl_verify = false" in healthchecks_config_file_content
+    assert (
+        f"lua_ssl_trusted_certificate {ca_certs.CA_BUNDLE_PATH}"
+        in healthchecks_config_file_content
+    )
+    assert "lua_ssl_verify_depth" in healthchecks_config_file_content
 
     status_page_config_file_content = nginx_manager._get_sites_available_path(
         "nginx_status"
@@ -196,6 +201,68 @@ def test_healthcheck_worker_uses_per_peer_ports(patch_nginx_manager: None):
     script = nginx_manager._get_upstream_healthchecks_worker(upstream, config)
 
     assert "port =" not in script, "global port override must be absent for per-peer healthchecks"
+
+
+def test_healthcheck_worker_without_backend_hostname_omits_host_header(
+    patch_nginx_manager: None,
+):
+    """
+    arrange: A LocationConfig without backend_hostname set.
+    act: Call _get_upstream_healthchecks_worker.
+    assert: The generated http_req has no Host header and no SNI host option,
+            preserving prior behaviour for backends with no configured hostname.
+    """
+    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+    upstream = "test-upstream"
+
+    script = nginx_manager._get_upstream_healthchecks_worker(upstream, config)
+
+    assert "Host:" not in script
+    assert "host =" not in script
+
+
+def test_healthcheck_worker_with_backend_hostname_adds_host_header(
+    patch_nginx_manager: None,
+):
+    """
+    arrange: A LocationConfig with backend_hostname set for an http backend.
+    act: Call _get_upstream_healthchecks_worker.
+    assert: The generated http_req includes a Host header matching backend_hostname,
+            so the healthcheck request can pass Host-header-based network ACLs.
+    """
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        "backend_hostname": "origin.example.com",
+    }
+    config = LocationConfig.from_integration_data(data)
+    upstream = "test-upstream"
+
+    script = nginx_manager._get_upstream_healthchecks_worker(upstream, config)
+
+    assert r"Host: origin.example.com\r\n" in script
+
+
+def test_healthcheck_worker_https_with_backend_hostname_adds_sni_host_option(
+    patch_nginx_manager: None,
+):
+    """
+    arrange: A LocationConfig with https backends and backend_hostname set.
+    act: Call _get_upstream_healthchecks_worker.
+    assert: The generated lua script sets the "host" option (used for SNI/SSL
+            handshake hostname), in addition to the Host header.
+    """
+    data = {
+        **SAMPLE_INTEGRATION_DATA,
+        **SAMPLE_HTTPS_EXTRA,
+        "backends": '["https://10.10.1.1:443"]',
+    }
+    config = LocationConfig.from_integration_data(data)
+    upstream = "test-upstream"
+
+    script = nginx_manager._get_upstream_healthchecks_worker(upstream, config)
+
+    assert 'host = "test.example.com"' in script
+    assert r"Host: test.example.com\r\n" in script
 
 
 def test_healthcheck_worker_upstream_entries_carry_ports(patch_nginx_manager: None):
