@@ -526,7 +526,7 @@ def _get_upstream_healthchecks_worker(upstream: str, config: LocationConfig) -> 
             rise = 2,
             valid_statuses = {{{valid_status_str}}},
             concurrency = 10,
-            ssl_verify = {str(config.healthcheck_config.ssl_verify).lower()},{host_option}
+            ssl_verify = {str(config.healthcheck_config.ssl_verify).lower()}{"" if not host_option else "," + host_option}
         }}
         if not ok then
             ngx.log(ngx.ERR, "failed to spawn health checker: ", err)
