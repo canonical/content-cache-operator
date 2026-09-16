@@ -30,4 +30,7 @@ header:
     - 'docs/**'
     # Ignore charm libraries.
     - "**/lib/charms/**"
+    # Ignore vendored Vale style-checker vocabulary/dictionary files (copied
+    # verbatim from canonical/documentation-style-guide).
+    - "**/styles/config/**"
   comment: on-failure
