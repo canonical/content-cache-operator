@@ -50,7 +50,7 @@ How this documentation is organized
 
 This documentation uses the `Diátaxis documentation structure <https://diataxis.fr/>`_.
 
-- The :ref:`Tutorial <tutorial_index>` takes you step-by-step through a basic deployment of the content cache charm, and through an advanced deployment fronted by `ingress-configurator` and `haproxy`.
+- The :ref:`Tutorial <tutorial_index>` takes you step-by-step through an advanced deployment fronted by `ingress-configurator` and `haproxy`.
 - :ref:`How-to guides <how_to_index>` assume you have basic familiarity with the content cache charm. Learn more about setting up, using, maintaining, and contributing to this charm.
 - :ref:`Reference <reference_index>` provides a guide to actions, configurations, relations, and other technical details.
 - :ref:`Explanation <explanation_index>` includes topic overviews, background and context and detailed discussion.

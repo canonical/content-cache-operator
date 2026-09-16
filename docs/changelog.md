@@ -24,8 +24,8 @@ Each revision is versioned by the date of the revision.
 ### Changed
 
 - Updated the how-to guides, reference, and explanation pages to reflect the current
-  `ingress-configurator`-based backend configuration flow, replacing references to the now
-  archived `content-cache-backends-config` charm. Corrected the documented TLS certificate
+  `ingress-configurator`-based backend configuration flow, while retaining
+  `content-cache-backends-config` as a supported alternative. Corrected the documented TLS certificate
   file path (`/etc/nginx/certs/content-cache-charm.pem`) and cache directory path
   (`/data/nginx/cache/<port>/`) to match the current charm implementation.
 
