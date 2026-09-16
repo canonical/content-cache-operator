@@ -12,8 +12,6 @@ Follow the tutorial below to deploy the Content Cache charm behind `ingress-conf
 `haproxy`, adding hostname-based routing, TLS termination, and other ingress features to a
 basic content-cache deployment.
 
-A tutorial for the most basic content-cache deployment (`content-cache` on its own) is coming
-soon.
 
 ```{toctree}
 :maxdepth: 1

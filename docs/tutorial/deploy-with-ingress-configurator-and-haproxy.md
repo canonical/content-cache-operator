@@ -10,7 +10,7 @@ myst:
 
 The `content-cache` charm caches static content from a backend and serves it back to
 clients. On its own, each backend it caches is reachable only through a dynamically
-allocated TCP port (starting at `30000`) on the units it is deployed to — there is no
+allocated TCP port (starting at `30000`) on the units it is deployed to. There is no
 hostname-based routing, TLS termination for incoming traffic, or ingress-level protections.
 
 This tutorial builds on the concepts of the basic content-cache tutorial and shows you how to
@@ -30,8 +30,6 @@ follow along without access to any Canonical-internal infrastructure.
   per-relation backend configuration.
 - Deploy `haproxy` and integrate it with `ingress-configurator` to add hostname-based routing.
 - Add TLS termination at the ingress with a self-signed certificate.
-- Explore some of the additional controls this topology unlocks (DDoS protection, HSTS,
-  health checks).
 
 ## What you'll need
 
@@ -41,8 +39,7 @@ follow along without access to any Canonical-internal infrastructure.
 
 ## 1. Deploy content-cache and a test origin
 
-Bootstrap or switch to a model, then deploy the Content Cache charm from the `1/edge` channel
-(the actively-developed channel that this tutorial's steps are validated against):
+Bootstrap or switch to a model, then deploy the Content Cache charm from the `1/edge` channel:
 
 ```bash
 juju deploy content-cache --channel 1/edge
@@ -56,28 +53,21 @@ juju deploy ubuntu --base ubuntu@24.04 origin
 juju exec --unit origin/0 -- "echo '<h1>Hello from origin</h1>' | sudo tee /var/www/html/index.html && sudo apt-get install -y python3 && cd /var/www/html && (nohup sudo python3 -m http.server 80 >/tmp/http-server.log 2>&1 &)"
 ```
 
-Wait for both applications to settle into `active`/`idle`:
+Wait for the `origin` application to settle into `active`/`idle`; `content-cache` remains `Blocked` until the `cache-config` relation is added in step 2:
 
 ```bash
 juju status --watch 5s
 ```
 
-Note the IP address of the `origin` unit reported by `juju status` — you'll need it in the
+Note the IP address of the `origin` unit reported by `juju status` as you'll need it in the
 next step.
 
-```{note}
-This tutorial uses `ingress-configurator` to configure backends because it also lets you add
-`haproxy` in front of the cache. If you only need to expose one backend without any ingress
-features, the simpler [Content Cache Backends Config](https://charmhub.io/content-cache-backends-config)
-subordinate charm relates to `content-cache` the same way, over the `cache-config` endpoint.
-```
 
 ## 2. Deploy ingress-configurator and connect it to content-cache
 
 `ingress-configurator` translates a set of configuration options into the `cache-config`
 relation data that `content-cache` consumes, replacing the need to configure the relation by
-hand. Deploy it from the `latest/edge` channel — support for the `cache-config` relation used
-in this tutorial is only available there at the time of writing:
+hand. Deploy it from the `latest/edge` channel:
 
 ```bash
 juju deploy ingress-configurator --channel latest/edge
@@ -109,9 +99,7 @@ curl http://<content-cache-unit-ip>:30000
 
 You should see `Hello from origin`. At this point you have a working deployment equivalent to
 what you'd get with the simpler `content-cache-backends-config` subordinate charm, but using
-`ingress-configurator` so you can add `haproxy` next. The backend is still only reachable
-through a dynamically allocated port that you have to look up — this is exactly the gap that
-`haproxy` closes next.
+`ingress-configurator` so you can add `haproxy` next.
 
 ## 3. Deploy haproxy and add hostname-based routing
 
@@ -147,21 +135,11 @@ juju config ingress-configurator allow-http=true
 
 In production, use a real certificate authority such as [Let's Encrypt via the `lego`
 charm](https://charmhub.io/lego). For this tutorial, deploy `self-signed-certificates` so
-everything works without a public DNS name or a reachable ACME endpoint:
+everything works:
 
 ```bash
 juju deploy self-signed-certificates --channel 1/stable
 juju integrate haproxy:certificates self-signed-certificates:certificates
-```
-
-```{warning}
-Deploy `self-signed-certificates` from the **`1/`** track (`1/stable`, `1/candidate`, or
-`1/edge`), not `latest/`. The `latest/` track is built against an older, unit-scoped-only
-version of the `tls-certificates` library and silently fails to issue certificates when
-related to charms — including `haproxy` — that request certificates the modern,
-application-scoped way. If certificate issuance seems stuck, check
-`juju debug-log --include self-signed-certificates` for
-`Relation_changed event does not have a unit.` — that error means you're on the wrong track.
 ```
 
 Once the relation settles, `haproxy` requests and receives a certificate for
@@ -172,8 +150,7 @@ override now, since HTTPS is available:
 juju config ingress-configurator allow-http=false
 ```
 
-Fetch the issued certificate's CA so you can verify it with `curl` instead of skipping
-verification with `-k`:
+Fetch the issued certificate's CA so you can verify it with `curl`:
 
 ```bash
 juju run haproxy/0 get-certificate hostname=content-cache.local --format=json \
@@ -212,12 +189,17 @@ Compared to relating `ingress-configurator` directly to `content-cache` (step 2)
   horizontally (`juju add-unit content-cache`) behind a single hostname.
 - **Tunable health checks** — `health-check-interval`, `health-check-rise`, and
   `health-check-fall` on `ingress-configurator` control how haproxy decides a `content-cache`
-  unit is unavailable, independently of `content-cache`'s own backend health checks.
+- **Hostname and path-based routing**: reach the cache by name over the standard HTTPS
+  port.
+- **TLS termination**: `haproxy` presents a real client-facing certificate, obtained
+  automatically through the `certificates` relation.
+- **DDoS and protocol protections**: enabled by default through haproxy's
+  `ddos-protection` option (drops connections with invalid, empty, or missing host headers,
+  applies connection/keep-alive timeouts).
 
 See the [ingress-configurator](https://charmhub.io/ingress-configurator/configurations) and
 [haproxy](https://charmhub.io/haproxy/configurations) configuration references for the full
-list of options, including TCP routing (`tcp-*` options) and gRPC support
-(`external-grpc-port`).
+list of options.
 
 ## Clean up
 
