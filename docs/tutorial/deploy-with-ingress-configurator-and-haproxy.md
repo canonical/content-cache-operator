@@ -62,7 +62,6 @@ juju status --watch 5s
 Note the IP address of the `origin` unit reported by `juju status` as you'll need it in the
 next step.
 
-
 ## 2. Deploy ingress-configurator and connect it to content-cache
 
 `ingress-configurator` translates a set of configuration options into the `cache-config`
@@ -100,6 +99,20 @@ curl http://<content-cache-unit-ip>:30000
 You should see `Hello from origin`. At this point you have a working deployment equivalent to
 what you'd get with the simpler `content-cache-backends-config` subordinate charm, but using
 `ingress-configurator` so you can add `haproxy` next.
+
+To confirm `content-cache` is actually caching the response rather than just forwarding it,
+send the same request twice and inspect the cache log on the unit. `content-cache` logs a
+`cache_status` field for every request, distinguishing a first-time `MISS` from a subsequent
+`HIT`:
+
+```bash
+curl http://<content-cache-unit-ip>:30000 -o /dev/null -s
+curl http://<content-cache-unit-ip>:30000 -o /dev/null -s
+juju ssh content-cache/0 -- sudo tail -2 /var/log/nginx/content-cache_0/30000.cache.log
+```
+
+The first request populates the cache (`"cache_status": "MISS"`), and the second is served
+straight from it (`"cache_status": "HIT"`), without `origin` being contacted again.
 
 ## 3. Deploy haproxy and add hostname-based routing
 
@@ -189,13 +202,7 @@ Compared to relating `ingress-configurator` directly to `content-cache` (step 2)
   horizontally (`juju add-unit content-cache`) behind a single hostname.
 - **Tunable health checks** — `health-check-interval`, `health-check-rise`, and
   `health-check-fall` on `ingress-configurator` control how haproxy decides a `content-cache`
-- **Hostname and path-based routing**: reach the cache by name over the standard HTTPS
-  port.
-- **TLS termination**: `haproxy` presents a real client-facing certificate, obtained
-  automatically through the `certificates` relation.
-- **DDoS and protocol protections**: enabled by default through haproxy's
-  `ddos-protection` option (drops connections with invalid, empty, or missing host headers,
-  applies connection/keep-alive timeouts).
+  unit is unhealthy and stops routing traffic to it.
 
 See the [ingress-configurator](https://charmhub.io/ingress-configurator/configurations) and
 [haproxy](https://charmhub.io/haproxy/configurations) configuration references for the full
