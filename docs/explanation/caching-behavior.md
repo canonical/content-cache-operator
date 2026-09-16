@@ -20,7 +20,7 @@ When nginx receives a request for a URL that is not in the cache, it forwards th
 an upstream backend. As the response arrives, nginx simultaneously:
 
 - Streams the response body to the client.
-- Writes the response body to disk at `/data/nginx/cache/<hostname>/`.
+- Writes the response body to disk at `/data/nginx/cache/<port>/`.
 
 The charm sets
 [`use_temp_path=off`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path)
@@ -36,7 +36,9 @@ upstream backend. The client receives the response faster, and the backend sees 
 
 Two independent mechanisms remove cached responses.
 
-**TTL expiry:** The `proxy-cache-valid` configuration on `content-cache-backends-config`
+**TTL expiry:** The `proxy_cache_valid` field of the `cache-config` relation data (for example,
+`proxy-cache-valid` on `content-cache-backends-config`, or
+`cache-proxy-cache-valid` on `ingress-configurator`)
 sets how long a cached response is considered fresh. For example, `200 1d` means a cached
 200 response is valid for one day. After the TTL expires, the next request for that URL
 triggers a fresh upstream fetch.

@@ -13,7 +13,12 @@ Content cache operators
 A `Juju <https://juju.is/>`_ `charm <https://documentation.ubuntu.com/juju/3.6/reference/charm/>`_
 deploying and managing a static web content cache with NGINX on VMs. 
 
-This machine charm manages a NGINX instance configured as a content cache. The configuration for the locations of cache is managed with the `Content Cache Backends Config subordinate charm <https://charmhub.io/content-cache-backends-config>`_. Each Content Cache Backends Config charm stores the configuration for a location and the associated set of backends.
+This machine charm manages a NGINX instance configured as a content cache. Backends are
+configured through the `cache-config` relation, provided either by the
+`Content Cache Backends Config subordinate charm <https://charmhub.io/content-cache-backends-config>`_
+or by the `Ingress configurator charm <https://charmhub.io/ingress-configurator>`_. The latter
+can also be paired with the `HAProxy charm <https://charmhub.io/haproxy>`_ to add
+hostname/path-based routing, TLS termination, and other ingress features in front of the cache.
 
 This charm should be used for caching static web content. When a client makes a request, this charm checks if the requested content is cached and valid. For an invalid cache, this charm will query the backends hosts for the content to refresh the cache. This process works well for static content that does not change based on the client. For this type of content, the cache can greatly reduce the load on the backend hosts.
 
@@ -21,8 +26,8 @@ Like any Juju charm, this charm supports one-line deployment, configuration, int
 scaling, and more. 
 For content cache charm, this includes:
 
-- Support for multiple backends via the Content Cache Backends Config subordinate charm.
-- Support for HTTPS.
+- Support for multiple backends via the `cache-config` relation (using the Content Cache Backends Config or Ingress configurator charms).
+- Support for HTTPS, both to backends and for incoming ingress traffic.
 - Observability with COS.
 
 The charm simplifies the operation of an NGINX server as a static web content cache. This makes the charm suitable for users looking for a low maintenance way to reduce load on static websites.
@@ -45,7 +50,7 @@ How this documentation is organized
 
 This documentation uses the `Diátaxis documentation structure <https://diataxis.fr/>`_.
 
-- The :ref:`Tutorial <tutorial_index>` takes you step-by-step through a basic deployment of the content cache charm.
+- The :ref:`Tutorial <tutorial_index>` takes you step-by-step through a basic deployment of the content cache charm, and through an advanced deployment fronted by `ingress-configurator` and `haproxy`.
 - :ref:`How-to guides <how_to_index>` assume you have basic familiarity with the content cache charm. Learn more about setting up, using, maintaining, and contributing to this charm.
 - :ref:`Reference <reference_index>` provides a guide to actions, configurations, relations, and other technical details.
 - :ref:`Explanation <explanation_index>` includes topic overviews, background and context and detailed discussion.

@@ -2,21 +2,29 @@
 
 # How to connect to HTTPS backends
 
-The Content Cache charm can proxy to backends over HTTPS by using HTTPS URLs in the `backends` option
-on the `content-cache-backends-config` charm.
-The following example sets the backend to `https://10.10.1.1:443`:
+The Content Cache charm can proxy to backends over HTTPS. Backends are configured through the
+`cache-config` endpoint, using either the
+[Content Cache Backends Config](https://charmhub.io/content-cache-backends-config) or
+[Ingress configurator](https://charmhub.io/ingress-configurator) charm. The examples below use
+`ingress-configurator`; set `backend-protocol=https` and list your backend addresses and ports:
 
 ```bash
-juju config content-cache-backends-config backends=https://10.10.1.1:443
+juju config ingress-configurator \
+  backend-addresses=10.10.1.1 \
+  backend-ports=443 \
+  backend-protocol=https
 ```
 
-When the URL scheme is `https`, nginx connects to the backend over TLS on the specified port
-(which is `443` in the example above).
+The equivalent on `content-cache-backends-config` is a single `backends` option that includes
+the scheme, e.g. `juju config content-cache-backends-config backends=https://10.10.1.1:443`.
+
+When the backend protocol is `https`, nginx connects to the backend over TLS on the specified
+port (`443` in the example above).
 
 ## Provide a CA certificate
 
 To verify the backend TLS certificate, integrate a certificate provider charm (such as
-`self-signed-certificates` or `lego`) using the `receive-ca-cert` endpoint:
+`self-signed-certificates` or `lego`) with `content-cache` using the `receive-ca-cert` endpoint:
 
 ```bash
 juju integrate <cert-provider>:send-ca-cert content-cache:receive-ca-cert
@@ -35,6 +43,20 @@ If HTTPS backends are configured but no CA certificate has been provided, the ch
 Multiple `receive-ca-cert` providers are supported; all provided CA certificates are merged
 into a single bundle.
 
+### Backend hostname (SNI and Host header)
+
+If the backend's own hostname differs from the address you configured (for example, the
+backend expects `Host: origin.example.com` while `backend-addresses` points at an internal
+IP), set `cache-backend-hostname` so nginx presents the correct SNI and `Host` header:
+
+```bash
+juju config ingress-configurator cache-backend-hostname=origin.example.com
+```
+
+The equivalent on `content-cache-backends-config` is `backend-hostname`.
+
+This option is required whenever `backend-protocol` is `https`.
+
 ## Skip SSL certificate verification for health checks
 
 If the backends use self-signed certificates, you must disable SSL verification for the
@@ -44,8 +66,10 @@ the CA bundle provided via `receive-ca-cert`. To disable SSL verification for he
 run:
 
 ```bash
-juju config backends healthcheck-ssl-verify=false
+juju config ingress-configurator cache-healthcheck-ssl-verify=false
 ```
+
+The equivalent on `content-cache-backends-config` is `healthcheck-ssl-verify`.
 
 ## TLS termination for incoming traffic
 
@@ -53,7 +77,8 @@ When HAProxy connects to the content-cache over HTTPS, the charm must present a 
 certificate. This is configured through the `certificates` relation
 (interface: `tls-certificates`).
 
-Deploy a TLS certificate provider (e.g. `lego`) as `cache-lego` and integrate:
+Deploy a TLS certificate provider (e.g. `self-signed-certificates` or `lego`) as `cache-lego`
+and integrate:
 
 ```bash
 juju integrate content-cache:certificates cache-lego:certificates
@@ -61,7 +86,7 @@ juju integrate content-cache:certificates cache-lego:certificates
 
 When the certificate is issued, the charm automatically:
 
-1. Writes the combined certificate and key PEM (Privacy Enhanced Mail, a base64-encoded certificate format) to `/etc/nginx/certs/<unit-ip>.pem`
+1. Writes the combined certificate and key PEM (Privacy Enhanced Mail, a base64-encoded certificate format) to `/etc/nginx/certs/content-cache-charm.pem`
 2. Reconfigures nginx to listen with `ssl` on the allocated port
 3. Updates the `cache-backend` relation data to return `https://` URLs
 
@@ -69,9 +94,14 @@ HAProxy must trust this certificate. Integrate HAProxy with `cache-lego` using t
 `certificate_transfer` interface:
 
 ```bash
-juju integrate cache-lego:send-ca-cert haproxy:receive-ca-cert
+juju integrate cache-lego:send-ca-cert haproxy:receive-ca-certs
 ```
 
 If the `certificates` relation is present but the certificate has not yet been issued,
 the charm enters `WaitingStatus`. If the relation is removed, the charm automatically deletes the
 certificate file and reverts nginx to HTTP.
+
+```{seealso}
+{ref}`Tutorial: Deploy content-cache with ingress-configurator and haproxy <tutorial_advanced_ingress>`
+for a full walkthrough of front-ending `content-cache` with `haproxy`, including TLS.
+```
