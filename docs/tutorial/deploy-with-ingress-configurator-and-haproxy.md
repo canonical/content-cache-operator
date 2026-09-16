@@ -186,23 +186,13 @@ port, addressed by a hostname you chose, with no need to know or track the port 
 Compared to relating `ingress-configurator` directly to `content-cache` (step 2), adding
 `haproxy` in front unlocks:
 
-- **Hostname and path-based routing** — reach the cache by name over the standard HTTPS
-  port, and route different `paths`/`additional-hostnames` to different backends
-  (see the `paths`, `hostname`, and `additional-hostnames` options).
-- **TLS termination** — `haproxy` presents a real client-facing certificate, obtained
-  automatically through the `certificates` relation, instead of leaving TLS entirely to an
-  upstream you'd otherwise have to run yourself.
-- **DDoS and protocol protections** — enabled by default through haproxy's
+- **Hostname and path-based routing**: reach the cache by name over the standard HTTPS
+  port.
+- **TLS termination**: `haproxy` presents a real client-facing certificate, obtained
+  automatically through the `certificates` relation.
+- **DDoS and protocol protections**: enabled by default through haproxy's
   `ddos-protection` option (drops connections with invalid, empty, or missing host headers,
   applies connection/keep-alive timeouts).
-- **HSTS** — set `juju config haproxy enable-hsts=true` to send
-  `Strict-Transport-Security` for hostnames routed without `allow-http`.
-- **Load balancing and retries across multiple content-cache units** — `load-balancing-algorithm`,
-  `retry-count`, and `retry-redispatch` on `ingress-configurator` let you scale `content-cache`
-  horizontally (`juju add-unit content-cache`) behind a single hostname.
-- **Tunable health checks** — `health-check-interval`, `health-check-rise`, and
-  `health-check-fall` on `ingress-configurator` control how haproxy decides a `content-cache`
-  unit is unhealthy and stops routing traffic to it.
 
 See the [ingress-configurator](https://charmhub.io/ingress-configurator/configurations) and
 [haproxy](https://charmhub.io/haproxy/configurations) configuration references for the full
