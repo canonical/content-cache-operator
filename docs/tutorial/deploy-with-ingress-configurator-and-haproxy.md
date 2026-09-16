@@ -53,7 +53,7 @@ juju deploy ubuntu --base ubuntu@24.04 origin
 juju exec --unit origin/0 -- "echo '<h1>Hello from origin</h1>' | sudo tee /var/www/html/index.html && sudo apt-get install -y python3 && cd /var/www/html && (nohup sudo python3 -m http.server 80 >/tmp/http-server.log 2>&1 &)"
 ```
 
-Wait for the `origin` application to settle into `active`/`idle`; `content-cache` remains `Blocked` until the `cache-config` relation is added in step 2:
+Wait for the `origin` application to settle into `active`/`idle`. `content-cache` remains `blocked` until the `cache-config` relation is added in step 2:
 
 ```bash
 juju status --watch 5s
