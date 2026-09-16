@@ -16,8 +16,8 @@ hostname-based routing, TLS termination for incoming traffic, or ingress-level p
 This tutorial builds on the concepts of the basic content-cache tutorial and shows you how to
 front `content-cache` with the [Ingress configurator](https://charmhub.io/ingress-configurator)
 and [HAProxy](https://charmhub.io/haproxy) charms. Together, they let clients reach your cached
-content through a normal hostname over HTTPS, and unlock features such as HTTPS termination,
-health check tuning, retries, and DDoS protections that `content-cache` does not provide by
+content through a normal hostname over HTTPS, and unlock features such as TLS termination,
+retries, and DDoS protections that `content-cache` does not provide by
 itself.
 
 Everything in this tutorial runs on a local [LXD](https://ubuntu.com/lxd) cloud, so you can
