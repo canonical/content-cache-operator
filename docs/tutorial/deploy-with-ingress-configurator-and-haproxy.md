@@ -33,11 +33,12 @@ follow along without access to any Canonical-internal infrastructure.
 
 ## What you'll need
 
-- A workstation, for example a laptop, with amd64 architecture.
-- Juju 3 installed and bootstrapped to a LXD controller. You can set this up using a Multipass
-  VM as outlined in {ref}`Set up / Tear down your test environment <juju:set-things-up>`.
+You will need a workstation, for example a laptop, with amd64 architecture.
 
-## 1. Deploy content-cache and a test origin
+This tutorial requires Juju 3 bootstrapped to a LXD controller. You can set this up using a
+Multipass VM as outlined in {ref}`Set up / Tear down your test environment <juju:set-things-up>`.
+
+## Deploy content-cache and a test origin
 
 Bootstrap or switch to a model, then deploy the Content Cache charm from the `1/edge` channel:
 
@@ -53,16 +54,20 @@ juju deploy ubuntu --base ubuntu@24.04 origin
 juju exec --unit origin/0 -- "echo '<h1>Hello from origin</h1>' | sudo tee /var/www/html/index.html && sudo apt-get install -y python3 && cd /var/www/html && (nohup sudo python3 -m http.server 80 >/tmp/http-server.log 2>&1 &)"
 ```
 
-Wait for the `origin` application to settle into `active`/`idle`. `content-cache` remains `blocked` until the `cache-config` relation is added in step 2:
+Wait for the `origin` application to settle into `active`/`idle`. `content-cache` remains `blocked` until the `cache-config` relation is added in the next step:
 
 ```bash
 juju status --watch 5s
 ```
 
-Note the IP address of the `origin` unit reported by `juju status` as you'll need it in the
-next step.
+Note the IP address of the `origin` unit reported by `juju status`, and save it to an
+environment variable so you can reuse it in later commands:
 
-## 2. Deploy ingress-configurator and connect it to content-cache
+```bash
+export ORIGIN_IP=<origin-ip>
+```
+
+## Deploy ingress-configurator and connect it to content-cache
 
 `ingress-configurator` translates a set of configuration options into the `cache-config`
 relation data that `content-cache` consumes, replacing the need to configure the relation by
@@ -72,12 +77,11 @@ hand. Deploy it from the `latest/edge` channel:
 juju deploy ingress-configurator --channel latest/edge
 ```
 
-Point it at the origin server you deployed in step 1 (replace `<origin-ip>` with the address
-you noted earlier):
+Point it at the origin server you deployed in the previous step:
 
 ```bash
 juju config ingress-configurator \
-  backend-addresses=<origin-ip> \
+  backend-addresses=$ORIGIN_IP \
   backend-ports=80 \
   backend-protocol=http
 ```
@@ -89,11 +93,13 @@ juju integrate content-cache:cache-config ingress-configurator:cache-config
 ```
 
 Once both charms settle, `content-cache` allocates a port for this relation (starting at
-`30000`) and starts caching the origin. You can confirm this works by curling the
-`content-cache` unit directly on that port:
+`30000`) and starts caching the origin. Find the `content-cache` unit's IP address with
+`juju status`, save it to an environment variable, and curl the unit directly on that port
+to confirm this works:
 
 ```bash
-curl http://<content-cache-unit-ip>:30000
+export CONTENT_CACHE_IP=<content-cache-unit-ip>
+curl http://$CONTENT_CACHE_IP:30000
 ```
 
 You should see `Hello from origin`. At this point you have a working deployment equivalent to
@@ -106,15 +112,22 @@ send the same request twice and inspect the cache log on the unit. `content-cach
 `HIT`:
 
 ```bash
-curl http://<content-cache-unit-ip>:30000 -o /dev/null -s
-curl http://<content-cache-unit-ip>:30000 -o /dev/null -s
+curl http://$CONTENT_CACHE_IP:30000 -o /dev/null -s
+curl http://$CONTENT_CACHE_IP:30000 -o /dev/null -s
 juju ssh content-cache/0 -- sudo tail -2 /var/log/nginx/content-cache_0/30000.cache.log
 ```
 
 The first request populates the cache (`"cache_status": "MISS"`), and the second is served
 straight from it (`"cache_status": "HIT"`), without `origin` being contacted again.
 
-## 3. Deploy haproxy and add hostname-based routing
+## Deploy haproxy and add hostname-based routing
+
+So far, clients reach the cache through `content-cache`'s dynamically allocated TCP port, with
+no hostname-based routing and no protection beyond what `content-cache` itself provides. Adding
+`haproxy` in front of `ingress-configurator` gives clients a normal HTTPS hostname to connect
+to, and enables protocol- and DDoS-level protections by default (connections with invalid,
+empty, or missing host headers are dropped, and connection/keep-alive timeouts are enforced),
+without any extra configuration.
 
 Deploy `haproxy` from the `2.8/stable` channel:
 
@@ -137,14 +150,18 @@ juju config ingress-configurator hostname=content-cache.local
 ```
 
 `haproxy-route` is HTTPS-only by default, so you need a certificate before traffic will be
-routed (see the next step). If you want to test plain HTTP first, temporarily set
-`allow-http=true`; this is **not** recommended for anything beyond local testing:
+routed (see the next step). If you want to test plain HTTP first, you can temporarily allow it:
+
+```{note}
+Setting `allow-http=true` disables the HTTPS-only requirement and should not be used for
+anything beyond local testing.
+```
 
 ```bash
 juju config ingress-configurator allow-http=true
 ```
 
-## 4. Terminate TLS at the ingress
+## Terminate TLS at the ingress
 
 In production, use a real certificate authority such as [Let's Encrypt via the `lego`
 charm](https://charmhub.io/lego). For this tutorial, deploy `self-signed-certificates` so
@@ -156,7 +173,7 @@ juju integrate haproxy:certificates self-signed-certificates:certificates
 ```
 
 Once the relation settles, `haproxy` requests and receives a certificate for
-`content-cache.local` (the hostname you configured in step 3). You can drop the `allow-http`
+`content-cache.local` (the hostname you configured earlier). You can drop the `allow-http`
 override now, since HTTPS is available:
 
 ```bash
@@ -170,11 +187,12 @@ juju run haproxy/0 get-certificate hostname=content-cache.local --format=json \
   | jq -r '.[].results.ca' > ca.pem
 ```
 
-Find the `haproxy` unit's IP address with `juju status`, then test the whole path end to end,
-resolving the hostname to that address:
+Find the `haproxy` unit's IP address with `juju status`, save it to an environment variable,
+and test the whole path end to end, resolving the hostname to that address:
 
 ```bash
-curl --resolve content-cache.local:443:<haproxy-unit-ip> --cacert ca.pem https://content-cache.local/
+export HAPROXY_IP=<haproxy-unit-ip>
+curl --resolve content-cache.local:443:$HAPROXY_IP --cacert ca.pem https://content-cache.local/
 ```
 
 You should see `Hello from origin` again — but this time served over HTTPS, on the standard
@@ -183,20 +201,26 @@ port, addressed by a hostname you chose, with no need to know or track the port 
 
 ## What you gained
 
-Compared to relating `ingress-configurator` directly to `content-cache` (step 2), adding
-`haproxy` in front unlocks:
+Compared to relating `ingress-configurator` directly to `content-cache`, adding `haproxy` in
+front unlocks:
 
 - **Hostname and path-based routing**: reach the cache by name over the standard HTTPS
   port.
 - **TLS termination**: `haproxy` presents a real client-facing certificate, obtained
   automatically through the `certificates` relation.
-- **DDoS and protocol protections**: enabled by default through haproxy's
-  `ddos-protection` option (drops connections with invalid, empty, or missing host headers,
-  applies connection/keep-alive timeouts).
 
-See the [ingress-configurator](https://charmhub.io/ingress-configurator/configurations) and
-[haproxy](https://charmhub.io/haproxy/configurations) configuration references for the full
-list of options.
+## Next steps
+
+Now that you have a working deployment with hostname-based routing, DDoS protections, and TLS
+termination, you can:
+
+- Explore the [ingress-configurator](https://charmhub.io/ingress-configurator/configurations)
+  and [haproxy](https://charmhub.io/haproxy/configurations) configuration references for
+  additional controls such as health check tuning and retries.
+- Use a real certificate authority in production by integrating `haproxy` with the
+  [`lego`](https://charmhub.io/lego) charm instead of `self-signed-certificates`.
+- Read the content-cache {ref}`how-to guides <how_to_index>` for day-2 operations, such as
+  enabling COS observability or connecting to HTTPS backends.
 
 ## Clean up
 
