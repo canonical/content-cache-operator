@@ -10,7 +10,7 @@ The charm simplifies the operation of an nginx server as a static web content ca
 
 ## Get started
 
-To begin, refer to the [Content Cache tutorial](https://canonical-content-cache-charms.readthedocs-hosted.com/latest/tutorial/) for step-by-step instructions.
+To begin, refer to the [Content Cache tutorial](https://canonical.com/juju/docs/content-cache-charms/latest/tutorial/) for step-by-step instructions.
 
 ## Integrations
 
