@@ -153,12 +153,16 @@ juju config ingress-configurator hostname=content-cache.local
 routed (see the next step). If you want to test plain HTTP first, you can temporarily allow it:
 
 ```{note}
-Setting `allow-http=true` disables the HTTPS-only requirement and should not be used for
-anything beyond local testing.
-```
+```{note}
+`haproxy-route` is HTTPS-only by default, so you need a certificate before traffic will be
+routed (see the next step). If you want to test plain HTTP first, you can temporarily allow it:
 
 ```bash
 juju config ingress-configurator allow-http=true
+```
+
+Setting `allow-http=true` disables the HTTPS-only requirement and should not be used for
+anything beyond local testing.
 ```
 
 ## Terminate TLS at the ingress
