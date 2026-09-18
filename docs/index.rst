@@ -39,7 +39,7 @@ In this documentation
     :header-rows: 0
 
     * - **Get started**
-      - :ref:`Deploy with ingress-configurator and haproxy <tutorial_advanced_ingress>`
+      - :ref:`Deploy with an ingress configurator and HAProxy <tutorial_advanced_ingress>`
     * - **Operations**
       - :ref:`Enable COS <how_to_enable_cos>` | :ref:`Upgrade <how_to_upgrade>`
     * - **Design**

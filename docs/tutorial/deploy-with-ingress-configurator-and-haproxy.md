@@ -35,8 +35,21 @@ follow along without access to any Canonical-internal infrastructure.
 
 You will need a workstation, for example a laptop, with amd64 architecture.
 
-This tutorial requires Juju 3 bootstrapped to a LXD controller. You can set this up using a
-Multipass VM as outlined in {ref}`Set up / Tear down your test environment <juju:set-things-up>`.
+This tutorial requires the following software to be installed on your workstation:
+
+- Juju 3
+- `jq`
+
+Use [Concierge](https://github.com/canonical/concierge) to set up Juju, bootstrapped to a LXD
+controller, along with `jq`:
+
+```bash
+sudo snap install --classic concierge
+sudo concierge prepare -p machine
+```
+
+The first command installs Concierge, and the second uses it to install and configure Juju
+and LXD. You can verify the bootstrap succeeded by running `juju controllers`.
 
 ## Deploy content-cache and a test origin
 
@@ -51,7 +64,7 @@ HTTP server on it to stand in for a real origin:
 
 ```bash
 juju deploy ubuntu --base ubuntu@24.04 origin
-juju exec --unit origin/0 -- "echo '<h1>Hello from origin</h1>' | sudo tee /var/www/html/index.html && sudo apt-get install -y python3 && cd /var/www/html && (nohup sudo python3 -m http.server 80 >/tmp/http-server.log 2>&1 &)"
+juju exec --unit origin/0 -- "sudo mkdir -p /var/www/html && echo '<h1>Hello from origin</h1>' | sudo tee /var/www/html/index.html && sudo apt-get install -y python3 && cd /var/www/html && (nohup sudo python3 -m http.server 80 >/tmp/http-server.log 2>&1 &)"
 ```
 
 Wait for the `origin` application to settle into `active`/`idle`. `content-cache` remains `blocked` until the `cache-config` relation is added in the next step:
@@ -60,11 +73,11 @@ Wait for the `origin` application to settle into `active`/`idle`. `content-cache
 juju status --watch 5s
 ```
 
-Note the IP address of the `origin` unit reported by `juju status`, and save it to an
-environment variable so you can reuse it in later commands:
+Save the `origin` unit's IP address to an environment variable so you can reuse it in later
+commands:
 
 ```bash
-export ORIGIN_IP=<origin-ip>
+export ORIGIN_IP=$(juju status --format json | jq -r '.applications.origin.units."origin/0"."public-address"')
 ```
 
 ## Deploy ingress-configurator and connect it to content-cache
@@ -92,19 +105,71 @@ Integrate `ingress-configurator` with `content-cache` over the `cache-config` en
 juju integrate content-cache:cache-config ingress-configurator:cache-config
 ```
 
-Once both charms settle, `content-cache` allocates a port for this relation (starting at
-`30000`) and starts caching the origin. Find the `content-cache` unit's IP address with
-`juju status`, save it to an environment variable, and curl the unit directly on that port
-to confirm this works:
+At this point both charms remain `blocked`: `ingress-configurator` won't publish backend
+configuration to `content-cache` over `cache-config` until it also has a route relation,
+which you'll add next by deploying `haproxy`.
+
+## Deploy HAProxy and add hostname-based routing
+
+So far, clients would reach the cache through `content-cache`'s dynamically allocated TCP
+port, with no hostname-based routing and no protection beyond what `content-cache` itself
+provides. Adding `haproxy` in front of `ingress-configurator` gives clients a normal HTTPS
+hostname to connect to, and enables protocol- and DDoS-level protections by default
+(connections with invalid, empty, or missing host headers are dropped, and connection/
+keep-alive timeouts are enforced), without any extra configuration.
+
+Deploy `haproxy` from the `2.8/stable` channel:
 
 ```bash
-export CONTENT_CACHE_IP=<content-cache-unit-ip>
+juju deploy haproxy --channel 2.8/stable
+```
+
+Integrate it with `ingress-configurator` over the `haproxy-route` endpoint:
+
+```bash
+juju integrate ingress-configurator:haproxy-route haproxy:haproxy-route
+```
+
+Let's give our deployment a hostname:
+
+```bash
+juju config ingress-configurator hostname=content-cache.local
+```
+
+`ingress-configurator` forwards this hostname to `haproxy`, which uses it both for request
+routing and as the certificate common name once TLS is enabled.
+
+`haproxy-route` is HTTPS-only by default, so you need a certificate before traffic will be
+routed (see the next step). If you want to test plain HTTP first, you can temporarily allow it:
+
+```{note}
+Setting `allow-http=true` disables the HTTPS-only requirement and should not be used for
+anything beyond local testing.
+```
+
+```bash
+juju config ingress-configurator allow-http=true
+```
+
+Now that `haproxy` has requested a route, `ingress-configurator` publishes the backend
+configuration to `content-cache` over `cache-config`, and all three charms settle into
+`active`/`idle`:
+
+```bash
+juju status --watch 5s
+```
+
+## Confirm content-cache is caching
+
+Save the `content-cache` unit's IP address to an environment variable and curl it directly
+on the port allocated for this relation (starting at `30000`):
+
+```bash
+export CONTENT_CACHE_IP=$(juju status --format json | jq -r '.applications."content-cache".units."content-cache/0"."public-address"')
 curl http://$CONTENT_CACHE_IP:30000
 ```
 
-You should see `Hello from origin`. At this point you have a working deployment equivalent to
-what you'd get with the simpler `content-cache-backends-config` subordinate charm, but using
-`ingress-configurator` so you can add `haproxy` next.
+You should see `Hello from origin`.
 
 To confirm `content-cache` is actually caching the response rather than just forwarding it,
 send the same request twice and inspect the cache log on the unit. `content-cache` logs a
@@ -119,51 +184,6 @@ juju ssh content-cache/0 -- sudo tail -2 /var/log/nginx/content-cache_0/30000.ca
 
 The first request populates the cache (`"cache_status": "MISS"`), and the second is served
 straight from it (`"cache_status": "HIT"`), without `origin` being contacted again.
-
-## Deploy haproxy and add hostname-based routing
-
-So far, clients reach the cache through `content-cache`'s dynamically allocated TCP port, with
-no hostname-based routing and no protection beyond what `content-cache` itself provides. Adding
-`haproxy` in front of `ingress-configurator` gives clients a normal HTTPS hostname to connect
-to, and enables protocol- and DDoS-level protections by default (connections with invalid,
-empty, or missing host headers are dropped, and connection/keep-alive timeouts are enforced),
-without any extra configuration.
-
-Deploy `haproxy` from the `2.8/stable` channel:
-
-```bash
-juju deploy haproxy --channel 2.8/stable
-```
-
-Integrate it with `ingress-configurator` over the `haproxy-route` endpoint:
-
-```bash
-juju integrate ingress-configurator:haproxy-route haproxy:haproxy-route
-```
-
-Give your deployment a hostname. `ingress-configurator` forwards this hostname to `haproxy`,
-which uses it both for request routing and as the certificate common name once TLS is
-enabled:
-
-```bash
-juju config ingress-configurator hostname=content-cache.local
-```
-
-`haproxy-route` is HTTPS-only by default, so you need a certificate before traffic will be
-routed (see the next step). If you want to test plain HTTP first, you can temporarily allow it:
-
-```{note}
-```{note}
-`haproxy-route` is HTTPS-only by default, so you need a certificate before traffic will be
-routed (see the next step). If you want to test plain HTTP first, you can temporarily allow it:
-
-```bash
-juju config ingress-configurator allow-http=true
-```
-
-Setting `allow-http=true` disables the HTTPS-only requirement and should not be used for
-anything beyond local testing.
-```
 
 ## Terminate TLS at the ingress
 
@@ -191,11 +211,11 @@ juju run haproxy/0 get-certificate hostname=content-cache.local --format=json \
   | jq -r '.[].results.ca' > ca.pem
 ```
 
-Find the `haproxy` unit's IP address with `juju status`, save it to an environment variable,
-and test the whole path end to end, resolving the hostname to that address:
+Find the `haproxy` unit's IP address, save it to an environment variable, and test the whole
+path end to end, resolving the hostname to that address:
 
 ```bash
-export HAPROXY_IP=<haproxy-unit-ip>
+export HAPROXY_IP=$(juju status --format json | jq -r '.applications.haproxy.units."haproxy/0"."public-address"')
 curl --resolve content-cache.local:443:$HAPROXY_IP --cacert ca.pem https://content-cache.local/
 ```
 
