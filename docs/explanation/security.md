@@ -20,7 +20,7 @@ The charm terminates TLS for incoming client requests when the `certificates` re
 `lego` (referred to as `cache-lego`).
 
 When a certificate is available, nginx listens on the allocated port with SSL enabled
-(`listen <port> ssl`) using the PEM stored at `/etc/nginx/certs/<unit-ip>.pem`
+(`listen <port> ssl`) using the PEM stored at `/etc/nginx/certs/content-cache-charm.pem`
 that contains the certificate and key.
 The `cache-backend` relation data returns `https://` URLs so that HAProxy can connect
 over HTTPS. HAProxy integrates with `cache-lego` via `certificate_transfer` to obtain
@@ -51,7 +51,9 @@ component placed in front of the charm, such as a load balancer, reverse proxy, 
 ### Backend protocol
 
 Backends are specified as full URLs in the form `<http|https>://<ip>:<port>` via the
-`backends` configuration option on `content-cache-backends-config`. The URL scheme controls
+`backends` field of the `cache-config` relation data (for example, the `backends` option on
+`content-cache-backends-config`, or the `backend-addresses`/`backend-ports`/`backend-protocol`
+options on `ingress-configurator`). The URL scheme controls
 whether nginx contacts backends over HTTP or HTTPS. Operators should use HTTPS backend URLs
 unless backends do not support TLS.
 
@@ -61,7 +63,9 @@ The charm contacts backends over two separate code paths: the Lua healthcheck mo
 health pings) and the nginx `proxy_pass` directive (actual proxied requests). These have
 different SSL verification behavior.
 
-**Healthchecks** — the `healthcheck-ssl-verify` configuration option on `content-cache-backends-config`
+**Healthchecks** — the `healthcheck_ssl_verify` field of the `cache-config` relation data (for
+example, `healthcheck-ssl-verify` on `content-cache-backends-config`, or
+`cache-healthcheck-ssl-verify` on `ingress-configurator`)
 controls whether the Lua healthcheck module verifies the backend SSL certificate during health
 pings. The configuration defaults to `true`. Setting the configuration to `false` disables certificate verification for
 healthchecks and should only be used in controlled environments, for example, when backends

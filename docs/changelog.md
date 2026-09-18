@@ -8,6 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Each revision is versioned by the date of the revision.
 
+## 2026-09-16
+
+### Added
+
+- Added an advanced tutorial walking through deploying `content-cache` behind
+  `ingress-configurator` and `haproxy`, covering hostname-based routing, TLS termination, and
+  other ingress features.
+
+### Fixed
+
+- Removed HTML comment blocks from the charm README that were rendering as literal text on
+  the Charmhub landing page.
+
+### Changed
+
+- Updated the how-to guides, reference, and explanation pages to reflect the current
+  `ingress-configurator`-based backend configuration flow, while retaining
+  `content-cache-backends-config` as a supported alternative. Corrected the documented TLS certificate
+  file path (`/etc/nginx/certs/content-cache-charm.pem`) and cache directory path
+  (`/data/nginx/cache/<port>/`) to match the current charm implementation.
+
 ## 2026-08-21
 
 ### Removed

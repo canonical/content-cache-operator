@@ -135,8 +135,9 @@ the metadata entry for the least recently accessed cache item is removed from th
 
 Disk entries expire according to
 [`proxy_cache_valid`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid),
-which maps HTTP response codes to TTLs. This value is set via the `proxy-cache-valid` option
-on `content-cache-backends-config` and applies per relation. For example:
+which maps HTTP response codes to TTLs. This value is set via the `proxy_cache_valid` field of
+the `cache-config` relation data (for example, `proxy-cache-valid` on `content-cache-backends-config`, or `cache-proxy-cache-valid` on
+`ingress-configurator`) and applies per relation. For example:
 
 ```
 proxy-cache-valid: '["200 302 1h", "404 1m"]'
@@ -147,7 +148,7 @@ not matched by any rule are not cached.
 
 ### Per-backend isolation
 
-Each `content-cache-backends-config` relation configured via `cache-config` gets:
+Each `cache-config` relation gets:
 
 - Its own cache directory (`/data/nginx/cache/<port>/`)
 - Its own RAM keys zone (`keys_zone=<port>:10m`)
@@ -156,7 +157,7 @@ Each `content-cache-backends-config` relation configured via `cache-config` gets
 There is no cross-relation competition for RAM. Each relation has its own `keys_zone`
 allocation, so cache metadata for one backend cannot evict the cache for another. Disk capacity, however,
 is shared across all relations on the same filesystem. Adding or removing a
-`content-cache-backends-config` relation only affects that relation's configuration; other
+`cache-config` relation only affects that relation's configuration; other
 backends continue serving from their own caches uninterrupted.
 
 ## Backend health checks and failover
