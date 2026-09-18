@@ -33,27 +33,64 @@ follow along without access to any Canonical-internal infrastructure.
 
 ## What you'll need
 
-You will need a workstation, for example a laptop, with amd64 architecture.
+You will need a workstation, e.g., a laptop, with AMD64 architecture. Your workstation should
+have at least 4 CPU cores, 8 GB of RAM, and 50 GB of disk space.
 
-This tutorial requires the following software to be installed on your workstation:
+```{tip}
+You can use Multipass to create an isolated environment by running:
+
+    multipass launch 24.04 --name charm-tutorial-vm --cpus 4 --memory 8G --disk 50G
+```
+
+This tutorial requires the following software to be installed on your workstation (either
+locally or in the Multipass VM):
 
 - Juju 3
 - `jq`
 
-Use [Concierge](https://github.com/canonical/concierge) to set up Juju, bootstrapped to a LXD
-controller, along with `jq`:
+Use [Concierge](https://github.com/canonical/concierge) to set up Juju and `jq`:
 
 ```bash
 sudo snap install --classic concierge
 sudo concierge prepare -p machine
 ```
 
-The first command installs Concierge, and the second uses it to install and configure Juju
-and LXD. You can verify the bootstrap succeeded by running `juju controllers`.
+This first command installs Concierge, and the second command uses Concierge to install and
+configure Juju and `jq`.
+
+For this tutorial, Juju must be bootstrapped to a LXD controller. Concierge should complete
+this step for you, and you can verify by checking for
+`msg="Bootstrapped Juju" provider=lxd`
+in the terminal output and by running `juju controllers`.
+
+If Concierge did not perform the bootstrap, run:
+
+```bash
+juju bootstrap localhost tutorial-controller
+```
+
+To be able to work inside the Multipass VM, log in with the following command:
+
+```bash
+multipass shell charm-tutorial-vm
+```
+
+```{note}
+If you're working locally, you don't need to do this step.
+```
+
+## Set up the environment
+
+To manage resources effectively and to separate this tutorial's workload from your usual
+work, create a new model in the LXD controller using the following command:
+
+```bash
+juju add-model content-cache-tutorial
+```
 
 ## Deploy content-cache and a test origin
 
-Bootstrap or switch to a model, then deploy the Content Cache charm from the `1/edge` channel:
+Deploy the Content Cache charm from the `1/edge` channel:
 
 ```bash
 juju deploy content-cache --channel 1/edge
