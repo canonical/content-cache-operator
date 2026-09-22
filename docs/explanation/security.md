@@ -79,7 +79,7 @@ contains the system CA store (`/etc/ssl/certs/ca-certificates.crt`) merged with 
 certificate received over `receive-ca-cert`, so nginx trusts both publicly-signed and
 relation-provided backend certificates. This is distinct from
 `/etc/nginx/certs/content-cache-charm.pem`, which holds only the charm's own client-facing
-leaf certificate, chain, and private key (see "Transport security" above) — it contains no CA
+leaf certificate, chain, and private key. It contains no CA
 material. If HTTPS backends are configured but no `receive-ca-cert` relation is present, the
 charm enters `WaitingStatus` and nginx is not reconfigured. Traffic is paused until a CA
 certificate is supplied.
