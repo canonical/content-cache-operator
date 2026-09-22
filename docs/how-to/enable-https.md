@@ -77,6 +77,10 @@ juju config ingress-configurator cache-healthcheck-ssl-verify=false
 
 or
 
+```bash
+juju config content-cache-backends-config healthcheck-ssl-verify=false
+```
+
 ## Terminate TLS for incoming traffic
 
 When HAProxy connects to Content Cache over HTTPS, the charm must present a TLS

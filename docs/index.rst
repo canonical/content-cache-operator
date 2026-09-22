@@ -14,7 +14,7 @@ A `Juju <https://juju.is/>`_ `charm <https://documentation.ubuntu.com/juju/3.6/r
 deploying and managing a static web content cache with NGINX on VMs. 
 
 This machine charm manages a NGINX instance configured as a content cache. Backends are
-configured through the `cache-config` relation, provided either by the
+configured through the ``cache-config`` relation, provided either by the
 `Content Cache Backends Config subordinate charm <https://charmhub.io/content-cache-backends-config>`_
 or by the `Ingress configurator charm <https://charmhub.io/ingress-configurator>`_. The latter
 can also be paired with the `HAProxy charm <https://charmhub.io/haproxy>`_ to add
@@ -26,7 +26,7 @@ Like any Juju charm, this charm supports one-line deployment, configuration, int
 scaling, and more. 
 For content cache charm, this includes:
 
-- Support for multiple backends via the `cache-config` relation (using the Content Cache Backends Config or Ingress configurator charms).
+- Support for multiple backends via the ``cache-config`` relation (using the Content Cache Backends Config or Ingress configurator charms).
 - Support for HTTPS, both to backends and for incoming ingress traffic.
 - Observability with COS.
 
@@ -52,7 +52,7 @@ How this documentation is organized
 
 This documentation uses the `Diátaxis documentation structure <https://diataxis.fr/>`_.
 
-- The :ref:`Tutorial <tutorial_index>` takes you step-by-step through an advanced deployment fronted by `ingress-configurator` and `haproxy`.
+- The :ref:`Tutorial <tutorial_index>` takes you step-by-step through an advanced deployment fronted by ``ingress-configurator`` and ``haproxy``.
 - :ref:`How-to guides <how_to_index>` assume you have basic familiarity with the content cache charm. Learn more about setting up, using, maintaining, and contributing to this charm.
 - :ref:`Reference <reference_index>` provides a guide to actions, configurations, relations, and other technical details.
 - :ref:`Explanation <explanation_index>` includes topic overviews, background and context and detailed discussion.
