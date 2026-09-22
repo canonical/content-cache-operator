@@ -28,13 +28,13 @@ port (`443` in the example above).
 ## Provide a CA certificate
 
 To verify the backend TLS certificate, integrate a certificate provider charm (such as
-`self-signed-certificates` or `lego`) with `content-cache` using the `receive-ca-cert` endpoint:
+`self-signed-certificates` or `lego`) with Content Cache using the `receive-ca-cert` endpoint:
 
 ```bash
 juju integrate <cert-provider>:send-ca-cert content-cache:receive-ca-cert
 ```
 
-Once the CA certificate is received, the content-cache charm will:
+Once the CA certificate is received, the Content Cache charm will:
 
 - Write the certificate to `/etc/nginx/certs/ca-bundle.pem`
 - Configure nginx to verify backend certificates against this CA
@@ -77,7 +77,7 @@ The equivalent on `content-cache-backends-config` is `healthcheck-ssl-verify`.
 
 ## Terminate TLS for incoming traffic
 
-When HAProxy connects to the content-cache over HTTPS, the charm must present a TLS
+When HAProxy connects to Content Cache over HTTPS, the charm must present a TLS
 certificate. This is configured through the `certificates` relation
 (interface: `tls-certificates`).
 
@@ -107,5 +107,5 @@ certificate file and reverts nginx to HTTP.
 
 ```{seealso}
 {ref}`Tutorial: Deploy content-cache with ingress-configurator and haproxy <tutorial_advanced_ingress>`
-for a full walkthrough of front-ending `content-cache` with `haproxy`, including TLS.
+for a full walkthrough of front-ending Content Cache with HAProxy, including TLS.
 ```

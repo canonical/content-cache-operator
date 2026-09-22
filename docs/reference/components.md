@@ -8,7 +8,7 @@ myst:
 
 # Components
 
-The `content-cache` charm is deployed together with other charms to provide backend
+The Content Cache charm is deployed together with other charms to provide backend
 configuration and, optionally, ingress in front of the cache.
 
 ## Content Cache
@@ -29,14 +29,14 @@ the Content Cache charm, directly over the `cache-config` endpoint.
 ## Ingress configurator
 
 The [Ingress configurator](https://charmhub.io/ingress-configurator) charm is an alternative way
-to configure `content-cache`'s backends. Like Content Cache Backends Config, it integrates with
-`content-cache` over the `cache-config` endpoint, translating its own configuration options
+to configure Content Cache's backends. Like Content Cache Backends Config, it integrates with
+Content Cache over the `cache-config` endpoint, translating its own configuration options
 (backend addresses and ports, health check parameters, cache validity, TLS/hostname settings)
-into the `content-cache-config` relation data that `content-cache` consumes.
+into the `content-cache-config` relation data that Content Cache consumes.
 
 Deploying Ingress configurator together with the [HAProxy](https://charmhub.io/haproxy) charm
 (over the `haproxy-route` interface) additionally provides an ingress layer in front of
-`content-cache`, adding hostname/path-based routing, TLS termination, DDoS protection, and other
+Content Cache, adding hostname/path-based routing, TLS termination, DDoS protection, and other
 features that Content Cache Backends Config does not offer on its own. See the
 [Ingress configurator documentation](https://canonical.com/juju/docs/ingress-configurator-charm/latest/)
 for its full configuration reference, and {ref}`Tutorial <tutorial_index>` for a walkthrough of
