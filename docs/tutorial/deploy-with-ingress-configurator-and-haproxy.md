@@ -211,12 +211,16 @@ You should see `Hello from origin`.
 To confirm `content-cache` is actually caching the response rather than just forwarding it,
 send the same request twice and inspect the cache log on the unit. `content-cache` logs a
 `cache_status` field for every request, distinguishing a first-time `MISS` from a subsequent
-`HIT`:
+```{note}
+`haproxy-route` is HTTPS-only by default, so you need a certificate before traffic will be
+routed (see the next step). If you want to test plain HTTP first, you can temporarily allow it:
 
 ```bash
-curl http://$CONTENT_CACHE_IP:30000 -o /dev/null -s
-curl http://$CONTENT_CACHE_IP:30000 -o /dev/null -s
-juju ssh content-cache/0 -- sudo tail -2 /var/log/nginx/content-cache_0/30000.cache.log
+juju config ingress-configurator allow-http=true
+```
+
+Setting `allow-http=true` disables the HTTPS-only requirement and should not be used for
+anything beyond local testing.
 ```
 
 The first request populates the cache (`"cache_status": "MISS"`), and the second is served
