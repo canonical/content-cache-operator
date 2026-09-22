@@ -16,7 +16,7 @@ deploying and managing a static web content cache with NGINX on VMs.
 This machine charm manages a NGINX instance configured as a content cache. Backends are
 configured through the ``cache-config`` relation, provided either by the
 `Content Cache Backends Config subordinate charm <https://charmhub.io/content-cache-backends-config>`_
-or by the `Ingress configurator charm <https://charmhub.io/ingress-configurator>`_. The latter
+or by the `Ingress Configurator charm <https://charmhub.io/ingress-configurator>`_. The latter
 can also be paired with the `HAProxy charm <https://charmhub.io/haproxy>`_ to add
 hostname/path-based routing, TLS termination, and other ingress features in front of the cache.
 
@@ -39,7 +39,7 @@ In this documentation
     :header-rows: 0
 
     * - **Get started**
-      - :ref:`Deploy with an ingress configurator and HAProxy <tutorial_advanced_ingress>`
+      - :ref:`Deploy with an Ingress Configurator and HAProxy <tutorial_advanced_ingress>`
     * - **Operations**
       - :ref:`Enable COS <how_to_enable_cos>` | :ref:`Upgrade <how_to_upgrade>`
     * - **Design**
@@ -52,7 +52,7 @@ How this documentation is organized
 
 This documentation uses the `Diátaxis documentation structure <https://diataxis.fr/>`_.
 
-- The :ref:`Tutorial <tutorial_index>` takes you step-by-step through an advanced deployment fronted by an ingress configurator and HAProxy.
+- The :ref:`Tutorial <tutorial_index>` takes you step-by-step through an advanced deployment fronted by an Ingress Configurator and HAProxy.
 - :ref:`How-to guides <how_to_index>` assume you have basic familiarity with the content cache charm. Learn more about setting up, using, maintaining, and contributing to this charm.
 - :ref:`Reference <reference_index>` provides a guide to actions, configurations, relations, and other technical details.
 - :ref:`Explanation <explanation_index>` includes topic overviews, background and context and detailed discussion.
