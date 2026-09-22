@@ -19,7 +19,7 @@ You can find the full list of integrations in the [Charmhub documentation](https
 
 ## Learn more
 
-- [Read more](https://charmhub.io/content-cache/)
+- [Charm documentation](https://canonical.com/juju/docs/content-cache-charms/latest/)
 - [Developer documentation](https://nginx.org/en/docs/dev/development_guide.html)
 - [Official webpage](https://www.nginx.com/)
 - [Troubleshooting](https://matrix.to/#/#charmhub-charmdev:ubuntu.com)
