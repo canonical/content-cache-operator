@@ -47,6 +47,7 @@ This tutorial requires the following software to be installed on your workstatio
 locally or in the Multipass VM):
 
 - Juju 3
+- LXD
 - `jq`
 
 Use [Concierge](https://github.com/canonical/concierge) to set up Juju and `jq`:
@@ -186,21 +187,10 @@ juju config ingress-configurator hostname=content-cache.local
 `ingress-configurator` forwards this hostname to `haproxy`, which uses it both for request
 routing and as the certificate common name once TLS is enabled.
 
-````{note}
-`haproxy-route` is HTTPS-only by default, so you need a certificate before traffic will be
-routed (see the next step). If you want to test plain HTTP first, you can temporarily allow it:
-
-```bash
-juju config ingress-configurator allow-http=true
-```
-
-Setting `allow-http=true` disables the HTTPS-only requirement and should not be used for
-anything beyond local testing.
-````
-
-Now that `haproxy` has requested a route, `ingress-configurator` publishes the backend
-configuration to `content-cache` over `cache-config`, and all three charms settle into
-`active`/`idle`:
+`haproxy-route` requires HTTPS by default, and `haproxy` will not become `active` until it has a
+TLS certificate. `content-cache` and `ingress-configurator` settle into `active`/`idle` once
+`ingress-configurator` publishes the backend configuration, but `haproxy` stays `blocked` until
+you complete the next step:
 
 ```bash
 juju status --watch 5s
@@ -226,7 +216,7 @@ send the same request twice and inspect the cache log on the unit. `content-cach
 ```bash
 curl http://$CONTENT_CACHE_IP:30000 -o /dev/null -s
 curl http://$CONTENT_CACHE_IP:30000 -o /dev/null -s
-juju ssh content-cache/0 -- sudo tail -2 /var/log/nginx/content-cache_0/30000.cache.log
+juju ssh content-cache/0 -- sudo tail -3 /var/log/nginx/content-cache_0/30000.cache.log
 ```
 
 The first request populates the cache (`"cache_status": "MISS"`), and the second is served
@@ -234,13 +224,18 @@ straight from it (`"cache_status": "HIT"`), without `origin` being contacted aga
 
 ## Terminate TLS at the ingress
 
-In production, use a real certificate authority such as [Let's Encrypt via the `lego`
-charm](https://charmhub.io/lego). For this tutorial, deploy `self-signed-certificates` so
-everything works:
+`haproxy` needs a TLS certificate before it can leave `blocked` and start routing traffic. In
+production, use a real certificate authority such as [Let's Encrypt via the `lego`
+charm](https://charmhub.io/lego). For this tutorial, deploy `self-signed-certificates` and
+integrate it with `haproxy`:
 
 ```bash
 juju deploy self-signed-certificates --channel 1/stable
 juju integrate haproxy:certificates self-signed-certificates:certificates
+```
+
+```{warning}
+`self-signed-certificates` is only suitable for local testing. Never use it in production.
 ```
 
 Once the relation settles, `haproxy` requests and receives a certificate for
@@ -252,10 +247,34 @@ certificate too early returns an empty or incomplete one:
 juju status --watch 5s
 ```
 
-You can drop the `allow-http` override now, since HTTPS is available:
+You should see all five applications `active`/`idle`:
 
-```bash
-juju config ingress-configurator allow-http=false
+```{terminal}
+juju status
+
+Model                   Controller     Cloud/Region         Version  SLA          Timestamp
+content-cache-tutorial  concierge-lxd  localhost/localhost  3.6.28   unsupported  08:52:29-04:00
+
+App                       Version  Status  Scale  Charm                     Channel        Rev  Exposed  Message
+content-cache                      active      1  content-cache             1/edge         534  no
+haproxy                            active      1  haproxy                   2.8/stable     557  no       1/1 valid relations
+ingress-configurator               active      1  ingress-configurator      latest/edge    107  no       Ready
+origin                    24.04    active      1  ubuntu                    latest/stable   79  no
+self-signed-certificates           active      1  self-signed-certificates  1/stable       586  no
+
+Unit                         Workload  Agent  Machine  Public address  Ports       Message
+content-cache/0*             active    idle   0        10.48.188.3     30000/tcp
+haproxy/0*                   active    idle   3        10.48.188.161   80,443/tcp  1/1 valid relations
+ingress-configurator/0*      active    idle   2        10.48.188.138               Ready
+origin/0*                    active    idle   1        10.48.188.164
+self-signed-certificates/0*  active    idle   4        10.48.188.150
+
+Machine  State    Address        Inst id        Base          AZ                 Message
+0        started  10.48.188.3    juju-2724a6-0  ubuntu@24.04  charm-tutorial-vm  Running
+1        started  10.48.188.164  juju-2724a6-1  ubuntu@24.04  charm-tutorial-vm  Running
+2        started  10.48.188.138  juju-2724a6-2  ubuntu@24.04  charm-tutorial-vm  Running
+3        started  10.48.188.161  juju-2724a6-3  ubuntu@24.04  charm-tutorial-vm  Running
+4        started  10.48.188.150  juju-2724a6-4  ubuntu@24.04  charm-tutorial-vm  Running
 ```
 
 Fetch the issued certificate's CA so you can verify it with `curl`:
@@ -276,8 +295,6 @@ curl --resolve content-cache.local:443:$HAPROXY_IP --cacert ca.pem https://conte
 You should see `Hello from origin` again — but this time served over HTTPS, on the standard
 port, addressed by a hostname you chose, with no need to know or track the port that
 `content-cache` allocated internally.
-
-## What you gained
 
 Compared to relating `ingress-configurator` directly to `content-cache`, adding `haproxy` in
 front unlocks:
