@@ -6,21 +6,24 @@ The Content Cache charm can proxy to backends over HTTPS. Backends are configure
 `cache-config` endpoint, using either the
 [Content Cache Backends Config](https://charmhub.io/content-cache-backends-config) or
 [Ingress configurator](https://charmhub.io/ingress-configurator) charm. The examples below use
-`ingress-configurator`; set `backend-protocol=https` and list your backend addresses and ports:
+`ingress-configurator`; set `backend-protocol=https` and list your backend addresses and ports.
+When HTTPS mode is enabled, the hostname (`cache-backend-hostname`) is mandatory — see
+"Backend hostname" below:
 
 ```bash
 juju config ingress-configurator \
   backend-addresses=10.10.1.1 \
   backend-ports=443 \
-  backend-protocol=https
+  backend-protocol=https \
+  cache-backend-hostname=origin.example.com
 ```
 
 The equivalent on `content-cache-backends-config` is a single `backends` option that includes
-the scheme, e.g. `juju config content-cache-backends-config backends=https://10.10.1.1:443`.
+the scheme, e.g. `juju config content-cache-backends-config backends=https://10.10.1.1:443`,
+plus the mandatory `backend-hostname=origin.example.com`.
 
 When the backend protocol is `https`, nginx connects to the backend over TLS on the specified
-port (`443` in the example above). In this mode, setting the backend hostname
-(`cache-backend-hostname` / `backend-hostname`) is mandatory — see "Backend hostname" below.
+port (`443` in the example above).
 
 ## Provide a CA certificate
 
