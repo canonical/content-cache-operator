@@ -55,7 +55,10 @@ IP), set `cache-backend-hostname` so nginx presents the correct SNI and `Host` h
 juju config ingress-configurator cache-backend-hostname=origin.example.com
 ```
 
-The equivalent on `content-cache-backends-config` is `backend-hostname`.
+or
+```bash
+juju config content-cache-backends-config backend-hostname=origin.example.com
+```
 
 This option is required whenever `backend-protocol` is `https`.
 
