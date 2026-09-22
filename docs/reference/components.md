@@ -36,9 +36,9 @@ into the `content-cache-config` relation data that Content Cache consumes.
 
 Deploying Ingress configurator together with the [HAProxy](https://charmhub.io/haproxy) charm
 (over the `haproxy-route` interface) additionally provides an ingress layer in front of
-Content Cache, adding hostname/path-based routing, TLS termination, DDoS protection, and other
+Content Cache, adding hostname/path-based routing, DDoS protection, and other
 features that Content Cache Backends Config does not offer on its own. See the
 [Ingress configurator documentation](https://canonical.com/juju/docs/ingress-configurator-charm/latest/)
-for its full configuration reference, and {ref}`Tutorial <tutorial_index>` for a walkthrough of
+for its full configuration reference, and {ref}`Tutorial <tutorial_advanced_ingress>` for a walkthrough of
 this deployment.
 

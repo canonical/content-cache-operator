@@ -5,10 +5,8 @@
 The Content Cache charm can proxy to backends over HTTPS. Backends are configured through the
 `cache-config` endpoint, using either the
 [Content Cache Backends Config](https://charmhub.io/content-cache-backends-config) or
-[Ingress configurator](https://charmhub.io/ingress-configurator) charm. The examples below use
-`ingress-configurator`; set `backend-protocol=https` and list your backend addresses and ports.
-When HTTPS mode is enabled, the hostname (`cache-backend-hostname`) is mandatory — see
-"Set the backend hostname" below:
+[Ingress configurator](https://charmhub.io/ingress-configurator) charm.
+The following example sets the backend to `https://10.10.1.1:443` and the hostname to `origin.example.com`:
 
 ```bash
 juju config ingress-configurator \
@@ -18,7 +16,7 @@ juju config ingress-configurator \
   cache-backend-hostname=origin.example.com
 ```
 
-The equivalent on `content-cache-backends-config` is a single `backends` option that includes
+The equivalent on Content Cache Backends Config is a single `backends` option that includes
 the scheme, e.g. `juju config content-cache-backends-config backends=https://10.10.1.1:443`,
 plus the mandatory `backend-hostname=origin.example.com`.
 
@@ -57,7 +55,11 @@ IP), set `cache-backend-hostname` so nginx presents the correct SNI and `Host` h
 juju config ingress-configurator cache-backend-hostname=origin.example.com
 ```
 
-The equivalent on `content-cache-backends-config` is `backend-hostname`.
+or
+
+```bash
+juju config content-cache-backends-config backend-hostname=origin.example.com
+```
 
 This option is required whenever `backend-protocol` is `https`.
 
@@ -73,7 +75,7 @@ run:
 juju config ingress-configurator cache-healthcheck-ssl-verify=false
 ```
 
-The equivalent on `content-cache-backends-config` is `healthcheck-ssl-verify`.
+or
 
 ## Terminate TLS for incoming traffic
 
@@ -106,6 +108,6 @@ the charm enters `WaitingStatus`. If the relation is removed, the charm automati
 certificate file and reverts nginx to HTTP.
 
 ```{seealso}
-{ref}`Tutorial: Deploy content-cache with ingress-configurator and haproxy <tutorial_advanced_ingress>`
+{ref}`Tutorial: Deploy Content Cache with Ingress Configurator and HAProxy <tutorial_advanced_ingress>`
 for a full walkthrough of front-ending Content Cache with HAProxy, including TLS.
 ```
