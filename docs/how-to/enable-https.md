@@ -74,7 +74,8 @@ run:
 juju config ingress-configurator cache-healthcheck-ssl-verify=false
 ```
 
-The equivalent on `content-cache-backends-config` is `healthcheck-ssl-verify`.
+or
+
 
 ## Terminate TLS for incoming traffic
 
@@ -107,6 +108,6 @@ the charm enters `WaitingStatus`. If the relation is removed, the charm automati
 certificate file and reverts nginx to HTTP.
 
 ```{seealso}
-{ref}`Tutorial: Deploy content-cache with ingress-configurator and haproxy <tutorial_advanced_ingress>`
+{ref}`Tutorial: Deploy Content Cache with Ingress Configurator and HAProxy <tutorial_advanced_ingress>`
 for a full walkthrough of front-ending Content Cache with HAProxy, including TLS.
 ```
