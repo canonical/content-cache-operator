@@ -8,9 +8,9 @@ myst:
 
 # Tutorial
 
-Follow the tutorial below to deploy the Content Cache charm behind `ingress-configurator` and
-`haproxy`, adding hostname-based routing, TLS termination, and other ingress features to a
-basic `content-cache` deployment.
+Follow the tutorial below to deploy the Content Cache charm behind an ingress configurator and
+HAProxy, adding hostname-based routing, TLS termination, and other ingress features to a
+basic Content Cache deployment.
 
 
 ```{toctree}
