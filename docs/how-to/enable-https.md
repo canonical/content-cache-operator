@@ -56,6 +56,7 @@ juju config ingress-configurator cache-backend-hostname=origin.example.com
 ```
 
 or
+
 ```bash
 juju config content-cache-backends-config backend-hostname=origin.example.com
 ```
