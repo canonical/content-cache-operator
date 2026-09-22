@@ -16,7 +16,7 @@ juju config ingress-configurator \
   cache-backend-hostname=origin.example.com
 ```
 
-The equivalent on `content-cache-backends-config` is a single `backends` option that includes
+The equivalent on Content Cache Backends Config is a single `backends` option that includes
 the scheme, e.g. `juju config content-cache-backends-config backends=https://10.10.1.1:443`,
 plus the mandatory `backend-hostname=origin.example.com`.
 
