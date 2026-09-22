@@ -7,7 +7,8 @@ The Content Cache charm can proxy to backends over HTTPS. Backends are configure
 [Content Cache Backends Config](https://charmhub.io/content-cache-backends-config) or
 [Ingress configurator](https://charmhub.io/ingress-configurator) charm. The examples below use
 `ingress-configurator`; set `backend-protocol=https` and list your backend addresses and ports.
-[Ingress configurator](https://charmhub.io/ingress-configurator) charm. The following example sets the backend to `https://10.10.1.1:443` and the hostname to `origin.example.com`:
+[Ingress configurator](https://charmhub.io/ingress-configurator) charm.
+The following example sets the backend to `https://10.10.1.1:443` and the hostname to `origin.example.com`:
 
 ```bash
 juju config ingress-configurator \
