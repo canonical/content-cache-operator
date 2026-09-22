@@ -187,9 +187,10 @@ juju config ingress-configurator hostname=content-cache.local
 routing and as the certificate common name once TLS is enabled.
 
 `haproxy-route` requires HTTPS by default, and `haproxy` will not become `active` until it has a
-TLS certificate. `content-cache` and `ingress-configurator` settle into `active`/`idle` once
-`ingress-configurator` publishes the backend configuration, but `haproxy` stays `blocked` until
-you complete the next step:
+TLS certificate, which you'll add in the "Terminate TLS at the ingress" section below. Watch the
+deployment settle: `content-cache` and `ingress-configurator` reach `active`/`idle` once
+`ingress-configurator` publishes the backend configuration, while `haproxy` remains `blocked` —
+this is expected at this point:
 
 ```bash
 juju status --watch 5s
