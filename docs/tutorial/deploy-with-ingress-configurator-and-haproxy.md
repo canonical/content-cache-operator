@@ -6,7 +6,7 @@ myst:
 
 (tutorial_advanced_ingress)=
 
-# Deploy content-cache with ingress-configurator and haproxy
+# Deploy and configure the Content Cache charm
 
 The `content-cache` charm caches static content from a backend and serves it back to
 clients. On its own, each backend it caches is reachable only through a dynamically
@@ -14,7 +14,7 @@ allocated TCP port (starting at `30000`) on the units it is deployed to. `conten
 terminate TLS for that single hostname, but it has no hostname-based (SNI) routing across
 multiple certificates, and no ingress-level protections.
 
-This tutorial builds on the concepts of the basic content-cache tutorial and shows you how to
+This tutorial shows you how to
 front `content-cache` with the [Ingress configurator](https://charmhub.io/ingress-configurator)
 and [HAProxy](https://charmhub.io/haproxy) charms. Together, they let clients reach your cached
 content through a normal hostname over HTTPS, and unlock features such as SNI-based hostname
@@ -90,7 +90,7 @@ work, create a new model in the LXD controller using the following command:
 juju add-model content-cache-tutorial
 ```
 
-## Deploy content-cache and a test origin
+## Deploy Content Cache and a backend
 
 Deploy the Content Cache charm from the `1/edge` channel:
 
@@ -106,7 +106,7 @@ juju deploy ubuntu --base ubuntu@24.04 origin
 juju exec --unit origin/0 -- "sudo apt-get install -y nginx && echo '<h1>Hello from origin</h1>' | sudo tee /var/www/html/index.html"
 ```
 
-Wait for the `origin` application to settle into `active`/`idle`. `content-cache` remains `blocked` until the `cache-config` relation is added in the next step:
+Wait for the `origin` application to settle into `active`/`idle`:
 
 ```bash
 juju status --watch 5s
@@ -119,7 +119,7 @@ commands:
 export ORIGIN_IP=$(juju status --format json | jq -r '.applications.origin.units."origin/0"."public-address"')
 ```
 
-## Deploy ingress-configurator and connect it to content-cache
+## Deploy and integrate Ingress Configurator
 
 `ingress-configurator` translates a set of configuration options into the `cache-config`
 relation data that `content-cache` consumes, replacing the need to configure the relation by
@@ -139,9 +139,8 @@ juju config ingress-configurator \
 ```
 
 By default, `content-cache` only caches a response if the backend's own `Cache-Control` or
-`Expires` headers say it's cacheable, and our test origin doesn't send either. Tell
-`content-cache` to cache successful responses for an hour regardless, so you can see caching
-in action later in this tutorial:
+`Expires` headers say it's cacheable, and our test origin doesn't send either.
+So you can see caching in action later in the tutorial, tell `content-cache` to cache successful responses for an hour:
 
 ```bash
 juju config ingress-configurator cache-proxy-cache-valid="200 1h"
@@ -196,7 +195,7 @@ you complete the next step:
 juju status --watch 5s
 ```
 
-## Confirm content-cache is caching
+## Confirm the caching
 
 Save the `content-cache` unit's IP address to an environment variable and curl it directly
 on the port allocated for this relation (starting at `30000`):
@@ -240,8 +239,7 @@ juju integrate haproxy:certificates self-signed-certificates:certificates
 
 Once the relation settles, `haproxy` requests and receives a certificate for
 `content-cache.local` (the hostname you configured earlier). Wait for `haproxy` and
-`self-signed-certificates` to both reach `active`/`idle` before continuing — fetching the
-certificate too early returns an empty or incomplete one:
+`self-signed-certificates` to both reach `active`/`idle` before continuing:
 
 ```bash
 juju status --watch 5s
@@ -296,7 +294,7 @@ You should see `Hello from origin` again — but this time served over HTTPS, on
 port, addressed by a hostname you chose, with no need to know or track the port that
 `content-cache` allocated internally.
 
-Compared to relating `ingress-configurator` directly to `content-cache`, adding `haproxy` in
+Compared to integrating `ingress-configurator` directly to `content-cache`, adding `haproxy` in
 front unlocks:
 
 - **Hostname and path-based routing**: reach the cache by name over the standard HTTPS
@@ -309,12 +307,12 @@ front unlocks:
 Now that you have a working deployment with hostname-based routing, DDoS protections, and TLS
 termination, you can:
 
-- Explore the [ingress-configurator](https://charmhub.io/ingress-configurator/configurations)
-  and [haproxy](https://charmhub.io/haproxy/configurations) configuration references for
+- Explore the [`ingress-configurator`](https://charmhub.io/ingress-configurator/configurations)
+  and [`haproxy`](https://charmhub.io/haproxy/configurations) configuration references for
   additional controls such as health check tuning and retries.
 - Use a real certificate authority in production by integrating `haproxy` with the
   [`lego`](https://charmhub.io/lego) charm instead of `self-signed-certificates`.
-- Read the content-cache {ref}`how-to guides <how_to_index>` for day-2 operations, such as
+- Read the content-cache {ref}`how-to guides <how_to_index>` for operations such as
   enabling COS observability or connecting to HTTPS backends.
 
 ## Clean up

@@ -8,7 +8,7 @@ The Content Cache charm can proxy to backends over HTTPS. Backends are configure
 [Ingress configurator](https://charmhub.io/ingress-configurator) charm. The examples below use
 `ingress-configurator`; set `backend-protocol=https` and list your backend addresses and ports.
 When HTTPS mode is enabled, the hostname (`cache-backend-hostname`) is mandatory — see
-"Backend hostname" below:
+"Set the backend hostname" below:
 
 ```bash
 juju config ingress-configurator \
@@ -47,7 +47,7 @@ If HTTPS backends are configured but no CA certificate has been provided, the ch
 Multiple `receive-ca-cert` providers are supported; all provided CA certificates are merged
 into a single bundle.
 
-### Backend hostname (SNI and Host header)
+### Set the backend hostname
 
 If the backend's own hostname differs from the address you configured (for example, the
 backend expects `Host: origin.example.com` while `backend-addresses` points at an internal
@@ -75,7 +75,7 @@ juju config ingress-configurator cache-healthcheck-ssl-verify=false
 
 The equivalent on `content-cache-backends-config` is `healthcheck-ssl-verify`.
 
-## TLS termination for incoming traffic
+## Terminate TLS for incoming traffic
 
 When HAProxy connects to the content-cache over HTTPS, the charm must present a TLS
 certificate. This is configured through the `certificates` relation
