@@ -119,7 +119,7 @@ commands:
 export ORIGIN_IP=$(juju status --format json | jq -r '.applications.origin.units."origin/0"."public-address"')
 ```
 
-## Deploy and integrate Ingress Configurator
+## Deploy and integrate Ingress configurator
 
 `ingress-configurator` translates a set of configuration options into the `cache-config`
 relation data that `content-cache` consumes, replacing the need to configure the relation by

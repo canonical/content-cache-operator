@@ -112,6 +112,6 @@ the charm enters `WaitingStatus`. If the relation is removed, the charm automati
 certificate file and reverts nginx to HTTP.
 
 ```{seealso}
-{ref}`Tutorial: Deploy Content Cache with Ingress Configurator and HAProxy <tutorial_advanced_ingress>`
+{ref}`Tutorial: Deploy Content Cache with Ingress configurator and HAProxy <tutorial_advanced_ingress>`
 for a full walkthrough of front-ending Content Cache with HAProxy, including TLS.
 ```
