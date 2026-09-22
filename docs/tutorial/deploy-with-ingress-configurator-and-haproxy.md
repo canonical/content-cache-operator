@@ -15,8 +15,8 @@ terminate TLS for that single hostname, but it has no hostname-based (SNI) routi
 multiple certificates, and no ingress-level protections.
 
 This tutorial shows you how to
-front `content-cache` with the [Ingress configurator](https://charmhub.io/ingress-configurator)
-and [HAProxy](https://charmhub.io/haproxy) charms. Together, they let clients reach your cached
+front `content-cache` with the [`ingress-configurator`](https://charmhub.io/ingress-configurator)
+and [`haproxy`](https://charmhub.io/haproxy) charms. Together, they let clients reach your cached
 content through a normal hostname over HTTPS, and unlock features such as SNI-based hostname
 routing, retries, and DDoS protections that `content-cache` does not provide by
 itself.
@@ -312,7 +312,7 @@ termination, you can:
   additional controls such as health check tuning and retries.
 - Use a real certificate authority in production by integrating `haproxy` with the
   [`lego`](https://charmhub.io/lego) charm instead of `self-signed-certificates`.
-- Read the content-cache {ref}`how-to guides <how_to_index>` for operations such as
+- Read the `content-cache` {ref}`how-to guides <how_to_index>` for operations such as
   enabling COS observability or connecting to HTTPS backends.
 
 ## Clean up
