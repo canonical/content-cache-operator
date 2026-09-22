@@ -74,10 +74,15 @@ use self-signed certificates on a trusted private network.
 **Proxied requests** — when the `receive-ca-cert` relation provides a CA certificate, the charm
 configures nginx with
 [`proxy_ssl_verify`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify) enabled
-and `proxy_ssl_trusted_certificate` pointing to the received CA bundle. nginx will then verify
-the backend TLS certificate against that CA. If HTTPS backends are configured but no
-`receive-ca-cert` relation is present, the charm enters `WaitingStatus` and nginx is not
-reconfigured. Traffic is paused until a CA certificate is supplied.
+and `proxy_ssl_trusted_certificate` pointing to `/etc/nginx/certs/ca-bundle.pem`. This bundle
+contains the system CA store (`/etc/ssl/certs/ca-certificates.crt`) merged with every CA
+certificate received over `receive-ca-cert`, so nginx trusts both publicly-signed and
+relation-provided backend certificates. This is distinct from
+`/etc/nginx/certs/content-cache-charm.pem`, which holds only the charm's own client-facing
+leaf certificate, chain, and private key (see "Transport security" above) — it contains no CA
+material. If HTTPS backends are configured but no `receive-ca-cert` relation is present, the
+charm enters `WaitingStatus` and nginx is not reconfigured. Traffic is paused until a CA
+certificate is supplied.
 
 ## Internal
 

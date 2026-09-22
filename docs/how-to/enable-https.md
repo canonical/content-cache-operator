@@ -19,7 +19,8 @@ The equivalent on `content-cache-backends-config` is a single `backends` option 
 the scheme, e.g. `juju config content-cache-backends-config backends=https://10.10.1.1:443`.
 
 When the backend protocol is `https`, nginx connects to the backend over TLS on the specified
-port (`443` in the example above).
+port (`443` in the example above). In this mode, setting the backend hostname
+(`cache-backend-hostname` / `backend-hostname`) is mandatory — see "Backend hostname" below.
 
 ## Provide a CA certificate
 

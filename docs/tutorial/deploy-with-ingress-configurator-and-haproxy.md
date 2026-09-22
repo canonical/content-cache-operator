@@ -10,14 +10,15 @@ myst:
 
 The `content-cache` charm caches static content from a backend and serves it back to
 clients. On its own, each backend it caches is reachable only through a dynamically
-allocated TCP port (starting at `30000`) on the units it is deployed to. There is no
-hostname-based routing, TLS termination for incoming traffic, or ingress-level protections.
+allocated TCP port (starting at `30000`) on the units it is deployed to. `content-cache` can
+terminate TLS for that single hostname, but it has no hostname-based (SNI) routing across
+multiple certificates, and no ingress-level protections.
 
 This tutorial builds on the concepts of the basic content-cache tutorial and shows you how to
 front `content-cache` with the [Ingress configurator](https://charmhub.io/ingress-configurator)
 and [HAProxy](https://charmhub.io/haproxy) charms. Together, they let clients reach your cached
-content through a normal hostname over HTTPS, and unlock features such as TLS termination,
-retries, and DDoS protections that `content-cache` does not provide by
+content through a normal hostname over HTTPS, and unlock features such as SNI-based hostname
+routing, retries, and DDoS protections that `content-cache` does not provide by
 itself.
 
 Everything in this tutorial runs on a local [LXD](https://ubuntu.com/lxd) cloud, so you can
@@ -96,12 +97,12 @@ Deploy the Content Cache charm from the `1/edge` channel:
 juju deploy content-cache --channel 1/edge
 ```
 
-`content-cache` needs a backend to cache. Deploy a plain Ubuntu machine and start a minimal
-HTTP server on it to stand in for a real origin:
+`content-cache` needs a backend to cache. Deploy a plain Ubuntu machine and install `nginx`,
+which starts automatically and serves a default page, to stand in for a real origin:
 
 ```bash
 juju deploy ubuntu --base ubuntu@24.04 origin
-juju exec --unit origin/0 -- "sudo mkdir -p /var/www/html && echo '<h1>Hello from origin</h1>' | sudo tee /var/www/html/index.html && sudo apt-get install -y python3 && cd /var/www/html && (nohup sudo python3 -m http.server 80 >/tmp/http-server.log 2>&1 &)"
+juju exec --unit origin/0 -- "sudo apt-get install -y nginx && echo '<h1>Hello from origin</h1>' | sudo tee /var/www/html/index.html"
 ```
 
 Wait for the `origin` application to settle into `active`/`idle`. `content-cache` remains `blocked` until the `cache-config` relation is added in the next step:
@@ -134,6 +135,15 @@ juju config ingress-configurator \
   backend-addresses=$ORIGIN_IP \
   backend-ports=80 \
   backend-protocol=http
+```
+
+By default, `content-cache` only caches a response if the backend's own `Cache-Control` or
+`Expires` headers say it's cacheable, and our test origin doesn't send either. Tell
+`content-cache` to cache successful responses for an hour regardless, so you can see caching
+in action later in this tutorial:
+
+```bash
+juju config ingress-configurator cache-proxy-cache-valid="200 1h"
 ```
 
 Integrate `ingress-configurator` with `content-cache` over the `cache-config` endpoint:
@@ -211,16 +221,12 @@ You should see `Hello from origin`.
 To confirm `content-cache` is actually caching the response rather than just forwarding it,
 send the same request twice and inspect the cache log on the unit. `content-cache` logs a
 `cache_status` field for every request, distinguishing a first-time `MISS` from a subsequent
-```{note}
-`haproxy-route` is HTTPS-only by default, so you need a certificate before traffic will be
-routed (see the next step). If you want to test plain HTTP first, you can temporarily allow it:
+`HIT`:
 
 ```bash
-juju config ingress-configurator allow-http=true
-```
-
-Setting `allow-http=true` disables the HTTPS-only requirement and should not be used for
-anything beyond local testing.
+curl http://$CONTENT_CACHE_IP:30000 -o /dev/null -s
+curl http://$CONTENT_CACHE_IP:30000 -o /dev/null -s
+juju ssh content-cache/0 -- sudo tail -2 /var/log/nginx/content-cache_0/30000.cache.log
 ```
 
 The first request populates the cache (`"cache_status": "MISS"`), and the second is served
@@ -238,8 +244,15 @@ juju integrate haproxy:certificates self-signed-certificates:certificates
 ```
 
 Once the relation settles, `haproxy` requests and receives a certificate for
-`content-cache.local` (the hostname you configured earlier). You can drop the `allow-http`
-override now, since HTTPS is available:
+`content-cache.local` (the hostname you configured earlier). Wait for `haproxy` and
+`self-signed-certificates` to both reach `active`/`idle` before continuing — fetching the
+certificate too early returns an empty or incomplete one:
+
+```bash
+juju status --watch 5s
+```
+
+You can drop the `allow-http` override now, since HTTPS is available:
 
 ```bash
 juju config ingress-configurator allow-http=false
