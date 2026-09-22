@@ -186,17 +186,17 @@ juju config ingress-configurator hostname=content-cache.local
 `ingress-configurator` forwards this hostname to `haproxy`, which uses it both for request
 routing and as the certificate common name once TLS is enabled.
 
+````{note}
 `haproxy-route` is HTTPS-only by default, so you need a certificate before traffic will be
 routed (see the next step). If you want to test plain HTTP first, you can temporarily allow it:
-
-```{note}
-Setting `allow-http=true` disables the HTTPS-only requirement and should not be used for
-anything beyond local testing.
-```
 
 ```bash
 juju config ingress-configurator allow-http=true
 ```
+
+Setting `allow-http=true` disables the HTTPS-only requirement and should not be used for
+anything beyond local testing.
+````
 
 Now that `haproxy` has requested a route, `ingress-configurator` publishes the backend
 configuration to `content-cache` over `cache-config`, and all three charms settle into
