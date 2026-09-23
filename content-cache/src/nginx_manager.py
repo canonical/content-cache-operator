@@ -586,6 +586,13 @@ def _get_location_config_keys(
     keys: list[nginx.Key] = [
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
         nginx.Key("proxy_cache_lock", "on"),
+        # nginx defaults both of these to 5s, which is too short for the large files
+        # (e.g. Ubuntu ISOs) this charm is designed to cache: once either bound is
+        # hit, nginx will still let concurrent requests thundering-herd the backend
+        # while the first fetch is still running. 300s gives large downloads a
+        # realistic chance to finish before the lock is abandoned.
+        nginx.Key("proxy_cache_lock_age", "300s"),
+        nginx.Key("proxy_cache_lock_timeout", "300s"),
     ]
 
     if scheme == "https" and config.backend_hostname:

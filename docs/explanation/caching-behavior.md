@@ -85,6 +85,13 @@ on all cache locations. When multiple clients simultaneously request the same un
 only the first request triggers an upstream fetch; the rest wait for that fetch to populate
 the cache and are then served from disk, instead of each triggering a separate upstream fetch.
 
+nginx defaults `proxy_cache_lock_age` and `proxy_cache_lock_timeout` to 5 seconds each; once
+either bound elapses, a waiting request is allowed to send its own request upstream rather than
+keep waiting. Since the point of enabling the lock in this charm is to avoid duplicate fetches
+of large files that can take much longer than 5 seconds to download, the charm sets both to
+300 seconds so waiting requests give the first fetch a realistic chance to finish. Downloads
+that exceed 300 seconds can still result in more than one upstream fetch for the same URL.
+
 This reduces redundant load on the backend during concurrent cache misses, which matters most
 for large files where a stampede of simultaneous fetches would otherwise consume significant
 bandwidth (see the next section).
@@ -100,9 +107,13 @@ The charm does not set `min_free` on
 [`proxy_cache_path`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path).
 The `cache-max-size` configuration on `content-cache-backends-config` maps to `max_size` on
 `proxy_cache_path` and defaults to an empty string (no limit). When `cache-max-size` is left
-unset, nginx's cache manager has no threshold to act on and will cache files until the
-filesystem is full, with no automatic cleanup. Setting `cache-max-size` (for example `2g`)
-lets nginx evict least-recently-used entries once the limit is reached.
+unset, there is no size-based threshold for nginx's cache manager to evict against, so disk
+usage is bounded only by the `inactive` eviction described above. This is not the same as no
+automatic cleanup: files that are accessed regularly are never considered inactive, so they
+are never evicted by that mechanism either, and can still fill the filesystem if there is no
+size limit configured. Setting `cache-max-size` (for example `2g`) lets nginx evict
+least-recently-used entries once the limit is reached, regardless of how recently they were
+accessed.
 
 Operators should:
 

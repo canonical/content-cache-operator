@@ -167,8 +167,13 @@ def test_invalid_format_proxy_cache_valid():
         ),
         pytest.param(
             '["200 -10h"]',
-            "Time must be a positive integer in '-10h'",
+            "Non-integer time value in '-10h'",
             id="negative time",
+        ),
+        pytest.param(
+            '["200 +1h"]',
+            "Non-integer time value in '+1h'",
+            id="non-digit time sign",
         ),
         pytest.param(
             '["ok 30m"]',
@@ -384,7 +389,7 @@ def test_cache_inactive_valid(value: str):
     assert config.cache_inactive == value
 
 
-@pytest.mark.parametrize("value", ["0m", "-1h", "abc", "10x"])
+@pytest.mark.parametrize("value", ["0m", "-1h", "abc", "10x", "+1m", "1_0m", "1 m"])
 def test_cache_inactive_invalid(value: str):
     """
     arrange: Mock charm with invalid cache-inactive values.
@@ -398,7 +403,7 @@ def test_cache_inactive_invalid(value: str):
         Configuration.from_charm(charm)
 
 
-@pytest.mark.parametrize("value", ["512m", "2g", "1t", "100k", "1G"])
+@pytest.mark.parametrize("value", ["512m", "2g", "100k", "1G"])
 def test_cache_max_size_valid(value: str):
     """
     arrange: Mock charm with valid cache-max-size values.
@@ -413,7 +418,7 @@ def test_cache_max_size_valid(value: str):
     assert config.cache_max_size == value.lower()
 
 
-@pytest.mark.parametrize("value", ["0m", "-1g", "abc", "10x"])
+@pytest.mark.parametrize("value", ["0m", "-1g", "abc", "10x", "1t", "+1m", "1_0m", "1 m"])
 def test_cache_max_size_invalid(value: str):
     """
     arrange: Mock charm with invalid cache-max-size values.

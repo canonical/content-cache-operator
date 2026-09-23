@@ -586,3 +586,5 @@ def test_location_contains_proxy_cache_lock(monkeypatch, patch_nginx_manager: No
 
     config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
     assert "proxy_cache_lock on" in config_content
+    assert "proxy_cache_lock_age 300s" in config_content
+    assert "proxy_cache_lock_timeout 300s" in config_content

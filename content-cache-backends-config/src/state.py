@@ -362,6 +362,13 @@ class Configuration(pydantic.BaseModel):
         return data
 
 
+# nginx's ngx_parse_time/ngx_parse_size only accept a plain run of ASCII digits for the
+# numeric portion; int() is stricter than the directive itself would be about "+1m",
+# "1_0m", or "1 m", but nginx's config test would still reject them, causing a
+# post-deployment failure. Requiring \d+ here rejects them at validation time instead.
+_DIGITS_PATTERN = re.compile(r"[0-9]+")
+
+
 def _check_nginx_time_str(time_str: str) -> None:
     """Check if nginx time str is valid.
 
@@ -376,19 +383,20 @@ def _check_nginx_time_str(time_str: str) -> None:
     time_char = {"h", "m", "s", "d"}
     if not time_str or time_str[-1] not in time_char:
         raise ValueError(f"Invalid time unit in {time_str!r}: must be h, m, s, or d")
-    try:
-        time = int(time_str[:-1])
-    except ValueError as err:
-        raise ValueError(f"Non-integer time value in {time_str!r}") from err
+    digits = time_str[:-1]
+    if not _DIGITS_PATTERN.fullmatch(digits):
+        raise ValueError(f"Non-integer time value in {time_str!r}")
 
-    if time < 1:
+    if int(digits) < 1:
         raise ValueError(f"Time must be a positive integer in {time_str!r}")
 
 
 def _check_nginx_size_str(size_str: str) -> None:
     """Check if nginx size string is valid.
 
-    Valid format: positive integer followed by k, m, g, or t (case-insensitive).
+    Valid format: positive integer followed by k, m, or g (case-insensitive). nginx's
+    size directives (including proxy_cache_path's max_size) do not support a terabyte
+    unit, so "t" is deliberately excluded here.
 
     Args:
         size_str: The size string to validate.
@@ -399,13 +407,12 @@ def _check_nginx_size_str(size_str: str) -> None:
     if not size_str:
         raise ValueError("Size string must not be empty")
     unit = size_str[-1].lower()
-    if unit not in {"k", "m", "g", "t"}:
-        raise ValueError(f"Invalid size unit in {size_str!r}: must be k, m, g, or t")
-    try:
-        value = int(size_str[:-1])
-    except ValueError as err:
-        raise ValueError(f"Non-integer size value in {size_str!r}") from err
-    if value < 1:
+    if unit not in {"k", "m", "g"}:
+        raise ValueError(f"Invalid size unit in {size_str!r}: must be k, m, or g")
+    digits = size_str[:-1]
+    if not _DIGITS_PATTERN.fullmatch(digits):
+        raise ValueError(f"Non-integer size value in {size_str!r}")
+    if int(digits) < 1:
         raise ValueError(f"Size must be a positive integer in {size_str!r}")
 
 
