@@ -49,12 +49,11 @@ cached response is not requested within the
 period, nginx evicts it from disk regardless of its TTL. This period is controlled by the
 `cache-inactive` configuration on `content-cache-backends-config`, which defaults to `10m`.
 A cached file that receives no requests within that window is removed from disk, even if
-its TTL has not yet expired.
+its TTL has not yet expired. Increase `cache-inactive` for files that are accessed on long
+periodic cycles.
 
 These two mechanisms are independent. The inactive timeout can evict a response before its
 TTL expires, and a long TTL does not prevent eviction if the content is not accessed.
-
-Increase `cache-inactive` for files that are accessed on long periodic cycles.
 
 ### Upstream cache headers
 
@@ -82,19 +81,21 @@ the inactive window.
 The charm enables
 [`proxy_cache_lock`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock)
 on all cache locations. When multiple clients simultaneously request the same uncached URL,
-only the first request triggers an upstream fetch. The remaining requests wait for the first fetch to populate
-the cache and are then served from disk, instead of each triggering a separate upstream fetch.
+only the first request triggers an upstream fetch. The remaining requests wait for the
+first fetch to populate the cache and are then served from disk, instead of each triggering
+a separate upstream fetch.
 
+nginx defaults `proxy_cache_lock_age` and `proxy_cache_lock_timeout` to five seconds each; once
+either bound elapses, a waiting request is allowed to send its own request upstream rather than
 keep waiting. The point of enabling the lock in this charm is to avoid duplicate fetches
-of large files that can take much longer than five seconds to download; therefore, the charm sets both directives to
-300 seconds so waiting requests give the first fetch a realistic chance to finish. Downloads
-of large files that can take much longer than 5 seconds to download, the charm sets both to
-300 seconds so waiting requests give the first fetch a realistic chance to finish. Downloads
-that exceed 300 seconds can still result in more than one upstream fetch for the same URL.
+of large files that can take much longer than five seconds to download; therefore, the charm
+sets both directives to 300 seconds so waiting requests give the first fetch a realistic
+chance to finish. Downloads that exceed 300 seconds can still result in more than one
+upstream fetch for the same URL.
 
-This reduces redundant load on the backend during concurrent cache misses, which matters most
-for large files where a stampede of simultaneous fetches would otherwise consume significant
-bandwidth (see the next section).
+Setting both directives to 300 seconds reduces redundant load on the backend during
+concurrent cache misses, which matters most for large files where a stampede of simultaneous
+fetches would otherwise consume significant bandwidth (see the next section).
 
 ## Large-file considerations
 
@@ -108,12 +109,12 @@ The charm does not set `min_free` on
 The `cache-max-size` configuration on `content-cache-backends-config` maps to `max_size` on
 `proxy_cache_path` and defaults to an empty string (no limit). When `cache-max-size` is left
 unset, there is no size-based threshold for nginx's cache manager to evict against, so disk
-usage is bounded only by the `inactive` eviction described above. This is not the same as no
-automatic cleanup: files that are accessed regularly are never considered inactive, so they
-are never evicted by that mechanism either, and can still fill the filesystem if there is no
-size limit configured. Setting `cache-max-size` (for example `2g`) lets nginx evict
-least-recently-used entries once the limit is reached, regardless of how recently they were
-accessed.
+usage is bounded only by the `inactive` eviction described above. Leaving `cache-max-size`
+unset is not the same as no automatic cleanup: files that are accessed regularly are never
+considered inactive, so they are never evicted by that mechanism either, and can still fill
+the filesystem if there is no size limit configured. Setting `cache-max-size` (for example
+`2g`) lets nginx evict least-recently-used entries once the limit is reached, regardless of
+how recently they were accessed.
 
 Operators should:
 
