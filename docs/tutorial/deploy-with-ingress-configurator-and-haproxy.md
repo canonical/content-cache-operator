@@ -224,9 +224,7 @@ straight from it (`"cache_status": "HIT"`), without `origin` being contacted aga
 
 ## Terminate TLS at the ingress
 
-`haproxy` needs a TLS certificate before it can leave `blocked` and start routing traffic. In
-production, use a real certificate authority such as [Let's Encrypt via the `lego`
-charm](https://charmhub.io/lego). For this tutorial, deploy `self-signed-certificates` and
+`haproxy` needs a TLS certificate before it can leave `blocked` and start routing traffic. For this tutorial, deploy `self-signed-certificates` and
 integrate it with `haproxy`:
 
 ```bash
@@ -235,7 +233,9 @@ juju integrate haproxy:certificates self-signed-certificates:certificates
 ```
 
 ```{warning}
-`self-signed-certificates` is only suitable for local testing. Never use it in production.
+`self-signed-certificates` is only suitable for local testing. In
+production, use a real certificate authority such as [Let's Encrypt via the `lego`
+charm](https://charmhub.io/lego).
 ```
 
 Once the relation settles, `haproxy` requests and receives a certificate for
