@@ -45,7 +45,7 @@ In this documentation
     * - **Design**
       - :ref:`Caching behavior <explanation_caching_behavior>` | :ref:`Charm design <explanation_charm_design>` | :ref:`Components <reference_components>`
     * - **Security**
-      - :ref:`Overview <explanation_security>` | :ref:`Connect to HTTPS backends <how_to_enable_https>`
+      - :ref:`Overview <explanation_security>` | :ref:`Connect to HTTPS backends <how_to_enable_https>` | :ref:`Hash client IP addresses in logs <how_to_hash_client_ip_addresses_in_logs>`
 
 How this documentation is organized
 ------------------------------------

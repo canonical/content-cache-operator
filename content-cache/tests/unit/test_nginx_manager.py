@@ -591,8 +591,6 @@ def test_location_contains_proxy_cache_lock(monkeypatch, patch_nginx_manager: No
     assert "proxy_cache_lock_timeout 300s" in config_content
 
 
-
-
 def test_get_logged_client_address_directive_disabled():
     """
     arrange: No client IP hash salt.
