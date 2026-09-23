@@ -20,7 +20,7 @@ The charm terminates TLS for incoming client requests when the `certificates` re
 `lego` (referred to as `cache-lego`).
 
 When a certificate is available, nginx listens on the allocated port with SSL enabled
-(`listen <port> ssl`) using the PEM stored at `/etc/nginx/certs/<unit-ip>.pem`
+(`listen <port> ssl`) using the PEM stored at `/etc/nginx/certs/content-cache-charm.pem`
 that contains the certificate and key.
 The `cache-backend` relation data returns `https://` URLs so that HAProxy can connect
 over HTTPS. HAProxy integrates with `cache-lego` via `certificate_transfer` to obtain
@@ -51,7 +51,9 @@ component placed in front of the charm, such as a load balancer, reverse proxy, 
 ### Backend protocol
 
 Backends are specified as full URLs in the form `<http|https>://<ip>:<port>` via the
-`backends` configuration option on `content-cache-backends-config`. The URL scheme controls
+`backends` field of the `cache-config` relation data (for example, the `backends` option on
+`content-cache-backends-config`, or the `backend-addresses`/`backend-ports`/`backend-protocol`
+options on `ingress-configurator`). The URL scheme controls
 whether nginx contacts backends over HTTP or HTTPS. Operators should use HTTPS backend URLs
 unless backends do not support TLS.
 
@@ -61,7 +63,9 @@ The charm contacts backends over two separate code paths: the Lua healthcheck mo
 health pings) and the nginx `proxy_pass` directive (actual proxied requests). These have
 different SSL verification behavior.
 
-**Healthchecks** — the `healthcheck-ssl-verify` configuration option on `content-cache-backends-config`
+**Healthchecks** — the `healthcheck_ssl_verify` field of the `cache-config` relation data (for
+example, `healthcheck-ssl-verify` on `content-cache-backends-config`, or
+`cache-healthcheck-ssl-verify` on `ingress-configurator`)
 controls whether the Lua healthcheck module verifies the backend SSL certificate during health
 pings. The configuration defaults to `true`. Setting the configuration to `false` disables certificate verification for
 healthchecks and should only be used in controlled environments, for example, when backends
@@ -70,10 +74,15 @@ use self-signed certificates on a trusted private network.
 **Proxied requests** — when the `receive-ca-cert` relation provides a CA certificate, the charm
 configures nginx with
 [`proxy_ssl_verify`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify) enabled
-and `proxy_ssl_trusted_certificate` pointing to the received CA bundle. nginx will then verify
-the backend TLS certificate against that CA. If HTTPS backends are configured but no
-`receive-ca-cert` relation is present, the charm enters `WaitingStatus` and nginx is not
-reconfigured. Traffic is paused until a CA certificate is supplied.
+and `proxy_ssl_trusted_certificate` pointing to `/etc/nginx/certs/ca-bundle.pem`. This bundle
+contains the system CA store (`/etc/ssl/certs/ca-certificates.crt`) merged with every CA
+certificate received over `receive-ca-cert`, so nginx trusts both publicly-signed and
+relation-provided backend certificates. This is distinct from
+`/etc/nginx/certs/content-cache-charm.pem`, which holds only the charm's own client-facing
+leaf certificate, chain, and private key. It contains no CA
+material. If HTTPS backends are configured but no `receive-ca-cert` relation is present, the
+charm enters `WaitingStatus` and nginx is not reconfigured. Traffic is paused until a CA
+certificate is supplied.
 
 ## Internal
 
