@@ -27,6 +27,7 @@ import nginx_manager
 from certificates import FRONTEND_CERT_COMMON_NAME
 from errors import (
     CACertificateFileError,
+    ConfigurationError,
     IntegrationDataError,
     NginxConfigurationAggregateError,
     NginxFileError,
@@ -39,6 +40,7 @@ from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
     NginxConfig,
     get_cache_backend_url,
+    get_client_ip_hash_salt,
     get_nginx_config,
 )
 
@@ -87,6 +89,8 @@ class ContentCacheCharm(ops.CharmBase):
         framework.observe(self.on.start, self._on_start)
         framework.observe(self.on.stop, self._on_stop)
         framework.observe(self.on.update_status, self._on_update_status)
+        framework.observe(self.on.config_changed, self._on_config_changed)
+        framework.observe(self.on.secret_changed, self._on_secret_changed)
         framework.observe(
             self.on[PEER_RELATION_NAME].relation_created,
             self._on_peer_relation_changed,
@@ -154,6 +158,18 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_cache_config_relation_changed(self, _: ops.RelationChangedEvent) -> None:
         """Handle config relation changed event."""
+        self._load_nginx_config()
+
+    def _on_config_changed(self, _: ops.ConfigChangedEvent) -> None:
+        """Handle config-changed event."""
+        if not Path(nginx_manager.NGINX_BIN).exists():
+            return
+        self._load_nginx_config()
+
+    def _on_secret_changed(self, _: ops.SecretChangedEvent) -> None:
+        """Handle secret-changed event (e.g. client-ip-hash-salt rotation)."""
+        if not Path(nginx_manager.NGINX_BIN).exists():
+            return
         self._load_nginx_config()
 
     def _on_cache_config_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
@@ -325,9 +341,6 @@ class ContentCacheCharm(ops.CharmBase):
                 back to HTTP even though the departing relation is still visible to ops.
             broken_relation_id: When called from cache-config relation-broken, the id of the
                 departing relation, so its port is pruned even though ops may still list it.
-
-        Raises:
-            NginxFileError: File operation errors while updating nginx configuration files.
         """
         nginx_config = self._get_config_and_update_status()
         if nginx_config is None:
@@ -340,11 +353,7 @@ class ContentCacheCharm(ops.CharmBase):
         ported_config, awaiting_port = resolved
 
         cache_cert_path = self._get_cache_cert_path()
-        if (
-            cache_cert_path is None
-            and not tls_cert_removed
-            and self.model.get_relation(CERTIFICATE_INTEGRATION_NAME) is not None
-        ):
+        if self._is_waiting_for_tls_cert(cache_cert_path, tls_cert_removed):
             self.unit.status = ops.WaitingStatus(WAIT_FOR_TLS_CERT_MESSAGE)
             self._clear_cache_backend()
             return
@@ -354,24 +363,13 @@ class ContentCacheCharm(ops.CharmBase):
             self._clear_cache_backend()
             return
 
-        status_message = ""
-        try:
-            nginx_manager.update_and_load_config(
-                ported_config,
-                self._get_instance_name(),
-                frontend_cert_path=cache_cert_path,
-            )
-        except NginxFileError:
-            logger.exception(
-                "Failed to update nginx config file, going to error state for retries"
-            )
-            raise
-        except NginxConfigurationAggregateError as err:
-            logger.exception("Found error with configuration for hosts: %s", err.hosts)
-            logger.warning(
-                "Any hosts configuration without errors will be served on content cache"
-            )
-            status_message = f"Error for host: {err.hosts}"
+        client_ip_hash_salt, blocked = self._resolve_client_ip_hash_salt()
+        if blocked:
+            return
+
+        status_message = self._apply_nginx_config(
+            ported_config, cache_cert_path, client_ip_hash_salt
+        )
 
         self._update_status_with_nginx()
         if isinstance(self.unit.status, ops.ActiveStatus):
@@ -383,6 +381,78 @@ class ContentCacheCharm(ops.CharmBase):
             self._write_cache_backends(ported_config, cache_cert_path)
         else:
             self._clear_cache_backend()
+
+    def _apply_nginx_config(
+        self,
+        ported_config: dict,
+        cache_cert_path: Path | None,
+        client_ip_hash_salt: str | None,
+    ) -> str:
+        """Update and load the nginx configuration.
+
+        Args:
+            ported_config: The port-assigned configuration to render.
+            cache_cert_path: The frontend TLS certificate path, or None for HTTP.
+            client_ip_hash_salt: The salt used to hash client IPs, or None to disable it.
+
+        Returns:
+            A status message describing partial failures, or "" if fully successful.
+
+        Raises:
+            NginxFileError: File operation errors while updating nginx configuration files.
+        """
+        try:
+            nginx_manager.update_and_load_config(
+                ported_config,
+                self._get_instance_name(),
+                frontend_cert_path=cache_cert_path,
+                client_ip_hash_salt=client_ip_hash_salt,
+            )
+        except NginxFileError:
+            logger.exception(
+                "Failed to update nginx config file, going to error state for retries"
+            )
+            raise
+        except NginxConfigurationAggregateError as err:
+            logger.exception("Found error with configuration for hosts: %s", err.hosts)
+            logger.warning(
+                "Any hosts configuration without errors will be served on content cache"
+            )
+            return f"Error for host: {err.hosts}"
+        return ""
+
+    def _is_waiting_for_tls_cert(
+        self, cache_cert_path: Path | None, tls_cert_removed: bool
+    ) -> bool:
+        """Check whether reconciliation should wait for a frontend TLS certificate.
+
+        Args:
+            cache_cert_path: The resolved frontend certificate path, or None if absent.
+            tls_cert_removed: True when called from the certificates relation-broken handler.
+
+        Returns:
+            True if a certificates relation exists but no certificate is available yet.
+        """
+        return (
+            cache_cert_path is None
+            and not tls_cert_removed
+            and self.model.get_relation(CERTIFICATE_INTEGRATION_NAME) is not None
+        )
+
+    def _resolve_client_ip_hash_salt(self) -> tuple[str | None, bool]:
+        """Resolve the client IP hash salt config, blocking the unit if it is invalid.
+
+        Returns:
+            A tuple of (salt, blocked). blocked is True when the salt configuration was
+            invalid; the unit status has already been set to blocked in that case and the
+            caller should abort reconciliation without further processing.
+        """
+        try:
+            return get_client_ip_hash_salt(self), False
+        except ConfigurationError as err:
+            self.unit.status = ops.BlockedStatus(str(err))
+            self._clear_cache_backend()
+            return None, True
 
     def _write_cache_backends(self, ported_config: dict, cache_cert_path: Path | None) -> None:
         """Write cache-backend URLs to all cache-config relation databags."""
