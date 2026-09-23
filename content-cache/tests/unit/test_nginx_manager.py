@@ -3,6 +3,7 @@
 
 """Unit test for nginx_manager module."""
 
+import base64
 from unittest.mock import MagicMock
 
 import pytest
@@ -588,3 +589,110 @@ def test_location_contains_proxy_cache_lock(monkeypatch, patch_nginx_manager: No
     assert "proxy_cache_lock on" in config_content
     assert "proxy_cache_lock_age 300s" in config_content
     assert "proxy_cache_lock_timeout 300s" in config_content
+
+
+
+
+def test_get_logged_client_address_directive_disabled():
+    """
+    arrange: No client IP hash salt.
+    act: Call _get_logged_client_address_directive.
+    assert: Returns a plain "set" directive using $remote_addr.
+    """
+    directive = nginx_manager._get_logged_client_address_directive(None)
+
+    assert isinstance(directive, nginx_manager.nginx.Key)
+    assert directive.name == "set"
+    assert directive.value == "$logged_client_address $remote_addr"
+
+
+def test_get_logged_client_address_directive_enabled():
+    """
+    arrange: A configured client IP hash salt.
+    act: Call _get_logged_client_address_directive.
+    assert: Returns a Lua block hashing the client address with the salt module.
+    """
+    directive = nginx_manager._get_logged_client_address_directive("some-salt")
+
+    assert isinstance(directive, nginx_manager.NginxLuaSection)
+    assert directive.name == "set_by_lua_block $logged_client_address"
+    assert 'require "sha2"' in directive.content
+    assert f'require "{nginx_manager.NGINX_CLIENT_IP_SALT_LUA_MODULE}"' in directive.content
+    assert "sha2.sha256(salt .. ngx.var.remote_addr)" in directive.content
+
+
+def test_write_client_ip_hash_salt_writes_file(patch_nginx_manager: None):
+    """
+    arrange: A salt value.
+    act: Call _write_client_ip_hash_salt.
+    assert: The Lua module file is written base64-encoded with restrictive permissions.
+    """
+    nginx_manager._write_client_ip_hash_salt("some-salt")
+
+    content = nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.read_text(encoding="utf-8")
+    assert content.startswith('return "')
+    prefix_len = len('return "')
+    encoded = content.strip()[prefix_len:-1]
+    assert base64.b64decode(encoded).decode("utf-8") == "some-salt"
+    mode = nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.stat().st_mode & 0o777
+    assert mode == 0o600
+
+
+def test_write_client_ip_hash_salt_removes_file_when_none(patch_nginx_manager: None):
+    """
+    arrange: An existing salt Lua module file.
+    act: Call _write_client_ip_hash_salt with None.
+    assert: The Lua module file is removed.
+    """
+    nginx_manager._write_client_ip_hash_salt("some-salt")
+    assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+
+    nginx_manager._write_client_ip_hash_salt(None)
+
+    assert not nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+
+
+def test_update_config_logs_plaintext_client_address_by_default(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: Valid configuration, no client IP hash salt.
+    act: Generate nginx site config.
+    assert: The server block sets $logged_client_address from $remote_addr directly.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "set $logged_client_address $remote_addr;" in config_content
+    assert nginx_manager.NGINX_MAIN_LOG_FORMAT_NAME in config_content
+    assert "$logged_client_address" in config_content
+
+
+def test_update_config_logs_hashed_client_address_when_salt_configured(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: Valid configuration with a client IP hash salt.
+    act: Generate nginx site config.
+    assert: The server block hashes the client address via a Lua block and the salt
+        module is written to disk.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    port = 8080
+    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+
+    nginx_manager.update_and_load_config(
+        sample_data, mock_instance_name, client_ip_hash_salt="some-salt"
+    )
+
+    config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+    assert "set_by_lua_block $logged_client_address" in config_content
+    assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()

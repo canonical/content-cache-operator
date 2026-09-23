@@ -640,3 +640,148 @@ def test_https_backend_with_hostname_stays_active(
     )
 
     assert charm.unit.status == ops.ActiveStatus()
+
+
+def test_config_changed_client_ip_hash_salt(
+    monkeypatch: pytest.MonkeyPatch,
+    harness: Harness,
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+):
+    """
+    arrange: A working charm with a cache-config relation and a valid client-ip-hash-salt.
+    act: Configure client-ip-hash-salt and run config-changed.
+    assert: nginx_manager.update_and_load_config is called with the resolved salt.
+    """
+    monkeypatch.setattr("nginx_manager.NGINX_BIN", "/bin/sh")
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    secret_id = harness.add_user_secret({"salt": "some-salt"})
+    harness.grant_secret(secret_id, charm.app)
+
+    harness.update_config({"client-ip-hash-salt": secret_id})
+
+    assert charm.unit.status == ops.ActiveStatus()
+    assert (
+        mock_nginx_manager.update_and_load_config.call_args.kwargs["client_ip_hash_salt"]
+        == "some-salt"
+    )
+
+
+def test_config_changed_client_ip_hash_salt_removed(
+    monkeypatch: pytest.MonkeyPatch,
+    harness: Harness,
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+):
+    """
+    arrange: A working charm with a client-ip-hash-salt previously configured.
+    act: Remove the client-ip-hash-salt config.
+    assert: nginx_manager.update_and_load_config is called with client_ip_hash_salt=None.
+    """
+    monkeypatch.setattr("nginx_manager.NGINX_BIN", "/bin/sh")
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    secret_id = harness.add_user_secret({"salt": "some-salt"})
+    harness.grant_secret(secret_id, charm.app)
+    harness.update_config({"client-ip-hash-salt": secret_id})
+
+    harness.update_config(unset=["client-ip-hash-salt"])
+
+    assert charm.unit.status == ops.ActiveStatus()
+    assert (
+        mock_nginx_manager.update_and_load_config.call_args.kwargs["client_ip_hash_salt"] is None
+    )
+
+
+def test_config_changed_client_ip_hash_salt_rejects_inaccessible_secret(
+    monkeypatch: pytest.MonkeyPatch,
+    harness: Harness,
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+):
+    """
+    arrange: A working charm with a cache-config relation.
+    act: Configure client-ip-hash-salt to point at a secret ID that does not exist.
+    assert: The unit is blocked and nginx config is not reloaded.
+    """
+    monkeypatch.setattr("nginx_manager.NGINX_BIN", "/bin/sh")
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    # Not granted to this charm, so it exists but is inaccessible.
+    secret_id = harness.add_user_secret({"salt": "some-salt"})
+    mock_nginx_manager.update_and_load_config.reset_mock()
+
+    harness.update_config({"client-ip-hash-salt": secret_id})
+
+    assert isinstance(charm.unit.status, ops.BlockedStatus)
+    assert "does not exist or cannot be accessed" in charm.unit.status.message
+    mock_nginx_manager.update_and_load_config.assert_not_called()
+
+
+def test_config_changed_client_ip_hash_salt_rejects_blank_value(
+    monkeypatch: pytest.MonkeyPatch,
+    harness: Harness,
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+):
+    """
+    arrange: A working charm with a cache-config relation and a secret missing a salt value.
+    act: Configure client-ip-hash-salt to point at that secret.
+    assert: The unit is blocked and nginx config is not reloaded.
+    """
+    monkeypatch.setattr("nginx_manager.NGINX_BIN", "/bin/sh")
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    secret_id = harness.add_user_secret({"salt": "   "})
+    harness.grant_secret(secret_id, charm.app)
+    mock_nginx_manager.update_and_load_config.reset_mock()
+
+    harness.update_config({"client-ip-hash-salt": secret_id})
+
+    assert isinstance(charm.unit.status, ops.BlockedStatus)
+    assert "non-empty 'salt' value" in charm.unit.status.message
+    mock_nginx_manager.update_and_load_config.assert_not_called()
+
+
+def test_secret_changed_triggers_reload(
+    monkeypatch: pytest.MonkeyPatch,
+    harness: Harness,
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+):
+    """
+    arrange: A working charm with client-ip-hash-salt configured.
+    act: Update the secret content and emit secret-changed.
+    assert: nginx_manager.update_and_load_config is called with the new salt value.
+    """
+    monkeypatch.setattr("nginx_manager.NGINX_BIN", "/bin/sh")
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    secret_id = harness.add_user_secret({"salt": "some-salt"})
+    harness.grant_secret(secret_id, charm.app)
+    harness.update_config({"client-ip-hash-salt": secret_id})
+
+    harness.set_secret_content(secret_id, {"salt": "new-salt"})
+    charm._on_secret_changed(MagicMock())
+
+    assert charm.unit.status == ops.ActiveStatus()
+    assert (
+        mock_nginx_manager.update_and_load_config.call_args.kwargs["client_ip_hash_salt"]
+        == "new-salt"
+    )
