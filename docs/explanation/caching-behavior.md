@@ -82,7 +82,7 @@ the inactive window.
 The charm enables
 [`proxy_cache_lock`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock)
 on all cache locations. When multiple clients simultaneously request the same uncached URL,
-only the first request triggers an upstream fetch; the rest wait for that fetch to populate
+only the first request triggers an upstream fetch. The remaining requests wait for the first fetch to populate
 the cache and are then served from disk, instead of each triggering a separate upstream fetch.
 
 keep waiting. The point of enabling the lock in this charm is to avoid duplicate fetches
