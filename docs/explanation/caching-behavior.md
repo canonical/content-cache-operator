@@ -85,9 +85,9 @@ on all cache locations. When multiple clients simultaneously request the same un
 only the first request triggers an upstream fetch; the rest wait for that fetch to populate
 the cache and are then served from disk, instead of each triggering a separate upstream fetch.
 
-nginx defaults `proxy_cache_lock_age` and `proxy_cache_lock_timeout` to 5 seconds each; once
-either bound elapses, a waiting request is allowed to send its own request upstream rather than
-keep waiting. Since the point of enabling the lock in this charm is to avoid duplicate fetches
+keep waiting. The point of enabling the lock in this charm is to avoid duplicate fetches
+of large files that can take much longer than five seconds to download; therefore, the charm sets both directives to
+300 seconds so waiting requests give the first fetch a realistic chance to finish. Downloads
 of large files that can take much longer than 5 seconds to download, the charm sets both to
 300 seconds so waiting requests give the first fetch a realistic chance to finish. Downloads
 that exceed 300 seconds can still result in more than one upstream fetch for the same URL.
