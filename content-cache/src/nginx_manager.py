@@ -414,9 +414,16 @@ def _build_proxy_cache_path(
     Returns:
         The proxy_cache_path value string.
     """
+    # use_temp_path=off: write cache files directly to cache_dir instead of a staging area.
+    # levels=1:2: use a two-level subdirectory hierarchy (1 then 2 hex chars) under cache_dir
+    # to keep any single directory from holding too many cache files.
+    # keys_zone=<identifier>:10m: shared memory zone (10MB) nginx uses to track cache keys
+    # and metadata for this cache.
     value = f"{cache_dir} use_temp_path=off levels=1:2 keys_zone={identifier}:10m"
+    # inactive: how long a cached item can go unaccessed before nginx evicts it from disk.
     value += f" inactive={config.cache_inactive}"
     if config.cache_max_size:
+        # max_size: upper bound on total disk space the cache zone may use.
         value += f" max_size={config.cache_max_size}"
     return value
 

@@ -157,17 +157,17 @@ def test_invalid_format_proxy_cache_valid():
         ),
         pytest.param(
             '["200 302 1y"]',
-            "Invalid time for proxy_cache_valid: 1y",
+            "Invalid time unit in '1y': must be h, m, s, or d",
             id="Invalid time unit",
         ),
         pytest.param(
             '["200 tenm"]',
-            "Non-int time in proxy_cache_valid: tenm",
+            "Non-integer time value in 'tenm'",
             id="non-int time",
         ),
         pytest.param(
             '["200 -10h"]',
-            "Time must be positive int for proxy_cache_valid: -10h",
+            "Time must be a positive integer in '-10h'",
             id="negative time",
         ),
         pytest.param(

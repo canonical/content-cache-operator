@@ -234,9 +234,6 @@ class Configuration(pydantic.BaseModel):
         Args:
             value: The nginx time string to validate.
 
-        Raises:
-            ValueError: The value is not a valid nginx time string.
-
         Returns:
             The validated value.
         """
@@ -250,9 +247,6 @@ class Configuration(pydantic.BaseModel):
 
         Args:
             value: The nginx size string to validate (may be empty to mean no limit).
-
-        Raises:
-            ValueError: The value is not empty and not a valid nginx size string.
 
         Returns:
             The validated value, lowercased.
@@ -303,9 +297,7 @@ class Configuration(pydantic.BaseModel):
         cache_inactive = typing.cast(
             str, charm.config.get(CACHE_INACTIVE_CONFIG_NAME, "10m")
         ).strip()
-        cache_max_size = typing.cast(
-            str, charm.config.get(CACHE_MAX_SIZE_CONFIG_NAME, "")
-        ).strip()
+        cache_max_size = typing.cast(str, charm.config.get(CACHE_MAX_SIZE_CONFIG_NAME, "")).strip()
 
         try:
             # Pydantic's AfterValidator-annotated fields accept plain str at construction time,
@@ -373,6 +365,8 @@ class Configuration(pydantic.BaseModel):
 def _check_nginx_time_str(time_str: str) -> None:
     """Check if nginx time str is valid.
 
+    Valid format: positive integer followed by h, m, s, or d (case-sensitive).
+
     Args:
         time_str: The time str for nginx configuration.
 
@@ -381,14 +375,14 @@ def _check_nginx_time_str(time_str: str) -> None:
     """
     time_char = {"h", "m", "s", "d"}
     if not time_str or time_str[-1] not in time_char:
-        raise ValueError(f"Invalid time for proxy_cache_valid: {time_str}")
+        raise ValueError(f"Invalid time unit in {time_str!r}: must be h, m, s, or d")
     try:
         time = int(time_str[:-1])
     except ValueError as err:
-        raise ValueError(f"Non-int time in proxy_cache_valid: {time_str}") from err
+        raise ValueError(f"Non-integer time value in {time_str!r}") from err
 
     if time < 1:
-        raise ValueError(f"Time must be positive int for proxy_cache_valid: {time_str}")
+        raise ValueError(f"Time must be a positive integer in {time_str!r}")
 
 
 def _check_nginx_size_str(size_str: str) -> None:

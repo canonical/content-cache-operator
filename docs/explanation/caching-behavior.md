@@ -46,14 +46,15 @@ triggers a fresh upstream fetch.
 **Inactive eviction:** nginx also tracks when each cache entry was last accessed. If a
 cached response is not requested within the
 [`inactive`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path)
-period, nginx evicts it from disk regardless of its TTL. The charm does not override this
-parameter, so the nginx default of 10 minutes applies. A cached file that receives no
-requests for 10 minutes is removed from disk, even if its TTL has not yet expired.
+period, nginx evicts it from disk regardless of its TTL. This period is controlled by the
+`cache-inactive` configuration on `content-cache-backends-config`, which defaults to `10m`.
+A cached file that receives no requests within that window is removed from disk, even if
+its TTL has not yet expired.
 
 These two mechanisms are independent. The inactive timeout can evict a response before its
 TTL expires, and a long TTL does not prevent eviction if the content is not accessed.
 
-There is currently no charm configuration option to change the `inactive` timeout directly.
+Increase `cache-inactive` for files that are accessed on long periodic cycles.
 
 ### Upstream cache headers
 
@@ -78,15 +79,15 @@ the inactive window.
 
 ## Concurrent first-hit requests
 
-The charm does not enable
-[`proxy_cache_lock`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock).
-When multiple clients simultaneously request the same uncached URL, nginx
-starts a separate upstream fetch for each request rather than having the first fetch complete
-while the rest wait.
+The charm enables
+[`proxy_cache_lock`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_lock)
+on all cache locations. When multiple clients simultaneously request the same uncached URL,
+only the first request triggers an upstream fetch; the rest wait for that fetch to populate
+the cache and are then served from disk, instead of each triggering a separate upstream fetch.
 
-For small files this behavior is usually acceptable. The window of concurrent cache misses is brief
-and the bandwidth consumed is modest. For large files the impact is more significant (see
-the next section).
+This reduces redundant load on the backend during concurrent cache misses, which matters most
+for large files where a stampede of simultaneous fetches would otherwise consume significant
+bandwidth (see the next section).
 
 ## Large-file considerations
 
@@ -95,16 +96,18 @@ Each file can be several gigabytes.
 
 ### Disk capacity
 
-The charm does not set `max_size` or `min_free` on
+The charm does not set `min_free` on
 [`proxy_cache_path`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path).
-nginx's cache manager only performs LRU eviction when one of those parameters is configured —
-without them, it has no threshold to act on. nginx will therefore cache files until the
-filesystem is full, with no automatic cleanup.
+The `cache-max-size` configuration on `content-cache-backends-config` maps to `max_size` on
+`proxy_cache_path` and defaults to an empty string (no limit). When `cache-max-size` is left
+unset, nginx's cache manager has no threshold to act on and will cache files until the
+filesystem is full, with no automatic cleanup. Setting `cache-max-size` (for example `2g`)
+lets nginx evict least-recently-used entries once the limit is reached.
 
 Operators should:
 
-- Provision a dedicated large volume mounted at `/data/nginx/cache/` before deploying for
-  large-file caching.
+- Set `cache-max-size` to a sensible limit, or provision a dedicated large volume mounted at
+  `/data/nginx/cache/` before deploying for large-file caching if the size is left unbounded.
 - Monitor disk usage and set up alerts before the filesystem fills up.
 
 When the disk fills up, nginx fails to write new cache entries. Existing cached files remain
