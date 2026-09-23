@@ -399,6 +399,35 @@ def _create_status_page_config() -> None:
     _store_and_enable_site_config("nginx_status", nginx_config)
 
 
+def _build_proxy_cache_path(
+    cache_dir: Path,
+    identifier: str,
+    config: LocationConfig,
+) -> str:
+    """Build the proxy_cache_path directive value.
+
+    Args:
+        cache_dir: The directory to store cache files.
+        identifier: The unique cache zone identifier.
+        config: The location configuration with cache parameters.
+
+    Returns:
+        The proxy_cache_path value string.
+    """
+    # use_temp_path=off: write cache files directly to cache_dir instead of a staging area.
+    # levels=1:2: use a two-level subdirectory hierarchy (1 then 2 hex chars) under cache_dir
+    # to keep any single directory from holding too many cache files.
+    # keys_zone=<identifier>:10m: shared memory zone (10MB) nginx uses to track cache keys
+    # and metadata for this cache.
+    value = f"{cache_dir} use_temp_path=off levels=1:2 keys_zone={identifier}:10m"
+    # inactive: how long a cached item can go unaccessed before nginx evicts it from disk.
+    value += f" inactive={config.cache_inactive}"
+    if config.cache_max_size:
+        # max_size: upper bound on total disk space the cache zone may use.
+        value += f" max_size={config.cache_max_size}"
+    return value
+
+
 def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
     identifier: str,
     port: int,
@@ -429,7 +458,7 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-argu
         nginx_config = nginx.Conf(
             nginx.Key(
                 "proxy_cache_path",
-                f"{server_cache_dir} use_temp_path=off levels=1:2 keys_zone={identifier}:10m",
+                _build_proxy_cache_path(server_cache_dir, identifier, configuration),
             ),
         )
         listen_value = f"{port} ssl" if resolved_tls.frontend_cert_path else str(port)
@@ -556,6 +585,14 @@ def _get_location_config_keys(
     scheme = config.backends[0].scheme
     keys: list[nginx.Key] = [
         nginx.Key("proxy_pass", f"{scheme}://{upstream}/"),
+        nginx.Key("proxy_cache_lock", "on"),
+        # nginx defaults both of these to 5s, which is too short for the large files
+        # (e.g. Ubuntu ISOs) this charm is designed to cache: once either bound is
+        # hit, nginx will still let concurrent requests thundering-herd the backend
+        # while the first fetch is still running. 300s gives large downloads a
+        # realistic chance to finish before the lock is abandoned.
+        nginx.Key("proxy_cache_lock_age", "300s"),
+        nginx.Key("proxy_cache_lock_timeout", "300s"),
     ]
 
     if scheme == "https" and config.backend_hostname:

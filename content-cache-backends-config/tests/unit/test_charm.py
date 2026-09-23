@@ -27,6 +27,8 @@ SAMPLE_CONFIG: JujuConfig = {
     state.HEALTHCHECK_PATH_CONFIG_NAME: "/health",
     state.HEALTHCHECK_INTERVAL_CONFIG_NAME: 2000,
     state.PROXY_CACHE_VALID_CONFIG_NAME: '["200 302 1h", "404 1m"]',
+    state.CACHE_INACTIVE_CONFIG_NAME: "10m",
+    state.CACHE_MAX_SIZE_CONFIG_NAME: "",
 }
 
 
@@ -139,6 +141,8 @@ def test_integration_data(charm: ContentCacheBackendsConfigCharm, harness: Harne
     assert data["healthcheck_valid_status"] == "[200]"
     assert data["fail_timeout"] == "30s"
     assert data["proxy_cache_valid"] == '["200 302 1h", "404 1m"]'
+    assert data[state.CACHE_INACTIVE_FIELD_NAME] == "10m"
+    assert data.get(state.CACHE_MAX_SIZE_FIELD_NAME, "") == ""
 
 
 def test_integration_with_invalid_config(charm: ContentCacheBackendsConfigCharm, harness: Harness):

@@ -25,6 +25,10 @@ HEALTHCHECK_SSL_VERIFY_CONFIG_NAME = "healthcheck-ssl-verify"
 HEALTHCHECK_VALID_STATUS_CONFIG_NAME = "healthcheck-valid-status"
 PROXY_CACHE_VALID_CONFIG_NAME = "proxy-cache-valid"
 BACKEND_HOSTNAME_CONFIG_NAME = "backend-hostname"
+CACHE_INACTIVE_CONFIG_NAME = "cache-inactive"
+CACHE_MAX_SIZE_CONFIG_NAME = "cache-max-size"
+CACHE_INACTIVE_FIELD_NAME = "cache_inactive"
+CACHE_MAX_SIZE_FIELD_NAME = "cache_max_size"
 
 
 def _validate_hostname_value(value: str) -> str:
@@ -146,6 +150,8 @@ class Configuration(pydantic.BaseModel):
         proxy_cache_valid: The cache valid duration.
         healthcheck: The healthcheck configuration.
         backend_hostname: Hostname used for backend SNI and Host header.
+        cache_inactive: Time after which an unaccessed item is evicted from the disk cache.
+        cache_max_size: Maximum total disk size for the cache; empty string means no limit.
     """
 
     backends: tuple[pydantic.AnyHttpUrl, ...]
@@ -155,6 +161,8 @@ class Configuration(pydantic.BaseModel):
     backend_hostname: typing.Annotated[
         str, pydantic.AfterValidator(_validate_optional_hostname_value)
     ] = ""
+    cache_inactive: str
+    cache_max_size: str
 
     @pydantic.model_validator(mode="after")
     def validate_hostname_required_for_https(self) -> "Configuration":
@@ -218,6 +226,36 @@ class Configuration(pydantic.BaseModel):
             _check_nginx_time_str(time_str)
         return value
 
+    @pydantic.field_validator("cache_inactive")
+    @classmethod
+    def validate_cache_inactive(cls, value: str) -> str:
+        """Validate the cache_inactive time string.
+
+        Args:
+            value: The nginx time string to validate.
+
+        Returns:
+            The validated value.
+        """
+        _check_nginx_time_str(value)
+        return value
+
+    @pydantic.field_validator("cache_max_size")
+    @classmethod
+    def validate_cache_max_size(cls, value: str) -> str:
+        """Validate the cache_max_size size string.
+
+        Args:
+            value: The nginx size string to validate (may be empty to mean no limit).
+
+        Returns:
+            The validated value, lowercased.
+        """
+        if not value:
+            return value
+        _check_nginx_size_str(value)
+        return value.lower()
+
     @classmethod
     def from_charm(cls, charm: ops.CharmBase) -> "Configuration":
         """Initialize object from the charm.
@@ -256,6 +294,11 @@ class Configuration(pydantic.BaseModel):
 
         healthcheck_config = HealthcheckConfig.from_charm(charm)
 
+        cache_inactive = typing.cast(
+            str, charm.config.get(CACHE_INACTIVE_CONFIG_NAME, "10m")
+        ).strip()
+        cache_max_size = typing.cast(str, charm.config.get(CACHE_MAX_SIZE_CONFIG_NAME, "")).strip()
+
         try:
             # Pydantic's AfterValidator-annotated fields accept plain str at construction time,
             # but mypy cannot infer this from the annotated type alone; hence the type ignores.
@@ -265,6 +308,8 @@ class Configuration(pydantic.BaseModel):
                 proxy_cache_valid=proxy_cache_valid,  # type: ignore
                 healthcheck=healthcheck_config,
                 backend_hostname=backend_hostname,
+                cache_inactive=cache_inactive,
+                cache_max_size=cache_max_size,
             )
         except pydantic.ValidationError as err:
             err_msg = [
@@ -317,8 +362,17 @@ class Configuration(pydantic.BaseModel):
         return data
 
 
+# nginx's ngx_parse_time/ngx_parse_size only accept a plain run of ASCII digits for the
+# numeric portion; int() is stricter than the directive itself would be about "+1m",
+# "1_0m", or "1 m", but nginx's config test would still reject them, causing a
+# post-deployment failure. Requiring \d+ here rejects them at validation time instead.
+_DIGITS_PATTERN = re.compile(r"[0-9]+")
+
+
 def _check_nginx_time_str(time_str: str) -> None:
     """Check if nginx time str is valid.
+
+    Valid format: positive integer followed by h, m, s, or d (case-sensitive).
 
     Args:
         time_str: The time str for nginx configuration.
@@ -326,16 +380,40 @@ def _check_nginx_time_str(time_str: str) -> None:
     Raises:
         ValueError: The input is not valid time str for nginx.
     """
-    time_char = {"h", "m", "s"}
-    if time_str[-1] not in time_char:
-        raise ValueError(f"Invalid time for proxy_cache_valid: {time_str}")
-    try:
-        time = int(time_str[:-1])
-    except ValueError as err:
-        raise ValueError(f"Non-int time in proxy_cache_valid: {time_str}") from err
+    time_char = {"h", "m", "s", "d"}
+    if not time_str or time_str[-1] not in time_char:
+        raise ValueError(f"Invalid time unit in {time_str!r}: must be h, m, s, or d")
+    digits = time_str[:-1]
+    if not _DIGITS_PATTERN.fullmatch(digits):
+        raise ValueError(f"Non-integer time value in {time_str!r}")
 
-    if time < 1:
-        raise ValueError(f"Time must be positive int for proxy_cache_valid: {time_str}")
+    if int(digits) < 1:
+        raise ValueError(f"Time must be a positive integer in {time_str!r}")
+
+
+def _check_nginx_size_str(size_str: str) -> None:
+    """Check if nginx size string is valid.
+
+    Valid format: positive integer followed by k, m, or g (case-insensitive). nginx's
+    size directives (including proxy_cache_path's max_size) do not support a terabyte
+    unit, so "t" is deliberately excluded here.
+
+    Args:
+        size_str: The size string to validate.
+
+    Raises:
+        ValueError: The input is not a valid nginx size string.
+    """
+    if not size_str:
+        raise ValueError("Size string must not be empty")
+    unit = size_str[-1].lower()
+    if unit not in {"k", "m", "g"}:
+        raise ValueError(f"Invalid size unit in {size_str!r}: must be k, m, or g")
+    digits = size_str[:-1]
+    if not _DIGITS_PATTERN.fullmatch(digits):
+        raise ValueError(f"Non-integer size value in {size_str!r}")
+    if int(digits) < 1:
+        raise ValueError(f"Size must be a positive integer in {size_str!r}")
 
 
 def _check_status_code(code_str: str) -> None:

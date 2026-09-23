@@ -12,6 +12,8 @@ from factories import MockCharmFactory  # pylint: disable=import-error
 from errors import ConfigurationError
 from src.state import (
     BACKENDS_CONFIG_NAME,
+    CACHE_INACTIVE_CONFIG_NAME,
+    CACHE_MAX_SIZE_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
@@ -155,18 +157,23 @@ def test_invalid_format_proxy_cache_valid():
         ),
         pytest.param(
             '["200 302 1y"]',
-            "Invalid time for proxy_cache_valid: 1y",
+            "Invalid time unit in '1y': must be h, m, s, or d",
             id="Invalid time unit",
         ),
         pytest.param(
             '["200 tenm"]',
-            "Non-int time in proxy_cache_valid: tenm",
+            "Non-integer time value in 'tenm'",
             id="non-int time",
         ),
         pytest.param(
             '["200 -10h"]',
-            "Time must be positive int for proxy_cache_valid: -10h",
+            "Non-integer time value in '-10h'",
             id="negative time",
+        ),
+        pytest.param(
+            '["200 +1h"]',
+            "Non-integer time value in '+1h'",
+            id="non-digit time sign",
         ),
         pytest.param(
             '["ok 30m"]',
@@ -252,6 +259,8 @@ def test_configuration_to_data():
     assert data["healthcheck_ssl_verify"] == "false"
     assert data["healthcheck_valid_status"] == "[200]"
     assert data["proxy_cache_valid"] == "[]"
+    assert data["cache_inactive"] == "10m"
+    assert data.get("cache_max_size", "") == ""
 
 
 def test_configuration_to_data_model_dump_error(monkeypatch):
@@ -363,3 +372,75 @@ def test_configuration_to_integration_data_includes_backend_hostname():
     data = config.to_integration_data()
 
     assert data["backend_hostname"] == "backend.example.com"
+
+
+@pytest.mark.parametrize("value", ["10m", "1h", "7d", "30s"])
+def test_cache_inactive_valid(value: str):
+    """
+    arrange: Mock charm with valid cache-inactive values.
+    act: Create the configuration from the charm.
+    assert: cache_inactive is set correctly.
+    """
+    charm = MockCharmFactory()
+    charm.config[CACHE_INACTIVE_CONFIG_NAME] = value
+
+    config = Configuration.from_charm(charm)
+
+    assert config.cache_inactive == value
+
+
+@pytest.mark.parametrize("value", ["0m", "-1h", "abc", "10x", "+1m", "1_0m", "1 m"])
+def test_cache_inactive_invalid(value: str):
+    """
+    arrange: Mock charm with invalid cache-inactive values.
+    act: Create the configuration from the charm.
+    assert: ConfigurationError raised.
+    """
+    charm = MockCharmFactory()
+    charm.config[CACHE_INACTIVE_CONFIG_NAME] = value
+
+    with pytest.raises(ConfigurationError):
+        Configuration.from_charm(charm)
+
+
+@pytest.mark.parametrize("value", ["512m", "2g", "100k", "1G"])
+def test_cache_max_size_valid(value: str):
+    """
+    arrange: Mock charm with valid cache-max-size values.
+    act: Create the configuration from the charm.
+    assert: cache_max_size is set (lowercased).
+    """
+    charm = MockCharmFactory()
+    charm.config[CACHE_MAX_SIZE_CONFIG_NAME] = value
+
+    config = Configuration.from_charm(charm)
+
+    assert config.cache_max_size == value.lower()
+
+
+@pytest.mark.parametrize("value", ["0m", "-1g", "abc", "10x", "1t", "+1m", "1_0m", "1 m"])
+def test_cache_max_size_invalid(value: str):
+    """
+    arrange: Mock charm with invalid cache-max-size values.
+    act: Create the configuration from the charm.
+    assert: ConfigurationError raised.
+    """
+    charm = MockCharmFactory()
+    charm.config[CACHE_MAX_SIZE_CONFIG_NAME] = value
+
+    with pytest.raises(ConfigurationError):
+        Configuration.from_charm(charm)
+
+
+def test_cache_max_size_empty_allowed():
+    """
+    arrange: Mock charm with empty cache-max-size.
+    act: Create the configuration from the charm.
+    assert: cache_max_size is empty string (no limit).
+    """
+    charm = MockCharmFactory()
+    charm.config[CACHE_MAX_SIZE_CONFIG_NAME] = ""
+
+    config = Configuration.from_charm(charm)
+
+    assert config.cache_max_size == ""
