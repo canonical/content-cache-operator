@@ -46,6 +46,15 @@ The charm does not configure nginx rate limiting
 who need protection against abuse or denial-of-service attacks must add rate limiting at a
 component placed in front of the charm, such as a load balancer, reverse proxy, or Web Application Firewall (WAF).
 
+### Client IP privacy in logs
+
+By default, nginx access and cache logs record the client's IP address in plaintext. The
+`client-ip-hash-salt` configuration option (a user-owned Juju secret) replaces the logged
+client IP address with a salted SHA-256 hash, so raw IP addresses are never written to disk.
+See {ref}`how_to_hash_client_ip_addresses_in_logs` for setup instructions. Rotating the salt
+changes the hash produced for a given client IP address, so logs recorded before a rotation
+cannot be correlated with logs recorded afterwards.
+
 ## Charm to backend
 
 ### Backend protocol
@@ -147,3 +156,4 @@ accidentally cached, operators must wait for natural expiry.
 | Rate limiting | Add rate limiting at a component placed in front of the charm (load balancer, reverse proxy, or WAF) if abuse protection is needed |
 | Cached content | Only route public, non-personalized content through the charm |
 | Machine access | Restrict local user access to the Juju machine |
+| Log privacy | Configure `client-ip-hash-salt` to avoid storing client IP addresses in plaintext logs |
