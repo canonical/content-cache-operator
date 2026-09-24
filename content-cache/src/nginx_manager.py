@@ -4,6 +4,7 @@
 """Manage nginx instance."""
 
 import base64
+import hashlib
 import logging
 import os
 import pwd
@@ -44,7 +45,12 @@ NGINX_USER = "www-data"
 
 NGINX_SECRETS_PATH = Path("/etc/nginx/secrets")
 NGINX_CLIENT_IP_SALT_LUA_MODULE = "content_cache_client_ip_salt"
-NGINX_CLIENT_IP_SALT_LUA_PATH = NGINX_SECRETS_PATH / f"{NGINX_CLIENT_IP_SALT_LUA_MODULE}.lua"
+NGINX_CLIENT_IP_SALT_LUA_MODULE_GLOB = f"{NGINX_CLIENT_IP_SALT_LUA_MODULE}_*.lua"
+# How many of the most recently written salt module generations to keep on disk whenever a
+# module is (re)written. Keeping more than just the newest one gives an nginx worker that is
+# still finishing a previous reload (and so still references the previous generation's
+# module by name) a full reconciliation cycle to drain before its module can be pruned.
+NGINX_CLIENT_IP_SALT_LUA_MODULE_GENERATIONS_TO_KEEP = 2
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
@@ -238,6 +244,13 @@ def update_and_load_config(
     # This will reset the file permissions.
     _reset_nginx_files(instance_name)
 
+    if client_ip_hash_salt is not None:
+        # Content-addressed: this always creates a brand new, uniquely named module file
+        # (or is a no-op if one already exists for this exact salt) and never overwrites a
+        # file that an existing configuration or already-running worker might still be
+        # using, so it is safe to write before the configuration referencing it exists.
+        _write_client_ip_hash_salt(client_ip_hash_salt)
+
     tls = TLSConfig(frontend_cert_path=frontend_cert_path)
     errored_identifiers: list[str] = []
     configuration_errors: list[NginxConfigurationError] = []
@@ -274,12 +287,11 @@ def update_and_load_config(
 
     _load_config()
 
-    # Only commit the salt file change (writing a new/rotated salt, or removing it) after
-    # the configuration referencing it has been successfully generated and nginx has been
-    # told to reload. Committing it any earlier risks a still-active old configuration
-    # picking up a salt (or losing one) it was never actually reloaded with, e.g. if
-    # configuration generation fails partway through.
-    _write_client_ip_hash_salt(client_ip_hash_salt)
+    # Only prune old salt module generations after nginx has been told to reload the
+    # configuration, so a worker still finishing a previous reload (and therefore still
+    # requiring a previous generation's module by name) keeps a full reconciliation cycle
+    # of access to it before it can be pruned.
+    _prune_client_ip_hash_salt_modules()
 
 
 def _load_config() -> None:  # pragma: no cover
@@ -314,34 +326,72 @@ def _reset_nginx_files(instance_name: str) -> None:
     _ensure_directory_exist_with_ownership(NGINX_LOG_PATH / instance_name)
 
 
-def _write_client_ip_hash_salt(salt: str | None) -> None:
-    """Write or remove the client IP hash salt Lua module.
+def _client_ip_hash_salt_module_name(salt: str) -> str:
+    """Return the versioned Lua module name for a given salt value.
+
+    Content-addressing the module name (and therefore its filename) by a hash of the salt
+    means each distinct salt value gets its own, never-overwritten module file: an nginx
+    worker that has already resolved and cached a require() for a previous salt's module
+    keeps reading that same, unmodified file for as long as it needs to, while workers
+    running a newer configuration require a completely different name. This removes any
+    race between rewriting a shared file in place and nginx switching workers over to a new
+    configuration.
 
     Args:
-        salt: The salt string, or None to disable client IP hashing.
+        salt: The salt string to derive a module name for.
+
+    Returns:
+        A Lua module name unique to this salt value.
+    """
+    digest = hashlib.sha256(salt.encode("utf-8")).hexdigest()[:16]
+    return f"{NGINX_CLIENT_IP_SALT_LUA_MODULE}_{digest}"
+
+
+def _client_ip_hash_salt_module_path(salt: str) -> Path:
+    """Return the file path of the versioned Lua module for a given salt value.
+
+    Args:
+        salt: The salt string to derive a module path for.
+
+    Returns:
+        The path the module for this salt value is (or would be) written to.
+    """
+    return NGINX_SECRETS_PATH / f"{_client_ip_hash_salt_module_name(salt)}.lua"
+
+
+def _write_client_ip_hash_salt(salt: str) -> None:
+    """Write the content-addressed client IP hash salt Lua module, if not already present.
+
+    Args:
+        salt: The salt string to encode into a Lua module.
 
     Raises:
         NginxFileError: File operation errors while writing the salt file.
     """
     try:
-        if salt is None:
-            NGINX_CLIENT_IP_SALT_LUA_PATH.unlink(missing_ok=True)
-            return
         user = pwd.getpwnam(NGINX_USER)
         # Owned by root, only readable (not writable) by nginx group,
         # so a compromised nginx worker cannot modify it.
         NGINX_SECRETS_PATH.mkdir(mode=0o750, parents=True, exist_ok=True)
         os.chown(NGINX_SECRETS_PATH, 0, user.pw_gid)
         NGINX_SECRETS_PATH.chmod(0o750)
+
+        module_path = _client_ip_hash_salt_module_path(salt)
+        if module_path.exists():
+            # Content-addressed: an existing file for this exact salt value is already
+            # correct. Refresh its mtime so pruning treats it as the most recently used
+            # generation instead of eventually pruning a salt that is still in active use.
+            os.utime(module_path)
+            return
+
         encoded_salt = base64.b64encode(salt.encode("utf-8")).decode("ascii")
         # Write the new module to a temp file (with final ownership/mode) in the same
         # directory, then atomically rename it into place. This avoids a window where the
         # module is missing or partially written, which could otherwise break a request
-        # served by an nginx worker (including one still finishing a graceful reload)
-        # concurrently with this update.
+        # served by an nginx worker concurrently with this update.
         fd, tmp_name = tempfile.mkstemp(
             dir=NGINX_SECRETS_PATH,
-            prefix=f".{NGINX_CLIENT_IP_SALT_LUA_MODULE}-",
+            prefix=f".{module_path.stem}-",
             suffix=".tmp",
         )
         tmp_path = Path(tmp_name)
@@ -350,13 +400,38 @@ def _write_client_ip_hash_salt(salt: str | None) -> None:
                 tmp_file.write(f'return "{encoded_salt}"\n')
             os.chown(tmp_path, 0, user.pw_gid)
             tmp_path.chmod(0o640)
-            tmp_path.replace(NGINX_CLIENT_IP_SALT_LUA_PATH)
+            tmp_path.replace(module_path)
         except BaseException:
             tmp_path.unlink(missing_ok=True)
             raise
     except (PermissionError, OSError, IOError) as err:
         logger.exception("Failed to write client IP hash salt file")
         raise NginxFileError("Failed to write client IP hash salt file") from err
+
+
+def _prune_client_ip_hash_salt_modules(
+    keep: int = NGINX_CLIENT_IP_SALT_LUA_MODULE_GENERATIONS_TO_KEEP,
+) -> None:
+    """Remove old client IP hash salt module generations, keeping the most recent ones.
+
+    Safe to call regardless of whether hashing is currently enabled: each distinct salt
+    value has its own, never-overwritten module file, so removing one never affects any
+    other generation. Call only after nginx has been told to reload, so a worker that is
+    still finishing a previous reload keeps a full reconciliation cycle of access to its
+    module before that module can be pruned.
+
+    Args:
+        keep: How many of the most recently written/refreshed generations to retain.
+    """
+    if not NGINX_SECRETS_PATH.is_dir():
+        return
+    generations = sorted(
+        NGINX_SECRETS_PATH.glob(NGINX_CLIENT_IP_SALT_LUA_MODULE_GLOB),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for stale in generations[keep:]:
+        stale.unlink(missing_ok=True)
 
 
 def _get_logged_client_address_directive(
@@ -375,7 +450,7 @@ def _get_logged_client_address_directive(
     if client_ip_hash_salt is None:
         return nginx.Key("set", "$logged_client_address $remote_addr")
     lua_code = f"""local sha2 = require "sha2"
-        local encoded_salt = require "{NGINX_CLIENT_IP_SALT_LUA_MODULE}"
+        local encoded_salt = require "{_client_ip_hash_salt_module_name(client_ip_hash_salt)}"
         local salt = ngx.decode_base64(encoded_salt)
         return sha2.sha256(salt .. ngx.var.remote_addr)
         """

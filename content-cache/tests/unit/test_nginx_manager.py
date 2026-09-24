@@ -608,48 +608,105 @@ def test_get_logged_client_address_directive_enabled():
     """
     arrange: A configured client IP hash salt.
     act: Call _get_logged_client_address_directive.
-    assert: Returns a Lua block hashing the client address with the salt module.
+    assert: Returns a Lua block hashing the client address with the versioned salt module.
     """
     directive = nginx_manager._get_logged_client_address_directive("some-salt")
 
     assert isinstance(directive, nginx_manager.NginxLuaSection)
     assert directive.name == "set_by_lua_block $logged_client_address"
     assert 'require "sha2"' in directive.content
-    assert f'require "{nginx_manager.NGINX_CLIENT_IP_SALT_LUA_MODULE}"' in directive.content
+    module_name = nginx_manager._client_ip_hash_salt_module_name("some-salt")
+    assert f'require "{module_name}"' in directive.content
     assert "sha2.sha256(salt .. ngx.var.remote_addr)" in directive.content
+
+
+def test_client_ip_hash_salt_module_name_is_content_addressed():
+    """
+    arrange: Two different salt values, and the same salt value twice.
+    act: Call _client_ip_hash_salt_module_name.
+    assert: Different salts yield different module names, and the same salt always yields
+        the same module name.
+    """
+    name_a = nginx_manager._client_ip_hash_salt_module_name("salt-a")
+    name_b = nginx_manager._client_ip_hash_salt_module_name("salt-b")
+    name_a_again = nginx_manager._client_ip_hash_salt_module_name("salt-a")
+
+    assert name_a != name_b
+    assert name_a == name_a_again
+    assert name_a.startswith(nginx_manager.NGINX_CLIENT_IP_SALT_LUA_MODULE)
 
 
 def test_write_client_ip_hash_salt_writes_file(patch_nginx_manager: None):
     """
     arrange: A salt value.
     act: Call _write_client_ip_hash_salt.
-    assert: The Lua module file is written base64-encoded with restrictive permissions.
+    assert: The Lua module file is written base64-encoded with restrictive permissions, at
+        its content-addressed path.
     """
     nginx_manager._write_client_ip_hash_salt("some-salt")
 
-    content = nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.read_text(encoding="utf-8")
+    module_path = nginx_manager._client_ip_hash_salt_module_path("some-salt")
+    content = module_path.read_text(encoding="utf-8")
     assert content.startswith('return "')
     prefix_len = len('return "')
     encoded = content.strip()[prefix_len:-1]
     assert base64.b64decode(encoded).decode("utf-8") == "some-salt"
-    mode = nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.stat().st_mode & 0o777
+    mode = module_path.stat().st_mode & 0o777
     assert mode == 0o640
     dir_mode = nginx_manager.NGINX_SECRETS_PATH.stat().st_mode & 0o777
     assert dir_mode == 0o750
 
 
-def test_write_client_ip_hash_salt_removes_file_when_none(patch_nginx_manager: None):
+def test_write_client_ip_hash_salt_is_idempotent_for_same_salt(patch_nginx_manager: None):
     """
-    arrange: An existing salt Lua module file.
-    act: Call _write_client_ip_hash_salt with None.
-    assert: The Lua module file is removed.
+    arrange: A salt already written to its module file.
+    act: Call _write_client_ip_hash_salt again with the same salt value.
+    assert: The (unchanged) module file still exists with the same content.
     """
     nginx_manager._write_client_ip_hash_salt("some-salt")
-    assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+    module_path = nginx_manager._client_ip_hash_salt_module_path("some-salt")
+    original_content = module_path.read_text(encoding="utf-8")
 
-    nginx_manager._write_client_ip_hash_salt(None)
+    nginx_manager._write_client_ip_hash_salt("some-salt")
 
-    assert not nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+    assert module_path.read_text(encoding="utf-8") == original_content
+
+
+def test_write_client_ip_hash_salt_does_not_touch_other_generations(patch_nginx_manager: None):
+    """
+    arrange: A module already written for one salt value.
+    act: Call _write_client_ip_hash_salt with a different salt value.
+    assert: Both module files exist afterwards, each with their own distinct content;
+        writing a new salt never overwrites or removes a previous generation's file.
+    """
+    nginx_manager._write_client_ip_hash_salt("old-salt")
+    old_module_path = nginx_manager._client_ip_hash_salt_module_path("old-salt")
+    old_content = old_module_path.read_text(encoding="utf-8")
+
+    nginx_manager._write_client_ip_hash_salt("new-salt")
+
+    assert old_module_path.read_text(encoding="utf-8") == old_content
+    new_module_path = nginx_manager._client_ip_hash_salt_module_path("new-salt")
+    assert new_module_path.exists()
+    assert new_module_path != old_module_path
+
+
+def test_prune_client_ip_hash_salt_modules_keeps_most_recent(patch_nginx_manager: None):
+    """
+    arrange: Module files written for four distinct salts, oldest to newest.
+    act: Call _prune_client_ip_hash_salt_modules with the default (2) generations to keep.
+    assert: Only the two most recently written module files remain.
+    """
+    for salt in ("salt-1", "salt-2", "salt-3", "salt-4"):
+        nginx_manager._write_client_ip_hash_salt(salt)
+
+    nginx_manager._prune_client_ip_hash_salt_modules()
+
+    remaining = {path.name for path in nginx_manager.NGINX_SECRETS_PATH.glob("*.lua")}
+    assert remaining == {
+        nginx_manager._client_ip_hash_salt_module_path("salt-3").name,
+        nginx_manager._client_ip_hash_salt_module_path("salt-4").name,
+    }
 
 
 def test_update_config_logs_plaintext_client_address_by_default(
@@ -674,35 +731,20 @@ def test_update_config_logs_plaintext_client_address_by_default(
     assert "$logged_client_address" in config_content
 
 
-def test_update_config_disabling_salt_removes_module_only_after_reload(
+def test_update_config_disabling_salt_does_not_remove_existing_modules(
     monkeypatch, patch_nginx_manager: None
 ):
     """
-    arrange: A previously written salt module, and a mock reload command that records
-        whether the module still exists at the moment it is invoked.
+    arrange: A previously written salt module.
     act: Call update_and_load_config with client_ip_hash_salt=None.
-    assert: The module still exists when the reload command runs, and is only removed
-        afterwards, so a still-active hashed configuration never loses the module out from
-        under it mid-reload.
+    assert: The previous salt module file is left in place (only bounded pruning, run after
+        a successful reload, may eventually remove it - disabling itself never deletes
+        anything, since a still-active hashed configuration elsewhere must never lose its
+        module out from under it).
     """
     nginx_manager._write_client_ip_hash_salt("old-salt")
-    assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
-    module_existed_during_reload = []
-
-    def _record_and_succeed(_cmd):
-        """Record whether the salt module exists, then report the command as successful.
-
-        Args:
-            _cmd: The command that would have been executed (unused).
-
-        Returns:
-            A tuple mimicking a successful execute_command call.
-        """
-        module_existed_during_reload.append(nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists())
-        return 0, "", ""
-
-    fake_execute_command = MagicMock(side_effect=_record_and_succeed)
-    monkeypatch.setattr("nginx_manager.execute_command", fake_execute_command)
+    old_module_path = nginx_manager._client_ip_hash_salt_module_path("old-salt")
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
     monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
     mock_instance_name = "mock-test_0"
     port = 8080
@@ -710,8 +752,7 @@ def test_update_config_disabling_salt_removes_module_only_after_reload(
 
     nginx_manager.update_and_load_config(sample_data, mock_instance_name, client_ip_hash_salt=None)
 
-    assert module_existed_during_reload == [True]
-    assert not nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+    assert old_module_path.exists()
 
 
 def test_update_config_logs_hashed_client_address_when_salt_configured(
@@ -721,7 +762,7 @@ def test_update_config_logs_hashed_client_address_when_salt_configured(
     arrange: Valid configuration with a client IP hash salt.
     act: Generate nginx site config.
     assert: The server block hashes the client address via a Lua block and the salt
-        module is written to disk.
+        module is written to disk at its content-addressed path.
     """
     mock_instance_name = "mock-test_0"
     monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
@@ -735,21 +776,22 @@ def test_update_config_logs_hashed_client_address_when_salt_configured(
 
     config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
     assert "set_by_lua_block $logged_client_address" in config_content
-    assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+    assert nginx_manager._client_ip_hash_salt_module_path("some-salt").exists()
 
 
-def test_update_config_enabling_salt_writes_module_only_after_reload(
+def test_update_config_enabling_salt_writes_module_before_reload(
     monkeypatch, patch_nginx_manager: None
 ):
     """
     arrange: No pre-existing salt module, and a mock reload command that records whether
         the new module already exists at the moment it is invoked.
     act: Call update_and_load_config with a new client_ip_hash_salt.
-    assert: The module does not exist yet when the reload command runs, and is only written
-        afterwards, so a still-active old configuration is never paired with a new,
-        not-yet-applied salt.
+    assert: The module already exists by the time the reload command runs, since writing
+        a brand new, content-addressed module file is always safe: it can never collide
+        with or affect any configuration that is still active.
     """
-    assert not nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+    module_path = nginx_manager._client_ip_hash_salt_module_path("new-salt")
+    assert not module_path.exists()
     module_existed_during_reload = []
 
     def _record_and_succeed(_cmd):
@@ -761,7 +803,7 @@ def test_update_config_enabling_salt_writes_module_only_after_reload(
         Returns:
             A tuple mimicking a successful execute_command call.
         """
-        module_existed_during_reload.append(nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists())
+        module_existed_during_reload.append(module_path.exists())
         return 0, "", ""
 
     fake_execute_command = MagicMock(side_effect=_record_and_succeed)
@@ -775,20 +817,66 @@ def test_update_config_enabling_salt_writes_module_only_after_reload(
         sample_data, mock_instance_name, client_ip_hash_salt="new-salt"
     )
 
-    assert module_existed_during_reload == [False]
-    assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+    assert module_existed_during_reload == [True]
+    assert module_path.exists()
 
 
-def test_update_config_failure_does_not_commit_salt_change(monkeypatch, patch_nginx_manager: None):
+def test_update_config_prunes_salt_modules_only_after_reload(
+    monkeypatch, patch_nginx_manager: None
+):
     """
-    arrange: A pre-existing salt module for the old salt, and a vhost config generator that
+    arrange: A mock reload command and a mock of _prune_client_ip_hash_salt_modules that
+        both record their relative call order.
+    act: Call update_and_load_config.
+    assert: Pruning is only invoked after the reload command has run, so a worker still
+        finishing a previous reload is never left without any of its module generations.
+    """
+    call_order = []
+
+    def _record_reload(_cmd):
+        """Record that the reload command ran, then report it as successful.
+
+        Args:
+            _cmd: The command that would have been executed (unused).
+
+        Returns:
+            A tuple mimicking a successful execute_command call.
+        """
+        call_order.append("reload")
+        return 0, "", ""
+
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock(side_effect=_record_reload))
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    monkeypatch.setattr(
+        "nginx_manager._prune_client_ip_hash_salt_modules",
+        MagicMock(side_effect=lambda: call_order.append("prune")),
+    )
+    mock_instance_name = "mock-test_0"
+    port = 8080
+    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+
+    nginx_manager.update_and_load_config(
+        sample_data, mock_instance_name, client_ip_hash_salt="new-salt"
+    )
+
+    assert call_order == ["reload", "prune"]
+
+
+def test_update_config_failure_does_not_affect_other_salt_modules(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: A pre-existing salt module for an old salt, and a vhost config generator that
         raises NginxConfigurationError (simulating a failure partway through generation).
     act: Call update_and_load_config with a new client_ip_hash_salt.
     assert: NginxConfigurationAggregateError propagates and the old salt module is left
-        untouched, since nginx was never told to reload with the new configuration.
+        completely untouched; since each salt's module is a distinct, never-overwritten
+        file, a failed generation for a new salt can never affect an older generation still
+        referenced by the previous, still-active configuration.
     """
     nginx_manager._write_client_ip_hash_salt("old-salt")
-    old_content = nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.read_text(encoding="utf-8")
+    old_module_path = nginx_manager._client_ip_hash_salt_module_path("old-salt")
+    old_content = old_module_path.read_text(encoding="utf-8")
     monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
     monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
     monkeypatch.setattr(
@@ -804,4 +892,4 @@ def test_update_config_failure_does_not_commit_salt_change(monkeypatch, patch_ng
             sample_data, mock_instance_name, client_ip_hash_salt="new-salt"
         )
 
-    assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.read_text(encoding="utf-8") == old_content
+    assert old_module_path.read_text(encoding="utf-8") == old_content

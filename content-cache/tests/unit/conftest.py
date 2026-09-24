@@ -61,10 +61,6 @@ def patch_nginx_manager_fixture(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("nginx_manager.NGINX_LOG_PATH", tmp_path / "logs")
     monkeypatch.setattr("nginx_manager.NGINX_PROXY_CACHE_DIR_PATH", tmp_path / "cache")
     monkeypatch.setattr("nginx_manager.NGINX_SECRETS_PATH", tmp_path / "secrets")
-    monkeypatch.setattr(
-        "nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH",
-        tmp_path / "secrets" / "content_cache_client_ip_salt.lua",
-    )
     monkeypatch.setattr("nginx_manager.os.chown", MagicMock())
 
 
