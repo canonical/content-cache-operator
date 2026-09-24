@@ -736,3 +736,72 @@ def test_update_config_logs_hashed_client_address_when_salt_configured(
     config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
     assert "set_by_lua_block $logged_client_address" in config_content
     assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+
+
+def test_update_config_enabling_salt_writes_module_only_after_reload(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: No pre-existing salt module, and a mock reload command that records whether
+        the new module already exists at the moment it is invoked.
+    act: Call update_and_load_config with a new client_ip_hash_salt.
+    assert: The module does not exist yet when the reload command runs, and is only written
+        afterwards, so a still-active old configuration is never paired with a new,
+        not-yet-applied salt.
+    """
+    assert not nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+    module_existed_during_reload = []
+
+    def _record_and_succeed(_cmd):
+        """Record whether the salt module exists, then report the command as successful.
+
+        Args:
+            _cmd: The command that would have been executed (unused).
+
+        Returns:
+            A tuple mimicking a successful execute_command call.
+        """
+        module_existed_during_reload.append(nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists())
+        return 0, "", ""
+
+    fake_execute_command = MagicMock(side_effect=_record_and_succeed)
+    monkeypatch.setattr("nginx_manager.execute_command", fake_execute_command)
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    mock_instance_name = "mock-test_0"
+    port = 8080
+    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+
+    nginx_manager.update_and_load_config(
+        sample_data, mock_instance_name, client_ip_hash_salt="new-salt"
+    )
+
+    assert module_existed_during_reload == [False]
+    assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+
+
+def test_update_config_failure_does_not_commit_salt_change(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: A pre-existing salt module for the old salt, and a vhost config generator that
+        raises NginxConfigurationError (simulating a failure partway through generation).
+    act: Call update_and_load_config with a new client_ip_hash_salt.
+    assert: NginxConfigurationAggregateError propagates and the old salt module is left
+        untouched, since nginx was never told to reload with the new configuration.
+    """
+    nginx_manager._write_client_ip_hash_salt("old-salt")
+    old_content = nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.read_text(encoding="utf-8")
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    monkeypatch.setattr(
+        "nginx_manager._create_virtualhost_config",
+        MagicMock(side_effect=nginx_manager.NginxConfigurationError("mock error")),
+    )
+    mock_instance_name = "mock-test_0"
+    port = 8080
+    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+
+    with pytest.raises(nginx_manager.NginxConfigurationAggregateError):
+        nginx_manager.update_and_load_config(
+            sample_data, mock_instance_name, client_ip_hash_salt="new-salt"
+        )
+
+    assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.read_text(encoding="utf-8") == old_content

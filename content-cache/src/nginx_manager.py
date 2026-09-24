@@ -237,10 +237,6 @@ def update_and_load_config(
     """
     # This will reset the file permissions.
     _reset_nginx_files(instance_name)
-    if client_ip_hash_salt is not None:
-        # Write (or update) the salt module before the configuration that references it is
-        # generated and loaded, so it is always present by the time nginx needs it.
-        _write_client_ip_hash_salt(client_ip_hash_salt)
 
     tls = TLSConfig(frontend_cert_path=frontend_cert_path)
     errored_identifiers: list[str] = []
@@ -278,11 +274,12 @@ def update_and_load_config(
 
     _load_config()
 
-    if client_ip_hash_salt is None:
-        # Only remove the (now unreferenced) module after nginx has been told to reload the
-        # plaintext configuration, so workers still finishing requests under the old, hashed
-        # configuration during the reload retain access to it until they exit.
-        _write_client_ip_hash_salt(None)
+    # Only commit the salt file change (writing a new/rotated salt, or removing it) after
+    # the configuration referencing it has been successfully generated and nginx has been
+    # told to reload. Committing it any earlier risks a still-active old configuration
+    # picking up a salt (or losing one) it was never actually reloaded with, e.g. if
+    # configuration generation fails partway through.
+    _write_client_ip_hash_salt(client_ip_hash_salt)
 
 
 def _load_config() -> None:  # pragma: no cover
