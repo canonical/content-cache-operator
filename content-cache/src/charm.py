@@ -38,6 +38,7 @@ from errors import (
 )
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
+    CLIENT_IP_HASH_SALT_CONFIG_NAME,
     NginxConfig,
     get_cache_backend_url,
     get_client_ip_hash_salt,
@@ -166,9 +167,23 @@ class ContentCacheCharm(ops.CharmBase):
             return
         self._load_nginx_config()
 
-    def _on_secret_changed(self, _: ops.SecretChangedEvent) -> None:
-        """Handle secret-changed event (e.g. client-ip-hash-salt rotation)."""
+    def _on_secret_changed(self, event: ops.SecretChangedEvent) -> None:
+        """Handle secret-changed event (e.g. client-ip-hash-salt rotation).
+
+        Args:
+            event: The event information, used to ignore rotations of secrets other
+                than the configured client-ip-hash-salt secret.
+        """
         if not Path(nginx_manager.NGINX_BIN).exists():
+            return
+        configured_secret_uri = self.config.get(CLIENT_IP_HASH_SALT_CONFIG_NAME)
+        if not isinstance(configured_secret_uri, str) or not configured_secret_uri.strip():
+            return
+        try:
+            configured_secret_id = self.model.get_secret(id=configured_secret_uri).id
+        except (ops.SecretNotFoundError, ops.ModelError):
+            return
+        if event.secret.id != configured_secret_id:
             return
         self._load_nginx_config()
 

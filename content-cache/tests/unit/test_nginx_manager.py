@@ -633,7 +633,9 @@ def test_write_client_ip_hash_salt_writes_file(patch_nginx_manager: None):
     encoded = content.strip()[prefix_len:-1]
     assert base64.b64decode(encoded).decode("utf-8") == "some-salt"
     mode = nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.stat().st_mode & 0o777
-    assert mode == 0o600
+    assert mode == 0o640
+    dir_mode = nginx_manager.NGINX_SECRETS_PATH.stat().st_mode & 0o777
+    assert dir_mode == 0o750
 
 
 def test_write_client_ip_hash_salt_removes_file_when_none(patch_nginx_manager: None):

@@ -329,13 +329,20 @@ def _write_client_ip_hash_salt(salt: str | None) -> None:
         if salt is None:
             NGINX_CLIENT_IP_SALT_LUA_PATH.unlink(missing_ok=True)
             return
-        NGINX_SECRETS_PATH.mkdir(mode=0o700, parents=True, exist_ok=True)
         user = pwd.getpwnam(NGINX_USER)
-        os.chown(NGINX_SECRETS_PATH, user.pw_uid, user.pw_gid)
+        # Owned by root, only readable (not writable) by the www-data group, so a
+        # compromised nginx worker cannot replace the file with a symlink and have
+        # this (root-run) charm code follow it to overwrite an arbitrary file.
+        NGINX_SECRETS_PATH.mkdir(mode=0o750, parents=True, exist_ok=True)
+        os.chown(NGINX_SECRETS_PATH, 0, user.pw_gid)
+        NGINX_SECRETS_PATH.chmod(0o750)
+        # Remove any pre-existing file (which could be a symlink left over from a
+        # previous run) before writing, so write_text never follows a symlink.
+        NGINX_CLIENT_IP_SALT_LUA_PATH.unlink(missing_ok=True)
         encoded_salt = base64.b64encode(salt.encode("utf-8")).decode("ascii")
         NGINX_CLIENT_IP_SALT_LUA_PATH.write_text(f'return "{encoded_salt}"\n', encoding="utf-8")
-        NGINX_CLIENT_IP_SALT_LUA_PATH.chmod(0o600)
-        os.chown(NGINX_CLIENT_IP_SALT_LUA_PATH, user.pw_uid, user.pw_gid)
+        os.chown(NGINX_CLIENT_IP_SALT_LUA_PATH, 0, user.pw_gid)
+        NGINX_CLIENT_IP_SALT_LUA_PATH.chmod(0o640)
     except (PermissionError, OSError, IOError) as err:
         logger.exception("Failed to write client IP hash salt file")
         raise NginxFileError("Failed to write client IP hash salt file") from err

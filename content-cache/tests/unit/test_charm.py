@@ -778,10 +778,39 @@ def test_secret_changed_triggers_reload(
     harness.update_config({"client-ip-hash-salt": secret_id})
 
     harness.set_secret_content(secret_id, {"salt": "new-salt"})
-    charm._on_secret_changed(MagicMock())
 
     assert charm.unit.status == ops.ActiveStatus()
     assert (
         mock_nginx_manager.update_and_load_config.call_args.kwargs["client_ip_hash_salt"]
         == "new-salt"
     )
+
+
+def test_unrelated_secret_changed_does_not_trigger_reload(
+    monkeypatch: pytest.MonkeyPatch,
+    harness: Harness,
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+):
+    """
+    arrange: A working charm with client-ip-hash-salt configured.
+    act: Update the content of a different, unrelated secret.
+    assert: nginx_manager.update_and_load_config is not called again.
+    """
+    monkeypatch.setattr("nginx_manager.NGINX_BIN", "/bin/sh")
+    harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    secret_id = harness.add_user_secret({"salt": "some-salt"})
+    harness.grant_secret(secret_id, charm.app)
+    harness.update_config({"client-ip-hash-salt": secret_id})
+
+    unrelated_secret_id = harness.add_user_secret({"unrelated": "value"})
+    harness.grant_secret(unrelated_secret_id, charm.app)
+    mock_nginx_manager.update_and_load_config.reset_mock()
+
+    harness.set_secret_content(unrelated_secret_id, {"unrelated": "new-value"})
+
+    mock_nginx_manager.update_and_load_config.assert_not_called()
