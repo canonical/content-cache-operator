@@ -48,7 +48,7 @@ component placed in front of the charm, such as a load balancer, reverse proxy, 
 
 ### Client IP privacy in logs
 
-By default, nginx access and cache logs record the client's IP address in plaintext. The
+By default, nginx access and cache logs record the client's IP address in plain text. The
 `client-ip-hash-salt` configuration option (a user-owned Juju secret) replaces the client IP
 address logged in the access and cache logs with a salted SHA-256 hash, so raw IP addresses are
 never written to those two log files. This does not apply to nginx's error log, which may still
@@ -158,4 +158,4 @@ accidentally cached, operators must wait for natural expiry.
 | Rate limiting | Add rate limiting at a component placed in front of the charm (load balancer, reverse proxy, or WAF) if abuse protection is needed |
 | Cached content | Only route public, non-personalized content through the charm |
 | Machine access | Restrict local user access to the Juju machine |
-| Log privacy | Configure `client-ip-hash-salt` to avoid storing client IP addresses in plaintext logs |
+| Log privacy | Configure `client-ip-hash-salt` to avoid storing client IP addresses in plain text logs |

@@ -62,6 +62,22 @@ def test_stop_nginx(charm: ContentCacheCharm, mock_nginx_manager: MagicMock):
     mock_nginx_manager.stop.assert_called_once()
 
 
+def test_upgrade_charm_reinitializes_nginx(
+    charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A working charm that already went through the start hook. Reset the mocks.
+    act: Emit upgrade-charm event.
+    assert: Nginx is (re-)initialized, so vendored modules added by a newer charm revision
+        are installed even though Juju does not re-run the start hook on upgrade.
+    """
+    mock_nginx_manager.initialize.reset_mock()
+
+    charm._on_upgrade_charm(MagicMock())
+
+    mock_nginx_manager.initialize.assert_called_once()
+
+
 def test_update_status_no_relation(charm: ContentCacheCharm):
     """
     arrange: A working charm.
