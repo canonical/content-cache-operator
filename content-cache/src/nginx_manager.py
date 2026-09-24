@@ -3,10 +3,12 @@
 
 """Manage nginx instance."""
 
+import base64
 import logging
 import os
 import pwd
 import shutil
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -40,18 +42,30 @@ NGINX_LOG_PATH = Path("/var/log/nginx")
 NGINX_PROXY_CACHE_DIR_PATH = Path("/data/nginx/cache")
 NGINX_USER = "www-data"
 
+NGINX_SECRETS_PATH = Path("/etc/nginx/secrets")
+NGINX_CLIENT_IP_SALT_LUA_MODULE = "content_cache_client_ip_salt"
+NGINX_CLIENT_IP_SALT_LUA_PATH = NGINX_SECRETS_PATH / f"{NGINX_CLIENT_IP_SALT_LUA_MODULE}.lua"
+
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
 NGINX_STATUS_PORT = 30200
 
 NGINX_HEALTH_CHECK_TIMEOUT = 300
+NGINX_MAIN_LOG_FORMAT_NAME = "content_cache_main"
+# Matches nginx's built-in "combined" format, but with the client address replaced by
+# $logged_client_address so it is hashed consistently with the "cache" log format
+# below when client IP hashing is enabled.
+NGINX_MAIN_LOG_FORMAT = (
+    '$logged_client_address - $remote_user [$time_local] "$request" '
+    '$status $body_bytes_sent "$http_referer" "$http_user_agent"'
+)
 NGINX_CACHE_LOG_FORMAT_NAME = "cache"
 NGINX_CACHE_LOG_FORMAT = (
     "{"
     '"time": "$time_iso8601",'
     '"connection_number": "$connection",'
     '"hostname": "$hostname",'
-    '"client_address": "$remote_addr",'
+    '"client_address": "$logged_client_address",'
     '"request_method": "$request_method",'
     '"protocol": "$server_protocol",'
     '"status_code": "$status",'
@@ -137,6 +151,17 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
     if return_code != 0:
         raise NginxSetupError(f"Failed to install nginx healthcheck plugin: {stderr}")
 
+    return_code, _, stderr = execute_command(
+        [
+            "cp",
+            "-f",
+            "sha2.lua",
+            "/usr/share/lua/5.1/",
+        ]
+    )
+    if return_code != 0:
+        raise NginxSetupError(f"Failed to install nginx sha2 module: {stderr}")
+
     logger.info("Clean up default configuration files")
     _reset_nginx_files(instance_name)
     return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", NGINX_SERVICE])
@@ -193,6 +218,7 @@ def update_and_load_config(
     configuration: dict[int, tuple[int, LocationConfig]],
     instance_name: str,
     frontend_cert_path: Path | None = None,
+    client_ip_hash_salt: str | None = None,
 ) -> None:
     """Update the nginx configuration files and load them.
 
@@ -202,6 +228,8 @@ def update_and_load_config(
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
         frontend_cert_path: Path to the combined cert+key PEM for TLS termination, or None.
+        client_ip_hash_salt: Salt used to hash client IP addresses in logs, or None to log
+            client IP addresses in plaintext.
 
     Raises:
         NginxConfigurationAggregateError: All failures related to creating nginx configuration.
@@ -209,6 +237,16 @@ def update_and_load_config(
     """
     # This will reset the file permissions.
     _reset_nginx_files(instance_name)
+
+    if client_ip_hash_salt is not None:
+        # Written eagerly, before configuration generation and reload. The module always
+        # holds "whichever salt is currently configured" and carries no identity tied to a
+        # specific configuration generation, so writing it early can never desynchronize it
+        # from a vhost configuration: at worst, a worker still running a previous, hashed
+        # configuration picks up the new salt slightly before the reload it belongs to,
+        # which only means that worker's logs start using the new salt a little early -
+        # never a drop back to logging plaintext addresses.
+        _write_client_ip_hash_salt(client_ip_hash_salt)
 
     tls = TLSConfig(frontend_cert_path=frontend_cert_path)
     errored_identifiers: list[str] = []
@@ -223,6 +261,7 @@ def update_and_load_config(
                 config,
                 instance_name,
                 tls,
+                client_ip_hash_salt,
             )
             healthcheck_workers_lua_code += vhost_healthcheck_worker_lua_code
         except NginxConfigurationError as err:
@@ -243,19 +282,32 @@ def update_and_load_config(
     if errored_identifiers:
         raise NginxConfigurationAggregateError(errored_identifiers, configuration_errors)
 
-    _load_config()
+    reload_succeeded = _load_config()
+
+    if client_ip_hash_salt is None and reload_succeeded:
+        # Only remove the module after a confirmed successful reload, so a worker still
+        # running the previous, hashed configuration (and which has not yet required the
+        # module for its first hashed log entry) is never left with a missing file to
+        # require mid-request. If the reload failed, the previous configuration - which may
+        # still need this module - remains active, so leave the file in place.
+        NGINX_CLIENT_IP_SALT_LUA_PATH.unlink(missing_ok=True)
 
 
-def _load_config() -> None:  # pragma: no cover
-    """Load nginx configurations."""
+def _load_config() -> bool:  # pragma: no cover
+    """Load nginx configurations.
+
+    Returns:
+        Whether the reload (or restart) command reported success.
+    """
     if _systemctl_status_check():
         logger.info("Loading nginx configuration files")
         # This is reload the configuration files without interrupting service.
-        execute_command(["sudo", NGINX_BIN, "-s", "reload"])
-        return
+        return_code, _, _ = execute_command(["sudo", NGINX_BIN, "-s", "reload"])
+        return return_code == 0
 
     logger.info("Restarting nginx to load the configuration files.")
-    execute_command(["sudo", "systemctl", "restart", NGINX_SERVICE])
+    return_code, _, _ = execute_command(["sudo", "systemctl", "restart", NGINX_SERVICE])
+    return return_code == 0
 
 
 def _reset_nginx_files(instance_name: str) -> None:
@@ -276,6 +328,70 @@ def _reset_nginx_files(instance_name: str) -> None:
     _ensure_directory_exist_with_ownership(NGINX_PROXY_CACHE_DIR_PATH)
     logger.info("Ensure nginx log directory is present.")
     _ensure_directory_exist_with_ownership(NGINX_LOG_PATH / instance_name)
+
+
+def _write_client_ip_hash_salt(salt: str) -> None:
+    """Write the client IP hash salt Lua module.
+
+    Args:
+        salt: The salt string to encode into a Lua module.
+
+    Raises:
+        NginxFileError: File operation errors while writing the salt file.
+    """
+    try:
+        user = pwd.getpwnam(NGINX_USER)
+        # Owned by root, only readable (not writable) by nginx group,
+        # so a compromised nginx worker cannot modify it.
+        NGINX_SECRETS_PATH.mkdir(mode=0o750, parents=True, exist_ok=True)
+        os.chown(NGINX_SECRETS_PATH, 0, user.pw_gid)
+        NGINX_SECRETS_PATH.chmod(0o750)
+        encoded_salt = base64.b64encode(salt.encode("utf-8")).decode("ascii")
+        # Write to a temp file (with final ownership/mode) in the same directory, then
+        # atomically rename it into place. This avoids a window where the module is missing
+        # or partially written, which could otherwise break a request served by a worker
+        # concurrently with this update.
+        fd, tmp_name = tempfile.mkstemp(
+            dir=NGINX_SECRETS_PATH,
+            prefix=f".{NGINX_CLIENT_IP_SALT_LUA_MODULE}-",
+            suffix=".tmp",
+        )
+        tmp_path = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as tmp_file:
+                tmp_file.write(f'return "{encoded_salt}"\n')
+            os.chown(tmp_path, 0, user.pw_gid)
+            tmp_path.chmod(0o640)
+            tmp_path.replace(NGINX_CLIENT_IP_SALT_LUA_PATH)
+        except BaseException:
+            tmp_path.unlink(missing_ok=True)
+            raise
+    except (PermissionError, OSError, IOError) as err:
+        logger.exception("Failed to write client IP hash salt file")
+        raise NginxFileError("Failed to write client IP hash salt file") from err
+
+
+def _get_logged_client_address_directive(
+    client_ip_hash_salt: str | None,
+) -> "nginx.Key | NginxLuaSection":
+    """Build the directive that sets $logged_client_address for a server block.
+
+    Args:
+        client_ip_hash_salt: Salt used to hash client IP addresses, or None to log
+            client IP addresses in plaintext.
+
+    Returns:
+        A plain "set" directive when hashing is disabled, or a Lua block computing
+        the salted SHA-256 hash of the client address when enabled.
+    """
+    if client_ip_hash_salt is None:
+        return nginx.Key("set", "$logged_client_address $remote_addr")
+    lua_code = f"""local sha2 = require "sha2"
+        local encoded_salt = require "{NGINX_CLIENT_IP_SALT_LUA_MODULE}"
+        local salt = ngx.decode_base64(encoded_salt)
+        return sha2.sha256(salt .. ngx.var.remote_addr)
+        """
+    return NginxLuaSection("set_by_lua_block $logged_client_address", lua_code)
 
 
 def _reset_config_directory(path: Path) -> None:
@@ -316,10 +432,11 @@ def _create_http_config(healthcheck_workers_lua_code: str) -> None:
     """Create nginx HTTP configuration files."""
     logger.info("Creating the cache log format configuration")
     # The following should not throw any nginx.ParseError as it is static.
-    cache_log_format_config = nginx.Conf(
+    log_format_config = nginx.Conf(
+        nginx.Key("log_format", f"{NGINX_MAIN_LOG_FORMAT_NAME} '{NGINX_MAIN_LOG_FORMAT}'"),
         nginx.Key("log_format", f"{NGINX_CACHE_LOG_FORMAT_NAME} '{NGINX_CACHE_LOG_FORMAT}'"),
     )
-    _store_http_config("cache_log_format", cache_log_format_config)
+    _store_http_config("cache_log_format", log_format_config)
 
     _create_healthcheck_module_config(healthcheck_workers_lua_code)
 
@@ -340,7 +457,9 @@ def _create_healthcheck_module_config(healthcheck_workers_lua_code: str) -> None
         """
 
     healthcheck_config = nginx.Conf(
-        nginx.Key("lua_package_path", "/usr/share/lua/5.1/?.lua;;"),
+        # NGINX_SECRETS_PATH is searched first so that a compromised/writable
+        # /usr/share/lua/5.1 cannot shadow the client IP hash salt module.
+        nginx.Key("lua_package_path", f"{NGINX_SECRETS_PATH}/?.lua;/usr/share/lua/5.1/?.lua;;"),
         nginx.Key("lua_shared_dict", "healthcheck 1m"),
         nginx.Key("lua_socket_log_errors", "off"),
         # lua-resty cosockets (used by the healthcheck module for "https" type
@@ -434,6 +553,7 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-argu
     configuration: LocationConfig,
     instance_name: str,
     tls: TLSConfig | None = None,
+    client_ip_hash_salt: str | None = None,
 ) -> str:
     """Create the nginx configuration file for a virtual host listening on a given port.
 
@@ -443,7 +563,9 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-argu
         configuration: The configuration of the backend.
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
-        tls: Optional TLS configuration (CA bundle and cache cert paths).
+        tls: Optional TLS configuration for the frontend certificate.
+        client_ip_hash_salt: Salt used to hash client IP addresses in logs, or None to log
+            client IP addresses in plaintext.
 
     Raises:
         NginxConfigurationError: Failed to convert the configuration to nginx format.
@@ -465,7 +587,11 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-argu
         server_config = nginx.Server(
             nginx.Key("listen", listen_value),
             nginx.Key("proxy_cache", identifier),
-            nginx.Key("access_log", _get_access_log_path(identifier, instance_name)),
+            _get_logged_client_address_directive(client_ip_hash_salt),
+            nginx.Key(
+                "access_log",
+                f"{_get_access_log_path(identifier, instance_name)} {NGINX_MAIN_LOG_FORMAT_NAME}",
+            ),
             nginx.Key(
                 "access_log",
                 f"{_get_cache_log_path(identifier, instance_name)} {NGINX_CACHE_LOG_FORMAT_NAME}",
