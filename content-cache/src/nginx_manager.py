@@ -41,9 +41,6 @@ NGINX_LOG_PATH = Path("/var/log/nginx")
 NGINX_PROXY_CACHE_DIR_PATH = Path("/data/nginx/cache")
 NGINX_USER = "www-data"
 
-# Directory for material that must not be world-readable (unlike NGINX_CONFD_PATH and
-# friends, which are reset to mode 0755 on every reconcile). Not wiped by
-# _reset_nginx_files, so it is created/removed explicitly.
 NGINX_SECRETS_PATH = Path("/etc/nginx/secrets")
 NGINX_CLIENT_IP_SALT_LUA_MODULE = "content_cache_client_ip_salt"
 NGINX_CLIENT_IP_SALT_LUA_PATH = NGINX_SECRETS_PATH / f"{NGINX_CLIENT_IP_SALT_LUA_MODULE}.lua"
@@ -313,12 +310,6 @@ def _reset_nginx_files(instance_name: str) -> None:
 def _write_client_ip_hash_salt(salt: str | None) -> None:
     """Write or remove the client IP hash salt Lua module.
 
-    Unlike NGINX_CONFD_PATH and friends, NGINX_SECRETS_PATH is not wiped by
-    _reset_nginx_files, since it must never be created with the world-readable 0755
-    permissions those directories use. The salt itself is base64-encoded before being
-    embedded in the Lua source so no escaping is needed for characters that would
-    otherwise be special to the Lua string literal syntax.
-
     Args:
         salt: The salt string, or None to disable client IP hashing.
 
@@ -330,9 +321,8 @@ def _write_client_ip_hash_salt(salt: str | None) -> None:
             NGINX_CLIENT_IP_SALT_LUA_PATH.unlink(missing_ok=True)
             return
         user = pwd.getpwnam(NGINX_USER)
-        # Owned by root, only readable (not writable) by the www-data group, so a
-        # compromised nginx worker cannot replace the file with a symlink and have
-        # this (root-run) charm code follow it to overwrite an arbitrary file.
+        # Owned by root, only readable (not writable) by nginx group,
+        # so a compromised nginx worker cannot modify it.
         NGINX_SECRETS_PATH.mkdir(mode=0o750, parents=True, exist_ok=True)
         os.chown(NGINX_SECRETS_PATH, 0, user.pw_gid)
         NGINX_SECRETS_PATH.chmod(0o750)

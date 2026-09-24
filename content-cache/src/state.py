@@ -28,10 +28,6 @@ CACHE_INACTIVE_FIELD_NAME = "cache_inactive"
 CACHE_MAX_SIZE_FIELD_NAME = "cache_max_size"
 CLIENT_IP_HASH_SALT_CONFIG_NAME = "client-ip-hash-salt"
 
-# Characters disallowed in the client IP hash salt. Control characters and DEL are
-# rejected for consistency with haproxy-operator's client-ip-salt-hash feature, even
-# though this charm stores the salt in a plain file rather than interpolating it into
-# a config/log-format string.
 _SALT_DISALLOWED_CHARACTERS = frozenset({'"', "\\", "$"})
 
 
