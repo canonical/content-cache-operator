@@ -674,6 +674,46 @@ def test_update_config_logs_plaintext_client_address_by_default(
     assert "$logged_client_address" in config_content
 
 
+def test_update_config_disabling_salt_removes_module_only_after_reload(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: A previously written salt module, and a mock reload command that records
+        whether the module still exists at the moment it is invoked.
+    act: Call update_and_load_config with client_ip_hash_salt=None.
+    assert: The module still exists when the reload command runs, and is only removed
+        afterwards, so a still-active hashed configuration never loses the module out from
+        under it mid-reload.
+    """
+    nginx_manager._write_client_ip_hash_salt("old-salt")
+    assert nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+    module_existed_during_reload = []
+
+    def _record_and_succeed(_cmd):
+        """Record whether the salt module exists, then report the command as successful.
+
+        Args:
+            _cmd: The command that would have been executed (unused).
+
+        Returns:
+            A tuple mimicking a successful execute_command call.
+        """
+        module_existed_during_reload.append(nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists())
+        return 0, "", ""
+
+    fake_execute_command = MagicMock(side_effect=_record_and_succeed)
+    monkeypatch.setattr("nginx_manager.execute_command", fake_execute_command)
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+    mock_instance_name = "mock-test_0"
+    port = 8080
+    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name, client_ip_hash_salt=None)
+
+    assert module_existed_during_reload == [True]
+    assert not nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+
+
 def test_update_config_logs_hashed_client_address_when_salt_configured(
     monkeypatch, patch_nginx_manager: None
 ):

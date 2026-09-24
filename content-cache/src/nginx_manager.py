@@ -237,7 +237,10 @@ def update_and_load_config(
     """
     # This will reset the file permissions.
     _reset_nginx_files(instance_name)
-    _write_client_ip_hash_salt(client_ip_hash_salt)
+    if client_ip_hash_salt is not None:
+        # Write (or update) the salt module before the configuration that references it is
+        # generated and loaded, so it is always present by the time nginx needs it.
+        _write_client_ip_hash_salt(client_ip_hash_salt)
 
     tls = TLSConfig(frontend_cert_path=frontend_cert_path)
     errored_identifiers: list[str] = []
@@ -275,6 +278,12 @@ def update_and_load_config(
 
     _load_config()
 
+    if client_ip_hash_salt is None:
+        # Only remove the (now unreferenced) module after nginx has been told to reload the
+        # plaintext configuration, so workers still finishing requests under the old, hashed
+        # configuration during the reload retain access to it until they exit.
+        _write_client_ip_hash_salt(None)
+
 
 def _load_config() -> None:  # pragma: no cover
     """Load nginx configurations."""
@@ -306,17 +315,6 @@ def _reset_nginx_files(instance_name: str) -> None:
     _ensure_directory_exist_with_ownership(NGINX_PROXY_CACHE_DIR_PATH)
     logger.info("Ensure nginx log directory is present.")
     _ensure_directory_exist_with_ownership(NGINX_LOG_PATH / instance_name)
-
-
-def remove_client_ip_hash_salt() -> None:
-    """Remove the client IP hash salt Lua module, if present.
-
-    Callers can use this to eagerly clean up a stale, secret-bearing salt file as soon as
-    client IP hashing is disabled, without waiting for a full nginx configuration reload
-    (which may not happen for a while, e.g. while reconciliation is waiting for a backend
-    port).
-    """
-    _write_client_ip_hash_salt(None)
 
 
 def _write_client_ip_hash_salt(salt: str | None) -> None:
