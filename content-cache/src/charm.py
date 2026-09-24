@@ -88,6 +88,7 @@ class ContentCacheCharm(ops.CharmBase):
         )
 
         framework.observe(self.on.start, self._on_start)
+        framework.observe(self.on.upgrade_charm, self._on_upgrade_charm)
         framework.observe(self.on.stop, self._on_stop)
         framework.observe(self.on.update_status, self._on_update_status)
         framework.observe(self.on.config_changed, self._on_config_changed)
@@ -147,6 +148,17 @@ class ContentCacheCharm(ops.CharmBase):
             self._rebuild_ca_bundle()
         except CACertificateFileError:
             return
+        self._load_nginx_config()
+
+    def _on_upgrade_charm(self, _: ops.UpgradeCharmEvent) -> None:
+        """Handle upgrade-charm event.
+
+        Juju does not re-run the start hook on upgrade, so vendored nginx modules (e.g.
+        sha2.lua) added by a later charm revision would otherwise never be installed on
+        units upgrading from an older revision. Re-running the (idempotent) initialization
+        here ensures they are present before reconciliation loads a config that needs them.
+        """
+        self._nginx_initialize()
         self._load_nginx_config()
 
     def _on_stop(self, _: ops.StopEvent) -> None:

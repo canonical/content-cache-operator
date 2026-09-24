@@ -43,7 +43,7 @@ blocked state if the secret contains any of these characters.
 
 ## Disable client IP hashing
 
-Remove the configuration option to restore plaintext client IP logging.
+Remove the configuration option to restore plain text client IP logging.
 
 ```shell
 juju config content-cache --reset client-ip-hash-salt
@@ -78,7 +78,7 @@ Then inspect the cache log:
 juju ssh content-cache/0 -- sudo tail -1 /var/log/nginx/content-cache_0/30000.cache.log
 ```
 
-Before enabling hashing, the client IP address appears in plaintext in the `client_address`
+Before enabling hashing, the client IP address appears in plain text in the `client_address`
 field.
 
 ```{terminal}
