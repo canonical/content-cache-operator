@@ -8,6 +8,7 @@ import logging
 import os
 import pwd
 import shutil
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -337,13 +338,27 @@ def _write_client_ip_hash_salt(salt: str | None) -> None:
         NGINX_SECRETS_PATH.mkdir(mode=0o750, parents=True, exist_ok=True)
         os.chown(NGINX_SECRETS_PATH, 0, user.pw_gid)
         NGINX_SECRETS_PATH.chmod(0o750)
-        # Remove any pre-existing file (which could be a symlink left over from a
-        # previous run) before writing, so write_text never follows a symlink.
-        NGINX_CLIENT_IP_SALT_LUA_PATH.unlink(missing_ok=True)
         encoded_salt = base64.b64encode(salt.encode("utf-8")).decode("ascii")
-        NGINX_CLIENT_IP_SALT_LUA_PATH.write_text(f'return "{encoded_salt}"\n', encoding="utf-8")
-        os.chown(NGINX_CLIENT_IP_SALT_LUA_PATH, 0, user.pw_gid)
-        NGINX_CLIENT_IP_SALT_LUA_PATH.chmod(0o640)
+        # Write the new module to a temp file (with final ownership/mode) in the same
+        # directory, then atomically rename it into place. This avoids a window where the
+        # module is missing or partially written, which could otherwise break a request
+        # served by an nginx worker (including one still finishing a graceful reload)
+        # concurrently with this update.
+        fd, tmp_name = tempfile.mkstemp(
+            dir=NGINX_SECRETS_PATH,
+            prefix=f".{NGINX_CLIENT_IP_SALT_LUA_MODULE}-",
+            suffix=".tmp",
+        )
+        tmp_path = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as tmp_file:
+                tmp_file.write(f'return "{encoded_salt}"\n')
+            os.chown(tmp_path, 0, user.pw_gid)
+            tmp_path.chmod(0o640)
+            tmp_path.replace(NGINX_CLIENT_IP_SALT_LUA_PATH)
+        except BaseException:
+            tmp_path.unlink(missing_ok=True)
+            raise
     except (PermissionError, OSError, IOError) as err:
         logger.exception("Failed to write client IP hash salt file")
         raise NginxFileError("Failed to write client IP hash salt file") from err
