@@ -700,6 +700,28 @@ def test_config_changed_client_ip_hash_salt_removed(
     )
 
 
+def test_early_return_still_removes_stale_salt_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+    harness: Harness,
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+):
+    """
+    arrange: A charm with no cache-config integration (so reconciliation exits before reaching
+        update_and_load_config) and client-ip-hash-salt not configured.
+    act: Trigger a reconcile.
+    assert: nginx_manager.remove_client_ip_hash_salt is called even though
+        update_and_load_config is never reached.
+    """
+    monkeypatch.setattr("nginx_manager.NGINX_BIN", "/bin/sh")
+    mock_nginx_manager.remove_client_ip_hash_salt.reset_mock()
+
+    charm._load_nginx_config()
+
+    mock_nginx_manager.remove_client_ip_hash_salt.assert_called_once()
+    mock_nginx_manager.update_and_load_config.assert_not_called()
+
+
 def test_config_changed_client_ip_hash_salt_rejects_inaccessible_secret(
     monkeypatch: pytest.MonkeyPatch,
     harness: Harness,

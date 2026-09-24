@@ -357,6 +357,15 @@ class ContentCacheCharm(ops.CharmBase):
             broken_relation_id: When called from cache-config relation-broken, the id of the
                 departing relation, so its port is pruned even though ops may still list it.
         """
+        # Resolved first, and the stale salt module removed immediately when hashing is
+        # disabled, so a secret-bearing Lua module is never left behind on disk just because
+        # reconciliation exits early below (e.g. while waiting for a backend port).
+        client_ip_hash_salt, blocked = self._resolve_client_ip_hash_salt()
+        if blocked:
+            return
+        if client_ip_hash_salt is None:
+            nginx_manager.remove_client_ip_hash_salt()
+
         nginx_config = self._get_config_and_update_status()
         if nginx_config is None:
             self._clear_cache_backend()
@@ -376,10 +385,6 @@ class ContentCacheCharm(ops.CharmBase):
         if not ported_config:
             self.unit.status = ops.WaitingStatus(WAIT_FOR_PORT_MESSAGE)
             self._clear_cache_backend()
-            return
-
-        client_ip_hash_salt, blocked = self._resolve_client_ip_hash_salt()
-        if blocked:
             return
 
         status_message = self._apply_nginx_config(

@@ -307,6 +307,17 @@ def _reset_nginx_files(instance_name: str) -> None:
     _ensure_directory_exist_with_ownership(NGINX_LOG_PATH / instance_name)
 
 
+def remove_client_ip_hash_salt() -> None:
+    """Remove the client IP hash salt Lua module, if present.
+
+    Callers can use this to eagerly clean up a stale, secret-bearing salt file as soon as
+    client IP hashing is disabled, without waiting for a full nginx configuration reload
+    (which may not happen for a while, e.g. while reconciliation is waiting for a backend
+    port).
+    """
+    _write_client_ip_hash_salt(None)
+
+
 def _write_client_ip_hash_salt(salt: str | None) -> None:
     """Write or remove the client IP hash salt Lua module.
 
