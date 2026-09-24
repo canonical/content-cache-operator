@@ -55,16 +55,12 @@ never written to those two log files. This does not apply to nginx's error log, 
 record the client address in error entries (for example, on upstream connection failures).
 See {ref}`how_to_hash_client_ip_addresses_in_logs` for setup instructions. Rotating the salt
 changes the hash produced for a given client IP address, so logs recorded before a rotation
-cannot be correlated with logs recorded afterwards.
-
-Each distinct salt value is stored in its own uniquely-named file under nginx's secrets
-directory (root-owned, `www-data`-group-readable), rather than a single file that gets
-overwritten on rotation. This is because nginx workers are not synchronized to a config
-reload: a request served by a worker still finishing a previous reload must keep reading its
-own salt's file for as long as it needs to. To bound disk usage, the charm keeps only the two
-most recently used salt files, pruned after each successful configuration reload. As a
-consequence, up to two previous salt files may remain on disk indefinitely, even after
-`client-ip-hash-salt` is unset entirely.
+cannot be correlated with logs recorded afterwards. The salt is written to a single file
+under nginx's secrets directory (root-owned, `www-data`-group-readable) before nginx is told
+to reload, so a newly started worker can never find it missing; because nginx workers cache
+it in memory for their lifetime, a worker still finishing in-flight requests from before a
+rotation may keep using the previous salt for those requests, but never falls back to logging
+plaintext addresses.
 
 ## Charm to backend
 
