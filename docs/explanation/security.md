@@ -49,8 +49,10 @@ component placed in front of the charm, such as a load balancer, reverse proxy, 
 ### Client IP privacy in logs
 
 By default, nginx access and cache logs record the client's IP address in plaintext. The
-`client-ip-hash-salt` configuration option (a user-owned Juju secret) replaces the logged
-client IP address with a salted SHA-256 hash, so raw IP addresses are never written to disk.
+`client-ip-hash-salt` configuration option (a user-owned Juju secret) replaces the client IP
+address logged in the access and cache logs with a salted SHA-256 hash, so raw IP addresses are
+never written to those two log files. This does not apply to nginx's error log, which may still
+record the client address in error entries (for example, on upstream connection failures).
 See {ref}`how_to_hash_client_ip_addresses_in_logs` for setup instructions. Rotating the salt
 changes the hash produced for a given client IP address, so logs recorded before a rotation
 cannot be correlated with logs recorded afterwards.
