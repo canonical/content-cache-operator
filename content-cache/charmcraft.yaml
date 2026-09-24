@@ -16,11 +16,12 @@ config:
       type: secret
       description: |
         User-owned Juju secret containing the salt used to hash client IPs in the
-        access log. Setting this option enables salted SHA-256 hashing; removing it
-        restores plaintext client IP logging. The secret must contain a `salt` key
-        with a string value that is not empty or only whitespace. The value must
-        not contain control characters, DEL, double quotes, backslashes, or dollar
-        signs. The charm does not validate salt length or entropy.
+        access and cache logs. Setting this option enables salted SHA-256 hashing;
+        removing it restores plaintext client IP logging. The secret must contain
+        a `salt` key with a string value that is not empty or only whitespace. The
+        value must not contain control characters, DEL, double quotes,
+        backslashes, or dollar signs. The charm does not validate salt length or
+        entropy.
 
 parts:
   nginx-module-lua-upstream:

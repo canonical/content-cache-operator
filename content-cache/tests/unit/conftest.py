@@ -75,6 +75,7 @@ def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
     mock_nginx_manager.initialize = MagicMock()
     mock_nginx_manager.stop = MagicMock()
     mock_nginx_manager.update_and_load_config = MagicMock()
+    mock_nginx_manager.remove_client_ip_hash_salt = MagicMock()
     mock_nginx_manager.health_check = MagicMock()
     mock_nginx_manager.health_check.return_value = True
 
@@ -82,6 +83,10 @@ def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
     monkeypatch.setattr("charm.nginx_manager.stop", mock_nginx_manager.stop)
     monkeypatch.setattr(
         "charm.nginx_manager.update_and_load_config", mock_nginx_manager.update_and_load_config
+    )
+    monkeypatch.setattr(
+        "charm.nginx_manager.remove_client_ip_hash_salt",
+        mock_nginx_manager.remove_client_ip_hash_salt,
     )
     monkeypatch.setattr("charm.nginx_manager.health_check", mock_nginx_manager.health_check)
     monkeypatch.setattr(
