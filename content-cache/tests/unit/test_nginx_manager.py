@@ -62,6 +62,70 @@ def test_reset_files_with_existing_files(patch_nginx_manager: None):
     assert not tuple(nginx_manager.NGINX_SITES_ENABLED_PATH.iterdir())
 
 
+def test_initialize_reloads_already_running_nginx(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: nginx already active, e.g. auto-started by the apt install with its stock,
+        port-80-listening default site.
+    act: Call initialize.
+    assert: nginx is reloaded (not merely "started", which would be a no-op and leave the
+        stale, already-loaded default site config still bound to port 80). Reload is used
+        instead of a full restart so applying the reset configuration doesn't interrupt any
+        connections nginx may already be serving.
+    """
+    commands_run = []
+
+    def _record_command(cmd):
+        """Record the command that was run and report success.
+
+        Args:
+            cmd: The command that would have been executed.
+
+        Returns:
+            A tuple mimicking a successful execute_command call.
+        """
+        commands_run.append(cmd)
+        return 0, "", ""
+
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock(side_effect=_record_command))
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+
+    nginx_manager.initialize("mock-test_0")
+
+    assert ["sudo", "systemctl", "reload", "nginx"] in commands_run
+    assert ["sudo", "systemctl", "start", "nginx"] not in commands_run
+    assert ["sudo", "systemctl", "restart", "nginx"] not in commands_run
+
+
+def test_initialize_starts_nginx_when_not_already_running(monkeypatch, patch_nginx_manager: None):
+    """
+    arrange: nginx not currently running.
+    act: Call initialize.
+    assert: nginx is started, since there is no already-running process whose stale
+        in-memory configuration would otherwise need to be replaced via a reload.
+    """
+    commands_run = []
+
+    def _record_command(cmd):
+        """Record the command that was run and report success.
+
+        Args:
+            cmd: The command that would have been executed.
+
+        Returns:
+            A tuple mimicking a successful execute_command call.
+        """
+        commands_run.append(cmd)
+        return 0, "", ""
+
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock(side_effect=_record_command))
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=False))
+
+    nginx_manager.initialize("mock-test_0")
+
+    assert ["sudo", "systemctl", "start", "nginx"] in commands_run
+    assert ["sudo", "systemctl", "reload", "nginx"] not in commands_run
+
+
 def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None):
     """
     arrange: Valid URL-format configuration data.
