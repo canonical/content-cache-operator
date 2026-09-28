@@ -140,11 +140,6 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
 
     logger.info("Clean up default configuration files")
     _reset_nginx_files(instance_name)
-    # Bind the status page on its dedicated port immediately, independent of whether any
-    # cache-config relation exists yet, so nginx never falls back to the stock default site
-    # (which listens on port 80) while waiting for a relation. The healthcheck module config
-    # references the CA bundle path, so make sure it exists first (it is later rebuilt with
-    # any operator-supplied CAs once the receive-ca-cert relations are read).
     if not ca_certs.CA_BUNDLE_PATH.exists():
         try:
             ca_certs.write_ca_bundle([])
