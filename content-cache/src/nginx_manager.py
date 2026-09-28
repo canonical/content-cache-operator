@@ -142,10 +142,15 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
     return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", NGINX_SERVICE])
     if return_code != 0:
         raise NginxSetupError(f"Failed to enable nginx: {stderr}")
-    action = "restart" if _systemctl_status_check() else "start"
-    return_code, _, stderr = execute_command(["sudo", "systemctl", action, NGINX_SERVICE])
+    if _systemctl_status_check():
+        return_code, _, stderr = execute_command(["sudo", NGINX_BIN, "-s", "reload"])
+        if return_code != 0:
+            raise NginxSetupError(f"Failed to reload nginx: {stderr}")
+        return
+
+    return_code, _, stderr = execute_command(["sudo", "systemctl", "start", NGINX_SERVICE])
     if return_code != 0:
-        raise NginxSetupError(f"Failed to {action} nginx: {stderr}")
+        raise NginxSetupError(f"Failed to start nginx: {stderr}")
 
 
 def stop() -> None:  # pragma: no cover

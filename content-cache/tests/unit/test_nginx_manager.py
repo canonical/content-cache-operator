@@ -62,14 +62,15 @@ def test_reset_files_with_existing_files(patch_nginx_manager: None):
     assert not tuple(nginx_manager.NGINX_SITES_ENABLED_PATH.iterdir())
 
 
-def test_initialize_restarts_already_running_nginx(monkeypatch, patch_nginx_manager: None):
+def test_initialize_reloads_already_running_nginx(monkeypatch, patch_nginx_manager: None):
     """
     arrange: nginx already active, e.g. auto-started by the apt install with its stock,
         port-80-listening default site.
     act: Call initialize.
-    assert: nginx is restarted (not merely "started", which would be a no-op and leave the
-        stale, already-loaded default site config still bound to port 80) so it picks up
-        the just-reset, port-80-free configuration.
+    assert: nginx is reloaded (not merely "started", which would be a no-op and leave the
+        stale, already-loaded default site config still bound to port 80). Reload is used
+        instead of a full restart so applying the reset configuration doesn't interrupt any
+        connections nginx may already be serving.
     """
     commands_run = []
 
@@ -90,8 +91,9 @@ def test_initialize_restarts_already_running_nginx(monkeypatch, patch_nginx_mana
 
     nginx_manager.initialize("mock-test_0")
 
-    assert ["sudo", "systemctl", "restart", "nginx"] in commands_run
+    assert ["sudo", "/usr/sbin/nginx", "-s", "reload"] in commands_run
     assert ["sudo", "systemctl", "start", "nginx"] not in commands_run
+    assert ["sudo", "systemctl", "restart", "nginx"] not in commands_run
 
 
 def test_initialize_starts_nginx_when_not_already_running(monkeypatch, patch_nginx_manager: None):
@@ -99,7 +101,7 @@ def test_initialize_starts_nginx_when_not_already_running(monkeypatch, patch_ngi
     arrange: nginx not currently running.
     act: Call initialize.
     assert: nginx is started, since there is no already-running process whose stale
-        in-memory configuration would otherwise need to be replaced via a restart.
+        in-memory configuration would otherwise need to be replaced via a reload.
     """
     commands_run = []
 
@@ -121,7 +123,7 @@ def test_initialize_starts_nginx_when_not_already_running(monkeypatch, patch_ngi
     nginx_manager.initialize("mock-test_0")
 
     assert ["sudo", "systemctl", "start", "nginx"] in commands_run
-    assert ["sudo", "systemctl", "restart", "nginx"] not in commands_run
+    assert ["sudo", "/usr/sbin/nginx", "-s", "reload"] not in commands_run
 
 
 def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None):
