@@ -91,7 +91,7 @@ def test_initialize_reloads_already_running_nginx(monkeypatch, patch_nginx_manag
 
     nginx_manager.initialize("mock-test_0")
 
-    assert ["sudo", "/usr/sbin/nginx", "-s", "reload"] in commands_run
+    assert ["sudo", "systemctl", "reload", "nginx"] in commands_run
     assert ["sudo", "systemctl", "start", "nginx"] not in commands_run
     assert ["sudo", "systemctl", "restart", "nginx"] not in commands_run
 
@@ -123,7 +123,7 @@ def test_initialize_starts_nginx_when_not_already_running(monkeypatch, patch_ngi
     nginx_manager.initialize("mock-test_0")
 
     assert ["sudo", "systemctl", "start", "nginx"] in commands_run
-    assert ["sudo", "/usr/sbin/nginx", "-s", "reload"] not in commands_run
+    assert ["sudo", "systemctl", "reload", "nginx"] not in commands_run
 
 
 def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None):
