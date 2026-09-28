@@ -126,6 +126,29 @@ def test_initialize_starts_nginx_when_not_already_running(monkeypatch, patch_ngi
     assert ["sudo", "systemctl", "reload", "nginx"] not in commands_run
 
 
+def test_initialize_binds_status_page_regardless_of_relations(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: No cache-config relation exists yet.
+    act: Call initialize.
+    assert: The status page is bound on its dedicated port, so nginx never falls back to
+        serving the stock default site (which listens on port 80) while waiting for a
+        relation.
+    """
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock(return_value=(0, "", "")))
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=False))
+
+    nginx_manager.initialize("mock-test_0")
+
+    status_page_config_file_content = nginx_manager._get_sites_available_path(
+        "nginx_status"
+    ).read_text()
+    assert f"listen 127.0.0.1:{nginx_manager.NGINX_STATUS_PORT}" in status_page_config_file_content
+    enabled_status_page_path = nginx_manager._get_sites_enabled_path("nginx_status")
+    assert enabled_status_page_path.exists()
+
+
 def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None):
     """
     arrange: Valid URL-format configuration data.

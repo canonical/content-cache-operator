@@ -139,6 +139,11 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
 
     logger.info("Clean up default configuration files")
     _reset_nginx_files(instance_name)
+    # Bind the status page on its dedicated port immediately, independent of whether any
+    # cache-config relation exists yet, so nginx never falls back to the stock default site
+    # (which listens on port 80) while waiting for a relation.
+    _create_http_config("")
+    _create_status_page_config()
     return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", NGINX_SERVICE])
     if return_code != 0:
         raise NginxSetupError(f"Failed to enable nginx: {stderr}")
