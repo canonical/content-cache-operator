@@ -149,6 +149,25 @@ def test_initialize_binds_status_page_regardless_of_relations(
     assert enabled_status_page_path.exists()
 
 
+def test_initialize_creates_ca_bundle_before_referencing_it(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: No CA bundle file exists yet (fresh unit, before _rebuild_ca_bundle runs).
+    act: Call initialize.
+    assert: The CA bundle is created before the status page/healthcheck config (which
+        references its path via lua_ssl_trusted_certificate) is written, so nginx does not
+        fail to load due to a missing certificate file.
+    """
+    assert not ca_certs.CA_BUNDLE_PATH.exists(), "Test setup failure"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock(return_value=(0, "", "")))
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=False))
+
+    nginx_manager.initialize("mock-test_0")
+
+    assert ca_certs.CA_BUNDLE_PATH.exists()
+
+
 def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None):
     """
     arrange: Valid URL-format configuration data.
