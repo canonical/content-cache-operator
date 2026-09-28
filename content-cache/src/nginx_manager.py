@@ -142,9 +142,16 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
     return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", NGINX_SERVICE])
     if return_code != 0:
         raise NginxSetupError(f"Failed to enable nginx: {stderr}")
-    return_code, _, stderr = execute_command(["sudo", "systemctl", "start", NGINX_SERVICE])
+    # Installing the nginx package starts it immediately with its stock configuration,
+    # which includes a default site listening on port 80. "systemctl start" is a no-op on
+    # an already-running service, so it would never apply the reset, port-80-free
+    # configuration above. Restart (or start, if for some reason nginx isn't already
+    # running) so nginx serves the reset configuration from this point on, regardless of
+    # whether any cache-config relation exists yet.
+    action = "restart" if _systemctl_status_check() else "start"
+    return_code, _, stderr = execute_command(["sudo", "systemctl", action, NGINX_SERVICE])
     if return_code != 0:
-        raise NginxSetupError(f"Failed to start nginx: {stderr}")
+        raise NginxSetupError(f"Failed to {action} nginx: {stderr}")
 
 
 def stop() -> None:  # pragma: no cover
