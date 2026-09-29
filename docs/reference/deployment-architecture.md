@@ -134,8 +134,9 @@ with Content Cache. This is a second, independent TLS relation: the certificate 
 for HAProxy's client-facing listener does not need to be the same certificate/CA used to
 protect the backend — the diagram reuses `lego` for both here for simplicity, but a separate
 certificate provider instance for the backend's CA works the same way. Without
-`receive-ca-cert`, Content Cache enters `WaitingStatus` rather than proxying to a backend it
-cannot verify. See {ref}`how_to_enable_https`.
+`receive-ca-cert`, Content Cache still proxies to the backend, but nginx cannot verify its
+certificate against a trusted CA, so upstream TLS verification fails and requests to that
+backend return an error. See {ref}`how_to_enable_https`.
 
 ### TLS termination directly at Content Cache
 
