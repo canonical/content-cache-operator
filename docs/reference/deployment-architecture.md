@@ -27,8 +27,8 @@ unit has no backends configured: nginx serves no cache locations, and the unit s
 
 A working deployment needs at least two charms:
 
-1. **Content Cache** — this charm. Runs nginx, terminates the caching layer, and (optionally)
-   terminates incoming TLS.
+1. **Content Cache** — this charm. Runs nginx and performs the actual caching (cache hit/miss
+   decisions, disk and RAM storage). Optionally terminates incoming TLS.
 2. **A backend-configuration charm**, providing the `cache-config` relation. Exactly one of:
    - [**Content Cache Backends Config**](https://charmhub.io/content-cache-backends-config) — a
      subordinate charm deployed onto the Content Cache unit. It provides a direct, minimal way
