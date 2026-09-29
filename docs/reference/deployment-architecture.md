@@ -65,7 +65,7 @@ flowchart TB
 | Relation endpoint | Interface | Direction | Required? | Purpose |
 |---|---|---|---|---|
 | `cache-config` | `content-cache-config` | provides | Yes | Backend addresses and per-backend cache/health-check settings. Without this relation the charm has nothing to cache. |
-| `certificates` | `tls-certificates` | requires | Optional | Terminate TLS for incoming connections directly at Content Cache (see {ref}`use cases <reference_deployment_architecture_use_cases>` below). |
+| `certificates` | `tls-certificates` | requires | Optional | Terminate TLS for incoming connections directly at Content Cache — standalone, or as a second TLS hop behind HAProxy (see {ref}`use cases <reference_deployment_architecture_use_cases>` below). |
 | `receive-ca-cert` | `certificate_transfer` | requires | Conditionally | Trust a CA so nginx can verify backend certificates. Required only if any configured backend uses an `https://` URL; ignored entirely for HTTP-only backends. |
 | `cos-agent` | `cos_agent` | provides | Optional | Ship metrics/logs to a Canonical Observability Stack (COS) via `grafana-agent` or an equivalent principal charm. |
 | `content-cache-peers` | `content-cache-peers` | peers | Automatic | Coordinates per-relation port allocation across all units of the same Content Cache application. Not user-configured. |
@@ -92,60 +92,59 @@ reach it directly at `http://<content-cache-unit-ip>:<port>`.
 
 This pattern suits deployments with a small, fixed number of backend groups where clients (or
 an existing load balancer) can address content-cache units and ports directly, and where
-routing decisions do not need to change dynamically.
+routing decisions do not need to change dynamically. Content Cache's own `certificates`
+relation can also be used here, without HAProxy, if callers need to reach Content Cache over
+HTTPS directly instead of plain HTTP — see {ref}`how_to_enable_https`.
 
-### Scenario 2: add an ingress with TLS termination at the front
+### Scenario 2: add an ingress with TLS termination at the front and a second TLS hop to Content Cache
 
 ```{mermaid}
 flowchart LR
     Client(["Client"]) -->|"🔒 HTTPS"| HAProxy["HAProxy"]
-    HAProxy -->|"HTTP"| CC["Content Cache"]
+    HAProxy -->|"🔒 HTTPS"| CC["Content Cache"]
     CC -->|"HTTP"| Backend["Backend / origin"]
     IC["Ingress configurator"] -.->|"cache-config"| CC
     IC -.->|"haproxy-route"| HAProxy
     Lego["lego<br/>(certificate provider)"] -.->|"certificates"| HAProxy
+    Lego -.->|"certificates"| CC
 ```
 
 Content Cache Backends Config is replaced with Ingress configurator, which pairs with HAProxy
 over `haproxy-route`. A certificate provider such as `lego` integrates with HAProxy's own
-`certificates` relation, so **TLS is terminated at HAProxy**: the client speaks HTTPS to
-HAProxy, and HAProxy forwards the request to Content Cache over plain HTTP. HAProxy adds
-hostname/path-based routing, load balancing across Content Cache units, and DDoS protection on
-top of what Scenario 1 provides. See the {ref}`tutorial <tutorial_advanced_ingress>` for a full
-walkthrough of this deployment.
+`certificates` relation, so the client speaks HTTPS to HAProxy. `lego` (or another certificate
+provider instance) also integrates directly with Content Cache's own `certificates` relation,
+so Content Cache presents its own TLS certificate and listens with `ssl` on its allocated
+port; HAProxy then forwards over this second, independent HTTPS hop instead of plain HTTP,
+encrypting traffic for its entire path rather than only from the client to HAProxy. HAProxy
+adds hostname/path-based routing, load balancing across Content Cache units, and DDoS
+protection on top of what Scenario 1 provides. See {ref}`how_to_enable_https` and the
+{ref}`tutorial <tutorial_advanced_ingress>` for a full walkthrough of this deployment.
 
 ### Scenario 3: add HTTPS to the backend
 
 ```{mermaid}
 flowchart LR
     Client(["Client"]) -->|"🔒 HTTPS"| HAProxy["HAProxy"]
-    HAProxy -->|"HTTP"| CC["Content Cache"]
+    HAProxy -->|"🔒 HTTPS"| CC["Content Cache"]
     CC -->|"🔒 HTTPS"| Backend["Backend / origin"]
     IC["Ingress configurator"] -.->|"cache-config<br/>(backend-protocol=https)"| CC
     IC -.->|"haproxy-route"| HAProxy
     Lego["lego<br/>(certificate provider)"] -.->|"certificates"| HAProxy
+    Lego -.->|"certificates"| CC
     Lego -.->|"receive-ca-cert"| CC
 ```
 
-Building on Scenario 2, the backend is now addressed as an `https://` URL. Content Cache must
-trust the backend's CA to verify its certificate, so `lego` (or whichever certificate provider
-issues the backend's certificate) also integrates over the `receive-ca-cert` relation directly
-with Content Cache. This is a second, independent TLS relation: the certificate `lego` issues
-for HAProxy's client-facing listener does not need to be the same certificate/CA used to
-protect the backend — the diagram reuses `lego` for both here for simplicity, but a separate
-certificate provider instance for the backend's CA works the same way. Without
+Building on Scenario 2 (including its HAProxy-to-Content-Cache TLS hop), the backend is now
+addressed as an `https://` URL. Content Cache must trust the backend's CA to verify its
+certificate, so `lego` (or whichever certificate provider issues the backend's certificate)
+also integrates over the `receive-ca-cert` relation directly with Content Cache. This is a
+third, independent TLS relation: the certificates `lego` issues for HAProxy's client-facing
+listener and for Content Cache's own listener do not need to share a CA with the one used to
+protect the backend — the diagram reuses `lego` for all three here for simplicity, but a
+separate certificate provider instance for the backend's CA works the same way. Without
 `receive-ca-cert`, Content Cache still proxies to the backend, but nginx cannot verify its
 certificate against a trusted CA, so upstream TLS verification fails and requests to that
 backend return an error. See {ref}`how_to_enable_https`.
-
-### TLS termination directly at Content Cache
-
-Independent of the scenarios above, the `certificates` relation lets Content Cache present its
-own TLS certificate and listen with `ssl` on its allocated port. This is most useful as a
-second TLS hop between HAProxy and Content Cache in Scenarios 2 and 3 (so traffic is encrypted
-for its entire path, not just from the client to HAProxy), but it can also be used without
-HAProxy, in front of a direct Content Cache Backends Config deployment (Scenario 1), if callers
-need to reach Content Cache over HTTPS directly. See {ref}`how_to_enable_https`.
 
 ### Observability
 
