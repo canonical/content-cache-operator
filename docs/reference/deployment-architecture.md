@@ -44,6 +44,22 @@ A working deployment needs at least two charms:
 Everything else described below is optional and layers additional capability onto this
 minimal pair.
 
+## High-level deployment diagram
+
+The diagram below shows Content Cache with every relation it supports. Solid arrows are the
+required, functional relation (`cache-config`); dashed arrows are optional or conditional
+integrations.
+
+```{mermaid}
+flowchart TB
+    BackendConfig["Content Cache Backends Config<br/>or Ingress configurator"] -->|"cache-config<br/>(required)"| CC["Content Cache"]
+    CC -->|"proxied requests"| Backend["Backend / origin"]
+    CertProvider["Certificate provider<br/>(e.g. self-signed-certificates, lego)"] -.->|"certificates<br/>(optional: terminate TLS here)"| CC
+    CertProvider -.->|"receive-ca-cert<br/>(required only for HTTPS backends)"| CC
+    COS["grafana-agent"] -.->|"cos-agent<br/>(optional: metrics & logs)"| CC
+    CC <-.->|"content-cache-peers<br/>(automatic, multi-unit port sync)"| CCPeer["Content Cache<br/>(other units)"]
+```
+
 ## Supported relations
 
 | Relation endpoint | Interface | Direction | Required? | Purpose |
@@ -58,67 +74,83 @@ minimal pair.
 
 ## How relations combine to support use cases
 
-### Direct backend caching (no ingress)
+Each scenario below builds on the previous one by adding one more relation.
 
-```
-Content Cache Backends Config (subordinate) — cache-config — Content Cache
+### Scenario 1: direct backend caching
+
+```{mermaid}
+flowchart LR
+    CCBC["Content Cache Backends Config<br/>(subordinate)"] -->|"cache-config"| CC["Content Cache"]
+    CC -->|"HTTP"| Backend["Backend / origin"]
 ```
 
 The simplest supported deployment. Content Cache Backends Config is deployed as a subordinate
-directly onto the Content Cache unit and describes one set of backends. There is no
-hostname/path-based routing: each `cache-config` relation is served on its own dedicated port
-(see {ref}`explanation_charm_design`), and callers reach it directly at
-`http://<content-cache-unit-ip>:<port>`.
+directly onto the Content Cache unit and describes one set of backends over plain HTTP. There
+is no hostname/path-based routing and no TLS anywhere in the request path: each `cache-config`
+relation is served on its own dedicated port (see {ref}`explanation_charm_design`), and callers
+reach it directly at `http://<content-cache-unit-ip>:<port>`.
 
 This pattern suits deployments with a small, fixed number of backend groups where clients (or
 an existing load balancer) can address content-cache units and ports directly, and where
 routing decisions do not need to change dynamically.
 
-### Ingress-fronted caching
+### Scenario 2: add an ingress with TLS termination at the front
 
+```{mermaid}
+flowchart LR
+    Client(["Client"]) -->|"🔒 HTTPS"| HAProxy["HAProxy"]
+    HAProxy -->|"HTTP"| CC["Content Cache"]
+    CC -->|"HTTP"| Backend["Backend / origin"]
+    IC["Ingress configurator"] -.->|"cache-config"| CC
+    IC -.->|"haproxy-route"| HAProxy
+    Lego["lego<br/>(certificate provider)"] -.->|"certificates"| HAProxy
 ```
-Backend/origin — Ingress configurator — cache-config — Content Cache
-                       |
-                  haproxy-route
-                       |
-                    HAProxy
+
+Content Cache Backends Config is replaced with Ingress configurator, which pairs with HAProxy
+over `haproxy-route`. A certificate provider such as `lego` integrates with HAProxy's own
+`certificates` relation, so **TLS is terminated at HAProxy**: the client speaks HTTPS to
+HAProxy, and HAProxy forwards the request to Content Cache over plain HTTP. HAProxy adds
+hostname/path-based routing, load balancing across Content Cache units, and DDoS protection on
+top of what Scenario 1 provides. See the {ref}`tutorial <tutorial_advanced_ingress>` for a full
+walkthrough of this deployment.
+
+### Scenario 3: add HTTPS to the backend
+
+```{mermaid}
+flowchart LR
+    Client(["Client"]) -->|"🔒 HTTPS"| HAProxy["HAProxy"]
+    HAProxy -->|"HTTP"| CC["Content Cache"]
+    CC -->|"🔒 HTTPS"| Backend["Backend / origin"]
+    IC["Ingress configurator"] -.->|"cache-config<br/>(backend-protocol=https)"| CC
+    IC -.->|"haproxy-route"| HAProxy
+    Lego["lego<br/>(certificate provider)"] -.->|"certificates"| HAProxy
+    Lego -.->|"receive-ca-cert"| CC
 ```
 
-Deploying Ingress configurator instead of Content Cache Backends Config unlocks pairing with
-HAProxy. HAProxy sits in front of the Content Cache units and adds:
-
-- Hostname- and path-based routing to the correct `cache-config` relation/port
-- TLS termination for client-facing traffic
-- Load balancing across multiple Content Cache units serving the same relation
-- DDoS protection and configurable retry behavior
-
-This pattern suits deployments that need a single public entry point in front of multiple
-backends or content-cache relations, or that need TLS termination without configuring
-certificates on Content Cache itself. See the
-{ref}`tutorial <tutorial_advanced_ingress>` for a full walkthrough of this deployment.
-
-### HTTPS to backends
-
-Independent of which backend-configuration charm is used, if any backend is addressed with an
-`https://` URL, Content Cache must also receive a trusted CA via `receive-ca-cert` (typically
-from the same certificate provider used elsewhere in the deployment, such as
-`self-signed-certificates` or `lego`). Without it, the charm enters `WaitingStatus` rather than
-proxying to a backend it cannot verify. See {ref}`how_to_enable_https`.
+Building on Scenario 2, the backend is now addressed as an `https://` URL. Content Cache must
+trust the backend's CA to verify its certificate, so `lego` (or whichever certificate provider
+issues the backend's certificate) also integrates over the `receive-ca-cert` relation directly
+with Content Cache. This is a second, independent TLS relation: the certificate `lego` issues
+for HAProxy's client-facing listener does not need to be the same certificate/CA used to
+protect the backend — the diagram reuses `lego` for both here for simplicity, but a separate
+certificate provider instance for the backend's CA works the same way. Without
+`receive-ca-cert`, Content Cache enters `WaitingStatus` rather than proxying to a backend it
+cannot verify. See {ref}`how_to_enable_https`.
 
 ### TLS termination directly at Content Cache
 
-The `certificates` relation lets Content Cache present its own TLS certificate and listen with
-`ssl` on its allocated port, independent of whether an ingress is present. This is most useful
-in the ingress-fronted pattern above as a second TLS hop between HAProxy and Content Cache
-(so traffic is encrypted for its entire path, not just from the client to HAProxy), but it can
-also be used without HAProxy, in front of a direct Content Cache Backends Config deployment, if
-callers need to reach Content Cache over HTTPS directly. See {ref}`how_to_enable_https`.
+Independent of the scenarios above, the `certificates` relation lets Content Cache present its
+own TLS certificate and listen with `ssl` on its allocated port. This is most useful as a
+second TLS hop between HAProxy and Content Cache in Scenarios 2 and 3 (so traffic is encrypted
+for its entire path, not just from the client to HAProxy), but it can also be used without
+HAProxy, in front of a direct Content Cache Backends Config deployment (Scenario 1), if callers
+need to reach Content Cache over HTTPS directly. See {ref}`how_to_enable_https`.
 
 ### Observability
 
-The `cos-agent` relation is additive to any of the patterns above: integrating a `grafana-agent`
-(or equivalent) principal charm collects nginx metrics and logs into COS without changing how
-backends are configured. See {ref}`how_to_enable_cos`.
+The `cos-agent` relation is additive to any of the scenarios above: integrating a
+`grafana-agent` (or equivalent) principal charm collects nginx metrics and logs into COS
+without changing how backends are configured. See {ref}`how_to_enable_cos`.
 
 ## What Content Cache does not do
 
