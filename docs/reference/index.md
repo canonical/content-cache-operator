@@ -13,5 +13,6 @@ Review these pages for technical details about the Content Cache charms.
 
 ```{toctree}
 :maxdepth: 1
+Intended deployment architecture <deployment-architecture>
 components
 ```
