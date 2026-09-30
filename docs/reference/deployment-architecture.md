@@ -151,6 +151,12 @@ flowchart LR
     Lego -.->|"certificates"| CC
     Lego -.->|"send-ca-cert"| HAProxy
     Lego -.->|"receive-ca-cert"| CC
+
+    %% Index 2: CC to Backend (Colors the line and the text)
+    linkStyle 2 stroke:#d946ef,stroke-width:3px,color:#d946ef
+    
+    %% Index 3: IC to CC
+    linkStyle 3 stroke:#d946ef,stroke-width:3px,color:#d946ef
 ```
 
 Building on Scenario 2 (including its HAProxy-to-Content-Cache TLS hop and the matching
