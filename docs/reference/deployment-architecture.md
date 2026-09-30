@@ -64,13 +64,25 @@ flowchart TB
 
 ## Supported relations
 
-| Relation endpoint | Interface | Direction | Required? | Purpose |
-|---|---|---|---|---|
-| `cache-config` | `content-cache-config` | provides | Yes | Backend addresses and per-backend cache/health-check settings. Without this relation the charm has nothing to cache. |
-| `certificates` | `tls-certificates` | requires | Optional | Terminate TLS for incoming connections directly at Content Cache — standalone, or as a second TLS hop behind HAProxy (see {ref}`use cases <reference_deployment_architecture_use_cases>` below). |
-| `receive-ca-cert` | `certificate_transfer` | requires | Conditionally | Trust a CA so nginx can verify backend certificates. Required only if any configured backend uses an `https://` URL; ignored entirely for HTTP-only backends. |
-| `cos-agent` | `cos_agent` | provides | Optional | Ship metrics/logs to a Canonical Observability Stack (COS) via `grafana-agent` or an equivalent principal charm. |
-| `content-cache-peers` | `content-cache-peers` | peers | Automatic | Coordinates per-relation port allocation across all units of the same Content Cache application. Not user-configured. |
+**Provides** — relations where Content Cache offers data to a related charm:
+
+| Relation endpoint | Interface | Required? | Purpose |
+|---|---|---|---|
+| `cache-config` | `content-cache-config` | Yes | Backend addresses and per-backend cache/health-check settings. Without this relation the charm has nothing to cache. |
+| `cos-agent` | `cos_agent` | Optional | Ship metrics/logs to a Canonical Observability Stack (COS) via `grafana-agent` or an equivalent principal charm. |
+
+**Requires** — relations where Content Cache consumes data from a related charm:
+
+| Relation endpoint | Interface | Required? | Purpose |
+|---|---|---|---|
+| `certificates` | `tls-certificates` | Optional | Terminate TLS for incoming connections directly at Content Cache — standalone, or as a second TLS hop behind HAProxy (see {ref}`use cases <reference_deployment_architecture_use_cases>` below). |
+| `receive-ca-cert` | `certificate_transfer` | Conditionally | Trust a CA so nginx can verify backend certificates. Required only if any configured backend uses an `https://` URL; ignored entirely for HTTP-only backends. |
+
+**Peers** — coordination between units of this application:
+
+| Relation endpoint | Interface | Required? | Purpose |
+|---|---|---|---|
+| `content-cache-peers` | `content-cache-peers` | Automatic | Coordinates per-relation port allocation across all units of the same Content Cache application. Not user-configured. |
 
 (reference_deployment_architecture_use_cases)=
 
@@ -109,6 +121,7 @@ flowchart LR
     IC -.->|"haproxy-route"| HAProxy
     Lego["certificate provider<br/>charm"] -.->|"certificates"| HAProxy
     Lego -.->|"certificates"| CC
+    Lego -.->|"send-ca-cert"| HAProxy
 ```
 
 Content Cache Backends Config is replaced with Ingress configurator, which pairs with HAProxy
@@ -117,8 +130,11 @@ over `haproxy-route`. A certificate provider such as `lego` integrates with HAPr
 provider charm also integrates directly with Content Cache's own `certificates` relation,
 so Content Cache presents its own TLS certificate and listens with `ssl` on its allocated
 port; HAProxy then forwards over this second, independent HTTPS hop instead of plain HTTP,
-encrypting traffic for its entire path rather than only from the client to HAProxy. HAProxy
-adds hostname/path-based routing, load balancing across Content Cache units, and DDoS
+encrypting traffic for its entire path rather than only from the client to HAProxy. For
+HAProxy to trust this certificate, the same certificate provider also integrates with
+HAProxy over the `certificate_transfer` interface (`send-ca-cert` → `receive-ca-certs`);
+without it, HAProxy rejects Content Cache's certificate and the hop fails. HAProxy adds
+hostname/path-based routing, load balancing across Content Cache units, and DDoS
 protection on top of what Scenario 1 provides. See {ref}`how_to_enable_https` and the
 {ref}`tutorial <tutorial_advanced_ingress>` for a full walkthrough of this deployment.
 
@@ -133,16 +149,18 @@ flowchart LR
     IC -.->|"haproxy-route"| HAProxy
     Lego["certificate provider<br/>charm"] -.->|"certificates"| HAProxy
     Lego -.->|"certificates"| CC
+    Lego -.->|"send-ca-cert"| HAProxy
     Lego -.->|"receive-ca-cert"| CC
 ```
 
-Building on Scenario 2 (including its HAProxy-to-Content-Cache TLS hop), the backend is now
-addressed as an `https://` URL. Content Cache must trust the backend's CA to verify its
-certificate, so the certificate provider that issues the backend's certificate
-also integrates over the `receive-ca-cert` relation directly with Content Cache. This is a
-third, independent TLS relation: the certificates issued for HAProxy's client-facing
-listener and for Content Cache's own listener do not need to share a CA with the one used to
-protect the backend. For simplicity, the diagram reuses the same certificate provider charm for all three relations, but a
+Building on Scenario 2 (including its HAProxy-to-Content-Cache TLS hop and the matching
+`send-ca-cert` → `receive-ca-certs` trust relation), the backend is now addressed as an
+`https://` URL. Content Cache must trust the backend's CA to verify its certificate, so the
+certificate provider that issues the backend's certificate also integrates over the
+`receive-ca-cert` relation directly with Content Cache. This is a fourth, independent TLS
+relation: the certificates issued for HAProxy's client-facing listener and for Content Cache's
+own listener do not need to share a CA with the one used to protect the backend. For
+simplicity, the diagram reuses the same certificate provider charm for all relations, but a
 separate certificate provider instance for the backend's CA works the same way. Without
 `receive-ca-cert`, Content Cache still proxies to the backend, but nginx cannot verify its
 certificate against a trusted CA, so upstream TLS verification fails and requests to that
