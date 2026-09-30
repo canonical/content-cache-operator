@@ -16,11 +16,11 @@ static-only caching assumption. Those responsibilities are delegated to other ch
 relations.
 
 **Content Cache cannot be deployed by itself.** 
-It has no charm configuration options of its own — every behavior (which
-backends to proxy to, health check parameters, cache TTLs) is supplied entirely through the
+It has no charm configuration options of its own — every behavior
+is supplied entirely through the
 `cache-config` relation. Deployed alone, with no related charm providing that relation, the
 unit has no backends configured: nginx serves no cache locations, and the unit sits in
-`blocked` status, waiting for a config-providing charm to be integrated.
+`blocked` status, waiting for a configuration-providing charm to be integrated.
 
 This page describes the components required
 for a working deployment, the relations the charm supports, and how combining them enables
@@ -30,12 +30,12 @@ or restricts specific use cases.
 
 A working deployment needs at least two charms:
 
-1. **Content Cache** — this charm. Runs nginx and performs the actual caching (cache hit/miss
-   decisions, disk and RAM storage). Optionally terminates incoming TLS.
+1. **Content Cache** — this charm. Runs nginx and performs the actual caching.
+    Optionally terminates incoming TLS.
 2. **A backend-configuration charm**, providing the `cache-config` relation. Exactly one of:
    - [**Content Cache Backends Config**](https://charmhub.io/content-cache-backends-config) — a
      subordinate charm deployed onto the Content Cache unit. It provides a direct, minimal way
-     to describe a set of backends (addresses, health check parameters, cache validity) with no
+     to describe a set of backends with no
      routing or ingress features.
    - [**Ingress configurator**](https://charmhub.io/ingress-configurator) — a principal charm
      that translates its own configuration into the same `cache-config` relation data, but requires a
@@ -140,18 +140,6 @@ protection on top of what Scenario 1 provides. See {ref}`how_to_enable_https` an
 
 ### Scenario 3: add HTTPS to the backend
 
-```{mermaid}
-flowchart LR
-    Client(["Client"]) -->|"🔒 HTTPS"| HAProxy["HAProxy"]
-    HAProxy -->|"🔒 HTTPS"| CC["Content Cache"]
-    CC -->|"🔒 HTTPS"| Backend["Backend / origin"]
-    IC["Ingress configurator"] -.->|"cache-config<br/>(backend-protocol=https)"| CC
-    IC -.->|"haproxy-route"| HAProxy
-    Lego["certificate provider<br/>charm"] -.->|"certificates"| HAProxy
-    Lego -.->|"certificates"| CC
-    Lego -.->|"send-ca-cert"| HAProxy
-    Lego -.->|"receive-ca-cert"| CC
-```
 
 Building on Scenario 2 (including its HAProxy-to-Content-Cache TLS hop and the matching
 `send-ca-cert` → `receive-ca-certs` trust relation), the backend is now addressed as an
