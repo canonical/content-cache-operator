@@ -8,20 +8,21 @@ myst:
 
 # Intended deployment architecture
 
-The Content Cache charm is deliberately narrow in scope: it manages an nginx instance that
+The Content Cache charm manages an nginx instance that
 caches responses from a set of backends. It does not know how to discover backends,
 route by hostname or path, or terminate client-facing TLS on its own. Those responsibilities
-are delegated to other charms over relations. This page describes the components required
-for a working deployment, the relations the charm supports, and how combining them enables
-or restricts specific use cases.
+are delegated to other charms over relations. 
 
-## Can Content Cache be deployed on its own?
-
-No. Content Cache has no charm configuration options of its own — every behavior (which
+**Content Cache cannot be deployed by itself.** 
+It has no charm configuration options of its own — every behavior (which
 backends to proxy to, health check parameters, cache TTLs) is supplied entirely through the
 `cache-config` relation. Deployed alone, with no related charm providing that relation, the
 unit has no backends configured: nginx serves no cache locations, and the unit sits in
 `blocked` status, waiting for a config-providing charm to be integrated.
+
+This page describes the components required
+for a working deployment, the relations the charm supports, and how combining them enables
+or restricts specific use cases.
 
 ## Required components
 
@@ -35,11 +36,10 @@ A working deployment needs at least two charms:
      to describe a set of backends (addresses, health check parameters, cache validity) with no
      routing or ingress features.
    - [**Ingress configurator**](https://charmhub.io/ingress-configurator) — a principal charm
-     that translates its own configuration into the same `cache-config` relation data. On its
-     own it provides the same backend-configuration role as Content Cache Backends Config, but
-     it is also designed to be paired with [**HAProxy**](https://charmhub.io/haproxy) (over the
-     `haproxy-route` interface) to add an ingress layer in front of Content Cache: hostname/path
-     routing, TLS termination, DDoS protection, and health-check-based retries.
+     that translates its own configuration into the same `cache-config` relation data, but requires a
+     `haproxy-route` relation before publishing a usable backend configuration. Paired with
+     [**HAProxy**](https://charmhub.io/haproxy), it adds an ingress layer in front of Content Cache:
+     hostname/path routing, TLS termination, DDoS protection, and health-check-based retries.
 
 Everything else described below is optional and layers additional capability onto this
 minimal pair.
@@ -55,7 +55,7 @@ flowchart TB
     BackendConfig["Content Cache Backends Config<br/>or Ingress configurator"] -->|"cache-config<br/>(required)"| CC["Content Cache"]
     CC -->|"proxied requests"| Backend["Backend / origin"]
     CertProvider["Certificate provider<br/>(e.g. self-signed-certificates, lego)"] -.->|"certificates<br/>(optional: terminate TLS here)"| CC
-    CertProvider -.->|"receive-ca-cert<br/>(required only for HTTPS backends)"| CC
+    CertProvider -.->|"receive-ca-cert<br/>(only for private/untrusted HTTPS backend CA)"| CC
     COS["grafana-agent"] -.->|"cos-agent<br/>(optional: metrics & logs)"| CC
     CC <-.->|"content-cache-peers<br/>(automatic, multi-unit port sync)"| CCPeer["Content Cache<br/>(other units)"]
 ```
@@ -84,7 +84,7 @@ flowchart LR
     CC -->|"HTTP"| Backend["Backend / origin"]
 ```
 
-The simplest supported deployment. Content Cache Backends Config is deployed as a subordinate
+The simplest supported deployment includes Content Cache Backends Config deployed as a subordinate
 directly onto the Content Cache unit and describes one set of backends over plain HTTP. There
 is no hostname/path-based routing and no TLS anywhere in the request path: each `cache-config`
 relation is served on its own dedicated port (see {ref}`explanation_charm_design`), and callers
@@ -105,14 +105,14 @@ flowchart LR
     CC -->|"HTTP"| Backend["Backend / origin"]
     IC["Ingress configurator"] -.->|"cache-config"| CC
     IC -.->|"haproxy-route"| HAProxy
-    Lego["lego<br/>(certificate provider)"] -.->|"certificates"| HAProxy
+    Lego["certificate provider<br/>charm"] -.->|"certificates"| HAProxy
     Lego -.->|"certificates"| CC
 ```
 
 Content Cache Backends Config is replaced with Ingress configurator, which pairs with HAProxy
 over `haproxy-route`. A certificate provider such as `lego` integrates with HAProxy's own
-`certificates` relation, so the client speaks HTTPS to HAProxy. `lego` (or another certificate
-provider instance) also integrates directly with Content Cache's own `certificates` relation,
+`certificates` relation, so the client speaks HTTPS to HAProxy. The certificate
+provider charm also integrates directly with Content Cache's own `certificates` relation,
 so Content Cache presents its own TLS certificate and listens with `ssl` on its allocated
 port; HAProxy then forwards over this second, independent HTTPS hop instead of plain HTTP,
 encrypting traffic for its entire path rather than only from the client to HAProxy. HAProxy
@@ -129,18 +129,18 @@ flowchart LR
     CC -->|"🔒 HTTPS"| Backend["Backend / origin"]
     IC["Ingress configurator"] -.->|"cache-config<br/>(backend-protocol=https)"| CC
     IC -.->|"haproxy-route"| HAProxy
-    Lego["lego<br/>(certificate provider)"] -.->|"certificates"| HAProxy
+    Lego["certificate provider<br/>charm"] -.->|"certificates"| HAProxy
     Lego -.->|"certificates"| CC
     Lego -.->|"receive-ca-cert"| CC
 ```
 
 Building on Scenario 2 (including its HAProxy-to-Content-Cache TLS hop), the backend is now
 addressed as an `https://` URL. Content Cache must trust the backend's CA to verify its
-certificate, so `lego` (or whichever certificate provider issues the backend's certificate)
+certificate, so the certificate provider that issues the backend's certificate
 also integrates over the `receive-ca-cert` relation directly with Content Cache. This is a
-third, independent TLS relation: the certificates `lego` issues for HAProxy's client-facing
+third, independent TLS relation: the certificates issued for HAProxy's client-facing
 listener and for Content Cache's own listener do not need to share a CA with the one used to
-protect the backend — the diagram reuses `lego` for all three here for simplicity, but a
+protect the backend. For simplicity, the diagram reuses the same certificate provider charm for all three relations, but a
 separate certificate provider instance for the backend's CA works the same way. Without
 `receive-ca-cert`, Content Cache still proxies to the backend, but nginx cannot verify its
 certificate against a trusted CA, so upstream TLS verification fails and requests to that
