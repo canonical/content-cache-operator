@@ -140,6 +140,18 @@ protection on top of what Scenario 1 provides. See {ref}`how_to_enable_https` an
 
 ### Scenario 3: add HTTPS to the backend
 
+```{mermaid}
+flowchart LR
+    Client(["Client"]) -->|"🔒 HTTPS"| HAProxy["HAProxy"]
+    HAProxy -->|"🔒 HTTPS"| CC["Content Cache"]
+    CC -->|"🔒 HTTPS"| Backend["Backend / origin"]
+    IC["Ingress configurator"] -.->|"cache-config<br/>(backend-protocol=https)"| CC
+    IC -.->|"haproxy-route"| HAProxy
+    Lego["certificate provider<br/>charm"] -.->|"certificates"| HAProxy
+    Lego -.->|"certificates"| CC
+    Lego -.->|"send-ca-cert"| HAProxy
+    Lego -.->|"receive-ca-cert"| CC
+```
 
 Building on Scenario 2 (including its HAProxy-to-Content-Cache TLS hop and the matching
 `send-ca-cert` → `receive-ca-certs` trust relation), the backend is now addressed as an
