@@ -15,6 +15,7 @@ import requests
 
 import ca_certs
 from errors import (
+    CACertificateFileError,
     NginxConfigurationAggregateError,
     NginxConfigurationError,
     NginxFileError,
@@ -97,6 +98,25 @@ class NginxLuaSection:
         return f"{self.name} {{{self.content}}}\n"
 
 
+def _ensure_initial_nginx_config() -> None:
+    """Ensure the files nginx needs to start successfully are in place.
+
+    Writes an initial CA bundle (system CAs only) if one doesn't already exist, then creates
+    the plain-HTTP and status-page configs so nginx has a valid, loadable configuration
+    regardless of whether any cache-config relation exists yet.
+
+    Raises:
+        NginxSetupError: Failure to write the initial CA bundle.
+    """
+    if not ca_certs.CA_BUNDLE_PATH.exists():
+        try:
+            ca_certs.write_ca_bundle([])
+        except CACertificateFileError as err:
+            raise NginxSetupError(f"Failed to write initial CA bundle: {err}") from err
+    _create_http_config("")
+    _create_status_page_config()
+
+
 def initialize(instance_name: str) -> None:  # pragma: no cover
     """Initialize the nginx server.
 
@@ -139,6 +159,7 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
 
     logger.info("Clean up default configuration files")
     _reset_nginx_files(instance_name)
+    _ensure_initial_nginx_config()
     return_code, _, stderr = execute_command(["sudo", "systemctl", "enable", NGINX_SERVICE])
     if return_code != 0:
         raise NginxSetupError(f"Failed to enable nginx: {stderr}")
