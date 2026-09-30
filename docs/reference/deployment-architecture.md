@@ -10,8 +10,10 @@ myst:
 
 The Content Cache charm manages an nginx instance that
 caches responses from a set of backends. It does not know how to discover backends,
-route by hostname or path, or terminate client-facing TLS on its own. Those responsibilities
-are delegated to other charms over relations. 
+route by hostname or path, or terminate client-facing TLS on its own. It also does not cache
+personalized or session-dependent content — see {ref}`explanation_charm_design` for the
+static-only caching assumption. Those responsibilities are delegated to other charms over
+relations.
 
 **Content Cache cannot be deployed by itself.** 
 It has no charm configuration options of its own — every behavior (which
@@ -91,7 +93,7 @@ relation is served on its own dedicated port (see {ref}`explanation_charm_design
 reach it directly at `http://<content-cache-unit-ip>:<port>`.
 
 This pattern suits deployments with a small, fixed number of backend groups where clients (or
-an existing load balancer) can address content-cache units and ports directly, and where
+an existing load balancer) can address Content Cache units and ports directly, and where
 routing decisions do not need to change dynamically. Content Cache's own `certificates`
 relation can also be used here, without HAProxy, if callers need to reach Content Cache over
 HTTPS directly instead of plain HTTP — see {ref}`how_to_enable_https`.
@@ -151,13 +153,3 @@ backend return an error. See {ref}`how_to_enable_https`.
 The `cos-agent` relation is additive to any of the scenarios above: integrating a
 `grafana-agent` (or equivalent) principal charm collects nginx metrics and logs into COS
 without changing how backends are configured. See {ref}`how_to_enable_cos`.
-
-## What Content Cache does not do
-
-To keep the intended deployment boundaries clear, Content Cache does not:
-
-- Discover backends on its own — every backend must be described over `cache-config` by a
-  related charm.
-- Route by hostname or path — that requires Ingress configurator paired with HAProxy.
-- Cache personalized or session-dependent content — see
-  {ref}`explanation_charm_design` for the static-only caching assumption.
