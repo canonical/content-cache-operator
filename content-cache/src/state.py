@@ -26,6 +26,50 @@ PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
 BACKEND_HOSTNAME_FIELD_NAME = "backend_hostname"
 CACHE_INACTIVE_FIELD_NAME = "cache_inactive"
 CACHE_MAX_SIZE_FIELD_NAME = "cache_max_size"
+CLIENT_IP_HASH_SALT_CONFIG_NAME = "client-ip-hash-salt"
+
+_SALT_DISALLOWED_CHARACTERS = frozenset({'"', "\\", "$"})
+
+
+def get_client_ip_hash_salt(charm: ops.CharmBase) -> str | None:
+    """Return and validate the configured client IP hash salt.
+
+    Args:
+        charm: The charm to read configuration from.
+
+    Raises:
+        ConfigurationError: The salt secret is missing, inaccessible, or contains an
+            invalid value.
+
+    Returns:
+        The salt string, or None if client IP hashing is not enabled.
+    """
+    secret_uri = typing.cast("str | None", charm.config.get(CLIENT_IP_HASH_SALT_CONFIG_NAME))
+    if not isinstance(secret_uri, str) or not secret_uri.strip():
+        return None
+
+    try:
+        secret_content = charm.model.get_secret(id=secret_uri).get_content(refresh=True)
+    except (ops.SecretNotFoundError, ops.ModelError) as exc:
+        raise ConfigurationError(
+            f"The {CLIENT_IP_HASH_SALT_CONFIG_NAME} secret does not exist or cannot be accessed."
+        ) from exc
+
+    salt = secret_content.get("salt")
+    if not isinstance(salt, str) or not salt.strip():
+        raise ConfigurationError(
+            f"The {CLIENT_IP_HASH_SALT_CONFIG_NAME} secret must contain a non-empty "
+            "'salt' value."
+        )
+    if any(
+        character in _SALT_DISALLOWED_CHARACTERS or ord(character) < 32 or ord(character) == 127
+        for character in salt
+    ):
+        raise ConfigurationError(
+            f"The {CLIENT_IP_HASH_SALT_CONFIG_NAME} secret must not contain control "
+            "characters, double quotes, backslashes, or dollar signs."
+        )
+    return salt
 
 
 def _validate_hostname_value(value: str) -> str:
