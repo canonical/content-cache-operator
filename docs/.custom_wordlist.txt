@@ -4,12 +4,14 @@ cacheable
 chmod
 classDef
 configurator
+failover
 healthcheck
 healthchecks
 hostnames
 ISOs
 Lua
 proxied
+PRs
 subprocess
 sudo
 TTLs
