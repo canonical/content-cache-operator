@@ -1,0 +1,73 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+# This file defines charm config options, and populates the Configure tab on Charmhub.
+# If your charm does not require configuration options, delete this file entirely.
+#
+# See https://juju.is/docs/config for guidance.
+
+options:
+  backends:
+    description: |
+      A comma-separated list of backend URLs in the form http://ip:port or https://ip:port.
+      If multiple URLs are provided, the access to the backends will be load-balanced.
+    type: string
+  fail-timeout:
+    description: |
+      The time to wait before using a backend after failure. The other backend will be used 
+      instead. No effect if only one backend is specified. The value should a positive int followed 
+      by s for seconds, m for minutes, or h for hours.
+    type: string
+    default: 30s
+  healthcheck-interval:
+    description: |
+      The time between two health checks (in milliseconds)
+    type: int
+    default: 10000
+  healthcheck-path:
+    description: |
+      The path part of the URL to query the healthcheck endpoint.
+    type: string
+    default: /
+  healthcheck-ssl-verify:
+    description: |
+      A boolean to bypass ssl verification for healthchecks.
+    type: boolean
+    default: true
+  healthcheck-valid-status:
+    description: |
+      A comma-separated list of HTTP response code(s) which are considered as valid during 
+      health checks.
+    type: string
+    default: '200'
+  proxy-cache-valid:
+    description: |
+      A list of HTTP response code(s) followed by a cache valid duration. For example ["200 302 1h
+      "", "404 1m"], which would mean 200 and 302 responses are cached for 1 hour and 404 responses
+      are cached for 1 minute. This configuration is passed to nginx proxy-cache-valid
+      (https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid).
+    type: string
+    default: '[]'
+  backend-hostname:
+    description: |
+      The hostname to use as the SNI and HTTP Host header when proxying to HTTPS backends.
+      Required when backends use https://. Must be a valid DNS hostname (max 255 characters,
+      alphanumeric segments separated by dots).
+      Example: backend-hostname=backend.example.com
+    type: string
+    default: ""
+  cache-inactive:
+    description: |
+      Time after which a cached item is evicted from disk if not accessed.
+      Uses nginx time format: positive integer followed by s (seconds),
+      m (minutes), h (hours), or d (days). For example: 10m, 1h, 7d.
+      Increase for files that are accessed on long periodic cycles.
+    type: string
+    default: "10m"
+  cache-max-size:
+    description: |
+      Maximum total disk space used by the cache. Uses nginx size format:
+      positive integer followed by k, m, or g (case-insensitive).
+      For example: 512m, 2g. When set, nginx evicts least-recently-used
+      entries when the limit is reached. Empty string means no limit.
+    type: string
+    default: ""

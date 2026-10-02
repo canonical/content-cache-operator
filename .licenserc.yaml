@@ -1,0 +1,36 @@
+header:
+  license:
+    spdx-id: Apache-2.0
+    copyright-owner: Canonical Ltd.
+    content: |
+      Copyright [year] [owner]
+      See LICENSE file for licensing details.
+    pattern: |
+      Copyright \d{4} Canonical Ltd.
+      See LICENSE file for licensing details.
+  paths:
+    - '**'
+  paths-ignore:
+    - '.github/**'
+    - '**/*.json'
+    - '**/*.md'
+    - '**/*.pem'
+    - '**/*.txt'
+    - '**/*.rst'
+    - '.jujuignore'
+    - '.gitignore'
+    - '.licenserc.yaml'
+    - '.readthedocs.yaml'
+    - 'CODEOWNERS'
+    - 'LICENSE'
+    - 'content-cache/lua-upstream-nginx-module-packaging/debian/changelog'
+    - 'trivy.yaml'
+    - 'pyproject.toml'
+    - 'zap_rules.tsv'
+    - 'docs/**'
+    # Ignore charm libraries.
+    - "**/lib/charms/**"
+    # Ignore vendored Vale style-checker vocabulary/dictionary files (copied
+    # verbatim from canonical/documentation-style-guide).
+    - "**/styles/config/**"
+  comment: on-failure

@@ -1,0 +1,55 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+type: charm
+  
+base: ubuntu@24.04
+
+platforms:
+  amd64:
+    build-on: amd64
+    build-for: amd64
+
+parts:
+  nginx-module-lua-upstream:
+    plugin: dump
+    source: https://github.com/openresty/lua-upstream-nginx-module.git
+    source-commit: 0bbdcf1d9b240b1b4ab46667bd67fc93ce7e1295 # nginxUpstreamLuaModuleCommit <- DO NOT REMOVE, used by renovate
+    build-packages:
+      - git
+      - dpkg-dev
+      - libnginx-mod-http-ndk-dev
+      - nginx-dev
+      - liblua5.1-dev
+      - dh-lua
+    override-build: |
+      set -eux
+      # Build package
+      cp -R /root/parts/charm/src/lua-upstream-nginx-module-packaging/debian .
+      curl https://raw.githubusercontent.com/openresty/lua-nginx-module/f44c18859050be5af314bae8f05660478af5e31d/src/api/ngx_http_lua_api.h -O --output-dir debian/
+      dpkg-buildpackage -us -uc
+      cp ../libnginx-mod-http-upstream_0.1_amd64.deb /root/stage
+    prime:
+      - libnginx-mod-http-upstream_0.1_amd64.deb
+  nginx-upstream-healthcheck:
+    plugin: dump
+    source: https://github.com/openresty/lua-resty-upstream-healthcheck.git
+    source-commit: f7906b6b719273bf72a0c616b050d01c6c82f818 # luaHealthchecksCommit <- DO NOT REMOVE, used by renovate
+    override-build:
+      cp /root/parts/nginx-upstream-healthcheck/src/lib/resty/upstream/healthcheck.lua /root/stage/
+    prime:
+      - healthcheck.lua
+  charm:
+    build-packages: 
+      - cargo
+      - rustc
+      - pkg-config
+      - libffi-dev
+      - libssl-dev
+    build-snaps:
+      - rustup
+    override-build: |
+      rustup default stable
+      craftctl default
+    charm-python-packages: [setuptools, pip]  # https://discourse.charmhub.io/t/install-or-update-python-packages-before-packing-a-charm/5158
+    charm-binary-python-packages: [cosl]  # https://github.com/canonical/charmcraft/issues/1269

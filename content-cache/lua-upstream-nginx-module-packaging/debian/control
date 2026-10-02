@@ -1,0 +1,23 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+Source: libnginx-mod-http-upstream
+Section: httpd
+Priority: optional
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Build-Depends: debhelper-compat (= 13),
+               libnginx-mod-http-ndk-dev,
+               nginx-dev (>=1.22.0),
+               liblua5.1-dev,
+               dh-lua
+Rules-Requires-Root: no
+
+Package: libnginx-mod-http-upstream
+Architecture: any
+Depends: libnginx-mod-http-ndk,
+         libnginx-mod-http-lua,
+         libluajit2-5.1-2,
+         ${misc:Depends},
+         ${shlibs:Depends}
+Recommends: nginx
+Description: Health-checker for Nginx upstream servers

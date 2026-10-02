@@ -1,0 +1,26 @@
+name: Tests
+
+on:
+  pull_request:
+
+jobs:
+  unit-tests-content-cache:
+    uses: canonical/operator-workflows/.github/workflows/test.yaml@main
+    secrets: inherit
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      self-hosted-runner: false
+      working-directory: ./content-cache
+      vale-style-check: true
+  unit-tests-content-cache-backends-config:
+    uses: canonical/operator-workflows/.github/workflows/test.yaml@main
+    secrets: inherit
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      self-hosted-runner: false
+      working-directory: ./content-cache-backends-config
+      vale-style-check: true
