@@ -131,6 +131,16 @@ def _ensure_initial_nginx_config() -> None:
     _create_status_page_config()
 
 
+def is_installed() -> bool:
+    """Check whether nginx has already been installed on this unit.
+
+    Returns:
+        True if the nginx binary is present, False otherwise (e.g. before the first
+        install hook has run).
+    """
+    return Path(NGINX_BIN).exists()
+
+
 def initialize(instance_name: str) -> None:  # pragma: no cover
     """Initialize the nginx server.
 
@@ -165,22 +175,12 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
             "cp",
             "-f",
             "healthcheck.lua",
-            "/usr/share/lua/5.1/",
-        ]
-    )
-    if return_code != 0:
-        raise NginxSetupError(f"Failed to install nginx healthcheck plugin: {stderr}")
-
-    return_code, _, stderr = execute_command(
-        [
-            "cp",
-            "-f",
             "sha2.lua",
             "/usr/share/lua/5.1/",
         ]
     )
     if return_code != 0:
-        raise NginxSetupError(f"Failed to install nginx sha2 module: {stderr}")
+        raise NginxSetupError(f"Failed to install nginx lua modules: {stderr}")
 
     logger.info("Clean up default configuration files")
     _reset_nginx_files(instance_name)
@@ -364,7 +364,9 @@ def _write_client_ip_hash_salt(salt: str) -> None:
     try:
         user = pwd.getpwnam(NGINX_USER)
         # Owned by root, only readable (not writable) by nginx group,
-        # so a compromised nginx worker cannot modify it.
+        # so a compromised nginx worker cannot modify it. This relies on the charm
+        # process itself running as root (uid 0); if charmcraft.yaml is ever changed
+        # to run the charm as a non-root user, this chown will fail and needs revisiting.
         NGINX_SECRETS_PATH.mkdir(mode=0o750, parents=True, exist_ok=True)
         os.chown(NGINX_SECRETS_PATH, 0, user.pw_gid)
         NGINX_SECRETS_PATH.chmod(0o750)
@@ -382,6 +384,7 @@ def _write_client_ip_hash_salt(salt: str) -> None:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as tmp_file:
                 tmp_file.write(f'return "{encoded_salt}"\n')
+            # Same root-execution assumption as the chown above.
             os.chown(tmp_path, 0, user.pw_gid)
             tmp_path.chmod(0o640)
             tmp_path.replace(NGINX_CLIENT_IP_SALT_LUA_PATH)

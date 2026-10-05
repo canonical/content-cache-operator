@@ -45,8 +45,13 @@ def get_client_ip_hash_salt(charm: ops.CharmBase) -> str | None:
         The salt string, or None if client IP hashing is not enabled.
     """
     secret_uri = typing.cast("str | None", charm.config.get(CLIENT_IP_HASH_SALT_CONFIG_NAME))
-    if not isinstance(secret_uri, str) or not secret_uri.strip():
+    if secret_uri is None:
         return None
+    if not secret_uri.strip():
+        raise ConfigurationError(
+            f"The {CLIENT_IP_HASH_SALT_CONFIG_NAME} config must reference a valid secret URI, "
+            "not a blank value."
+        )
 
     try:
         secret_content = charm.model.get_secret(id=secret_uri).get_content(refresh=True)
@@ -70,6 +75,26 @@ def get_client_ip_hash_salt(charm: ops.CharmBase) -> str | None:
             "characters, double quotes, backslashes, or dollar signs."
         )
     return salt
+
+
+def is_client_ip_hash_salt_secret(charm: ops.CharmBase, secret_id: str) -> bool:
+    """Check whether a secret ID is the configured client-ip-hash-salt secret.
+
+    Args:
+        charm: The charm to read configuration from.
+        secret_id: The ID of the secret to check (e.g. from a SecretChangedEvent).
+
+    Returns:
+        True if secret_id refers to the secret configured as client-ip-hash-salt,
+        False otherwise (including when the configured secret cannot be resolved).
+    """
+    secret_uri = typing.cast("str | None", charm.config.get(CLIENT_IP_HASH_SALT_CONFIG_NAME))
+    if not secret_uri:
+        return False
+    try:
+        return charm.model.get_secret(id=secret_uri).id == secret_id
+    except (ops.SecretNotFoundError, ops.ModelError):
+        return False
 
 
 def _validate_hostname_value(value: str) -> str:

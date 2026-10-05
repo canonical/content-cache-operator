@@ -38,11 +38,11 @@ from errors import (
 )
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
-    CLIENT_IP_HASH_SALT_CONFIG_NAME,
     NginxConfig,
     get_cache_backend_url,
     get_client_ip_hash_salt,
     get_nginx_config,
+    is_client_ip_hash_salt_secret,
 )
 
 logger = logging.getLogger(__name__)
@@ -175,7 +175,7 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_config_changed(self, _: ops.ConfigChangedEvent) -> None:
         """Handle config-changed event."""
-        if not Path(nginx_manager.NGINX_BIN).exists():
+        if not nginx_manager.is_installed():
             return
         self._load_nginx_config()
 
@@ -186,16 +186,9 @@ class ContentCacheCharm(ops.CharmBase):
             event: The event information, used to ignore rotations of secrets other
                 than the configured client-ip-hash-salt secret.
         """
-        if not Path(nginx_manager.NGINX_BIN).exists():
+        if not nginx_manager.is_installed():
             return
-        configured_secret_uri = self.config.get(CLIENT_IP_HASH_SALT_CONFIG_NAME)
-        if not isinstance(configured_secret_uri, str) or not configured_secret_uri.strip():
-            return
-        try:
-            configured_secret_id = self.model.get_secret(id=configured_secret_uri).id
-        except (ops.SecretNotFoundError, ops.ModelError):
-            return
-        if event.secret.id != configured_secret_id:
+        if not is_client_ip_hash_salt_secret(self, event.secret.id):
             return
         self._load_nginx_config()
 
@@ -213,7 +206,7 @@ class ContentCacheCharm(ops.CharmBase):
         config once nginx is installed, and later cache-config/peer events will pick up
         any port map changes missed in the meantime.
         """
-        if not Path(nginx_manager.NGINX_BIN).exists():
+        if not nginx_manager.is_installed():
             return
         self._load_nginx_config()
 
