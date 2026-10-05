@@ -20,6 +20,30 @@ SAMPLE_HTTPS_EXTRA = {
 }
 
 
+def test_is_installed_true_when_nginx_binary_exists(monkeypatch, tmp_path):
+    """
+    arrange: Point NGINX_BIN at a file that exists.
+    act: Call is_installed.
+    assert: Returns True.
+    """
+    existing = tmp_path / "nginx"
+    existing.touch()
+    monkeypatch.setattr(nginx_manager, "NGINX_BIN", str(existing))
+
+    assert nginx_manager.is_installed() is True
+
+
+def test_is_installed_false_when_nginx_binary_missing(monkeypatch, tmp_path):
+    """
+    arrange: Point NGINX_BIN at a path that does not exist.
+    act: Call is_installed.
+    assert: Returns False.
+    """
+    monkeypatch.setattr(nginx_manager, "NGINX_BIN", str(tmp_path / "missing-nginx"))
+
+    assert nginx_manager.is_installed() is False
+
+
 def test_reset_files_with_missing_dir(patch_nginx_manager: None):
     """
     arrange: The nginx sites config dir are missing.
@@ -225,7 +249,7 @@ def test_update_config_without_backend_hostname_falls_back_to_port_for_logs(
     assert: Log file paths fall back to the port-based identifier.
     """
     mock_instance_name = "mock-test_0"
-    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock(return_value=(0, "", "")))
     mock_status_check = MagicMock()
     mock_status_check.return_value = True
     monkeypatch.setattr("nginx_manager._systemctl_status_check", mock_status_check)

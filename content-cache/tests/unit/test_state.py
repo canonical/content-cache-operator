@@ -15,6 +15,7 @@ from state import (
     LocationConfig,
     get_cache_backend_url,
     get_client_ip_hash_salt,
+    is_client_ip_hash_salt_secret,
 )
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
@@ -279,6 +280,19 @@ def test_get_client_ip_hash_salt_returns_none_when_not_configured():
     assert get_client_ip_hash_salt(charm) is None
 
 
+def test_get_client_ip_hash_salt_rejects_blank_secret_uri():
+    """
+    arrange: A mock charm whose client-ip-hash-salt config is set to a whitespace-only
+        value, rather than being genuinely unset (None).
+    act: Call get_client_ip_hash_salt.
+    assert: ConfigurationError is raised instead of silently disabling hashing.
+    """
+    charm = _charm_with_config({"client-ip-hash-salt": "   "})
+
+    with pytest.raises(ConfigurationError, match="must reference a valid secret URI"):
+        get_client_ip_hash_salt(charm)
+
+
 def test_get_client_ip_hash_salt_returns_salt_when_valid():
     """
     arrange: A mock charm with a client-ip-hash-salt config pointing at a valid secret.
@@ -348,3 +362,53 @@ def test_get_client_ip_hash_salt_rejects_unsafe_value(salt: str):
 
     with pytest.raises(ConfigurationError, match="must not contain control characters"):
         get_client_ip_hash_salt(charm)
+
+
+def test_is_client_ip_hash_salt_secret_matches_configured_secret():
+    """
+    arrange: A mock charm with client-ip-hash-salt configured to a specific secret.
+    act: Call is_client_ip_hash_salt_secret with that secret's id.
+    assert: Returns True.
+    """
+    charm = _charm_with_config({"client-ip-hash-salt": "secret:abc123"})
+    charm.model.get_secret.return_value.id = "secret:abc123"
+
+    assert is_client_ip_hash_salt_secret(charm, "secret:abc123") is True
+
+
+def test_is_client_ip_hash_salt_secret_rejects_other_secret():
+    """
+    arrange: A mock charm with client-ip-hash-salt configured to a specific secret.
+    act: Call is_client_ip_hash_salt_secret with a different secret's id.
+    assert: Returns False.
+    """
+    charm = _charm_with_config({"client-ip-hash-salt": "secret:abc123"})
+    charm.model.get_secret.return_value.id = "secret:abc123"
+
+    assert is_client_ip_hash_salt_secret(charm, "secret:unrelated") is False
+
+
+def test_is_client_ip_hash_salt_secret_false_when_not_configured():
+    """
+    arrange: A mock charm with no client-ip-hash-salt config.
+    act: Call is_client_ip_hash_salt_secret with any secret id.
+    assert: Returns False, without attempting to resolve a secret.
+    """
+    charm = _charm_with_config({})
+
+    assert is_client_ip_hash_salt_secret(charm, "secret:abc123") is False
+    charm.model.get_secret.assert_not_called()
+
+
+def test_is_client_ip_hash_salt_secret_false_when_configured_secret_inaccessible():
+    """
+    arrange: A mock charm whose configured client-ip-hash-salt secret cannot be resolved.
+    act: Call is_client_ip_hash_salt_secret.
+    assert: Returns False instead of raising.
+    """
+    import ops
+
+    charm = _charm_with_config({"client-ip-hash-salt": "secret:missing"})
+    charm.model.get_secret.side_effect = ops.SecretNotFoundError()
+
+    assert is_client_ip_hash_salt_secret(charm, "secret:missing") is False
