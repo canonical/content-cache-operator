@@ -53,6 +53,7 @@ example shows the directives relevant to caching:
 ```nginx
 server {
     listen 30000;
+    listen [::]:30000;
     proxy_cache 30000;
 
     location / {

@@ -187,6 +187,7 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert "fail_timeout=30s" in config_file_content
     assert "server 10.10.10.2:443" in config_file_content
     assert f"listen {port}" in config_file_content
+    assert f"listen [::]:{port}" in config_file_content
     assert "proxy_ssl_server_name on" in config_file_content
     assert "access_log" in config_file_content
     assert "error_log" in config_file_content
@@ -541,6 +542,7 @@ def test_update_config_with_cache_cert_adds_ssl_directives(
 
     config_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
     assert f"listen {port} ssl" in config_content
+    assert f"listen [::]:{port} ssl" in config_content
     assert f"ssl_certificate {cert_file}" in config_content
     assert f"ssl_certificate_key {cert_file}" in config_content
 

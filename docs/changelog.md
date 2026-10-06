@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Each revision is versioned by the date of the revision.
 
+## 2026-10-07
+
+### Added
+
+- Each backend's nginx server block now also listens on the IPv6 wildcard address
+  (`[::]:<port>`), in addition to the existing IPv4 listener, so backends reachable only
+  over IPv6 (e.g. Snap Store, Ubuntu Archive) can be proxied ([#167](https://github.com/canonical/content-cache-operator/issues/167)).
+
 ## 2026-09-16
 
 ### Added
