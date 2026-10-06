@@ -1,6 +1,7 @@
 # Content cache charms
 
 This repository contains the code for two charms:
+
 1. `content-cache`: A machine charm managing a nginx instance configured as a content cache. See the [content-cache README](content-cache/README.md) for more information.
 2. `content-cache-backends-config`: A subordinate charm providing the configuration required to expose a set of backend services. See the [content-cache-backends-config README](content-cache-backends-config/README.md) for more information.
 
@@ -40,9 +41,13 @@ terraform/                             # Example Terraform composition for full 
 
 ## Get started
 
-To begin, refer to the in-repo [Content Cache tutorial](docs/tutorial/index.md) for step-by-step instructions. For component-specific context, see the [`content-cache` README](content-cache/README.md) and the [`content-cache-backends-config` README](content-cache-backends-config/README.md).
+To begin, refer to the in-repo [Content Cache tutorial](docs/tutorial/index.md) for step-by-step instructions.
+For component-specific context, see the [`content-cache` README](content-cache/README.md) and
+the [`content-cache-backends-config` README](content-cache-backends-config/README.md).
 
-For Terraform-based deployments, use the repository-level [example composition](terraform/README.md) or the component base modules in [`content-cache/terraform/README.md`](content-cache/terraform/README.md) and [`content-cache-backends-config/terraform/README.md`](content-cache-backends-config/terraform/README.md).
+For Terraform-based deployments, use the repository-level [example composition](terraform/README.md) or the
+component base modules in [`content-cache/terraform/README.md`](content-cache/terraform/README.md) and
+[`content-cache-backends-config/terraform/README.md`](content-cache-backends-config/terraform/README.md).
 
 ## Integrations
 
