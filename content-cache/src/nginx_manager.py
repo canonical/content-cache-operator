@@ -472,6 +472,11 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-argu
     """
     logger.info("Creating the nginx site configuration file for port %s", port)
     resolved_tls = tls or TLSConfig()
+    # Split logs by the backend hostname (the actual website being cached) so operators can
+    # filter logs/dashboards per site rather than per port. Falls back to the port-based
+    # identifier when no backend hostname is configured (e.g. plain HTTP backends addressed
+    # by IP, where there is no single logical hostname to group by).
+    log_name = configuration.backend_hostname or identifier
 
     lua_healthcheck_workers = ""
     server_cache_dir = NGINX_PROXY_CACHE_DIR_PATH / identifier
@@ -491,12 +496,12 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-argu
             nginx.Key("listen", f"{port}{listen_suffix}"),
             nginx.Key("listen", f"[::]:{port}{listen_suffix}"),
             nginx.Key("proxy_cache", identifier),
-            nginx.Key("access_log", _get_access_log_path(identifier, instance_name)),
+            nginx.Key("access_log", _get_access_log_path(log_name, instance_name)),
             nginx.Key(
                 "access_log",
-                f"{_get_cache_log_path(identifier, instance_name)} {NGINX_CACHE_LOG_FORMAT_NAME}",
+                f"{_get_cache_log_path(log_name, instance_name)} {NGINX_CACHE_LOG_FORMAT_NAME}",
             ),
-            nginx.Key("error_log", _get_error_log_path(identifier, instance_name)),
+            nginx.Key("error_log", _get_error_log_path(log_name, instance_name)),
         )
         if resolved_tls.frontend_cert_path is not None:
             server_config.add(nginx.Key("ssl_certificate", str(resolved_tls.frontend_cert_path)))
@@ -728,7 +733,8 @@ def _get_access_log_path(host: str, instance_name: str) -> Path:
     """Get the access log path for a host.
 
     Args:
-        host: The name of the host.
+        host: The backend hostname being cached, or the port-based identifier when no
+            backend hostname is configured.
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
 
@@ -742,7 +748,8 @@ def _get_cache_log_path(host: str, instance_name: str) -> Path:
     """Get the cache log path for a host.
 
     Args:
-        host: The name of the host.
+        host: The backend hostname being cached, or the port-based identifier when no
+            backend hostname is configured.
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
 
@@ -756,7 +763,8 @@ def _get_error_log_path(host: str, instance_name: str) -> Path:
     """Get the error log path for a host.
 
     Args:
-        host: The name of the host.
+        host: The backend hostname being cached, or the port-based identifier when no
+            backend hostname is configured.
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
 

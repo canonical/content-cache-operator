@@ -189,8 +189,11 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert f"listen {port}" in config_file_content
     assert f"listen [::]:{port}" in config_file_content
     assert "proxy_ssl_server_name on" in config_file_content
-    assert "access_log" in config_file_content
-    assert "error_log" in config_file_content
+    # Logs are split by the backend hostname (not the port) when one is configured, so
+    # operators can filter logs/dashboards by the actual website being cached.
+    assert f"{mock_instance_name}/test.example.com.access.log" in config_file_content
+    assert f"{mock_instance_name}/test.example.com.cache.log" in config_file_content
+    assert f"{mock_instance_name}/test.example.com.error.log" in config_file_content
 
     healthchecks_config_file_content = nginx_manager.NGINX_HEALTHCHECKS_CONF_PATH.read_text()
     assert "GET /" in healthchecks_config_file_content
@@ -209,6 +212,31 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
         "nginx_status"
     ).read_text()
     assert f"listen 127.0.0.1:{nginx_manager.NGINX_STATUS_PORT}" in status_page_config_file_content
+
+
+def test_update_config_without_backend_hostname_falls_back_to_port_for_logs(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: Valid HTTP configuration data without a backend hostname configured.
+    act: Create configuration files from the data.
+    assert: Log file paths fall back to the port-based identifier.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    mock_status_check = MagicMock()
+    mock_status_check.return_value = True
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", mock_status_check)
+    port = 80
+    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_file_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+
+    assert f"{mock_instance_name}/{port}.access.log" in config_file_content
+    assert f"{mock_instance_name}/{port}.cache.log" in config_file_content
+    assert f"{mock_instance_name}/{port}.error.log" in config_file_content
 
 
 def test_get_upstream_config_keys_http(patch_nginx_manager: None):
