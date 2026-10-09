@@ -162,8 +162,7 @@ class LocationConfig(pydantic.BaseModel):
         proxy_cache_valid: The cache valid duration.
         healthcheck_config: The healthcheck configuration.
         backend_hostname: Hostname used for backend SNI, Host header, and as the nginx log
-            filename stem (limited to BACKEND_HOSTNAME_MAX_LENGTH, below the filesystem
-            filename limit, to leave room for the log file suffix).
+            filename stem.
         cache_inactive: Time after which an unaccessed item is evicted from the disk cache.
         cache_max_size: Maximum total disk size for the cache; empty string means no limit.
     """
