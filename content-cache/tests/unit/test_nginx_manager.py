@@ -189,11 +189,12 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert f"listen {port}" in config_file_content
     assert f"listen [::]:{port}" in config_file_content
     assert "proxy_ssl_server_name on" in config_file_content
-    # Logs are split by the backend hostname (not the port) when one is configured, so
-    # operators can filter logs/dashboards by the actual website being cached.
-    assert f"{mock_instance_name}/test.example.com.access.log" in config_file_content
-    assert f"{mock_instance_name}/test.example.com.cache.log" in config_file_content
-    assert f"{mock_instance_name}/test.example.com.error.log" in config_file_content
+    # Logs are keyed by "<port>-<hostname>" when a backend hostname is configured, so
+    # operators can filter logs/dashboards by the actual website being cached, while the
+    # port prefix keeps filenames unique.
+    assert f"{mock_instance_name}/{port}-test.example.com.access.log" in config_file_content
+    assert f"{mock_instance_name}/{port}-test.example.com.cache.log" in config_file_content
+    assert f"{mock_instance_name}/{port}-test.example.com.error.log" in config_file_content
 
     healthchecks_config_file_content = nginx_manager.NGINX_HEALTHCHECKS_CONF_PATH.read_text()
     assert "GET /" in healthchecks_config_file_content
@@ -237,6 +238,43 @@ def test_update_config_without_backend_hostname_falls_back_to_port_for_logs(
     assert f"{mock_instance_name}/{port}.access.log" in config_file_content
     assert f"{mock_instance_name}/{port}.cache.log" in config_file_content
     assert f"{mock_instance_name}/{port}.error.log" in config_file_content
+
+
+def test_build_log_name_without_backend_hostname_returns_port():
+    """
+    arrange: No backend hostname configured.
+    act: Build the log name.
+    assert: The log name is just the port.
+    """
+    assert nginx_manager._build_log_name(8080, "") == "8080"
+
+
+def test_build_log_name_with_backend_hostname_combines_port_and_hostname():
+    """
+    arrange: A short backend hostname configured.
+    act: Build the log name.
+    assert: The log name is "<port>-<hostname>".
+    """
+    assert nginx_manager._build_log_name(8080, "example.com") == "8080-example.com"
+
+
+def test_build_log_name_truncates_long_hostname_to_fit_filename_limit():
+    """
+    arrange: A backend hostname long enough that "<port>-<hostname>.access.log" would exceed
+        the filesystem filename length limit.
+    act: Build the log name.
+    assert: The hostname portion is truncated so the combined name, plus the longest log
+        suffix, stays within the filename length limit; the port prefix is preserved intact.
+    """
+    port = 8080
+    long_hostname = "a" * 250
+    log_name = nginx_manager._build_log_name(port, long_hostname)
+
+    assert log_name.startswith(f"{port}-")
+    assert (
+        len(log_name) + nginx_manager._LONGEST_LOG_FILENAME_SUFFIX_LENGTH
+        <= nginx_manager.NGINX_LOG_FILENAME_MAX_LENGTH
+    )
 
 
 def test_get_upstream_config_keys_http(patch_nginx_manager: None):

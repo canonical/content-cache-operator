@@ -105,16 +105,17 @@ def _build_dotted_hostname(length: int) -> str:
     """Build a syntactically valid dotted hostname of an exact total length.
 
     Each label is capped at 63 characters (the DNS label limit already enforced by
-    `_validate_hostname_value`), joined by single-character dot separators.
+    `_validate_hostname_value`) and at least 1 character, joined by single-character dot
+    separators. Labels are sized as evenly as possible so none end up empty.
     """
-    segments = []
-    remaining = length
-    while remaining > 0:
-        take = min(63, remaining)
-        segments.append("a" * take)
-        remaining -= take
-        if remaining > 0:
-            remaining -= 1  # account for the "." separator
+    segment_count = 1
+    while True:
+        letter_count = length - (segment_count - 1)  # total letters, excluding dots
+        if segment_count <= letter_count <= 63 * segment_count:
+            break
+        segment_count += 1
+    base_length, extra = divmod(letter_count, segment_count)
+    segments = ["a" * (base_length + (1 if i < extra else 0)) for i in range(segment_count)]
     return ".".join(segments)
 
 

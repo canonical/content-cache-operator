@@ -891,7 +891,7 @@
           "uid": "${lokids}"
         },
         "definition": "",
-        "description": "The backend hostname cached by the content cache (falls back to the backend port when no hostname is configured).",
+        "description": "The backend port and hostname cached by the content cache, shown as \"<port>-<hostname>\" (just the port when no hostname is configured). Search by hostname to filter.",
         "hide": 0,
         "includeAll": true,
         "multi": false,

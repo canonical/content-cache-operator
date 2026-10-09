@@ -19,12 +19,11 @@ Each revision is versioned by the date of the revision.
 ### Fixed
 
 - The COS Grafana dashboard's "site" variable, and the per-backend access/cache/error log
-  files it's derived from, are now keyed by the configured backend hostname (the actual
-  website being cached) instead of the backend port. Deployments without a configured
-  backend hostname (e.g. plain HTTP backends addressed by IP) keep the previous
-  port-based log naming as a fallback. The maximum allowed `backend-hostname` length is
-  now 200 characters (previously 255), to leave headroom for the log filename suffix and
-  stay within filesystem filename limits.
+  files it's derived from, are now keyed by `<port>-<hostname>` when a backend hostname is
+  configured (falling back to just the port otherwise), so operators can filter
+  logs/dashboards by the actual website being cached while filenames stay unique even if
+  multiple backends share a hostname. The hostname portion is truncated as needed to stay
+  within filesystem filename limits.
   (Fixes [#163](https://github.com/canonical/content-cache-operator/issues/163))
 
 ## 2026-09-16

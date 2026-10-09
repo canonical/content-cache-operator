@@ -26,10 +26,11 @@ PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
 BACKEND_HOSTNAME_FIELD_NAME = "backend_hostname"
 CACHE_INACTIVE_FIELD_NAME = "cache_inactive"
 CACHE_MAX_SIZE_FIELD_NAME = "cache_max_size"
-# Kept well below the filesystem filename limit (255 bytes on ext4) since backend_hostname is
-# also used as the nginx log filename stem (e.g. "<hostname>.access.log"); the longest log
-# suffix is ".access.log" (11 chars), so 200 leaves comfortable headroom.
-BACKEND_HOSTNAME_MAX_LENGTH = 200
+# The maximum length of a fully-qualified DNS hostname (RFC 1035). backend_hostname is also
+# used (combined with the port) as the nginx log filename stem, but that filename is
+# truncated as needed at log-path construction time, so this limit only needs to reflect
+# valid hostname syntax, not filesystem filename limits.
+BACKEND_HOSTNAME_MAX_LENGTH = 255
 
 
 def _validate_hostname_value(value: str) -> str:
@@ -161,8 +162,8 @@ class LocationConfig(pydantic.BaseModel):
         fail_timeout: The time to wait before using a backend after failure.
         proxy_cache_valid: The cache valid duration.
         healthcheck_config: The healthcheck configuration.
-        backend_hostname: Hostname used for backend SNI, Host header, and as the nginx log
-            filename stem.
+        backend_hostname: Hostname used for backend SNI, Host header, and (combined with the
+            port, truncated as needed to fit filesystem limits) as the nginx log filename stem.
         cache_inactive: Time after which an unaccessed item is evicted from the disk cache.
         cache_max_size: Maximum total disk size for the cache; empty string means no limit.
     """
