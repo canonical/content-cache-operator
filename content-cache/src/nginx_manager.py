@@ -46,6 +46,10 @@ NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
 NGINX_STATUS_PORT = 30200
 
 NGINX_HEALTH_CHECK_TIMEOUT = 300
+# Typical filesystem filename length limit (e.g. ext4), in bytes.
+NGINX_LOG_FILENAME_MAX_LENGTH = 255
+# The longest suffix appended to a log filename stem (access/cache/error logs).
+_LONGEST_LOG_FILENAME_SUFFIX_LENGTH = len(".access.log")
 NGINX_CACHE_LOG_FORMAT_NAME = "cache"
 NGINX_CACHE_LOG_FORMAT = (
     "{"
@@ -472,6 +476,12 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-argu
     """
     logger.info("Creating the nginx site configuration file for port %s", port)
     resolved_tls = tls or TLSConfig()
+    # Split logs by the backend hostname (the actual website being cached) so operators can
+    # filter logs/dashboards per site rather than per port, while keeping the port as a
+    # prefix so log filenames stay unique even if multiple backends share a hostname. Falls
+    # back to the port alone when no backend hostname is configured (e.g. plain HTTP
+    # backends addressed by IP, where there is no single logical hostname to group by).
+    log_name = _build_log_name(port, configuration.backend_hostname)
 
     lua_healthcheck_workers = ""
     server_cache_dir = NGINX_PROXY_CACHE_DIR_PATH / identifier
@@ -491,12 +501,12 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-argu
             nginx.Key("listen", f"{port}{listen_suffix}"),
             nginx.Key("listen", f"[::]:{port}{listen_suffix}"),
             nginx.Key("proxy_cache", identifier),
-            nginx.Key("access_log", _get_access_log_path(identifier, instance_name)),
+            nginx.Key("access_log", _get_access_log_path(log_name, instance_name)),
             nginx.Key(
                 "access_log",
-                f"{_get_cache_log_path(identifier, instance_name)} {NGINX_CACHE_LOG_FORMAT_NAME}",
+                f"{_get_cache_log_path(log_name, instance_name)} {NGINX_CACHE_LOG_FORMAT_NAME}",
             ),
-            nginx.Key("error_log", _get_error_log_path(identifier, instance_name)),
+            nginx.Key("error_log", _get_error_log_path(log_name, instance_name)),
         )
         if resolved_tls.frontend_cert_path is not None:
             server_config.add(nginx.Key("ssl_certificate", str(resolved_tls.frontend_cert_path)))
@@ -724,11 +734,39 @@ def _get_sites_enabled_path(host: str) -> Path:
     return NGINX_SITES_ENABLED_PATH / f"{host}.conf"
 
 
+def _build_log_name(port: int, backend_hostname: str) -> str:
+    """Build the log filename stem for a backend's access/cache/error logs.
+
+    Combines the port (always unique per backend) with the configured backend hostname so
+    operators can filter logs/dashboards by hostname, while the port prefix keeps filenames
+    unique even if multiple backends share the same (or a truncated) hostname. The hostname
+    portion is truncated as needed so the combined stem, plus the longest log suffix
+    (".access.log"), stays within the filesystem's filename length limit.
+
+    Args:
+        port: The TCP port this backend listens on.
+        backend_hostname: The configured backend hostname, or empty string when unset.
+
+    Returns:
+        The log filename stem, e.g. "8080-example.com", or just "8080" when no backend
+        hostname is configured.
+    """
+    if not backend_hostname:
+        return str(port)
+
+    port_prefix = f"{port}-"
+    max_hostname_length = (
+        NGINX_LOG_FILENAME_MAX_LENGTH - _LONGEST_LOG_FILENAME_SUFFIX_LENGTH - len(port_prefix)
+    )
+    return port_prefix + backend_hostname[:max_hostname_length]
+
+
 def _get_access_log_path(host: str, instance_name: str) -> Path:
     """Get the access log path for a host.
 
     Args:
-        host: The name of the host.
+        host: The log filename stem, built from the backend port and (if configured) the
+            backend hostname. See _build_log_name.
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
 
@@ -742,7 +780,8 @@ def _get_cache_log_path(host: str, instance_name: str) -> Path:
     """Get the cache log path for a host.
 
     Args:
-        host: The name of the host.
+        host: The log filename stem, built from the backend port and (if configured) the
+            backend hostname. See _build_log_name.
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
 
@@ -756,7 +795,8 @@ def _get_error_log_path(host: str, instance_name: str) -> Path:
     """Get the error log path for a host.
 
     Args:
-        host: The name of the host.
+        host: The log filename stem, built from the backend port and (if configured) the
+            backend hostname. See _build_log_name.
         instance_name: The name of this instance. This is to uniquely identify this instance in
             logs and metrics. The name will be used in filenames.
 

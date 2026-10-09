@@ -157,7 +157,8 @@ class LocationConfig(pydantic.BaseModel):
         fail_timeout: The time to wait before using a backend after failure.
         proxy_cache_valid: The cache valid duration.
         healthcheck_config: The healthcheck configuration.
-        backend_hostname: Hostname used for backend SNI and Host header.
+        backend_hostname: Hostname used for backend SNI, Host header, and (combined with the
+            port) as the nginx log filename stem.
         cache_inactive: Time after which an unaccessed item is evicted from the disk cache.
         cache_max_size: Maximum total disk size for the cache; empty string means no limit.
     """

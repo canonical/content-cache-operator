@@ -189,8 +189,12 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     assert f"listen {port}" in config_file_content
     assert f"listen [::]:{port}" in config_file_content
     assert "proxy_ssl_server_name on" in config_file_content
-    assert "access_log" in config_file_content
-    assert "error_log" in config_file_content
+    # Logs are keyed by "<port>-<hostname>" when a backend hostname is configured, so
+    # operators can filter logs/dashboards by the actual website being cached, while the
+    # port prefix keeps filenames unique.
+    assert f"{mock_instance_name}/{port}-test.example.com.access.log" in config_file_content
+    assert f"{mock_instance_name}/{port}-test.example.com.cache.log" in config_file_content
+    assert f"{mock_instance_name}/{port}-test.example.com.error.log" in config_file_content
 
     healthchecks_config_file_content = nginx_manager.NGINX_HEALTHCHECKS_CONF_PATH.read_text()
     assert "GET /" in healthchecks_config_file_content
@@ -209,6 +213,68 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
         "nginx_status"
     ).read_text()
     assert f"listen 127.0.0.1:{nginx_manager.NGINX_STATUS_PORT}" in status_page_config_file_content
+
+
+def test_update_config_without_backend_hostname_falls_back_to_port_for_logs(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: Valid HTTP configuration data without a backend hostname configured.
+    act: Create configuration files from the data.
+    assert: Log file paths fall back to the port-based identifier.
+    """
+    mock_instance_name = "mock-test_0"
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock())
+    mock_status_check = MagicMock()
+    mock_status_check.return_value = True
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", mock_status_check)
+    port = 80
+    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+
+    nginx_manager.update_and_load_config(sample_data, mock_instance_name)
+
+    config_file_content = nginx_manager._get_sites_enabled_path(str(port)).read_text()
+
+    assert f"{mock_instance_name}/{port}.access.log" in config_file_content
+    assert f"{mock_instance_name}/{port}.cache.log" in config_file_content
+    assert f"{mock_instance_name}/{port}.error.log" in config_file_content
+
+
+def test_build_log_name_without_backend_hostname_returns_port():
+    """
+    arrange: No backend hostname configured.
+    act: Build the log name.
+    assert: The log name is just the port.
+    """
+    assert nginx_manager._build_log_name(8080, "") == "8080"
+
+
+def test_build_log_name_with_backend_hostname_combines_port_and_hostname():
+    """
+    arrange: A short backend hostname configured.
+    act: Build the log name.
+    assert: The log name is "<port>-<hostname>".
+    """
+    assert nginx_manager._build_log_name(8080, "example.com") == "8080-example.com"
+
+
+def test_build_log_name_truncates_long_hostname_to_fit_filename_limit():
+    """
+    arrange: A backend hostname long enough that "<port>-<hostname>.access.log" would exceed
+        the filesystem filename length limit.
+    act: Build the log name.
+    assert: The hostname portion is truncated so the combined name, plus the longest log
+        suffix, stays within the filename length limit; the port prefix is preserved intact.
+    """
+    port = 8080
+    long_hostname = "a" * 250
+    log_name = nginx_manager._build_log_name(port, long_hostname)
+
+    assert log_name.startswith(f"{port}-")
+    assert (
+        len(log_name) + nginx_manager._LONGEST_LOG_FILENAME_SUFFIX_LENGTH
+        <= nginx_manager.NGINX_LOG_FILENAME_MAX_LENGTH
+    )
 
 
 def test_get_upstream_config_keys_http(patch_nginx_manager: None):

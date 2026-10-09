@@ -16,6 +16,16 @@ Each revision is versioned by the date of the revision.
   (`[::]:<port>`), in addition to the existing IPv4 listener, so backends reachable only
   over IPv6 (e.g. Snap Store, Ubuntu Archive) can be proxied ([#167](https://github.com/canonical/content-cache-operator/issues/167)).
 
+### Fixed
+
+- The COS Grafana dashboard's "site" variable, and the per-backend access/cache/error log
+  files it's derived from, are now keyed by `<port>-<hostname>` when a backend hostname is
+  configured (falling back to just the port otherwise), so operators can filter
+  logs/dashboards by the actual website being cached while filenames stay unique even if
+  multiple backends share a hostname. The hostname portion is truncated as needed to stay
+  within filesystem filename limits.
+  (Fixes [#163](https://github.com/canonical/content-cache-operator/issues/163))
+
 ## 2026-09-16
 
 ### Added
