@@ -22,7 +22,10 @@ Each revision is versioned by the date of the revision.
   files it's derived from, are now keyed by the configured backend hostname (the actual
   website being cached) instead of the backend port. Deployments without a configured
   backend hostname (e.g. plain HTTP backends addressed by IP) keep the previous
-  port-based log naming as a fallback. (Fixes [#163](https://github.com/canonical/content-cache-operator/issues/163))
+  port-based log naming as a fallback. The maximum allowed `backend-hostname` length is
+  now 200 characters (previously 255), to leave headroom for the log filename suffix and
+  stay within filesystem filename limits.
+  (Fixes [#163](https://github.com/canonical/content-cache-operator/issues/163))
 
 ## 2026-09-16
 

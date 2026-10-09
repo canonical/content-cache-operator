@@ -10,6 +10,7 @@ import pytest
 
 from errors import ConfigurationError
 from state import (
+    BACKEND_HOSTNAME_MAX_LENGTH,
     BACKENDS_FIELD_NAME,
     PROXY_CACHE_VALID_FIELD_NAME,
     LocationConfig,
@@ -98,6 +99,56 @@ def test_config_https_backends_require_backend_fields():
         LocationConfig.from_integration_data(data)
 
     assert "backend-hostname is required" in str(err.value)
+
+
+def _build_dotted_hostname(length: int) -> str:
+    """Build a syntactically valid dotted hostname of an exact total length.
+
+    Each label is capped at 63 characters (the DNS label limit already enforced by
+    `_validate_hostname_value`), joined by single-character dot separators.
+    """
+    segments = []
+    remaining = length
+    while remaining > 0:
+        take = min(63, remaining)
+        segments.append("a" * take)
+        remaining -= take
+        if remaining > 0:
+            remaining -= 1  # account for the "." separator
+    return ".".join(segments)
+
+
+def test_config_backend_hostname_at_max_length_accepted():
+    """
+    arrange: Integration data with a backend-hostname exactly at the max allowed length.
+    act: Create the config from the data.
+    assert: The configuration is accepted without error.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    hostname = _build_dotted_hostname(BACKEND_HOSTNAME_MAX_LENGTH)
+    assert len(hostname) == BACKEND_HOSTNAME_MAX_LENGTH
+    data["backend_hostname"] = hostname
+
+    config = LocationConfig.from_integration_data(data)
+
+    assert config.backend_hostname == hostname
+
+
+def test_config_backend_hostname_exceeding_max_length_rejected():
+    """
+    arrange: Integration data with a backend-hostname one character over the max length.
+    act: Create the config from the data.
+    assert: ConfigurationError is raised due to the hostname being too long.
+    """
+    data = dict(SAMPLE_INTEGRATION_DATA)
+    hostname = _build_dotted_hostname(BACKEND_HOSTNAME_MAX_LENGTH + 1)
+    assert len(hostname) == BACKEND_HOSTNAME_MAX_LENGTH + 1
+    data["backend_hostname"] = hostname
+
+    with pytest.raises(ConfigurationError) as err:
+        LocationConfig.from_integration_data(data)
+
+    assert "Hostname cannot be longer than" in str(err.value)
 
 
 def test_config_mixed_scheme_raises():
