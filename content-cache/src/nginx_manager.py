@@ -483,9 +483,13 @@ def _create_virtualhost_config(  # pylint: disable=too-many-locals,too-many-argu
                 _build_proxy_cache_path(server_cache_dir, identifier, configuration),
             ),
         )
-        listen_value = f"{port} ssl" if resolved_tls.frontend_cert_path else str(port)
+        listen_suffix = " ssl" if resolved_tls.frontend_cert_path else ""
         server_config = nginx.Server(
-            nginx.Key("listen", listen_value),
+            # Listen on both IPv4 and IPv6 wildcard addresses so backends reachable only
+            # over IPv6 (e.g. Snap Store, Ubuntu Archive) can be proxied. The IPv6 listener
+            # defaults to ipv6only=on, so it never competes with the IPv4 listener above.
+            nginx.Key("listen", f"{port}{listen_suffix}"),
+            nginx.Key("listen", f"[::]:{port}{listen_suffix}"),
             nginx.Key("proxy_cache", identifier),
             nginx.Key("access_log", _get_access_log_path(identifier, instance_name)),
             nginx.Key(
