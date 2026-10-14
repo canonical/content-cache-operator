@@ -56,5 +56,7 @@ The complete list of available integrations can be found [in the Integrations ta
 [Juju]: https://juju.is
 [content-cache-integrations]: https://charmhub.io/content-cache/integrations
 
+<!-- vale off -->
 <!-- BEGIN_TF_DOCS -->
 <!-- END_TF_DOCS -->
+<!-- vale on -->

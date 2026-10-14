@@ -1,21 +1,20 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-name: Test Terraform Module
+name: Terraform modules tests
+
 on:
   workflow_dispatch:
   pull_request:
     paths:
-      - '**/terraform/**'
-      - '.github/workflows/test_terraform_modules.yaml'
-
-permissions:
-  contents: read
+      - "**/terraform/**"
+      - ".github/workflows/test_terraform_modules.yaml"
 
 jobs:
-  test-terraform:
+  terraform-tests-lxd:
     uses: canonical/operator-workflows/.github/workflows/terraform_modules_test.yaml@030c5b20a0bb880dcf1ed326bff0fc16b6eb6ac1  # main
+    secrets: inherit
     with:
-      lxd-controller: true
       k8s-controller: false
+      lxd-controller: true
       terraform-directories: '["content-cache/terraform", "content-cache-backends-config/terraform", "terraform"]'

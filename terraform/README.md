@@ -45,5 +45,7 @@ configuration — those are environment specific. Supply your own `providers.tf`
 [Terraform]: https://www.terraform.io/
 [Terraform Juju provider]: https://registry.terraform.io/providers/juju/juju/latest
 
+<!-- vale off -->
 <!-- BEGIN_TF_DOCS -->
 <!-- END_TF_DOCS -->
+<!-- vale on -->

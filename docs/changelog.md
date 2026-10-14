@@ -18,7 +18,7 @@ Each revision is versioned by the date of the revision.
   combined `endpoints` output into `provides`/`requires` maps, and changed the
   `application` output to the full `juju_application` object.
   Breaking default changes: `expose` is now an object (`cidrs`/`endpoints`/`spaces`)
-  defaulting to `{}` (exposed with no restrictions) instead of a bool defaulting to
+  defaulting to `{}` (exposed with no restrictions) instead of a `bool` defaulting to
   `false` (not exposed); `base` and `constraints` now default to `null` (the charm's
   and Juju's own defaults) instead of `ubuntu@24.04` and `arch=amd64` respectively.
   Added a `terraform_modules_compliance` CI workflow, a `terraform_modules_release`
