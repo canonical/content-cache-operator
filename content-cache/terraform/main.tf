@@ -16,7 +16,12 @@ resource "juju_application" "content_cache" {
   units       = var.units
 
   dynamic "expose" {
-    for_each = var.expose ? [1] : []
-    content {}
+    for_each = var.expose == null ? [] : [var.expose]
+
+    content {
+      cidrs     = expose.value.cidrs
+      endpoints = expose.value.endpoints
+      spaces    = expose.value.spaces
+    }
   }
 }

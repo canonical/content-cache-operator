@@ -1,0 +1,23 @@
+# Copyright 2026 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+name: Generate Terraform docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/terraform/**'
+      - '.github/workflows/generate_terraform_docs.yaml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate-terraform-docs:
+    uses: canonical/operator-workflows/.github/workflows/generate_terraform_docs.yaml@030c5b20a0bb880dcf1ed326bff0fc16b6eb6ac1  # main
+    with:
+      terraform-directory: 'content-cache/terraform,content-cache-backends-config/terraform,terraform'
+    secrets: inherit

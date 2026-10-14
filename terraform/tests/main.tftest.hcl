@@ -25,18 +25,23 @@ run "plan_composition" {
   }
 
   assert {
-    condition     = output.content_cache_app_name == "content-cache"
-    error_message = "content-cache app_name did not match expected"
+    condition     = output.models.content_cache.components.content_cache.name == "content-cache"
+    error_message = "content-cache application name did not match expected"
   }
 
   assert {
-    condition     = output.content_cache_backends_config_app_name == "content-cache-backends-config"
-    error_message = "content-cache-backends-config app_name did not match expected"
+    condition     = output.models.content_cache.components.content_cache_backends_config.name == "content-cache-backends-config"
+    error_message = "content-cache-backends-config application name did not match expected"
   }
 
   assert {
-    condition     = output.certificates_app_name == "content-cache-certs"
-    error_message = "certificates app_name did not match expected"
+    condition     = output.models.content_cache.components.certificates.name == "content-cache-certs"
+    error_message = "certificates application name did not match expected"
+  }
+
+  assert {
+    condition     = output.metadata.version == "1.0.0"
+    error_message = "metadata.version did not match expected"
   }
 
   assert {
@@ -49,10 +54,10 @@ run "plan_composition" {
   assert {
     condition = contains(
       [for a in juju_integration.cache_to_backends_config.application : a.name],
-      module.content_cache.app_name
+      module.content_cache.application.name
       ) && contains(
       [for a in juju_integration.cache_to_backends_config.application : a.name],
-      module.content_cache_backends_config.app_name
+      module.content_cache_backends_config.application.name
     )
     error_message = "cache-config integration did not connect content-cache and content-cache-backends-config"
   }
@@ -67,11 +72,24 @@ run "plan_composition" {
   assert {
     condition = contains(
       [for a in juju_integration.cache_to_certificates.application : a.name],
-      module.content_cache.app_name
+      module.content_cache.application.name
       ) && contains(
       [for a in juju_integration.cache_to_certificates.application : a.name],
       juju_application.certificates.name
     )
     error_message = "certificates integration did not connect content-cache and content-cache-certs"
   }
+}
+
+run "rejects_invalid_risk" {
+  command = plan
+
+  variables {
+    model = "tf-testing-content-cache-composition"
+    risk  = "candidate"
+  }
+
+  expect_failures = [
+    var.risk,
+  ]
 }

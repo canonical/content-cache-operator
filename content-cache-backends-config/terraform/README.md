@@ -17,8 +17,8 @@ with zero units of its own.
   except for exposing the deployment options (Juju model, channel or application name).
 - **outputs.tf** - Integrates the module with other Terraform modules, primarily
   by defining potential integration endpoints (charm integrations), but also by exposing
-  the Juju application name.
-- **versions.tf** - Defines the Terraform provider version.
+  the deployed Juju application.
+- **terraform.tf** - Defines the Terraform and Juju provider version requirements.
 
 ## Using the content-cache-backends-config base module in higher level modules
 
@@ -31,7 +31,7 @@ data "juju_model" "my_model" {
 }
 
 module "content_cache_backends_config" {
-  source = "git::https://github.com/canonical/content-cache-operator//content-cache-backends-config/terraform"
+  source = "git::https://github.com/canonical/content-cache-operator//content-cache-backends-config/terraform?ref=tf-1.0.0"
 
   model_uuid = data.juju_model.my_model.uuid
   config = {
@@ -48,12 +48,12 @@ Integrate it with the `content-cache` principal:
 resource "juju_integration" "cache_config" {
   model_uuid = data.juju_model.my_model.uuid
   application {
-    name     = module.content_cache.app_name
-    endpoint = module.content_cache.endpoints.cache_config
+    name     = module.content_cache.application.name
+    endpoint = module.content_cache.provides.cache_config.endpoint
   }
   application {
-    name     = module.content_cache_backends_config.app_name
-    endpoint = module.content_cache_backends_config.endpoints.cache_config
+    name     = module.content_cache_backends_config.application.name
+    endpoint = module.content_cache_backends_config.requires.cache_config.endpoint
   }
 }
 ```
@@ -64,3 +64,6 @@ The complete list of available integrations can be found [in the Integrations ta
 [Terraform Juju provider]: https://registry.terraform.io/providers/juju/juju/latest
 [Juju]: https://juju.is
 [integrations]: https://charmhub.io/content-cache-backends-config/integrations
+
+<!-- BEGIN_TF_DOCS -->
+<!-- END_TF_DOCS -->

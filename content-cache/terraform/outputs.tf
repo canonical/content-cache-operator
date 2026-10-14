@@ -1,19 +1,43 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-output "app_name" {
-  description = "Name of the deployed application."
-  value       = juju_application.content_cache.name
+output "application" {
+  description = "The deployed content-cache juju_application object."
+  value       = juju_application.content_cache
 }
 
-output "endpoints" {
-  description = "Integration endpoints exposed by the content-cache charm."
+output "provides" {
+  description = "Map of the integration endpoints provided by the content-cache charm."
   value = {
-    # Provides
-    cache_config = "cache-config"
-    cos_agent    = "cos-agent"
-    # Requires
-    certificates    = "certificates"
-    receive_ca_cert = "receive-ca-cert"
+    cache_config = {
+      kind       = "endpoint"
+      name       = juju_application.content_cache.name
+      endpoint   = "cache-config"
+      controller = null
+    }
+    cos_agent = {
+      kind       = "endpoint"
+      name       = juju_application.content_cache.name
+      endpoint   = "cos-agent"
+      controller = null
+    }
+  }
+}
+
+output "requires" {
+  description = "Map of the integration endpoints required by the content-cache charm."
+  value = {
+    certificates = {
+      kind       = "endpoint"
+      name       = juju_application.content_cache.name
+      endpoint   = "certificates"
+      controller = null
+    }
+    receive_ca_cert = {
+      kind       = "endpoint"
+      name       = juju_application.content_cache.name
+      endpoint   = "receive-ca-cert"
+      controller = null
+    }
   }
 }

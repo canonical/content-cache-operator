@@ -19,8 +19,13 @@ run "basic_deploy" {
   }
 
   assert {
-    condition     = output.app_name == "content-cache-backends-config"
-    error_message = "content-cache-backends-config app_name did not match expected"
+    condition     = output.application.name == "content-cache-backends-config"
+    error_message = "content-cache-backends-config application name did not match expected"
+  }
+
+  assert {
+    condition     = output.requires.cache_config.endpoint == "cache-config"
+    error_message = "content-cache-backends-config requires.cache_config endpoint did not match expected"
   }
 }
 
