@@ -462,6 +462,14 @@ def _create_http_config(healthcheck_workers_lua_code: str) -> None:
     logger.info("Creating the cache log format configuration")
     # The following should not throw any nginx.ParseError as it is static.
     log_format_config = nginx.Conf(
+        # $logged_client_address is normally set per-server block (see
+        # _get_logged_client_address_directive), but nginx requires every variable
+        # referenced in a log_format to be declared somewhere in the configuration,
+        # even when no server blocks exist yet (e.g. right after initial install,
+        # before any backend is configured). Declaring it here with a default value
+        # keeps "nginx -t"/reload working in that case; per-server "set"/Lua
+        # directives still take precedence for configured backends.
+        nginx.Map("$remote_addr $logged_client_address", nginx.Key("default", "$remote_addr")),
         nginx.Key("log_format", f"{NGINX_MAIN_LOG_FORMAT_NAME} '{NGINX_MAIN_LOG_FORMAT}'"),
         nginx.Key("log_format", f"{NGINX_CACHE_LOG_FORMAT_NAME} '{NGINX_CACHE_LOG_FORMAT}'"),
     )

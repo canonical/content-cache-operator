@@ -151,6 +151,27 @@ def test_initialize_starts_nginx_when_not_already_running(monkeypatch, patch_ngi
     assert ["sudo", "systemctl", "reload", "nginx"] not in commands_run
 
 
+def test_initialize_declares_logged_client_address_before_any_backend(
+    monkeypatch, patch_nginx_manager: None
+):
+    """
+    arrange: No backend/location has been configured yet, i.e. no server block exists
+        to "set" $logged_client_address.
+    act: Call initialize.
+    assert: The HTTP-level config still declares $logged_client_address (defaulting to
+        $remote_addr) via a "map" directive, so nginx does not reject the log_format
+        directives referencing it with an "unknown ... variable" error.
+    """
+    monkeypatch.setattr("nginx_manager.execute_command", MagicMock(return_value=(0, "", "")))
+    monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
+
+    nginx_manager.initialize("mock-test_0")
+
+    config_content = nginx_manager._get_http_config_path("cache_log_format").read_text()
+    assert "map $remote_addr $logged_client_address" in config_content
+    assert "default $remote_addr;" in config_content
+
+
 def test_initialize_binds_status_page_regardless_of_relations(
     monkeypatch, patch_nginx_manager: None
 ):
