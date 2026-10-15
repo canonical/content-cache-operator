@@ -15,7 +15,7 @@ data "juju_model" "cache" {
 }
 
 module "content_cache" {
-  source = "../content-cache/terraform"
+  source = "../charm/content_cache"
 
   model_uuid = data.juju_model.cache.uuid
   channel    = local.content_cache_channel
@@ -25,7 +25,7 @@ module "content_cache" {
 }
 
 module "content_cache_backends_config" {
-  source = "../content-cache-backends-config/terraform"
+  source = "../charm/content_cache_backends_config"
 
   model_uuid = data.juju_model.cache.uuid
   channel    = local.backends_config_channel

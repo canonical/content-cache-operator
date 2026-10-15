@@ -8,16 +8,12 @@ name: Update Terraform documentation
 on:
   pull_request:
     paths:
-      - "content-cache/terraform/**"
-      - "content-cache-backends-config/terraform/**"
       - "terraform/**"
       - ".github/workflows/generate_terraform_docs.yaml"
   push:
     branches:
       - main
     paths:
-      - "content-cache/terraform/**"
-      - "content-cache-backends-config/terraform/**"
       - "terraform/**"
       - ".github/workflows/generate_terraform_docs.yaml"
 
@@ -31,4 +27,4 @@ jobs:
     uses: canonical/operator-workflows/.github/workflows/generate_terraform_docs.yaml@030c5b20a0bb880dcf1ed326bff0fc16b6eb6ac1  # main
     secrets: inherit
     with:
-      terraform-directory: content-cache/terraform,content-cache-backends-config/terraform,terraform
+      terraform-directory: terraform/charm/content_cache,terraform/charm/content_cache_backends_config,terraform/product

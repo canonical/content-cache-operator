@@ -26,6 +26,10 @@ Each revision is versioned by the date of the revision.
   workflow. The example composition module now also declares a `risk` input (defaulting
   to `edge` to preserve its existing channel defaults) and standardized `models`/
   `metadata` outputs.
+  Moved the Terraform modules to the standard repository layout: `content-cache/terraform`
+  is now `terraform/charm/content_cache`, `content-cache-backends-config/terraform` is now
+  `terraform/charm/content_cache_backends_config`, and the example composition moved from
+  `terraform` to `terraform/product`.
 
 ## 2026-10-07
 

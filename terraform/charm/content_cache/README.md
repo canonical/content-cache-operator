@@ -26,7 +26,7 @@ data "juju_model" "my_model" {
 }
 
 module "content_cache" {
-  source = "git::https://github.com/canonical/content-cache-operator//content-cache/terraform?ref=tf-1.0.0"
+  source = "git::https://github.com/canonical/content-cache-operator//terraform/charm/content_cache?ref=tf-1.0.0"
 
   model_uuid = data.juju_model.my_model.uuid
   # (Customize configuration variables here if needed)

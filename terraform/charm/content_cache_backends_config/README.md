@@ -31,7 +31,7 @@ data "juju_model" "my_model" {
 }
 
 module "content_cache_backends_config" {
-  source = "git::https://github.com/canonical/content-cache-operator//content-cache-backends-config/terraform?ref=tf-1.0.0"
+  source = "git::https://github.com/canonical/content-cache-operator//terraform/charm/content_cache_backends_config?ref=tf-1.0.0"
 
   model_uuid = data.juju_model.my_model.uuid
   config = {
