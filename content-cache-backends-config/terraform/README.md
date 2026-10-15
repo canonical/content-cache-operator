@@ -62,7 +62,7 @@ The complete list of available integrations can be found [in the Integrations ta
 
 [Terraform]: https://www.terraform.io/
 [Terraform Juju provider]: https://registry.terraform.io/providers/juju/juju/latest
-[Juju]: https://juju.is
+[Juju]: https://canonical.com/juju
 [integrations]: https://charmhub.io/content-cache-backends-config/integrations
 
 <!-- vale off -->
