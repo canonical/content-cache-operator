@@ -46,6 +46,9 @@ NGINX_USER = "www-data"
 NGINX_SECRETS_PATH = Path("/etc/nginx/secrets")
 NGINX_CLIENT_IP_SALT_LUA_MODULE = "content_cache_client_ip_salt"
 NGINX_CLIENT_IP_SALT_LUA_PATH = NGINX_SECRETS_PATH / f"{NGINX_CLIENT_IP_SALT_LUA_MODULE}.lua"
+NGINX_LUA_MODULES_PATH = Path("/usr/share/lua/5.1")
+NGINX_SHA2_LUA_SOURCE = "sha2.lua"
+NGINX_SHA2_LUA_PATH = NGINX_LUA_MODULES_PATH / NGINX_SHA2_LUA_SOURCE
 
 NGINX_STATUS_URL_PATH = "/nginx_status"
 NGINX_BACKENDS_STATUS_URL_PATH = "/nginx_backends_status"
@@ -179,8 +182,7 @@ def initialize(instance_name: str) -> None:  # pragma: no cover
             "cp",
             "-f",
             "healthcheck.lua",
-            "sha2.lua",
-            "/usr/share/lua/5.1/",
+            str(NGINX_LUA_MODULES_PATH),
         ]
     )
     if return_code != 0:
@@ -265,13 +267,14 @@ def update_and_load_config(
     _reset_nginx_files(instance_name)
 
     if client_ip_hash_salt is not None:
-        # Written eagerly, before configuration generation and reload. The module always
-        # holds "whichever salt is currently configured" and carries no identity tied to a
-        # specific configuration generation, so writing it early can never desynchronize it
-        # from a vhost configuration: at worst, a worker still running a previous, hashed
-        # configuration picks up the new salt slightly before the reload it belongs to,
-        # which only means that worker's logs start using the new salt a little early -
-        # never a drop back to logging plaintext addresses.
+        # Installed/written eagerly, before configuration generation and reload. The salt
+        # module always holds "whichever salt is currently configured" and carries no
+        # identity tied to a specific configuration generation, so writing it early can
+        # never desynchronize it from a vhost configuration: at worst, a worker still
+        # running a previous, hashed configuration picks up the new salt slightly before
+        # the reload it belongs to, which only means that worker's logs start using the
+        # new salt a little early - never a drop back to logging plaintext addresses.
+        _ensure_sha2_module_installed()
         _write_client_ip_hash_salt(client_ip_hash_salt)
 
     tls = TLSConfig(frontend_cert_path=frontend_cert_path)
@@ -311,12 +314,13 @@ def update_and_load_config(
     reload_succeeded = _load_config()
 
     if client_ip_hash_salt is None and reload_succeeded:
-        # Only remove the module after a confirmed successful reload, so a worker still
+        # Only remove the modules after a confirmed successful reload, so a worker still
         # running the previous, hashed configuration (and which has not yet required the
-        # module for its first hashed log entry) is never left with a missing file to
+        # modules for its first hashed log entry) is never left with a missing file to
         # require mid-request. If the reload failed, the previous configuration - which may
-        # still need this module - remains active, so leave the file in place.
+        # still need these modules - remains active, so leave the files in place.
         NGINX_CLIENT_IP_SALT_LUA_PATH.unlink(missing_ok=True)
+        NGINX_SHA2_LUA_PATH.unlink(missing_ok=True)
 
 
 def _load_config() -> bool:  # pragma: no cover
@@ -354,6 +358,21 @@ def _reset_nginx_files(instance_name: str) -> None:
     _ensure_directory_exist_with_ownership(NGINX_PROXY_CACHE_DIR_PATH)
     logger.info("Ensure nginx log directory is present.")
     _ensure_directory_exist_with_ownership(NGINX_LOG_PATH / instance_name)
+
+
+def _ensure_sha2_module_installed() -> None:
+    """Install the sha2.lua module, used by the client IP hashing Lua block.
+
+    Raises:
+        NginxFileError: Failure to install the sha2.lua module.
+    """
+    if NGINX_SHA2_LUA_PATH.exists():
+        return
+    return_code, _, stderr = execute_command(
+        ["cp", "-f", NGINX_SHA2_LUA_SOURCE, str(NGINX_LUA_MODULES_PATH)]
+    )
+    if return_code != 0:
+        raise NginxFileError(f"Failed to install nginx sha2 module: {stderr}")
 
 
 def _write_client_ip_hash_salt(salt: str) -> None:

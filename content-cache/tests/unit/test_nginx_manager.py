@@ -960,16 +960,19 @@ def test_update_config_enabling_salt_writes_module_before_reload(
     assert not nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
     module_existed_during_reload = []
 
-    def _record_and_succeed(_cmd):
-        """Record whether the salt module exists, then report the command as successful.
+    def _record_and_succeed(cmd):
+        """Record whether the salt module exists during the reload command.
 
         Args:
-            _cmd: The command that would have been executed (unused).
+            cmd: The command that would have been executed.
 
         Returns:
             A tuple mimicking a successful execute_command call.
         """
-        module_existed_during_reload.append(nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists())
+        if cmd[:3] == ["sudo", nginx_manager.NGINX_BIN, "-s"]:
+            module_existed_during_reload.append(
+                nginx_manager.NGINX_CLIENT_IP_SALT_LUA_PATH.exists()
+            )
         return 0, "", ""
 
     fake_execute_command = MagicMock(side_effect=_record_and_succeed)
