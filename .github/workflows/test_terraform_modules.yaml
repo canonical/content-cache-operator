@@ -17,4 +17,4 @@ jobs:
     with:
       k8s-controller: false
       lxd-controller: true
-      terraform-directories: '["terraform/charm/content_cache", "terraform/charm/content_cache_backends_config", "terraform/product"]'
+      terraform-directories: '["terraform/charm/content_cache", "terraform/charm/content_cache_backends_config"]'

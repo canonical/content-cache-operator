@@ -24,7 +24,6 @@ terraform/
   charm/
     content_cache/                     # Base Terraform module for deploying content-cache
     content_cache_backends_config/     # Base Terraform module for deploying content-cache-backends-config
-  product/                             # Example Terraform composition for full content-cache deployment
 ```
 
 ## Components
@@ -47,8 +46,7 @@ To begin, refer to the in-repo [Content Cache tutorial](docs/tutorial/index.md) 
 For component-specific context, see the [`content-cache` README](content-cache/README.md) and
 the [`content-cache-backends-config` README](content-cache-backends-config/README.md).
 
-For Terraform-based deployments, use the repository-level [example composition](terraform/product/README.md) or the
-component base modules in [`terraform/charm/content_cache/README.md`](terraform/charm/content_cache/README.md) and
+For Terraform-based deployments, use the component base modules in [`terraform/charm/content_cache/README.md`](terraform/charm/content_cache/README.md) and
 [`terraform/charm/content_cache_backends_config/README.md`](terraform/charm/content_cache_backends_config/README.md).
 
 ## Integrations

@@ -12,8 +12,7 @@ Each revision is versioned by the date of the revision.
 
 ### Changed
 
-- Migrated the `content-cache`, `content-cache-backends-config`, and the example
-  composition Terraform modules to the CC008 Charm Terraform Module standard:
+- Migrated the `content-cache` and `content-cache-backends-config` Terraform modules to the CC008 Charm Terraform Module standard:
   renamed `versions.tf` to `terraform.tf` and added `required_version`, split the
   combined `endpoints` output into `provides`/`requires` maps, and changed the
   `application` output to the full `juju_application` object.
@@ -23,13 +22,13 @@ Each revision is versioned by the date of the revision.
   and Juju's own defaults) instead of `ubuntu@24.04` and `arch=amd64` respectively.
   Added a `terraform_modules_compliance` CI workflow, a `terraform_modules_release`
   workflow tagging the shared `tf-X.Y.Z` module version, and a `generate_terraform_docs`
-  workflow. The example composition module now also declares a `risk` input (defaulting
-  to `edge` to preserve its existing channel defaults) and standardized `models`/
-  `metadata` outputs.
+  workflow.
   Moved the Terraform modules to the standard repository layout: `content-cache/terraform`
   is now `terraform/charm/content_cache`, `content-cache-backends-config/terraform` is now
-  `terraform/charm/content_cache_backends_config`, and the example composition moved from
-  `terraform` to `terraform/product`.
+  `terraform/charm/content_cache_backends_config`.
+  Removed the example composition Terraform module from `terraform/`. A content-cache
+  application can attach to any number of content-cache-backends-config applications, so
+  compose the two charm modules directly instead.
 
 ## 2026-10-07
 
