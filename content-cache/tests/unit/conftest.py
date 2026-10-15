@@ -77,6 +77,9 @@ def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
     mock_nginx_manager.update_and_load_config = MagicMock()
     mock_nginx_manager.health_check = MagicMock()
     mock_nginx_manager.health_check.return_value = True
+    # _load_nginx_config early-returns unless nginx is reported installed; the real
+    # initialize()/apt install never runs in unit tests, so pretend it already happened.
+    mock_nginx_manager.is_installed = MagicMock(return_value=True)
 
     monkeypatch.setattr("charm.nginx_manager.initialize", mock_nginx_manager.initialize)
     monkeypatch.setattr("charm.nginx_manager.stop", mock_nginx_manager.stop)
@@ -84,6 +87,7 @@ def mock_nginx_manager_fixture(monkeypatch) -> MagicMock:
         "charm.nginx_manager.update_and_load_config", mock_nginx_manager.update_and_load_config
     )
     monkeypatch.setattr("charm.nginx_manager.health_check", mock_nginx_manager.health_check)
+    monkeypatch.setattr("charm.nginx_manager.is_installed", mock_nginx_manager.is_installed)
     monkeypatch.setattr(
         "charm.get_cache_backend_url", MagicMock(return_value="http://10.0.0.1:8080")
     )

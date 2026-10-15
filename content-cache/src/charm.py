@@ -175,8 +175,6 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_config_changed(self, _: ops.ConfigChangedEvent) -> None:
         """Handle config-changed event."""
-        if not nginx_manager.is_installed():
-            return
         self._load_nginx_config()
 
     def _on_secret_changed(self, event: ops.SecretChangedEvent) -> None:
@@ -186,8 +184,6 @@ class ContentCacheCharm(ops.CharmBase):
             event: The event information, used to ignore rotations of secrets other
                 than the configured client-ip-hash-salt secret.
         """
-        if not nginx_manager.is_installed():
-            return
         if not is_client_ip_hash_salt_secret(self, event.secret.id):
             return
         self._load_nginx_config()
@@ -199,15 +195,7 @@ class ContentCacheCharm(ops.CharmBase):
         self._load_nginx_config(broken_relation_id=event.relation.id)
 
     def _on_peer_relation_changed(self, _: ops.RelationChangedEvent) -> None:
-        """Handle peer relation changed: re-derive nginx from the shared port map.
-
-        Peer relation-created can fire before the ``start`` hook has installed nginx
-        (e.g. on unit add). Skip reconciling in that case; ``_on_start`` will load the
-        config once nginx is installed, and later cache-config/peer events will pick up
-        any port map changes missed in the meantime.
-        """
-        if not nginx_manager.is_installed():
-            return
+        """Handle peer relation changed: re-derive nginx from the shared port map."""
         self._load_nginx_config()
 
     def _rebuild_ca_bundle(self) -> None:
@@ -362,6 +350,13 @@ class ContentCacheCharm(ops.CharmBase):
             broken_relation_id: When called from cache-config relation-broken, the id of the
                 departing relation, so its port is pruned even though ops may still list it.
         """
+        # Juju can fire reconciliation-triggering events (e.g. config-changed,
+        # secret-changed, peer relation-changed) before the start hook has installed
+        # nginx. Skip reconciling in that case; _on_start calls this again once nginx
+        # is installed, and later events will pick up any changes missed meanwhile.
+        if not nginx_manager.is_installed():
+            return
+
         # Resolved first so an invalid salt config blocks the unit before anything else is
         # attempted. The salt module itself is only written or removed inside
         # _apply_nginx_config, tied to a config reload, so a config that is still active
