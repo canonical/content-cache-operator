@@ -16,8 +16,18 @@ run "basic_deploy" {
   }
 
   assert {
-    condition     = output.app_name == "content-cache"
-    error_message = "content-cache app_name did not match expected"
+    condition     = output.application.name == "content-cache"
+    error_message = "content-cache application name did not match expected"
+  }
+
+  assert {
+    condition     = output.provides.cache_config.endpoint == "cache-config"
+    error_message = "content-cache provides.cache_config endpoint did not match expected"
+  }
+
+  assert {
+    condition     = output.requires.certificates.endpoint == "certificates"
+    error_message = "content-cache requires.certificates endpoint did not match expected"
   }
 }
 

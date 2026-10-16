@@ -13,16 +13,17 @@ For published user documentation, see the official [Content cache charms documen
 content-cache/                         # Principal machine charm that deploys and manages NGINX content cache
   src/                                 # Charm source code
   tests/                               # Unit and integration tests for content-cache
-  terraform/                           # Base Terraform module for deploying content-cache
 
 content-cache-backends-config/         # Subordinate charm for backend configuration
   src/                                 # Charm source code
   tests/                               # Unit and integration tests for content-cache-backends-config
-  terraform/                           # Base Terraform module for deploying content-cache-backends-config
 
 docs/                                  # Product documentation
 
-terraform/                             # Example Terraform composition for full content-cache deployment
+terraform/
+  charm/
+    content_cache/                     # Base Terraform module for deploying content-cache
+    content_cache_backends_config/     # Base Terraform module for deploying content-cache-backends-config
 ```
 
 ## Components
@@ -45,9 +46,8 @@ To begin, refer to the in-repo [Content Cache tutorial](docs/tutorial/index.md) 
 For component-specific context, see the [`content-cache` README](content-cache/README.md) and
 the [`content-cache-backends-config` README](content-cache-backends-config/README.md).
 
-For Terraform-based deployments, use the repository-level [example composition](terraform/README.md) or the
-component base modules in [`content-cache/terraform/README.md`](content-cache/terraform/README.md) and
-[`content-cache-backends-config/terraform/README.md`](content-cache-backends-config/terraform/README.md).
+For Terraform-based deployments, use the component base modules in [`terraform/charm/content_cache/README.md`](terraform/charm/content_cache/README.md) and
+[`terraform/charm/content_cache_backends_config/README.md`](terraform/charm/content_cache_backends_config/README.md).
 
 ## Integrations
 

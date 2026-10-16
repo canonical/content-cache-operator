@@ -12,8 +12,8 @@ deployment onto any machine environment managed by [Juju][Juju].
   except for exposing the deployment options (Juju model, channel or application name).
 - **outputs.tf** - Integrates the module with other Terraform modules, primarily
   by defining potential integration endpoints (charm integrations), but also by exposing
-  the Juju application name.
-- **versions.tf** - Defines the Terraform provider version.
+  the deployed Juju application.
+- **terraform.tf** - Defines the Terraform and Juju provider version requirements.
 
 ## Using the content-cache base module in higher level modules
 
@@ -26,7 +26,7 @@ data "juju_model" "my_model" {
 }
 
 module "content_cache" {
-  source = "git::https://github.com/canonical/content-cache-operator//content-cache/terraform"
+  source = "git::https://github.com/canonical/content-cache-operator//terraform/charm/content_cache?ref=tf-1.0.0"
 
   model_uuid = data.juju_model.my_model.uuid
   # (Customize configuration variables here if needed)
@@ -39,8 +39,8 @@ Create integrations, for instance:
 resource "juju_integration" "content_cache_certificates" {
   model_uuid = data.juju_model.my_model.uuid
   application {
-    name     = module.content_cache.app_name
-    endpoint = module.content_cache.endpoints.certificates
+    name     = module.content_cache.application.name
+    endpoint = module.content_cache.requires.certificates.endpoint
   }
   application {
     name     = "self-signed-certificates"
@@ -53,5 +53,10 @@ The complete list of available integrations can be found [in the Integrations ta
 
 [Terraform]: https://www.terraform.io/
 [Terraform Juju provider]: https://registry.terraform.io/providers/juju/juju/latest
-[Juju]: https://juju.is
+[Juju]: https://canonical.com/juju
 [content-cache-integrations]: https://charmhub.io/content-cache/integrations
+
+<!-- vale off -->
+<!-- BEGIN_TF_DOCS -->
+<!-- END_TF_DOCS -->
+<!-- vale on -->
