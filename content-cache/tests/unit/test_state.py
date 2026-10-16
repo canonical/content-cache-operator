@@ -14,6 +14,8 @@ from state import (
     PROXY_CACHE_VALID_FIELD_NAME,
     LocationConfig,
     get_cache_backend_url,
+    get_client_ip_hash_salt,
+    is_client_ip_hash_salt_secret,
 )
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
@@ -258,3 +260,155 @@ def test_config_valid_proxy_cache_valid_integration_data(proxy_cache_valid: str)
     assert config.healthcheck_config.path == "/"
     assert config.healthcheck_config.interval == 2000
     assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
+
+
+def _charm_with_config(config: dict) -> MagicMock:
+    """Build a mock charm exposing the given .config dict."""
+    charm = MagicMock()
+    charm.config = config
+    return charm
+
+
+def test_get_client_ip_hash_salt_returns_none_when_not_configured():
+    """
+    arrange: A mock charm with no client-ip-hash-salt config.
+    act: Call get_client_ip_hash_salt.
+    assert: Returns None.
+    """
+    charm = _charm_with_config({})
+
+    assert get_client_ip_hash_salt(charm) is None
+
+
+def test_get_client_ip_hash_salt_rejects_blank_secret_uri():
+    """
+    arrange: A mock charm whose client-ip-hash-salt config is set to a whitespace-only
+        value, rather than being genuinely unset (None).
+    act: Call get_client_ip_hash_salt.
+    assert: ConfigurationError is raised instead of silently disabling hashing.
+    """
+    charm = _charm_with_config({"client-ip-hash-salt": "   "})
+
+    with pytest.raises(ConfigurationError, match="must reference a valid secret URI"):
+        get_client_ip_hash_salt(charm)
+
+
+def test_get_client_ip_hash_salt_returns_salt_when_valid():
+    """
+    arrange: A mock charm with a client-ip-hash-salt config pointing at a valid secret.
+    act: Call get_client_ip_hash_salt.
+    assert: Returns the salt value.
+    """
+    charm = _charm_with_config({"client-ip-hash-salt": "secret:abc123"})
+    charm.model.get_secret.return_value.get_content.return_value = {"salt": "s3cr3t-salt"}
+
+    assert get_client_ip_hash_salt(charm) == "s3cr3t-salt"
+    charm.model.get_secret.assert_called_once_with(id="secret:abc123")
+
+
+def test_get_client_ip_hash_salt_rejects_inaccessible_secret():
+    """
+    arrange: A mock charm whose secret is not accessible.
+    act: Call get_client_ip_hash_salt.
+    assert: ConfigurationError is raised.
+    """
+    import ops
+
+    charm = _charm_with_config({"client-ip-hash-salt": "secret:missing"})
+    charm.model.get_secret.side_effect = ops.SecretNotFoundError()
+
+    with pytest.raises(ConfigurationError, match="does not exist or cannot be accessed"):
+        get_client_ip_hash_salt(charm)
+
+
+@pytest.mark.parametrize(
+    "secret_content",
+    [
+        pytest.param({"other": "value"}, id="missing_key"),
+        pytest.param({"salt": ""}, id="empty"),
+        pytest.param({"salt": "   "}, id="whitespace"),
+    ],
+)
+def test_get_client_ip_hash_salt_rejects_blank_value(secret_content: dict):
+    """
+    arrange: A mock charm whose secret has no usable 'salt' value.
+    act: Call get_client_ip_hash_salt.
+    assert: ConfigurationError is raised.
+    """
+    charm = _charm_with_config({"client-ip-hash-salt": "secret:abc123"})
+    charm.model.get_secret.return_value.get_content.return_value = secret_content
+
+    with pytest.raises(ConfigurationError, match="non-empty 'salt' value"):
+        get_client_ip_hash_salt(charm)
+
+
+@pytest.mark.parametrize(
+    "salt",
+    [
+        pytest.param('unsafe"salt', id="quote"),
+        pytest.param("unsafe\\salt", id="backslash"),
+        pytest.param("unsafe\nsalt", id="control_character"),
+        pytest.param("unsafe$salt", id="dollar_sign"),
+    ],
+)
+def test_get_client_ip_hash_salt_rejects_unsafe_value(salt: str):
+    """
+    arrange: A mock charm whose secret contains a disallowed character.
+    act: Call get_client_ip_hash_salt.
+    assert: ConfigurationError is raised.
+    """
+    charm = _charm_with_config({"client-ip-hash-salt": "secret:abc123"})
+    charm.model.get_secret.return_value.get_content.return_value = {"salt": salt}
+
+    with pytest.raises(ConfigurationError, match="must not contain control characters"):
+        get_client_ip_hash_salt(charm)
+
+
+def test_is_client_ip_hash_salt_secret_matches_configured_secret():
+    """
+    arrange: A mock charm with client-ip-hash-salt configured to a specific secret.
+    act: Call is_client_ip_hash_salt_secret with that secret's id.
+    assert: Returns True.
+    """
+    charm = _charm_with_config({"client-ip-hash-salt": "secret:abc123"})
+    charm.model.get_secret.return_value.id = "secret:abc123"
+
+    assert is_client_ip_hash_salt_secret(charm, "secret:abc123") is True
+
+
+def test_is_client_ip_hash_salt_secret_rejects_other_secret():
+    """
+    arrange: A mock charm with client-ip-hash-salt configured to a specific secret.
+    act: Call is_client_ip_hash_salt_secret with a different secret's id.
+    assert: Returns False.
+    """
+    charm = _charm_with_config({"client-ip-hash-salt": "secret:abc123"})
+    charm.model.get_secret.return_value.id = "secret:abc123"
+
+    assert is_client_ip_hash_salt_secret(charm, "secret:unrelated") is False
+
+
+def test_is_client_ip_hash_salt_secret_false_when_not_configured():
+    """
+    arrange: A mock charm with no client-ip-hash-salt config.
+    act: Call is_client_ip_hash_salt_secret with any secret id.
+    assert: Returns False, without attempting to resolve a secret.
+    """
+    charm = _charm_with_config({})
+
+    assert is_client_ip_hash_salt_secret(charm, "secret:abc123") is False
+    charm.model.get_secret.assert_not_called()
+
+
+def test_is_client_ip_hash_salt_secret_false_when_configured_secret_inaccessible():
+    """
+    arrange: A mock charm whose configured client-ip-hash-salt secret cannot be resolved.
+    act: Call is_client_ip_hash_salt_secret.
+    assert: Returns False instead of raising.
+    """
+    import ops
+
+    charm = _charm_with_config({"client-ip-hash-salt": "secret:missing"})
+    charm.model.get_secret.side_effect = ops.SecretNotFoundError()
+
+    assert is_client_ip_hash_salt_secret(charm, "secret:missing") is False
