@@ -10,6 +10,19 @@ platforms:
     build-on: amd64
     build-for: amd64
 
+config:
+  options:
+    client-ip-hash-salt:
+      type: secret
+      description: |
+        User-owned Juju secret containing the salt used to hash client IPs in the
+        access and cache logs. Setting this option enables salted SHA-256 hashing;
+        removing it restores plaintext client IP logging. The secret must contain
+        a `salt` key with a string value that is not empty or only whitespace. The
+        value must not contain control characters, DEL, double quotes,
+        backslashes, or dollar signs. The charm does not validate salt length or
+        entropy.
+
 parts:
   nginx-module-lua-upstream:
     plugin: dump
@@ -39,6 +52,14 @@ parts:
       cp /root/parts/nginx-upstream-healthcheck/src/lib/resty/upstream/healthcheck.lua /root/stage/
     prime:
       - healthcheck.lua
+  nginx-sha2-lua:
+    plugin: dump
+    source: https://github.com/Egor-Skriptunoff/pure_lua_SHA.git
+    source-commit: 6adac177c16c3496899f69d220dfb20bc31c03df # pureLuaShaCommit <- DO NOT REMOVE, used by renovate
+    override-build:
+      cp /root/parts/nginx-sha2-lua/src/sha2.lua /root/stage/
+    prime:
+      - sha2.lua
   charm:
     build-packages: 
       - cargo

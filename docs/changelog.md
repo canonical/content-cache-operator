@@ -48,6 +48,15 @@ Each revision is versioned by the date of the revision.
   within filesystem filename limits.
   (Fixes [#163](https://github.com/canonical/content-cache-operator/issues/163))
 
+## 2026-09-23
+
+### Added
+
+- Added the `client-ip-hash-salt` configuration option to the content-cache charm. When set
+  to a user-owned Juju secret containing a `salt` key, client IP addresses are replaced with
+  a salted SHA-256 hash in the access and cache logs, helping protect user privacy. See
+  {ref}`how_to_hash_client_ip_addresses_in_logs` for setup instructions.
+
 ## 2026-09-16
 
 ### Added
