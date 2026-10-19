@@ -25,6 +25,7 @@ header:
     - 'LICENSE'
     - 'content-cache/lua-upstream-nginx-module-packaging/debian/changelog'
     - 'trivy.yaml'
+    - '**/MAJOR_VERSION'
     - 'pyproject.toml'
     - 'zap_rules.tsv'
     - 'docs/**'

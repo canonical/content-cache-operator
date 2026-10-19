@@ -53,8 +53,8 @@
       "datasourceTemplate": "custom.charmhubTrack1Edge",
       "description": "Update pinned content-cache charm revision (track 1) in Terraform module tests",
       "fileMatch": [
-        "^content-cache/terraform/.*\\.tftest\\.hcl$",
-        "^content-cache/terraform/.*\\.tf$"
+        "^terraform/charm/content_cache/.*\\.tftest\\.hcl$",
+        "^terraform/charm/content_cache/.*\\.tf$"
       ],
       "matchStrings": [
         "# renovate: depName=\"(?<packageName>[^\"]+)\"\\s*\\n\\s*(?<fieldName>[a-zA-Z0-9_]+)\\s*=\\s*(?<currentValue>\\d+)"
@@ -66,8 +66,8 @@
       "datasourceTemplate": "custom.charmhubLatestEdge",
       "description": "Update pinned content-cache-backends-config charm revision (latest track) in Terraform module tests",
       "fileMatch": [
-        "^content-cache-backends-config/terraform/.*\\.tftest\\.hcl$",
-        "^content-cache-backends-config/terraform/.*\\.tf$"
+        "^terraform/charm/content_cache_backends_config/.*\\.tftest\\.hcl$",
+        "^terraform/charm/content_cache_backends_config/.*\\.tf$"
       ],
       "matchStrings": [
         "# renovate: depName=\"(?<packageName>[^\"]+)\"\\s*\\n\\s*(?<fieldName>[a-zA-Z0-9_]+)\\s*=\\s*(?<currentValue>\\d+)"
