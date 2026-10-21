@@ -20,6 +20,7 @@ header:
     - '.jujuignore'
     - '.gitignore'
     - '.licenserc.yaml'
+    - '.copier-answers.yml'
     - '.readthedocs.yaml'
     - 'CODEOWNERS'
     - 'LICENSE'
