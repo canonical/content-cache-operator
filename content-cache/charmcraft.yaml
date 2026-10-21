@@ -27,7 +27,7 @@ parts:
   nginx-module-lua-upstream:
     plugin: dump
     source: https://github.com/openresty/lua-upstream-nginx-module.git
-    source-commit: 0bbdcf1d9b240b1b4ab46667bd67fc93ce7e1295 # nginxUpstreamLuaModuleCommit <- DO NOT REMOVE, used by renovate
+    source-commit: 77e65536d6d258a0b979dc98b41804c319ff0d8d # nginxUpstreamLuaModuleCommit <- DO NOT REMOVE, used by renovate
     build-packages:
       - git
       - dpkg-dev
@@ -47,7 +47,7 @@ parts:
   nginx-upstream-healthcheck:
     plugin: dump
     source: https://github.com/openresty/lua-resty-upstream-healthcheck.git
-    source-commit: f7906b6b719273bf72a0c616b050d01c6c82f818 # luaHealthchecksCommit <- DO NOT REMOVE, used by renovate
+    source-commit: 0ebd5167058378e85949308d035324a8c9bf7150 # luaHealthchecksCommit <- DO NOT REMOVE, used by renovate
     override-build:
       cp /root/parts/nginx-upstream-healthcheck/src/lib/resty/upstream/healthcheck.lua /root/stage/
     prime:
