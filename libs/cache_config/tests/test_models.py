@@ -4,9 +4,13 @@
 """Unit tests for the cache-config interface library's data models."""
 
 import pytest
-from pydantic import ValidationError
+from pydantic import AnyHttpUrl, ValidationError
 
-from cache_config import CacheConfigRequirerAppData
+from cache_config import (
+    CacheConfigProviderUnitData,
+    CacheConfigProviderUnitsData,
+    CacheConfigRequirerAppData,
+)
 from cache_config.provider import CacheConfigProvider  # noqa: F401  (import smoke test)
 from cache_config.requirer import CacheConfigRequirer  # noqa: F401  (import smoke test)
 
@@ -64,3 +68,44 @@ def test_invalid_proxy_cache_valid_rejected():
     """proxy_cache_valid entries without both a status code and a time are rejected."""
     with pytest.raises(ValidationError):
         CacheConfigRequirerAppData(**{**VALID_KWARGS, "proxy_cache_valid": ["1h"]})
+
+
+def test_provider_unit_data_parses_cache_backend_as_url():
+    """Regression test: cache_backend must be coerced into a parsed AnyHttpUrl, not left as
+    a plain string, so callers can use .host/.port/.scheme (see CacheConfigProviderUnitData's
+    model_validator and CacheConfigProviderUnitsData.cache_backend_hosts/_ports)."""
+    unit_data = CacheConfigProviderUnitData(**{"cache-backend": "http://10.0.0.1:8080"})
+
+    assert isinstance(unit_data.cache_backend, AnyHttpUrl)
+    assert unit_data.cache_backend.port == 8080
+    assert unit_data.cache_backend_host == "10.0.0.1"
+
+
+def test_provider_unit_data_rejects_non_ip_host():
+    """A hostname (not an IP) in cache_backend is rejected."""
+    with pytest.raises(ValidationError):
+        CacheConfigProviderUnitData(**{"cache-backend": "http://example.com:8080"})
+
+
+def test_provider_units_data_aggregates_hosts_and_ports():
+    """CacheConfigProviderUnitsData exposes parsed hosts/ports across units."""
+    units = CacheConfigProviderUnitsData(
+        [
+            CacheConfigProviderUnitData(**{"cache-backend": "http://10.0.0.1:8080"}),
+            CacheConfigProviderUnitData(**{"cache-backend": "http://10.0.0.2:8080"}),
+        ]
+    )
+
+    assert set(units.cache_backend_hosts) == {"10.0.0.1", "10.0.0.2"}
+    assert units.cache_backend_ports == [8080]
+
+
+def test_provider_units_data_rejects_mixed_protocols():
+    """Backends using different schemes across units are rejected."""
+    with pytest.raises(ValidationError):
+        CacheConfigProviderUnitsData(
+            [
+                CacheConfigProviderUnitData(**{"cache-backend": "http://10.0.0.1:8080"}),
+                CacheConfigProviderUnitData(**{"cache-backend": "https://10.0.0.2:8443"}),
+            ]
+        )

@@ -134,7 +134,7 @@ class CacheConfigRequirerAppData:
         return self
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclass(frozen=True)
 class CacheConfigProviderUnitData:
     """Provider unit databag schema.
 
