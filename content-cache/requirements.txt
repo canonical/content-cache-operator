@@ -5,3 +5,4 @@ pydantic ==2.14.1
 python-nginx == 1.5.7
 requests ==2.34.2
 charmlibs-interfaces-certificate-transfer >=1.0.0,<2.0.0
+../libs/cache_config

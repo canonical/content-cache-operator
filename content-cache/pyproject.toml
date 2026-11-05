@@ -1,6 +1,31 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+[project]
+name = "content-cache"
+version = "0.0.0"
+description = "A machine charm managing a nginx instance configured as a content cache."
+requires-python = ">=3.12"
+dependencies = [
+  "cosl==1.11.3",
+  "cryptography==50.0.2",
+  "ops==3.9.0",
+  "pydantic==2.14.1",
+  "python-nginx==1.5.7",
+  "requests==2.34.2",
+  "charmlibs-interfaces-certificate-transfer>=1.0.0,<2.0.0",
+  "cache-config",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+# Path dependency on the sibling cache_config package in this monorepo. Resolved at
+# charmcraft-pack time via CHARMCRAFT_EXPERIMENTAL_MONOREPO=1 (see charmcraft.yaml),
+# which mounts the whole repo so this relative path exists in the build environment.
+cache-config = { path = "../libs/cache_config" }
+
 [tool.bandit]
 exclude_dirs = ["/venv/"]
 [tool.bandit.assert_used]

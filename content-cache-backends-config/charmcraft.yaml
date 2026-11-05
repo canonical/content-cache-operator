@@ -14,11 +14,17 @@ platforms:
 
 parts:
   charm:
-    build-packages: [cargo, rustc, pkg-config, libffi-dev, libssl-dev]
+    plugin: uv
+    # Monorepo support (Charmcraft >= 4.5, pack with CHARMCRAFT_EXPERIMENTAL_MONOREPO=1):
+    # mounts the whole repo so pyproject.toml's path dependency on ../libs/cache_config
+    # resolves at build time. Plain symlinks/dump-parts reaching outside this charm's own
+    # directory are not packaged by charmcraft; the legacy (non-uv) "charm" plugin also
+    # hits an unrelated bug combined with source-subdir, hence the uv plugin here.
+    source: ..
+    source-subdir: content-cache-backends-config
     build-snaps:
-      - rustup
+      - astral-uv
+    build-packages: [cargo, rustc, pkg-config, libffi-dev, libssl-dev]
     override-build: |
-      rustup default stable
+      rustup default stable 2>/dev/null || true
       craftctl default
-    charm-python-packages: [setuptools, pip]  # https://discourse.charmhub.io/t/install-or-update-python-packages-before-packing-a-charm/5158
-    charm-binary-python-packages: [cosl]  # https://github.com/canonical/charmcraft/issues/1269

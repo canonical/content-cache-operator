@@ -38,7 +38,7 @@ parts:
     override-build: |
       set -eux
       # Build package
-      cp -R /root/parts/charm/src/lua-upstream-nginx-module-packaging/debian .
+      cp -R /root/parts/charm/src/content-cache/lua-upstream-nginx-module-packaging/debian .
       curl https://raw.githubusercontent.com/openresty/lua-nginx-module/f44c18859050be5af314bae8f05660478af5e31d/src/api/ngx_http_lua_api.h -O --output-dir debian/
       dpkg-buildpackage -us -uc
       cp ../libnginx-mod-http-upstream_0.1_amd64.deb /root/stage
@@ -61,16 +61,22 @@ parts:
     prime:
       - sha2.lua
   charm:
+    plugin: uv
+    # Monorepo support (Charmcraft >= 4.5, pack with CHARMCRAFT_EXPERIMENTAL_MONOREPO=1):
+    # mounts the whole repo so pyproject.toml's path dependency on ../libs/cache_config
+    # resolves at build time. Plain symlinks/dump-parts reaching outside this charm's own
+    # directory are not packaged by charmcraft; the legacy (non-uv) "charm" plugin also
+    # hits an unrelated bug combined with source-subdir, hence the uv plugin here.
+    source: ..
+    source-subdir: content-cache
+    build-snaps:
+      - astral-uv
     build-packages: 
       - cargo
       - rustc
       - pkg-config
       - libffi-dev
       - libssl-dev
-    build-snaps:
-      - rustup
     override-build: |
-      rustup default stable
+      rustup default stable 2>/dev/null || true
       craftctl default
-    charm-python-packages: [setuptools, pip]  # https://discourse.charmhub.io/t/install-or-update-python-packages-before-packing-a-charm/5158
-    charm-binary-python-packages: [cosl]  # https://github.com/canonical/charmcraft/issues/1269
