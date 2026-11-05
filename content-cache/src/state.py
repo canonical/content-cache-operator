@@ -3,19 +3,25 @@
 
 """The charm state and configurations."""
 
-import json
+import dataclasses
 import logging
-import re
 import typing
 
 import ops
-import pydantic
+from pydantic import AnyHttpUrl, TypeAdapter, ValidationError
 
+from cache_config import CacheConfigIntegrationDataError, CacheConfigRequirerAppData
+from cache_config.provider import CacheConfigProvider
+from cache_config.requirer import _decode
 from errors import ConfigurationError, IntegrationDataError
 
 logger = logging.getLogger(__name__)
 
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
+CLIENT_IP_HASH_SALT_CONFIG_NAME = "client-ip-hash-salt"
+
+# Relation data field names, re-exported here (rather than only from cache_config) so this
+# charm's own tests/fixtures can reference them without reaching into the library directly.
 BACKENDS_FIELD_NAME = "backends"
 FAIL_TIMEOUT_FIELD_NAME = "fail_timeout"
 HEALTHCHECK_INTERVAL_FIELD_NAME = "healthcheck_interval"
@@ -26,7 +32,8 @@ PROXY_CACHE_VALID_FIELD_NAME = "proxy_cache_valid"
 BACKEND_HOSTNAME_FIELD_NAME = "backend_hostname"
 CACHE_INACTIVE_FIELD_NAME = "cache_inactive"
 CACHE_MAX_SIZE_FIELD_NAME = "cache_max_size"
-CLIENT_IP_HASH_SALT_CONFIG_NAME = "client-ip-hash-salt"
+
+_URL_ADAPTER: TypeAdapter[AnyHttpUrl] = TypeAdapter(AnyHttpUrl)
 
 _SALT_DISALLOWED_CHARACTERS = frozenset({'"', "\\", "$"})
 
@@ -97,72 +104,13 @@ def is_client_ip_hash_salt_secret(charm: ops.CharmBase, secret_id: str) -> bool:
         return False
 
 
-def _validate_hostname_value(value: str) -> str:
-    """Validate the value as a hostname.
-
-    Validation performed:
-    - The hostname must be of length 255 or below.
-    - The hostname must be consist of a certain characters.
-
-    Args:
-        value: The value to validate.
-
-    Raises:
-        ValueError: The validation failed.
-
-    Returns:
-        The value after validation.
-    """
-    if len(value) > 255:
-        raise ValueError("Hostname cannot be longer than 255")
-
-    valid_segment = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
-    for segment in value.split("."):
-        if valid_segment.fullmatch(segment) is None:
-            raise ValueError(
-                (
-                    "Each Hostname segment must be less than 64 in length, and consist of "
-                    "alphanumeric and hyphen"
-                )
-            )
-
-    return value
-
-
-def _validate_path_value(value: str) -> str:
-    """Validate the value as a path.
-
-    Validation performed:
-    - The path is only consist of allowed characters.
-
-    These are the valid characters for path in addition to `/`:
-    a-z A-Z 0-9 . - _ ~ ! $ & ' ( ) * + , ; = : @
-    https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
-
-    Args:
-        value: The value to validate.
-
-    Raises:
-        ValueError: The validation failed.
-
-    Returns:
-        The value after validation.
-    """
-    valid_path = re.compile(r"[/\w.\-~!$&'()*+,;=:@]+", re.IGNORECASE)
-    if valid_path.fullmatch(value) is None:
-        raise ValueError("Path contains non-allowed character")
-    return value
-
-
-def _validate_optional_hostname_value(value: str) -> str:
-    """Validate an optional hostname value."""
-    if not value:
-        return value
-    return _validate_hostname_value(value)
-
-
-class HealthcheckConfig(pydantic.BaseModel):
+@dataclasses.dataclass(frozen=True)
+class HealthcheckConfig:
     """Represents the configuration for healthchecks.
+
+    This is a nginx-rendering-only shape, kept distinct from the cache-config library's flat
+    ``CacheConfigRequirerAppData.healthcheck_*`` fields so that nginx_manager's grouping of
+    healthcheck parameters doesn't leak into the interface library's schema.
 
     Attributes:
         interval: The time between two healthchecks, in milliseconds.
@@ -172,57 +120,17 @@ class HealthcheckConfig(pydantic.BaseModel):
     """
 
     interval: int
-    path: typing.Annotated[
-        str,
-        pydantic.StringConstraints(min_length=1),
-        pydantic.AfterValidator(_validate_path_value),
-    ]
+    path: str
     valid_status: tuple[int, ...]
     ssl_verify: bool
 
-    @classmethod
-    def from_integration_data(cls, data: ops.RelationDataContent) -> "HealthcheckConfig":
-        """Initialize object from the charm.
 
-        Args:
-            data: One set of integration data.
-
-        Raises:
-            ConfigurationError: Invalid cache configurations in integration data.
-
-        Returns:
-            The object.
-        """
-        interval = int(data.get(HEALTHCHECK_INTERVAL_FIELD_NAME, "-1").strip())
-        path = data.get(HEALTHCHECK_PATH_FIELD_NAME, "").strip()
-        ssl_verify = data.get(HEALTHCHECK_SSL_VERIFY_FIELD_NAME, "").strip()
-        valid_status_str = data.get(HEALTHCHECK_VALID_STATUS_FIELD_NAME, "").strip()
-
-        valid_status = _parse_list(
-            HEALTHCHECK_VALID_STATUS_FIELD_NAME, valid_status_str, raise_if_empty=True
-        )
-
-        try:
-            # Ignore type check and let pydantic handle the type with validation errors.
-            return cls(
-                interval=interval,
-                path=path,
-                ssl_verify=ssl_verify,  # type: ignore
-                valid_status=valid_status,
-            )
-        except pydantic.ValidationError as err:
-            err_msg = [
-                f'{error["loc"][0]} = {error["input"]}: {error["msg"]}' for error in err.errors()
-            ]
-            logger.error("Found integration data error: %s", err_msg)
-            raise ConfigurationError(f"Config error: {err_msg}") from err
-
-
-class LocationConfig(pydantic.BaseModel):
-    """Represents the configuration for a location.
+@dataclasses.dataclass(frozen=True)
+class LocationConfig:
+    """Represents the configuration for a location, shaped for nginx_manager's rendering.
 
     Attributes:
-        backends: The backend URLs for this configuration.
+        backends: The backend URLs for this configuration, parsed.
         fail_timeout: The time to wait before using a backend after failure.
         proxy_cache_valid: The cache valid duration.
         healthcheck_config: The healthcheck configuration.
@@ -232,223 +140,82 @@ class LocationConfig(pydantic.BaseModel):
         cache_max_size: Maximum total disk size for the cache; empty string means no limit.
     """
 
-    backends: tuple[pydantic.AnyHttpUrl, ...]
-    fail_timeout: typing.Annotated[str, pydantic.StringConstraints(min_length=1)]
+    backends: tuple[AnyHttpUrl, ...]
+    fail_timeout: str
     proxy_cache_valid: tuple[str, ...]
     healthcheck_config: HealthcheckConfig
-    backend_hostname: typing.Annotated[
-        str, pydantic.AfterValidator(_validate_optional_hostname_value)
-    ] = ""
+    backend_hostname: str = ""
     cache_inactive: str = "10m"
     cache_max_size: str = ""
 
-    @pydantic.field_validator("backends")
-    @classmethod
-    def validate_backends_scheme(
-        cls, value: tuple[pydantic.AnyHttpUrl, ...]
-    ) -> tuple[pydantic.AnyHttpUrl, ...]:
-        """Validate that all backends share the same URL scheme.
 
-        Args:
-            value: The backends tuple to validate.
+def _to_location_config(data: CacheConfigRequirerAppData) -> LocationConfig:
+    """Convert validated cache-config requirer data into nginx_manager's rendering shape.
 
-        Raises:
-            ValueError: Backends have mixed schemes.
-
-        Returns:
-            The value after validation.
-        """
-        if len(value) > 1:
-            schemes = {url.scheme for url in value}
-            if len(schemes) > 1:
-                raise ValueError(
-                    f"All backends must share the same scheme; found mixed schemes: {schemes}"
-                )
-        return value
-
-    @pydantic.field_validator("proxy_cache_valid")
-    @classmethod
-    def validate_proxy_cache_valid(cls, value: tuple[str, ...]) -> tuple[str, ...]:
-        """Validate the proxy_cache_valid.
-
-        Validation performed:
-        - Each token is consist of at least one status code and a time.
-        - The status code is a int within allowed range.
-        - The time string is of correct format.
-
-        Args:
-            value: The value to validate.
-
-        Raises:
-            ValueError: The proxy_cache_valid is invalid.
-
-        Returns:
-            The value after validation.
-        """
-        for item in value:
-            tokens = item.split(" ")
-            if len(tokens) < 2:
-                raise ValueError(
-                    f"The proxy_cache_valid requires at least one status code and a time: {item}"
-                )
-            status_codes, time_str = tokens[:-1], tokens[-1]
-            for code_str in status_codes:
-                _check_status_code(code_str)
-            _check_nginx_time_str(time_str)
-        return value
-
-    @pydantic.model_validator(mode="after")
-    def validate_https_requires_backend_hostname(self) -> "LocationConfig":
-        """Validate that HTTPS backends provide backend-hostname.
-
-        Raises:
-            ValueError: backend-hostname is missing for an HTTPS backend.
-
-        Returns:
-            The validated location configuration.
-        """
-        if self.backends and self.backends[0].scheme == "https":
-            if not self.backend_hostname:
-                raise ValueError("backend-hostname is required for HTTPS backends")
-        return self
-
-    @classmethod
-    def from_integration_data(cls, data: ops.RelationDataContent) -> "LocationConfig":
-        """Initialize object from the charm.
-
-        Args:
-            data: One set of integration data.
-
-        Raises:
-            ConfigurationError: Invalid cache configurations in integration data.
-
-        Returns:
-            The object.
-        """
-        backends_str = data.get(BACKENDS_FIELD_NAME, "").strip()
-        fail_timeout = data.get(FAIL_TIMEOUT_FIELD_NAME, "").strip()
-        proxy_cache_valid_str = data.get(PROXY_CACHE_VALID_FIELD_NAME, "").strip()
-        backend_hostname = data.get(BACKEND_HOSTNAME_FIELD_NAME, "").strip()
-
-        proxy_cache_valid = _parse_list(
-            PROXY_CACHE_VALID_FIELD_NAME, proxy_cache_valid_str, raise_if_empty=False
-        )
-        backends = _parse_list(BACKENDS_FIELD_NAME, backends_str, raise_if_empty=True)
-
-        healthcheck_config = HealthcheckConfig.from_integration_data(data)
-
-        cache_inactive = data.get(CACHE_INACTIVE_FIELD_NAME, "10m").strip() or "10m"
-        cache_max_size = data.get(CACHE_MAX_SIZE_FIELD_NAME, "").strip()
-
-        try:
-            # Ignore type check and let pydantic handle the type with validation errors.
-            return cls(
-                backends=backends,  # type: ignore
-                fail_timeout=fail_timeout,
-                proxy_cache_valid=proxy_cache_valid,  # type: ignore
-                healthcheck_config=healthcheck_config,
-                backend_hostname=backend_hostname,
-                cache_inactive=cache_inactive,
-                cache_max_size=cache_max_size,
-            )
-        except pydantic.ValidationError as err:
-            err_msg = [
-                f'{error["loc"][0] if error["loc"] else "model"} = {error["input"]}: {error["msg"]}'
-                for error in err.errors()
-            ]
-            logger.error("Found integration data error: %s", err_msg)
-            raise ConfigurationError(f"Config error: {err_msg}") from err
-
-
-def _parse_list(field_name: str, json_str: str, raise_if_empty: bool = True) -> tuple[typing.Any]:
-    """Parse a json string to a list.
+    All field-level and cross-field validation (nginx time/size formats, https requiring a
+    backend hostname, consistent backend schemes, etc.) already happened in the cache_config
+    library when the requirer's data was parsed, so this is a pure reshape, not a revalidation.
 
     Args:
-        field_name: The field name parse to raise meaningful exception.
-        json_str: The json string to parse to a list.
-        raise_if_empty: Raise error if list is empty.
+        data: The validated requirer app data for one relation.
 
-    Raises:
-        ConfigurationError: The configuration is not valid.
+    Returns:
+        The equivalent LocationConfig.
     """
-    try:
-        valid_list = json.loads(json_str)
-    except json.JSONDecodeError as err:
-        raise ConfigurationError(
-            f"Unable to parse {field_name} config as json: {json_str}"
-        ) from err
-
-    if not isinstance(valid_list, list):
-        raise ConfigurationError(f"Unable to convert {field_name} config to list: {json_str}")
-
-    if raise_if_empty and not valid_list:
-        raise ConfigurationError(f"{field_name} config cannot be empty.")
-
-    return tuple(valid_list)
-
-
-def _check_nginx_time_str(time_str: str) -> None:
-    """Check if nginx time str is valid.
-
-    Validation performed:
-    - The character at the end must be "d", "h", "m", "s".
-    - The time must be positive int.
-
-    Args:
-        time_str: The time str for nginx configuration.
-
-    Raises:
-        ValueError: The input is not valid time str for nginx.
-    """
-    time_char = {"d", "h", "m", "s"}
-    if time_str[-1] not in time_char:
-        raise ValueError(f"Invalid time unit for proxy_cache_valid: {time_str}")
-    try:
-        time = int(time_str[:-1])
-    except ValueError as err:
-        raise ValueError(f"Non-int time in proxy_cache_valid: {time_str}") from err
-
-    if time < 1:
-        raise ValueError(f"Time must be positive int for proxy_cache_valid: {time_str}")
-
-
-def _check_status_code(code_str: str) -> None:
-    """Check if status code is valid.
-
-    Validation performed:
-    - The status code must be int.
-    - The status code must be within 100 to 900.
-
-    The standard status code is found here:
-    https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
-
-    It is possible for software to have custom status code, so any three digit int is
-    supported here.
-
-    Args:
-        code_str: The status code.
-
-    Raises:
-        ValueError: The input is not valid status code.
-    """
-    try:
-        code = int(code_str)
-    except ValueError as err:
-        raise ValueError(f"Non-int status code in proxy_cache_valid: {code_str}") from err
-
-    if code < 100 or code > 999:
-        raise ValueError(f"Invalid status code in proxy_cache_valid: {code}")
+    return LocationConfig(
+        backends=tuple(_URL_ADAPTER.validate_python(backend) for backend in data.backends),
+        fail_timeout=data.fail_timeout,
+        proxy_cache_valid=tuple(data.proxy_cache_valid),
+        healthcheck_config=HealthcheckConfig(
+            interval=data.healthcheck_interval,
+            path=data.healthcheck_path,
+            valid_status=tuple(data.healthcheck_valid_status),
+            ssl_verify=data.healthcheck_ssl_verify,
+        ),
+        backend_hostname=data.backend_hostname or "",
+        cache_inactive=data.cache_inactive,
+        cache_max_size=data.cache_max_size,
+    )
 
 
 RelationId = int
 NginxConfig = dict[RelationId, LocationConfig]
 
 
-def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
-    """Get the nginx locations configuration from integration data.
+def location_config_from_integration_data(
+    data: typing.Mapping[str, str],
+) -> LocationConfig:
+    """Build a LocationConfig directly from raw cache-config relation data.
+
+    Decodes and validates using the same cache_config library logic ``CacheConfigProvider``
+    uses internally, so this - not a second hand-rolled parser - is the one place (besides
+    the library itself) that understands the relation data's wire format. Primarily useful
+    for tests that want to go from a relation-data-shaped dict straight to the nginx
+    rendering shape.
 
     Args:
-        charm: The charm to extract integration data from.
+        data: Raw relation data (e.g. ``ops.RelationDataContent`` or a plain dict), keyed by
+            the same field names ``CacheConfigRequirerAppData`` uses.
+
+    Raises:
+        ConfigurationError: The data fails the library's validation.
+
+    Returns:
+        The equivalent LocationConfig.
+    """
+    decoded = {key: _decode(value) for key, value in data.items()}
+    try:
+        app_data = CacheConfigRequirerAppData(**decoded)
+    except ValidationError as exc:
+        raise ConfigurationError(str(exc)) from exc
+    return _to_location_config(app_data)
+
+
+def get_nginx_config(cache_config: CacheConfigProvider) -> NginxConfig:
+    """Get the nginx locations configuration from cache-config integration data.
+
+    Args:
+        cache_config: The charm's CacheConfigProvider instance.
 
     Raises:
         IntegrationDataError: Invalid cache configurations in integration data.
@@ -456,29 +223,15 @@ def get_nginx_config(charm: ops.CharmBase) -> NginxConfig:
     Returns:
         A mapping of relation ID to location configuration.
     """
-    relations = charm.model.relations[CACHE_CONFIG_INTEGRATION_NAME]
-    if not relations:
+    try:
+        requirers_data = cache_config.get_requirers_data()
+    except CacheConfigIntegrationDataError as err:
+        raise IntegrationDataError(str(err)) from err
+
+    if not requirers_data:
         logger.info("Found no configuration integrations")
-        return {}
 
-    configurations: dict[RelationId, LocationConfig] = {}
-
-    for rel in relations:
-        logger.info("Parsing integration data for %s", rel.app)
-        relation_data = rel.data[rel.app]
-        if not relation_data:
-            logger.info("Found integration %s with no data", rel.id)
-            continue
-        try:
-            config = LocationConfig.from_integration_data(relation_data)
-        except ConfigurationError as err:
-            logger.exception("Found integration %s with faulty data", rel.id)
-            raise IntegrationDataError(
-                f"Faulty data from integration {rel.id}: {str(err)}"
-            ) from err
-
-        configurations[rel.id] = config
-    return configurations
+    return {rel_id: _to_location_config(data) for rel_id, data in requirers_data.items()}
 
 
 def get_cache_backend_url(

@@ -12,7 +12,7 @@ import requests
 import ca_certs
 import nginx_manager
 from errors import NginxFileError
-from state import LocationConfig
+from state import LocationConfig, location_config_from_integration_data
 from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
 
 SAMPLE_HTTPS_EXTRA = {
@@ -215,7 +215,7 @@ def test_update_config_with_valid_config(monkeypatch, patch_nginx_manager: None)
     sample_data = {
         1: (
             port,
-            LocationConfig.from_integration_data(
+            location_config_from_integration_data(
                 {
                     **SAMPLE_INTEGRATION_DATA,
                     **SAMPLE_HTTPS_EXTRA,
@@ -275,7 +275,7 @@ def test_update_config_without_backend_hostname_falls_back_to_port_for_logs(
     mock_status_check.return_value = True
     monkeypatch.setattr("nginx_manager._systemctl_status_check", mock_status_check)
     port = 80
-    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+    sample_data = {1: (port, location_config_from_integration_data(SAMPLE_INTEGRATION_DATA))}
 
     nginx_manager.update_and_load_config(sample_data, mock_instance_name)
 
@@ -329,7 +329,7 @@ def test_get_upstream_config_keys_http(patch_nginx_manager: None):
     act: Call _get_upstream_config_keys.
     assert: Keys contain host:port entries with fail_timeout.
     """
-    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+    config = location_config_from_integration_data(SAMPLE_INTEGRATION_DATA)
     keys = nginx_manager._get_upstream_config_keys(config)
 
     key_strings = [k.as_strings for k in keys]
@@ -349,7 +349,7 @@ def test_get_upstream_config_keys_https(patch_nginx_manager: None):
         **SAMPLE_HTTPS_EXTRA,
         "backends": '["https://10.10.1.1:443"]',
     }
-    config = LocationConfig.from_integration_data(data)
+    config = location_config_from_integration_data(data)
     keys = nginx_manager._get_upstream_config_keys(config)
 
     key_strings = [k.as_strings for k in keys]
@@ -362,7 +362,7 @@ def test_get_location_config_keys_http(patch_nginx_manager: None):
     act: Call _get_location_config_keys.
     assert: proxy_pass uses http scheme.
     """
-    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+    config = location_config_from_integration_data(SAMPLE_INTEGRATION_DATA)
     upstream = "test-upstream"
     keys = nginx_manager._get_location_config_keys(config, upstream)
 
@@ -381,7 +381,7 @@ def test_get_location_config_keys_https(patch_nginx_manager: None):
         **SAMPLE_HTTPS_EXTRA,
         "backends": '["https://10.10.1.1:443"]',
     }
-    config = LocationConfig.from_integration_data(data)
+    config = location_config_from_integration_data(data)
     upstream = "test-upstream"
     keys = nginx_manager._get_location_config_keys(config, upstream)
 
@@ -400,7 +400,7 @@ def test_healthcheck_worker_uses_per_peer_ports(patch_nginx_manager: None):
         **SAMPLE_INTEGRATION_DATA,
         "backends": '["http://10.10.1.1:8080", "http://10.10.2.2:9090"]',
     }
-    config = LocationConfig.from_integration_data(data)
+    config = location_config_from_integration_data(data)
     upstream = "test-upstream"
 
     script = nginx_manager._get_upstream_healthchecks_worker(upstream, config)
@@ -417,7 +417,7 @@ def test_healthcheck_worker_without_backend_hostname_omits_host_header(
     assert: The generated http_req has no Host header and no SNI host option,
             preserving prior behaviour for backends with no configured hostname.
     """
-    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+    config = location_config_from_integration_data(SAMPLE_INTEGRATION_DATA)
     upstream = "test-upstream"
 
     script = nginx_manager._get_upstream_healthchecks_worker(upstream, config)
@@ -439,7 +439,7 @@ def test_healthcheck_worker_with_backend_hostname_adds_host_header(
         **SAMPLE_INTEGRATION_DATA,
         "backend_hostname": "origin.example.com",
     }
-    config = LocationConfig.from_integration_data(data)
+    config = location_config_from_integration_data(data)
     upstream = "test-upstream"
 
     script = nginx_manager._get_upstream_healthchecks_worker(upstream, config)
@@ -461,7 +461,7 @@ def test_healthcheck_worker_https_with_backend_hostname_adds_sni_host_option(
         **SAMPLE_HTTPS_EXTRA,
         "backends": '["https://10.10.1.1:443"]',
     }
-    config = LocationConfig.from_integration_data(data)
+    config = location_config_from_integration_data(data)
     upstream = "test-upstream"
 
     script = nginx_manager._get_upstream_healthchecks_worker(upstream, config)
@@ -481,7 +481,7 @@ def test_healthcheck_worker_upstream_entries_carry_ports(patch_nginx_manager: No
         **SAMPLE_INTEGRATION_DATA,
         "backends": '["http://10.10.1.1:8080", "http://10.10.2.2:9090"]',
     }
-    config = LocationConfig.from_integration_data(data)
+    config = location_config_from_integration_data(data)
 
     keys = nginx_manager._get_upstream_config_keys(config)
 
@@ -504,7 +504,7 @@ def test_get_location_config_keys_https_with_backend_hostname_adds_ssl_directive
         "backends": '["https://10.10.1.1:443"]',
         "healthcheck_ssl_verify": "true",
     }
-    config = LocationConfig.from_integration_data(data)
+    config = location_config_from_integration_data(data)
 
     keys = nginx_manager._get_location_config_keys(config, "test-upstream")
 
@@ -536,8 +536,8 @@ def test_get_location_config_keys_https_without_hostname_has_no_ssl_directives(
         "backends": '["https://10.10.1.1:443"]',
         # No backend_hostname set
     }
-    with pytest.raises(ConfigurationError, match="backend-hostname is required"):
-        LocationConfig.from_integration_data(data)
+    with pytest.raises(ConfigurationError, match="backend_hostname is required"):
+        location_config_from_integration_data(data)
 
 
 def test_get_location_config_keys_https_uses_combined_ca_bundle(
@@ -553,7 +553,7 @@ def test_get_location_config_keys_https_uses_combined_ca_bundle(
         **SAMPLE_HTTPS_EXTRA,
         "backends": '["https://10.10.1.1:443"]',
     }
-    config = LocationConfig.from_integration_data(data)
+    config = location_config_from_integration_data(data)
 
     keys = nginx_manager._get_location_config_keys(config, "upstream")
 
@@ -575,7 +575,7 @@ def test_get_location_config_keys_http_has_no_ssl_directives(patch_nginx_manager
     act: Call _get_location_config_keys.
     assert: No proxy_ssl directives added for http backends.
     """
-    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+    config = location_config_from_integration_data(SAMPLE_INTEGRATION_DATA)
 
     keys = nginx_manager._get_location_config_keys(config, "upstream")
 
@@ -642,7 +642,7 @@ def test_update_config_with_cache_cert_adds_ssl_directives(
     sample_data = {
         1: (
             port,
-            LocationConfig.from_integration_data(
+            location_config_from_integration_data(
                 {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
             ),
         )
@@ -674,7 +674,7 @@ def test_update_config_without_cache_cert_no_ssl_directives(
     sample_data = {
         1: (
             port,
-            LocationConfig.from_integration_data(
+            location_config_from_integration_data(
                 {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
             ),
         )
@@ -699,7 +699,7 @@ def test_proxy_cache_path_includes_inactive(monkeypatch, patch_nginx_manager: No
     sample_data = {
         1: (
             port,
-            LocationConfig.from_integration_data(
+            location_config_from_integration_data(
                 {
                     **SAMPLE_INTEGRATION_DATA,
                     "backends": '["http://10.10.10.1:80"]',
@@ -728,7 +728,7 @@ def test_proxy_cache_path_includes_max_size(monkeypatch, patch_nginx_manager: No
     sample_data = {
         1: (
             port,
-            LocationConfig.from_integration_data(
+            location_config_from_integration_data(
                 {
                     **SAMPLE_INTEGRATION_DATA,
                     "backends": '["http://10.10.10.1:80"]',
@@ -757,7 +757,7 @@ def test_proxy_cache_path_no_max_size_when_empty(monkeypatch, patch_nginx_manage
     sample_data = {
         1: (
             port,
-            LocationConfig.from_integration_data(
+            location_config_from_integration_data(
                 {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
             ),
         )
@@ -782,7 +782,7 @@ def test_location_contains_proxy_cache_lock(monkeypatch, patch_nginx_manager: No
     sample_data = {
         1: (
             port,
-            LocationConfig.from_integration_data(
+            location_config_from_integration_data(
                 {**SAMPLE_INTEGRATION_DATA, "backends": '["http://10.10.10.1:80"]'}
             ),
         )
@@ -871,7 +871,7 @@ def test_update_config_logs_plaintext_client_address_by_default(
     monkeypatch.setattr("nginx_manager.execute_command", MagicMock(return_value=(0, "", "")))
     monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
     port = 8080
-    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+    sample_data = {1: (port, location_config_from_integration_data(SAMPLE_INTEGRATION_DATA))}
 
     nginx_manager.update_and_load_config(sample_data, mock_instance_name)
 
@@ -895,7 +895,7 @@ def test_update_config_disabling_salt_removes_module_only_after_successful_reloa
     monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
     mock_instance_name = "mock-test_0"
     port = 8080
-    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+    sample_data = {1: (port, location_config_from_integration_data(SAMPLE_INTEGRATION_DATA))}
 
     nginx_manager.update_and_load_config(sample_data, mock_instance_name, client_ip_hash_salt=None)
 
@@ -916,7 +916,7 @@ def test_update_config_disabling_salt_removes_module_after_reload(
     monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
     mock_instance_name = "mock-test_0"
     port = 8080
-    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+    sample_data = {1: (port, location_config_from_integration_data(SAMPLE_INTEGRATION_DATA))}
 
     nginx_manager.update_and_load_config(sample_data, mock_instance_name, client_ip_hash_salt=None)
 
@@ -936,7 +936,7 @@ def test_update_config_logs_hashed_client_address_when_salt_configured(
     monkeypatch.setattr("nginx_manager.execute_command", MagicMock(return_value=(0, "", "")))
     monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
     port = 8080
-    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+    sample_data = {1: (port, location_config_from_integration_data(SAMPLE_INTEGRATION_DATA))}
 
     nginx_manager.update_and_load_config(
         sample_data, mock_instance_name, client_ip_hash_salt="some-salt"
@@ -980,7 +980,7 @@ def test_update_config_enabling_salt_writes_module_before_reload(
     monkeypatch.setattr("nginx_manager._systemctl_status_check", MagicMock(return_value=True))
     mock_instance_name = "mock-test_0"
     port = 8080
-    sample_data = {1: (port, LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA))}
+    sample_data = {1: (port, location_config_from_integration_data(SAMPLE_INTEGRATION_DATA))}
 
     nginx_manager.update_and_load_config(
         sample_data, mock_instance_name, client_ip_hash_salt="new-salt"

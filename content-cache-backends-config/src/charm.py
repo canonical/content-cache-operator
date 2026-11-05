@@ -9,8 +9,9 @@ import logging
 
 import ops
 
+from cache_config import CacheConfigInvalidRelationDataError, CacheConfigRequirer
 from errors import ConfigurationError
-from state import Configuration
+from state import configuration_from_charm
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class ContentCacheBackendsConfigCharm(ops.CharmBase):
             framework: The ops framework.
         """
         super().__init__(framework)
+        self._cache_config = CacheConfigRequirer(self, CACHE_CONFIG_INTEGRATION_NAME)
         framework.observe(self.on.start, self._on_start)
         framework.observe(self.on.config_changed, self._on_config_changed)
         framework.observe(
@@ -61,16 +63,19 @@ class ContentCacheBackendsConfigCharm(ops.CharmBase):
 
         logger.info("Loading configuration")
         try:
-            config = Configuration.from_charm(self)
-            data = config.to_integration_data()
+            kwargs = configuration_from_charm(self)
         except ConfigurationError as err:
             logger.error("Configuration error: %s", err)
             self.unit.status = ops.BlockedStatus(str(err))
             return
 
         logger.info("Setting integration data")
-        rel = self.model.relations[CACHE_CONFIG_INTEGRATION_NAME][0]
-        rel.data[self.app].update(data)
+        try:
+            self._cache_config.publish_cache_config(**kwargs)
+        except CacheConfigInvalidRelationDataError as err:
+            logger.error("Invalid cache-config data: %s", err)
+            self.unit.status = ops.BlockedStatus(str(err))
+            return
         logger.info("Integration data set")
 
     def _leader_set_status(self) -> bool:
