@@ -9,7 +9,10 @@ import logging
 
 import ops
 
-from cache_config import CacheConfigInvalidRelationDataError, CacheConfigRequirer
+from charms.content_cache.v0.cache_config import (
+    CacheConfigInvalidRelationDataError,
+    CacheConfigRequirer,
+)
 from errors import ConfigurationError
 from state import configuration_from_charm
 

@@ -10,9 +10,12 @@ import typing
 import ops
 from pydantic import AnyHttpUrl, TypeAdapter, ValidationError
 
-from cache_config import CacheConfigIntegrationDataError, CacheConfigRequirerAppData
-from cache_config.provider import CacheConfigProvider
-from cache_config.requirer import _decode
+from charms.content_cache.v0.cache_config import (
+    CacheConfigIntegrationDataError,
+    CacheConfigProvider,
+    CacheConfigRequirerAppData,
+    _decode,
+)
 from errors import ConfigurationError, IntegrationDataError
 
 logger = logging.getLogger(__name__)

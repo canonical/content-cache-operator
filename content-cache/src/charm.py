@@ -24,7 +24,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
 import ca_certs
 import certificates
 import nginx_manager
-from cache_config.provider import CacheConfigProvider
+from charms.content_cache.v0.cache_config import CacheConfigProvider
 from certificates import FRONTEND_CERT_COMMON_NAME
 from errors import (
     CACertificateFileError,

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from cache_config import CacheConfigRequirerAppData
+from charms.content_cache.v0.cache_config import CacheConfigRequirerAppData
 from errors import ConfigurationError, IntegrationDataError
 from state import (
     LocationConfig,
@@ -20,7 +20,7 @@ from state import (
 
 # Field-level validation (nginx time/size formats, backend-hostname-required-for-https,
 # consistent backend schemes, status code ranges, etc.) is owned by the cache_config
-# library and already covered by its own test suite (libs/cache_config/tests). The tests
+# library itself (lib/charms/content_cache/v0/cache_config.py). The tests
 # here only cover this charm's own responsibilities: reshaping the library's validated
 # data into nginx_manager's rendering shape, and wiring get_nginx_config to the provider.
 
@@ -104,7 +104,7 @@ def test_get_nginx_config_wraps_library_error():
     assert: The charm's own IntegrationDataError is raised instead, so callers only need to
         catch content-cache's error types.
     """
-    from cache_config import CacheConfigIntegrationDataError
+    from charms.content_cache.v0.cache_config import CacheConfigIntegrationDataError
 
     provider = MagicMock()
     provider.get_requirers_data.side_effect = CacheConfigIntegrationDataError("bad data")
