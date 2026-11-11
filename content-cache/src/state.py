@@ -63,8 +63,7 @@ def get_client_ip_hash_salt(charm: ops.CharmBase) -> str | None:
     salt = secret_content.get("salt")
     if not isinstance(salt, str) or not salt.strip():
         raise ConfigurationError(
-            f"The {CLIENT_IP_HASH_SALT_CONFIG_NAME} secret must contain a non-empty "
-            "'salt' value."
+            f"The {CLIENT_IP_HASH_SALT_CONFIG_NAME} secret must contain a non-empty 'salt' value."
         )
     if any(
         character in _SALT_DISALLOWED_CHARACTERS or ord(character) < 32 or ord(character) == 127
@@ -212,7 +211,7 @@ class HealthcheckConfig(pydantic.BaseModel):
             )
         except pydantic.ValidationError as err:
             err_msg = [
-                f'{error["loc"][0]} = {error["input"]}: {error["msg"]}' for error in err.errors()
+                f"{error['loc'][0]} = {error['input']}: {error['msg']}" for error in err.errors()
             ]
             logger.error("Found integration data error: %s", err_msg)
             raise ConfigurationError(f"Config error: {err_msg}") from err
@@ -353,7 +352,7 @@ class LocationConfig(pydantic.BaseModel):
             )
         except pydantic.ValidationError as err:
             err_msg = [
-                f'{error["loc"][0] if error["loc"] else "model"} = {error["input"]}: {error["msg"]}'
+                f"{error['loc'][0] if error['loc'] else 'model'} = {error['input']}: {error['msg']}"
                 for error in err.errors()
             ]
             logger.error("Found integration data error: %s", err_msg)

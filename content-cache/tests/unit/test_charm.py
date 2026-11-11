@@ -611,9 +611,9 @@ def test_tls_certificates_relation_broken_reverts_to_http(
     mock_nginx_manager.update_and_load_config.reset_mock()
     harness.remove_relation(cert_rel_id)
 
-    assert charm.unit.status != ops.WaitingStatus(
-        WAIT_FOR_TLS_CERT_MESSAGE
-    ), "Charm must not be stuck in WaitingStatus after certificates relation is removed"
+    assert charm.unit.status != ops.WaitingStatus(WAIT_FOR_TLS_CERT_MESSAGE), (
+        "Charm must not be stuck in WaitingStatus after certificates relation is removed"
+    )
     mock_nginx_manager.update_and_load_config.assert_called()
 
 

@@ -1,0 +1,150 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+skipsdist = true
+skip_missing_interpreters = true
+envlist = ["lint", "unit", "static", "coverage-report"]
+requires = ["tox>=4.21", "tox-uv>=1.0"]
+no_package = true
+
+[env_run_base]
+runner = "uv-venv-lock-runner"
+passenv = ["PYTHONPATH", "CHARM_BUILD_DIR", "MODEL_SETTINGS"]
+
+[env_run_base.setenv]
+PYTHONPATH = "{toxinidir}:{toxinidir}/lib:{[vars]src_path}"
+PYTHONBREAKPOINT = "ipdb.set_trace"
+PY_COLORS = "1"
+
+[env.fmt]
+description = "Apply coding style standards to code"
+dependency_groups = ["fmt"]
+commands = [
+  [
+    "ruff",
+    "check",
+    "--fix",
+    "--select",
+    "I",
+    { replace = "ref", of = ["vars", "all_path"], extend = true },
+  ],
+  [
+    "ruff",
+    "format",
+    { replace = "ref", of = ["vars", "all_path"], extend = true },
+  ],
+]
+
+[env.lint]
+description = "Check code against coding style standards"
+dependency_groups = ["lint"]
+commands = [
+  [
+    "codespell",
+    "{toxinidir}",
+    "--skip",
+    "{toxinidir}/.git",
+    "--skip",
+    "{toxinidir}/.tox",
+    "--skip",
+    "{toxinidir}/build",
+    "--skip",
+    "{toxinidir}/lib",
+    "--skip",
+    "{toxinidir}/venv",
+    "--skip",
+    "{toxinidir}/.mypy_cache",
+    "--skip",
+    "{toxinidir}/icon.svg",
+    "--skip",
+    "{toxinidir}/uv.lock",
+    "--skip",
+    "{toxinidir}/tests/integration/scripts/certificate.pem",
+  ],
+  [
+    "ruff",
+    "format",
+    "--check",
+    "--diff",
+    { replace = "ref", of = ["vars", "all_path"], extend = true },
+  ],
+  [
+    "ruff",
+    "check",
+    { replace = "ref", of = ["vars", "all_path"], extend = true },
+  ],
+  [
+    "mypy",
+    { replace = "ref", of = ["vars", "all_path"], extend = true },
+  ],
+  [
+    "pylint",
+    "--rcfile={toxinidir}/../pyproject.toml",
+    "{toxinidir}/src/",
+  ],
+]
+
+[env.unit]
+description = "Run unit tests"
+dependency_groups = ["unit"]
+commands = [
+  [
+    "coverage",
+    "run",
+    "--source={[vars]src_path}",
+    "-m",
+    "pytest",
+    "--ignore={[vars]tst_path}integration",
+    "-v",
+    "--tb",
+    "native",
+    "-s",
+    { replace = "posargs", extend = "true" },
+  ],
+  ["coverage", "report"],
+]
+
+[env.coverage-report]
+description = "Create test coverage report"
+dependency_groups = ["coverage-report"]
+commands = [["coverage", "report"]]
+
+[env.static]
+description = "Run static analysis tests"
+dependency_groups = ["static"]
+commands = [
+  [
+    "bandit",
+    "-c",
+    "{toxinidir}/../pyproject.toml",
+    "-r",
+    "{toxinidir}/src/",
+  ],
+]
+
+[env.integration]
+description = "Run integration tests"
+dependency_groups = ["integration"]
+commands = [
+  [
+    "pytest",
+    "-v",
+    "--tb",
+    "native",
+    "--ignore={[vars]tst_path}unit",
+    "--log-cli-level=INFO",
+    "-s",
+    { replace = "posargs", extend = "true" },
+  ],
+]
+
+[env.integration.setenv]
+PYTHONPATH = "{toxinidir}:{toxinidir}/lib:{[vars]src_path}"
+PYTHONBREAKPOINT = "ipdb.set_trace"
+PY_COLORS = "1"
+CHARMCRAFT_EXPERIMENTAL_MONOREPO = "1"
+
+[vars]
+src_path = "{toxinidir}/src/"
+tst_path = "{toxinidir}/tests/"
+all_path = ["{toxinidir}/src/", "{toxinidir}/tests/"]

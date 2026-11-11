@@ -19,6 +19,7 @@ header:
     - '**/*.rst'
     - '.jujuignore'
     - '.gitignore'
+    - '**/uv.lock'
     - '.licenserc.yaml'
     - '.copier-answers.yml'
     - '.readthedocs.yaml'
