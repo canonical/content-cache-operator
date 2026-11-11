@@ -13,12 +13,16 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
+    "content-cache-config",
     "ops==3.9.0",
     "pydantic==2.14.1",
 ]
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+content-cache-config = { workspace = true }
 
 [tool.pytest.ini_options]
 minversion = "6.0"

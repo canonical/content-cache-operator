@@ -13,12 +13,18 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
 ]
+dependencies = [
+    "content-cache-config",
+]
 
 [tool.uv]
 package = false
 
 [tool.uv.workspace]
-members = ["content-cache", "content-cache-backends-config"]
+members = ["libs/cache-config", "content-cache", "content-cache-backends-config"]
+
+[tool.uv.sources]
+content-cache-config = { workspace = true }
 
 [dependency-groups]
 fmt = [
@@ -91,6 +97,7 @@ disable = "wrong-import-order"
 line-length = 99
 target-version = "py312"
 src = [
+    "libs/cache-config/src",
     "content-cache/src",
     "content-cache-backends-config/src",
 ]

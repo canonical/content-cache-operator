@@ -11,28 +11,17 @@ import pytest
 from ops.testing import Harness
 
 from charm import ContentCacheCharm
-from state import (
-    BACKENDS_FIELD_NAME,
-    CACHE_INACTIVE_FIELD_NAME,
-    CACHE_MAX_SIZE_FIELD_NAME,
-    FAIL_TIMEOUT_FIELD_NAME,
-    HEALTHCHECK_INTERVAL_FIELD_NAME,
-    HEALTHCHECK_PATH_FIELD_NAME,
-    HEALTHCHECK_SSL_VERIFY_FIELD_NAME,
-    HEALTHCHECK_VALID_STATUS_FIELD_NAME,
-    PROXY_CACHE_VALID_FIELD_NAME,
-)
 
 SAMPLE_INTEGRATION_DATA = {
-    BACKENDS_FIELD_NAME: '["http://10.10.1.1:80", "http://10.10.2.2:80"]',
-    FAIL_TIMEOUT_FIELD_NAME: "30s",
-    HEALTHCHECK_INTERVAL_FIELD_NAME: "2000",
-    HEALTHCHECK_PATH_FIELD_NAME: "/",
-    HEALTHCHECK_SSL_VERIFY_FIELD_NAME: "false",
-    HEALTHCHECK_VALID_STATUS_FIELD_NAME: "[200]",
-    PROXY_CACHE_VALID_FIELD_NAME: '["200 302 1h", "404 1m"]',
-    CACHE_INACTIVE_FIELD_NAME: "10m",
-    CACHE_MAX_SIZE_FIELD_NAME: "",
+    "backends": '["http://10.10.1.1:80", "http://10.10.2.2:80"]',
+    "fail_timeout": "30s",
+    "healthcheck_interval": "2000",
+    "healthcheck_path": "/",
+    "healthcheck_ssl_verify": "false",
+    "healthcheck_valid_status": "[200]",
+    "proxy_cache_valid": '["200 302 1h", "404 1m"]',
+    "cache_inactive": "10m",
+    "cache_max_size": "",
 }
 
 
