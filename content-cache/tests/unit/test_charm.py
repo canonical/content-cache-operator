@@ -132,7 +132,7 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
     assert charm.unit.status == ops.ActiveStatus()
 
     # Test the integration data is correct
-    config = state.get_nginx_config(charm)
+    config = state.get_nginx_config(charm._cache_config)
     assert len(config) == 1
     assert relation_id in config
     location_config = config[relation_id]
@@ -161,7 +161,7 @@ def test_remove_integration(harness: Harness, charm: ContentCacheCharm):
     assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
 
     # Test no data
-    config = state.get_nginx_config(charm)
+    config = state.get_nginx_config(charm._cache_config)
     assert not config
 
 
@@ -172,14 +172,14 @@ def test_invalid_integration_data(harness: Harness, charm: ContentCacheCharm):
     assert: Charm in block state.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[state.BACKENDS_FIELD_NAME] = '["not-a-url"]'
+    data["backends"] = '["not-a-url"]'
     harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
         remote_app="config",
         app_data=data,
     )
     assert isinstance(charm.unit.status, ops.BlockedStatus)
-    assert "Config error" in charm.unit.status.message
+    assert "validation error" in charm.unit.status.message
 
 
 def test_empty_integration_data(harness: Harness, charm: ContentCacheCharm):
@@ -194,7 +194,7 @@ def test_empty_integration_data(harness: Harness, charm: ContentCacheCharm):
     """
     harness.add_relation(CACHE_CONFIG_INTEGRATION_NAME, remote_app="config", app_data={})
 
-    config = state.get_nginx_config(charm)
+    config = state.get_nginx_config(charm._cache_config)
     assert not config
 
 
@@ -260,7 +260,7 @@ def test_get_nginx_config_returns_flat_per_relation_dict(
         app_data=SAMPLE_INTEGRATION_DATA,
     )
 
-    config = get_nginx_config(charm)
+    config = get_nginx_config(charm._cache_config)
 
     assert relation_id in config
     assert isinstance(config[relation_id], LocationConfig)
@@ -624,7 +624,7 @@ def test_https_backends_without_hostname_sets_blocked(harness: Harness, charm: C
     assert: The charm enters BlockedStatus.
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[state.BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+    data["backends"] = '["https://10.10.1.1:443"]'
 
     harness.add_relation(
         CACHE_CONFIG_INTEGRATION_NAME,
@@ -633,7 +633,7 @@ def test_https_backends_without_hostname_sets_blocked(harness: Harness, charm: C
     )
 
     assert isinstance(charm.unit.status, ops.BlockedStatus)
-    assert "backend-hostname is required" in charm.unit.status.message
+    assert "backend_hostname is required" in charm.unit.status.message
 
 
 def test_https_backend_with_hostname_stays_active(
@@ -646,7 +646,7 @@ def test_https_backend_with_hostname_stays_active(
     assert: The charm stays active (system CA bundle is used automatically).
     """
     data = dict(SAMPLE_INTEGRATION_DATA)
-    data[state.BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+    data["backends"] = '["https://10.10.1.1:443"]'
     data.update(SAMPLE_HTTPS_EXTRA)
 
     harness.add_relation(

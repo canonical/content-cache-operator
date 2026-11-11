@@ -9,6 +9,10 @@ import logging
 
 import ops
 
+from cache_config.v0 import (
+    CacheConfigInvalidRelationDataError,
+    CacheConfigRequirer,
+)
 from errors import ConfigurationError
 from state import Configuration
 
@@ -27,8 +31,14 @@ class ContentCacheBackendsConfigCharm(ops.CharmBase):
             framework: The ops framework.
         """
         super().__init__(framework)
+        self._cache_config = CacheConfigRequirer(self, CACHE_CONFIG_INTEGRATION_NAME)
         framework.observe(self.on.start, self._on_start)
         framework.observe(self.on.config_changed, self._on_config_changed)
+        framework.observe(self.on.leader_elected, self._on_config_changed)
+        framework.observe(
+            self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_created,
+            self._on_cache_config_relation_changed,
+        )
         framework.observe(
             self.on[CACHE_CONFIG_INTEGRATION_NAME].relation_changed,
             self._on_cache_config_relation_changed,
@@ -42,12 +52,12 @@ class ContentCacheBackendsConfigCharm(ops.CharmBase):
         """Handle start event."""
         self._leader_set_status()
 
-    def _on_config_changed(self, _: ops.ConfigChangedEvent) -> None:
-        """Handle config changed event."""
+    def _on_config_changed(self, _: ops.EventBase) -> None:
+        """Handle config changed and leader elected events."""
         self._load_integration_data()
 
-    def _on_cache_config_relation_changed(self, _: ops.RelationChangedEvent) -> None:
-        """Handle cache config relation changed event."""
+    def _on_cache_config_relation_changed(self, _: ops.RelationEvent) -> None:
+        """Handle cache config relation created and changed events."""
         self._load_integration_data()
 
     def _on_cache_config_relation_broken(self, _: ops.RelationBrokenEvent) -> None:
@@ -62,15 +72,18 @@ class ContentCacheBackendsConfigCharm(ops.CharmBase):
         logger.info("Loading configuration")
         try:
             config = Configuration.from_charm(self)
-            data = config.to_integration_data()
         except ConfigurationError as err:
             logger.error("Configuration error: %s", err)
             self.unit.status = ops.BlockedStatus(str(err))
             return
 
         logger.info("Setting integration data")
-        rel = self.model.relations[CACHE_CONFIG_INTEGRATION_NAME][0]
-        rel.data[self.app].update(data)
+        try:
+            self._cache_config.publish_cache_config(**config.to_cache_config_kwargs())
+        except CacheConfigInvalidRelationDataError as err:
+            logger.error("Invalid cache-config data: %s", err)
+            self.unit.status = ops.BlockedStatus(str(err))
+            return
         logger.info("Integration data set")
 
     def _leader_set_status(self) -> bool:

@@ -536,7 +536,7 @@ def test_get_location_config_keys_https_without_hostname_has_no_ssl_directives(
         "backends": '["https://10.10.1.1:443"]',
         # No backend_hostname set
     }
-    with pytest.raises(ConfigurationError, match="backend-hostname is required"):
+    with pytest.raises(ConfigurationError, match="backend_hostname is required"):
         LocationConfig.from_integration_data(data)
 
 

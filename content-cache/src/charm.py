@@ -24,6 +24,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
 import ca_certs
 import certificates
 import nginx_manager
+from cache_config.v0 import CacheConfigProvider
 from certificates import FRONTEND_CERT_COMMON_NAME
 from errors import (
     CACertificateFileError,
@@ -74,6 +75,7 @@ class ContentCacheCharm(ops.CharmBase):
         """
         super().__init__(framework)
 
+        self._cache_config = CacheConfigProvider(self, CACHE_CONFIG_INTEGRATION_NAME)
         self._cos_agent = COSAgentProvider(charm=self)
         self._certificate_transfer = CertificateTransferRequires(
             self, CERTIFICATE_TRANSFER_INTEGRATION_NAME
@@ -190,7 +192,7 @@ class ContentCacheCharm(ops.CharmBase):
 
     def _on_cache_config_relation_broken(self, event: ops.RelationBrokenEvent) -> None:
         """Handle config relation broken event."""
-        event.relation.data[self.unit]["cache-backend"] = ""
+        self._cache_config.clear_cache_backend(event.relation.id)
         self._release_port(event.relation.id)
         self._load_nginx_config(broken_relation_id=event.relation.id)
 
@@ -483,14 +485,12 @@ class ContentCacheCharm(ops.CharmBase):
             url = get_cache_backend_url(
                 self, rel, port, has_cache_cert=cache_cert_path is not None
             )
-            if rel.data[self.unit].get("cache-backend") != url:
-                rel.data[self.unit]["cache-backend"] = url
+            self._cache_config.publish_cache_backend(rel_id, url)
 
     def _clear_cache_backend(self) -> None:
         """Clear cache-backend from all cache-config relation databags."""
         for rel in self.model.relations[CACHE_CONFIG_INTEGRATION_NAME]:
-            if rel.data[self.unit].get("cache-backend"):
-                rel.data[self.unit]["cache-backend"] = ""
+            self._cache_config.clear_cache_backend(rel.id)
 
     def _get_config_and_update_status(self) -> NginxConfig | None:
         """Attempt to get nginx config, updates charm status on failure.
@@ -499,7 +499,7 @@ class ContentCacheCharm(ops.CharmBase):
             The nginx configuration if found and valid.
         """
         try:
-            nginx_config = get_nginx_config(self)
+            nginx_config = get_nginx_config(self._cache_config)
         except IntegrationDataError as err:
             self.unit.status = ops.BlockedStatus(str(err))
             return None
