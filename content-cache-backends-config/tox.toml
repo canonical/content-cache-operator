@@ -15,6 +15,7 @@ passenv = ["PYTHONPATH", "CHARM_BUILD_DIR", "MODEL_SETTINGS"]
 PYTHONPATH = "{toxinidir}:{[vars]src_path}"
 PYTHONBREAKPOINT = "ipdb.set_trace"
 PY_COLORS = "1"
+COVERAGE_RCFILE = "{toxinidir}/../pyproject.toml"
 
 [env.fmt]
 description = "Apply coding style standards to code"
@@ -39,7 +40,7 @@ commands = [
 description = "Check code against coding style standards"
 dependency_groups = ["lint"]
 commands = [
-  ["codespell", "{toxinidir}"],
+  ["codespell", "{toxinidir}", "--toml={toxinidir}/../pyproject.toml"],
   [
     "ruff",
     "format",
