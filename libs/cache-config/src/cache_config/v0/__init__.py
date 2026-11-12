@@ -19,7 +19,7 @@ uv add "${repository}#subdirectory=libs/cache-config"
 
 The charm's `uv.lock` records the resolved commit. External consumers must include `git` in
 the charm part's build packages so Charmcraft can install the dependency during packing. See
-[Manage git dependencies](https://canonical.com/juju/docs/charmlibs/how-to/manage-libraries/)
+[Manage git dependencies](https://canonical.com/juju/docs/charmlibs/how-to/manage-libraries/#manage-git-dependencies)
 for the complete workflow.
 
 In the `metadata.yaml` of the requirer charm, add the following:
