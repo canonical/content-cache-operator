@@ -272,7 +272,7 @@ def _validate_nginx_size(value: str) -> str:
     Returns:
         The validated value.
     """
-    if not value:
+    if value == "":
         return value
     if not _NGINX_SIZE_PATTERN.fullmatch(value) or int(value[:-1]) < 1:
         raise ValueError(f"Size must be a positive integer followed by k, m or g, got: {value!r}")
