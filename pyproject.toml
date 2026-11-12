@@ -1,0 +1,127 @@
+# Copyright 2026 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+[project]
+name = "content-cache-operators"
+version = "0.0.0"
+description = "Content cache charms."
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["content-cache", "content-cache-backends-config"]
+
+[dependency-groups]
+fmt = [
+    "ruff",
+]
+lint = [
+    "codespell",
+    "factory-boy>=3,<4",
+    "mypy",
+    "pylint",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-operator",
+    "requests",
+    "ruff",
+    "types-PyYAML",
+    "types-requests",
+    "types-paramiko",
+]
+unit = [
+    "coverage[toml]",
+    "factory-boy>=3,<4",
+    "pytest",
+]
+coverage-report = [
+    "coverage[toml]",
+    "pytest",
+]
+static = [
+    "bandit[toml]",
+]
+integration = [
+    "allure-pytest>=2.8.18",
+    "allure-pytest-collection-report @ git+https://github.com/canonical/data-platform-workflows@v24.0.0#subdirectory=python/pytest_plugins/allure_pytest_collection_report",
+    "juju",
+    # pytest-operator pins pytest-asyncio<0.23, which is incompatible with pytest 9.
+    "pytest<9",
+    "pytest-asyncio",
+    "pytest-operator",
+    "requests>=2,<3",
+]
+
+[tool.bandit]
+exclude_dirs = ["/venv/"]
+[tool.bandit.assert_used]
+skips = ["*/*test.py", "*/test_*.py", "*tests/*.py"]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_untyped_defs = true
+explicit_package_bases = true
+ignore_missing_imports = true
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+disallow_untyped_defs = false
+module = "tests.*"
+
+[tool.pylint]
+disable = "wrong-import-order"
+
+# Linting tools configuration
+[tool.ruff]
+line-length = 99
+target-version = "py312"
+src = [
+    "content-cache/src",
+    "content-cache-backends-config/src",
+]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "C", "N", "D", "I"]
+ignore = [
+    "E501",
+    "D107",
+    "D203",
+    "D204",
+    "D213",
+    "D215",
+    "D400",
+    "D404",
+    "D405",
+    "D406",
+    "D407",
+    "D408",
+    "D409",
+    "D413",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.isort]
+known-first-party = ["src", "tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*.py" = ["D"]
+
+[tool.codespell]
+skip = "build,lib,venv,.venv,icon.svg,.tox,.git,.mypy_cache,.ruff_cache,.coverage,uv.lock,*/tests/integration/scripts/certificate.pem"
