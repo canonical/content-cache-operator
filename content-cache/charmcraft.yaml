@@ -10,11 +10,24 @@ platforms:
     build-on: amd64
     build-for: amd64
 
+config:
+  options:
+    client-ip-hash-salt:
+      type: secret
+      description: |
+        User-owned Juju secret containing the salt used to hash client IPs in the
+        access and cache logs. Setting this option enables salted SHA-256 hashing;
+        removing it restores plaintext client IP logging. The secret must contain
+        a `salt` key with a string value that is not empty or only whitespace. The
+        value must not contain control characters, DEL, double quotes,
+        backslashes, or dollar signs. The charm does not validate salt length or
+        entropy.
+
 parts:
   nginx-module-lua-upstream:
     plugin: dump
     source: https://github.com/openresty/lua-upstream-nginx-module.git
-    source-commit: 0bbdcf1d9b240b1b4ab46667bd67fc93ce7e1295 # nginxUpstreamLuaModuleCommit <- DO NOT REMOVE, used by renovate
+    source-commit: 77e65536d6d258a0b979dc98b41804c319ff0d8d # nginxUpstreamLuaModuleCommit <- DO NOT REMOVE, used by renovate
     build-packages:
       - git
       - dpkg-dev
@@ -25,7 +38,7 @@ parts:
     override-build: |
       set -eux
       # Build package
-      cp -R /root/parts/charm/src/lua-upstream-nginx-module-packaging/debian .
+      cp -R /root/parts/charm/src/content-cache/lua-upstream-nginx-module-packaging/debian .
       curl https://raw.githubusercontent.com/openresty/lua-nginx-module/f44c18859050be5af314bae8f05660478af5e31d/src/api/ngx_http_lua_api.h -O --output-dir debian/
       dpkg-buildpackage -us -uc
       cp ../libnginx-mod-http-upstream_0.1_amd64.deb /root/stage
@@ -34,12 +47,23 @@ parts:
   nginx-upstream-healthcheck:
     plugin: dump
     source: https://github.com/openresty/lua-resty-upstream-healthcheck.git
-    source-commit: f7906b6b719273bf72a0c616b050d01c6c82f818 # luaHealthchecksCommit <- DO NOT REMOVE, used by renovate
+    source-commit: 0ebd5167058378e85949308d035324a8c9bf7150 # luaHealthchecksCommit <- DO NOT REMOVE, used by renovate
     override-build:
       cp /root/parts/nginx-upstream-healthcheck/src/lib/resty/upstream/healthcheck.lua /root/stage/
     prime:
       - healthcheck.lua
+  nginx-sha2-lua:
+    plugin: dump
+    source: https://github.com/Egor-Skriptunoff/pure_lua_SHA.git
+    source-commit: 6adac177c16c3496899f69d220dfb20bc31c03df # pureLuaShaCommit <- DO NOT REMOVE, used by renovate
+    override-build:
+      cp /root/parts/nginx-sha2-lua/src/sha2.lua /root/stage/
+    prime:
+      - sha2.lua
   charm:
+    plugin: uv
+    source: ..
+    source-subdir: content-cache
     build-packages: 
       - cargo
       - rustc
@@ -47,9 +71,8 @@ parts:
       - libffi-dev
       - libssl-dev
     build-snaps:
+      - astral-uv
       - rustup
     override-build: |
       rustup default stable
       craftctl default
-    charm-python-packages: [setuptools, pip]  # https://discourse.charmhub.io/t/install-or-update-python-packages-before-packing-a-charm/5158
-    charm-binary-python-packages: [cosl]  # https://github.com/canonical/charmcraft/issues/1269

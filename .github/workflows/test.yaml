@@ -12,6 +12,7 @@ jobs:
       pull-requests: write
     with:
       self-hosted-runner: false
+      with-uv: true
       working-directory: ./content-cache
       vale-style-check: true
   unit-tests-content-cache-backends-config:
@@ -22,5 +23,6 @@ jobs:
       pull-requests: write
     with:
       self-hosted-runner: false
+      with-uv: true
       working-directory: ./content-cache-backends-config
       vale-style-check: true

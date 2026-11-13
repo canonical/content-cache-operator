@@ -42,8 +42,12 @@ that can be used for linting and formatting code when you're preparing contribut
 Build the charm in this git repository using:
 
 ```shell
-charmcraft pack
+CHARMCRAFT_EXPERIMENTAL_MONOREPO=1 charmcraft pack
 ```
+
+Charmcraft 4.5 or later is required. The experimental build mode gives the build access to
+files outside the charm directory while the `uv` plugin installs the locked Python
+dependencies.
 
 ### Deploy
 

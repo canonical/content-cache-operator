@@ -94,9 +94,9 @@ async def test_certificate_transfer_full_lifecycle(
 
         # Phase 3: cert-transfer removed — local CA gone from bundle — proxy SSL verify fails.
         response = await cache_tester.query_cache(path="/", protocol="http")
-        assert (
-            response.status_code == 502
-        ), "Expected 502 after cert-transfer removal: CA untrusted"
+        assert response.status_code == 502, (
+            "Expected 502 after cert-transfer removal: CA untrusted"
+        )
     finally:
         if has_related_application(app, CERTIFICATE_TRANSFER_INTEGRATION_NAME):
             await app.remove_relation(
@@ -142,26 +142,26 @@ async def test_tls_termination_full_lifecycle(
 
         unit = app.units[0]
         backends = await get_cache_backend(unit)
-        assert backends.startswith(
-            "https://"
-        ), f"Expected https:// backend after TLS cert issuance, got: {backends}"
+        assert backends.startswith("https://"), (
+            f"Expected https:// backend after TLS cert issuance, got: {backends}"
+        )
 
         _, ssl_files, _ = await run_in_unit(
             unit=unit,
             command="grep -Rl ssl /etc/nginx/sites-enabled/ 2>/dev/null || true",
         )
-        assert (
-            ssl_files and ssl_files.strip()
-        ), "No nginx site config with 'ssl' directive found after TLS cert issuance"
+        assert ssl_files and ssl_files.strip(), (
+            "No nginx site config with 'ssl' directive found after TLS cert issuance"
+        )
 
         await app.remove_relation(CERTIFICATES_INTEGRATION_NAME, cache_lego_app.name)
         await model.wait_for_idle([app.name], status="active", timeout=5 * 60)
         assert app.units[0].workload_status == "active"
 
         backends_after = await get_cache_backend(unit)
-        assert backends_after.startswith(
-            "http://"
-        ), f"Expected http:// backend after cert relation removal, got: {backends_after}"
+        assert backends_after.startswith("http://"), (
+            f"Expected http:// backend after cert relation removal, got: {backends_after}"
+        )
     finally:
         # Ensure the certificates relation is removed even if the test fails.
         # Do NOT use block_until_done=True here — it has no timeout and can hang forever.
