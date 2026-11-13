@@ -38,7 +38,7 @@ parts:
     override-build: |
       set -eux
       # Build package
-      cp -R /root/parts/charm/src/lua-upstream-nginx-module-packaging/debian .
+      cp -R /root/parts/charm/src/content-cache/lua-upstream-nginx-module-packaging/debian .
       curl https://raw.githubusercontent.com/openresty/lua-nginx-module/f44c18859050be5af314bae8f05660478af5e31d/src/api/ngx_http_lua_api.h -O --output-dir debian/
       dpkg-buildpackage -us -uc
       cp ../libnginx-mod-http-upstream_0.1_amd64.deb /root/stage
@@ -61,6 +61,9 @@ parts:
     prime:
       - sha2.lua
   charm:
+    plugin: uv
+    source: ..
+    source-subdir: content-cache
     build-packages: 
       - cargo
       - rustc
@@ -68,9 +71,8 @@ parts:
       - libffi-dev
       - libssl-dev
     build-snaps:
+      - astral-uv
       - rustup
     override-build: |
       rustup default stable
       craftctl default
-    charm-python-packages: [setuptools, pip]  # https://discourse.charmhub.io/t/install-or-update-python-packages-before-packing-a-charm/5158
-    charm-binary-python-packages: [cosl]  # https://github.com/canonical/charmcraft/issues/1269
