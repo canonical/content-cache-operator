@@ -58,5 +58,49 @@ The complete list of available integrations can be found [in the Integrations ta
 
 <!-- vale off -->
 <!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | ~> 1.12 |
+| <a name="requirement_juju"></a> [juju](#requirement\_juju) | ~> 2.0 |
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| <a name="provider_juju"></a> [juju](#provider\_juju) | ~> 2.0 |
+
+## Modules
+
+No modules.
+
+## Resources
+
+| Name | Type |
+|------|------|
+| [juju_application.content_cache](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/application) | resource |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_app_name"></a> [app\_name](#input\_app\_name) | Application name for the content-cache charm. | `string` | `"content-cache"` | no |
+| <a name="input_base"></a> [base](#input\_base) | The operating system on which to deploy. Defaults to the charm's default base when null. | `string` | `null` | no |
+| <a name="input_channel"></a> [channel](#input\_channel) | The channel to use when deploying the charm. | `string` | `"latest/stable"` | no |
+| <a name="input_config"></a> [config](#input\_config) | Application config. Details about available options can be found at https://charmhub.io/content-cache/configurations. | `map(string)` | `{}` | no |
+| <a name="input_constraints"></a> [constraints](#input\_constraints) | Constraints to apply to the application (e.g. "arch=amd64"). | `string` | `null` | no |
+| <a name="input_expose"></a> [expose](#input\_expose) | Juju exposure settings. Set to `{}` (the default) to expose the application publicly with no restrictions, or set `cidrs`/`endpoints`/`spaces` to restrict exposure, or set to `null` to keep the application unexposed. | <pre>object({<br/>    cidrs     = optional(string)<br/>    endpoints = optional(string)<br/>    spaces    = optional(string)<br/>  })</pre> | `{}` | no |
+| <a name="input_model_uuid"></a> [model\_uuid](#input\_model\_uuid) | UUID of the Juju model where the application will be deployed. | `string` | n/a | yes |
+| <a name="input_revision"></a> [revision](#input\_revision) | Revision number of the charm. | `number` | `null` | no |
+| <a name="input_units"></a> [units](#input\_units) | Number of units to deploy. | `number` | `1` | no |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| <a name="output_application"></a> [application](#output\_application) | The deployed content-cache juju\_application object. |
+| <a name="output_provides"></a> [provides](#output\_provides) | Map of the integration endpoints provided by the content-cache charm. |
+| <a name="output_requires"></a> [requires](#output\_requires) | Map of the integration endpoints required by the content-cache charm. |
 <!-- END_TF_DOCS -->
 <!-- vale on -->
