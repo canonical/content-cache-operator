@@ -218,23 +218,31 @@ def _encode(value: typing.Any) -> str:
 
 
 def _decode(value: str) -> typing.Any:
-    """Decode a field value from the cache-config databag.
+    """Decode a cache-config databag value written in either supported wire format.
 
-    Only list fields are JSON encoded on the wire. Scalars stay raw so that a string such
-    as a numeric hostname is not silently converted to a different type; Pydantic coerces
-    raw booleans and integers for their declared fields.
+    Scalar strings are kept raw so a string such as a numeric hostname is not silently
+    converted to a different type. JSON arrays and JSON string literals are decoded;
+    the JSON literal ``null`` becomes ``None``. Pydantic coerces raw booleans and
+    integers for their declared fields.
 
     Args:
         value: The raw databag value.
 
     Returns:
-        The decoded list, or the raw string for every other value.
+        The decoded value for JSON lists, JSON strings and JSON null, otherwise the raw
+        string.
     """
     try:
         decoded = json.loads(value)
     except json.JSONDecodeError:
         return value
-    return decoded if isinstance(decoded, list) else value
+    if isinstance(decoded, list):
+        return decoded
+    if value.startswith('"') and value.endswith('"'):
+        return decoded
+    if value == "null":
+        return None
+    return value
 
 
 def _validate_nginx_time(value: str) -> str:
