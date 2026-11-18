@@ -196,27 +196,6 @@ class CacheConfigIntegrationDataError(CacheConfigError):
     """Raised when a requirer's app databag fails validation (provider side)."""
 
 
-def _encode(value: typing.Any) -> str:
-    """Encode a field value for the cache-config databag.
-
-    Strings are written as-is because content-cache reads them raw; None is encoded as the
-    empty string, which erases the key from the databag, whereas the JSON literal ``null``
-    would be written through and accepted by content-cache as a legitimate value;
-    everything else is JSON encoded.
-
-    Args:
-        value: The value to encode.
-
-    Returns:
-        The databag representation of the value.
-    """
-    if value is None:
-        return ""
-    if isinstance(value, str):
-        return value
-    return json.dumps(value)
-
-
 def _decode(value: str) -> typing.Any:
     """Decode a cache-config databag value written in either supported wire format.
 
@@ -622,7 +601,7 @@ class CacheConfigRequirer(Object):
                 cache_inactive=cache_inactive,
                 cache_max_size=cache_max_size,
             )
-            relation.save(app_data, self.charm.app, encoder=_encode)
+            relation.save(app_data, self.charm.app)
         except (ValidationError, RelationDataTypeError) as exc:
             raise CacheConfigInvalidRelationDataError(
                 f"Failed to publish cache-config requirer data: {exc}"
@@ -735,8 +714,9 @@ class CacheConfigProvider(Object):
             raise InvalidCacheBackendDataError(
                 f"Invalid cache-backend URL: {cache_backend_url!r}: {exc}"
             ) from exc
-        if relation.data[self.charm.unit].get(_CACHE_BACKEND_FIELD_NAME) != cache_backend_url:
-            relation.data[self.charm.unit][_CACHE_BACKEND_FIELD_NAME] = cache_backend_url
+        encoded = json.dumps(cache_backend_url)
+        if relation.data[self.charm.unit].get(_CACHE_BACKEND_FIELD_NAME) != encoded:
+            relation.data[self.charm.unit][_CACHE_BACKEND_FIELD_NAME] = encoded
 
     def clear_cache_backend(self, relation_id: int) -> None:
         """Clear the cache-backend value from a relation's unit databag.

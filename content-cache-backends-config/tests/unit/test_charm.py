@@ -3,6 +3,7 @@
 
 """Unit test for the charm."""
 
+import json
 from typing import Mapping
 from unittest.mock import MagicMock
 
@@ -129,20 +130,20 @@ def test_integration_data(charm: ContentCacheBackendsConfigCharm, harness: Harne
 
     data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
     assert charm.unit.status == ops.ActiveStatus()
-    backends = __import__("json").loads(data["backends"])
+    backends = json.loads(data["backends"])
     assert len(backends) == 2
     assert any("10.10.1.1" in b for b in backends)
     assert any("10.1.1.2" in b for b in backends)
     assert all(b.startswith("http://") for b in backends)
     assert "protocol" not in data
-    assert data["healthcheck_interval"] == "2000"
-    assert data["healthcheck_path"] == "/health"
-    assert data["healthcheck_ssl_verify"] == "true"
-    assert data["healthcheck_valid_status"] == "[200]"
-    assert data["fail_timeout"] == "30s"
-    assert data["proxy_cache_valid"] == '["200 302 1h", "404 1m"]'
-    assert data["cache_inactive"] == "10m"
-    assert data.get("cache_max_size", "") == ""
+    assert json.loads(data["healthcheck_interval"]) == 2000
+    assert json.loads(data["healthcheck_path"]) == "/health"
+    assert json.loads(data["healthcheck_ssl_verify"]) is True
+    assert json.loads(data["healthcheck_valid_status"]) == [200]
+    assert json.loads(data["fail_timeout"]) == "30s"
+    assert json.loads(data["proxy_cache_valid"]) == ["200 302 1h", "404 1m"]
+    assert json.loads(data["cache_inactive"]) == "10m"
+    assert json.loads(data["cache_max_size"]) == ""
 
 
 def test_relation_created_publishes_configuration(
@@ -161,7 +162,7 @@ def test_relation_created_publishes_configuration(
     )
 
     data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
-    assert data["fail_timeout"] == "30s"
+    assert json.loads(data["fail_timeout"]) == "30s"
 
 
 def test_leader_elected_publishes_configuration(
@@ -186,7 +187,7 @@ def test_leader_elected_publishes_configuration(
     harness.set_leader(True)
 
     data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
-    assert data["fail_timeout"] == "30s"
+    assert json.loads(data["fail_timeout"]) == "30s"
 
 
 def test_integration_with_invalid_config(charm: ContentCacheBackendsConfigCharm, harness: Harness):
