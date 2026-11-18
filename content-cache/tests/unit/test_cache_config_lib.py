@@ -212,6 +212,30 @@ def test_parse_requirer_app_data_decodes_wire_values():
     assert data.proxy_cache_valid == ["200 1h"]
 
 
+def test_parse_requirer_app_data_reads_json_encoded_values():
+    """JSON-encoded databag values also decode into typed requirer data."""
+    data = parse_requirer_app_data(
+        {
+            "backends": '["http://10.0.0.1:80"]',
+            "fail_timeout": '"30s"',
+            "healthcheck_interval": "1000",
+            "healthcheck_path": '"/healthz"',
+            "healthcheck_valid_status": "[200]",
+            "healthcheck_ssl_verify": "true",
+            "proxy_cache_valid": '["200 1h"]',
+            "backend_hostname": "null",
+            "cache_inactive": '"10m"',
+            "cache_max_size": '""',
+        }
+    )
+
+    assert data.fail_timeout == "30s"
+    assert data.healthcheck_path == "/healthz"
+    assert data.backend_hostname is None
+    assert data.cache_inactive == "10m"
+    assert data.cache_max_size == ""
+
+
 def test_provider_unit_data_parses_ipv6_cache_backend():
     """Provider unit data parses an IPv6 cache backend and strips the brackets."""
     data = _provider_unit_data("https://[2001:db8::1]:8443")
@@ -331,6 +355,22 @@ def test_requirer_loads_provider_units_data():
     harness.add_relation_unit(relation_id, "content-cache/0")
     harness.update_relation_data(
         relation_id, "content-cache/0", {"cache-backend": "http://10.0.0.1:8080"}
+    )
+
+    data = harness.charm.cache_config.get_provider_units_data()
+
+    assert data.cache_backend_hosts == ["10.0.0.1"]
+    assert data.cache_backend_ports == [8080]
+
+
+def test_requirer_loads_json_encoded_provider_unit_data():
+    """The requirer reads a JSON-encoded provider cache-backend value."""
+    harness = Harness(_RequirerCharm, meta=REQUIRER_METADATA)
+    harness.begin()
+    relation_id = harness.add_relation("cache-config", "content-cache")
+    harness.add_relation_unit(relation_id, "content-cache/0")
+    harness.update_relation_data(
+        relation_id, "content-cache/0", {"cache-backend": '"http://10.0.0.1:8080"'}
     )
 
     data = harness.charm.cache_config.get_provider_units_data()
