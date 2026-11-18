@@ -201,8 +201,8 @@ def test_mixed_backend_schemes_are_rejected():
         )
 
 
-def test_parse_requirer_app_data_decodes_wire_values():
-    """Raw databag strings decode into typed requirer data."""
+def test_parse_requirer_app_data_decodes_legacy_raw_values():
+    """Legacy raw databag strings decode into typed requirer data."""
     data = parse_requirer_app_data(VALID_REQUIRER_DATABAG)
 
     assert data.backends == ["http://10.0.0.1:80"]
@@ -225,6 +225,30 @@ def test_parse_requirer_app_data_reads_json_encoded_values():
             "proxy_cache_valid": '["200 1h"]',
             "backend_hostname": "null",
             "cache_inactive": '"10m"',
+            "cache_max_size": '""',
+        }
+    )
+
+    assert data.fail_timeout == "30s"
+    assert data.healthcheck_path == "/healthz"
+    assert data.backend_hostname is None
+    assert data.cache_inactive == "10m"
+    assert data.cache_max_size == ""
+
+
+def test_parse_requirer_app_data_reads_mixed_legacy_and_json_values():
+    """Legacy raw and JSON-encoded values can coexist in one databag."""
+    data = parse_requirer_app_data(
+        {
+            "backends": '["http://10.0.0.1:80"]',
+            "fail_timeout": "30s",
+            "healthcheck_interval": "1000",
+            "healthcheck_path": '"/healthz"',
+            "healthcheck_valid_status": "[200]",
+            "healthcheck_ssl_verify": "true",
+            "proxy_cache_valid": '["200 1h"]',
+            "backend_hostname": "null",
+            "cache_inactive": "10m",
             "cache_max_size": '""',
         }
     )
@@ -280,11 +304,13 @@ def test_requirer_publishes_validated_wire_data():
 
     databag = harness.get_relation_data(relation_id, harness.model.app.name)
     assert json.loads(databag["backends"]) == ["http://10.0.0.1:80"]
-    assert databag["fail_timeout"] == "30s"
-    assert databag["healthcheck_interval"] == "1000"
-    assert databag["healthcheck_ssl_verify"] == "true"
-    assert databag["cache_inactive"] == "10m"
-    assert "cache_max_size" not in databag
+    assert json.loads(databag["fail_timeout"]) == "30s"
+    assert json.loads(databag["healthcheck_interval"]) == 1000
+    assert json.loads(databag["healthcheck_path"]) == "/healthz"
+    assert json.loads(databag["healthcheck_ssl_verify"]) is True
+    assert json.loads(databag["cache_inactive"]) == "10m"
+    assert json.loads(databag["cache_max_size"]) == ""
+    assert json.loads(databag["backend_hostname"]) is None
 
 
 def test_requirer_wraps_validation_errors():
@@ -347,8 +373,8 @@ def test_provider_wraps_invalid_requirer_data():
         harness.charm.cache_config.get_requirers_data()
 
 
-def test_requirer_loads_provider_units_data():
-    """The requirer returns valid provider unit cache backends."""
+def test_requirer_loads_legacy_provider_unit_data():
+    """The requirer reads a legacy raw provider cache-backend value."""
     harness = Harness(_RequirerCharm, meta=REQUIRER_METADATA)
     harness.begin()
     relation_id = harness.add_relation("cache-config", "content-cache")
@@ -424,9 +450,8 @@ def test_provider_publishes_and_clears_cache_backend():
     relation_id = harness.add_relation("cache-config", "backend")
 
     harness.charm.cache_config.publish_cache_backend(relation_id, "http://10.0.0.1:8080")
-    assert harness.get_relation_data(relation_id, harness.model.unit.name) == {
-        "cache-backend": "http://10.0.0.1:8080"
-    }
+    databag = harness.get_relation_data(relation_id, harness.model.unit.name)
+    assert json.loads(databag["cache-backend"]) == "http://10.0.0.1:8080"
 
     harness.charm.cache_config.clear_cache_backend(relation_id)
     assert harness.get_relation_data(relation_id, harness.model.unit.name) == {}

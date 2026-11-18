@@ -451,7 +451,7 @@ def test_load_nginx_config_writes_cache_backend(
     assert charm.unit.status == ops.ActiveStatus()
     rel_data = harness.get_relation_data(relation_id, charm.unit.name)
     cache_backend = rel_data.get("cache-backend", "")
-    assert cache_backend == "http://10.0.0.1:8080"
+    assert json.loads(cache_backend) == "http://10.0.0.1:8080"
 
 
 def test_relation_broken_clears_cache_backends(
