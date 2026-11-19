@@ -75,10 +75,9 @@ class SomeCharm(ops.CharmBase):
         try:
             provider_data = self.cache_config.get_provider_units_data()
         except InvalidCacheBackendsDataError:
-            # At least one provider unit has not published its URL yet. Wait for the
-            # next relation-changed event instead of failing the hook.
-            pass
-        else:
+            # Valid provider units have inconsistent cache backend protocols.
+            provider_data = None
+        if provider_data and provider_data.cache_backends:
             cache_backend_hosts = provider_data.cache_backend_hosts
             cache_backend_ports = provider_data.cache_backend_ports
 ```
@@ -619,9 +618,9 @@ class CacheConfigRequirer(Object):
     def get_provider_units_data(self) -> CacheConfigProviderUnitsData:
         """Fetch the cache backend URLs published by the provider units.
 
-        Every published unit must be valid. A partially valid set is rejected rather than
-        silently used, since dropping one provider unit would remove it from the routing
-        target set and black-hole its share of traffic.
+        Invalid or unpublished provider units are skipped. This allows a unit to join,
+        restart, or clear its cache-backend without breaking the whole relation. The
+        remaining units must still publish consistent cache backend protocols.
 
         The URLs are returned parsed and normalized by pydantic, so the string form may
         differ from what the provider wrote: a trailing slash is added and default ports
@@ -632,8 +631,8 @@ class CacheConfigRequirer(Object):
             The cache backend URLs.
 
         Raises:
-            InvalidCacheBackendsDataError: When any provider unit's data is invalid, or
-                when the units publish inconsistent cache backend protocols.
+            InvalidCacheBackendsDataError: When the remaining provider units publish
+                inconsistent cache backend protocols.
         """
         if not (relation := self.relation):
             return CacheConfigProviderUnitsData(cache_backends=[])
@@ -643,9 +642,13 @@ class CacheConfigRequirer(Object):
             try:
                 unit_data = relation.load(CacheConfigProviderUnitData, unit, decoder=_decode)
             except ValidationError as exc:
-                raise InvalidCacheBackendsDataError(
-                    f"Invalid {_CACHE_BACKEND_FIELD_NAME} published by {unit.name}: {exc}"
-                ) from exc
+                logger.warning(
+                    "Skipping invalid %s published by %s: %s",
+                    _CACHE_BACKEND_FIELD_NAME,
+                    unit.name,
+                    exc,
+                )
+                continue
             cache_backends.append(unit_data)
         try:
             return CacheConfigProviderUnitsData(cache_backends=cache_backends)

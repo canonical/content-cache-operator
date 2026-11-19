@@ -339,8 +339,8 @@ def test_requirer_loads_legacy_provider_unit_data():
     assert data.cache_backend_ports == [8080]
 
 
-def test_requirer_rejects_invalid_provider_unit_data():
-    """The requirer rejects the whole provider set when one unit is invalid."""
+def test_requirer_skips_invalid_provider_unit_data():
+    """The requirer skips a provider unit with invalid cache-backend data."""
     harness = Harness(_RequirerCharm, meta=REQUIRER_METADATA)
     harness.begin()
     relation_id = harness.add_relation("cache-config", "content-cache")
@@ -353,8 +353,35 @@ def test_requirer_rejects_invalid_provider_unit_data():
         relation_id, "content-cache/1", {"cache-backend": "http://cache.example.com:8080"}
     )
 
-    with pytest.raises(InvalidCacheBackendsDataError, match="content-cache/1"):
-        harness.charm.cache_config.get_provider_units_data()
+    data = harness.charm.cache_config.get_provider_units_data()
+
+    assert data.cache_backend_hosts == ["10.0.0.1"]
+    assert data.cache_backend_ports == [8080]
+
+
+@pytest.mark.parametrize(
+    "empty_unit_data",
+    [
+        pytest.param({}, id="unpublished"),
+        pytest.param({"cache-backend": ""}, id="cleared"),
+    ],
+)
+def test_requirer_skips_unpublished_provider_unit_data(empty_unit_data):
+    """The requirer skips a provider unit without a cache-backend value."""
+    harness = Harness(_RequirerCharm, meta=REQUIRER_METADATA)
+    harness.begin()
+    relation_id = harness.add_relation("cache-config", "content-cache")
+    harness.add_relation_unit(relation_id, "content-cache/0")
+    harness.add_relation_unit(relation_id, "content-cache/1")
+    harness.update_relation_data(
+        relation_id, "content-cache/0", {"cache-backend": "http://10.0.0.1:8080"}
+    )
+    harness.update_relation_data(relation_id, "content-cache/1", empty_unit_data)
+
+    data = harness.charm.cache_config.get_provider_units_data()
+
+    assert data.cache_backend_hosts == ["10.0.0.1"]
+    assert data.cache_backend_ports == [8080]
 
 
 def test_requirer_rejects_mixed_provider_protocols():
