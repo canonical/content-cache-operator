@@ -6,8 +6,6 @@
 import json
 import logging
 import typing
-from pydantic.dataclasses import dataclass
-
 import ops
 import pydantic
 
@@ -84,8 +82,7 @@ class HealthcheckConfig(pydantic.BaseModel):
             raise ConfigurationError(f"Config error: {err_msg}") from err
 
 
-@dataclass(frozen=True)
-class Configuration:
+class Configuration(pydantic.BaseModel):
     """Represents the configuration.
 
     Attributes:
@@ -97,6 +94,8 @@ class Configuration:
         cache_inactive: Time after which an unaccessed item is evicted from the disk cache.
         cache_max_size: Maximum total disk size for the cache; empty string means no limit.
     """
+
+    model_config = pydantic.ConfigDict(frozen=True)
 
     backends: tuple[str, ...]
     fail_timeout: str
