@@ -71,7 +71,7 @@ commands = [
   [
     "coverage",
     "run",
-    "--source={[vars]src_path},{[vars]cache_config_lib_path}",
+    "--source={[vars]src_path},{toxinidir}/../libs/cache-config/src/",
     "-m",
     "pytest",
     "--ignore={[vars]tst_path}integration",
@@ -128,7 +128,6 @@ CHARMCRAFT_EXPERIMENTAL_MONOREPO = "1"
 [vars]
 src_path = "{toxinidir}/src/"
 tst_path = "{toxinidir}/tests/"
-cache_config_lib_path = "{toxinidir}/../libs/cache-config/src/"
 all_path = [
   "{toxinidir}/src/",
   "{toxinidir}/tests/",
