@@ -277,7 +277,7 @@ def test_provider_unit_data_rejects_invalid_cache_backend():
 def test_provider_units_data_collects_hosts_and_ports():
     """Provider units data exposes cache backend hosts and sorted unique ports."""
     data = CacheConfigProviderUnitsData(
-        [
+        cache_backends=[
             _provider_unit_data("http://10.0.0.1:8080"),
             _provider_unit_data("http://10.0.0.2:9090"),
             _provider_unit_data("http://10.0.0.3:8080"),

@@ -125,7 +125,6 @@ charms use a commit-pinned git dependency. Increment `LIBPATCH` for a backwards-
 change and the package's major version together with `LIBAPI` for a breaking change.
 """
 
-import dataclasses
 import ipaddress
 import json
 import logging
@@ -138,13 +137,13 @@ from ops.model import RelationDataTypeError
 from pydantic import (
     AfterValidator,
     AnyHttpUrl,
+    BaseModel,
     ConfigDict,
     Field,
     TypeAdapter,
     ValidationError,
     model_validator,
 )
-from pydantic.dataclasses import dataclass
 
 # Interface API/patch version. The distribution version lives in pyproject.toml.
 LIBAPI = 0
@@ -393,8 +392,7 @@ _StatusCode = typing.Annotated[int, Field(ge=_MIN_STATUS_CODE, le=_MAX_STATUS_CO
 _ProxyCacheValid = typing.Annotated[str, AfterValidator(_validate_proxy_cache_valid)]
 
 
-@dataclass(frozen=True)
-class CacheConfigRequirerAppData:
+class CacheConfigRequirerAppData(BaseModel):
     """Requirer application databag schema.
 
     Attributes:
@@ -409,6 +407,8 @@ class CacheConfigRequirerAppData:
         cache_inactive: Time after which an unaccessed cached item is evicted from disk.
         cache_max_size: Maximum total disk space used by the cache. Empty means no limit.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     backends: typing.Annotated[list[_Backend], Field(min_length=1)]
     fail_timeout: typing.Annotated[str, AfterValidator(_validate_nginx_time)]
@@ -443,8 +443,7 @@ class CacheConfigRequirerAppData:
         return self
 
 
-@dataclass(frozen=True)
-class CacheConfigProviderUnitData:
+class CacheConfigProviderUnitData(BaseModel):
     """Provider unit databag schema.
 
     Attributes:
@@ -452,14 +451,10 @@ class CacheConfigProviderUnitData:
         cache_backend_host: The cache backend host without IPv6 brackets.
     """
 
-    # ops reads the Juju key from the dataclass field metadata, while pydantic reads it
-    # from the annotation, so the alias has to be declared in both places.
-    cache_backend: typing.Annotated[AnyHttpUrl, Field(alias=_CACHE_BACKEND_FIELD_NAME)] = (
-        dataclasses.field(metadata={"alias": _CACHE_BACKEND_FIELD_NAME})
-    )
-
     # Allow construction by field name as well as by the Juju databag alias.
-    __pydantic_config__ = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, frozen=True)
+
+    cache_backend: typing.Annotated[AnyHttpUrl, Field(alias=_CACHE_BACKEND_FIELD_NAME)]
 
     @model_validator(mode="after")
     def _validate_cache_backend(self) -> "CacheConfigProviderUnitData":
@@ -483,8 +478,7 @@ class CacheConfigProviderUnitData:
         return str(ipaddress.ip_address(host))
 
 
-@dataclass(frozen=True)
-class CacheConfigProviderUnitsData:
+class CacheConfigProviderUnitsData(BaseModel):
     """Provider units databag.
 
     Attributes:
@@ -492,6 +486,8 @@ class CacheConfigProviderUnitsData:
         cache_backend_hosts: The cache backend hosts without IPv6 brackets.
         cache_backend_ports: The unique cache backend ports.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     cache_backends: list[CacheConfigProviderUnitData]
 
@@ -648,7 +644,7 @@ class CacheConfigRequirer(Object):
                 when the units publish inconsistent cache backend protocols.
         """
         if not (relation := self.relation):
-            return CacheConfigProviderUnitsData([])
+            return CacheConfigProviderUnitsData(cache_backends=[])
 
         cache_backends: list[CacheConfigProviderUnitData] = []
         for unit in relation.units:
@@ -660,7 +656,7 @@ class CacheConfigRequirer(Object):
                 ) from exc
             cache_backends.append(unit_data)
         try:
-            return CacheConfigProviderUnitsData(cache_backends)
+            return CacheConfigProviderUnitsData(cache_backends=cache_backends)
         except ValidationError as exc:
             raise InvalidCacheBackendsDataError(f"Invalid cache backends data: {exc}") from exc
 
