@@ -49,6 +49,7 @@ from state import (
 logger = logging.getLogger(__name__)
 
 WAIT_FOR_CONFIG_MESSAGE = "Waiting for integration with config charm"
+INVALID_CACHE_CONFIG_MESSAGE = "Invalid cache-config data"
 NGINX_NOT_READY_MESSAGE = "Nginx is not ready"
 RECEIVED_NGINX_CONFIG_MESSAGE = "Received nginx configuration"
 CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
@@ -501,7 +502,8 @@ class ContentCacheCharm(ops.CharmBase):
         try:
             nginx_config = get_nginx_config(self._cache_config)
         except IntegrationDataError as err:
-            self.unit.status = ops.BlockedStatus(str(err))
+            logger.error("Invalid cache-config data: %s", err)
+            self.unit.status = ops.BlockedStatus(INVALID_CACHE_CONFIG_MESSAGE)
             return None
         if not nginx_config:
             self.unit.status = ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)

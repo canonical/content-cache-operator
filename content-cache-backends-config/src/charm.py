@@ -19,6 +19,7 @@ from state import Configuration
 logger = logging.getLogger(__name__)
 
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
+INVALID_CACHE_CONFIG_MESSAGE = "Invalid cache-config data"
 
 
 class ContentCacheBackendsConfigCharm(ops.CharmBase):
@@ -82,7 +83,7 @@ class ContentCacheBackendsConfigCharm(ops.CharmBase):
             self._cache_config.publish_cache_config(**config.to_cache_config_kwargs())
         except CacheConfigInvalidRelationDataError as err:
             logger.error("Invalid cache-config data: %s", err)
-            self.unit.status = ops.BlockedStatus(str(err))
+            self.unit.status = ops.BlockedStatus(INVALID_CACHE_CONFIG_MESSAGE)
             return
         logger.info("Integration data set")
 
