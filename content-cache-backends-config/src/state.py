@@ -6,7 +6,7 @@
 import json
 import logging
 import typing
-from dataclasses import dataclass
+from pydantic.dataclasses import dataclass
 
 import ops
 import pydantic
