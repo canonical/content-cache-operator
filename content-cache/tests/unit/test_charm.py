@@ -14,6 +14,7 @@ import state
 from charm import (
     CACHE_CONFIG_INTEGRATION_NAME,
     CERTIFICATE_INTEGRATION_NAME,
+    INVALID_CACHE_CONFIG_MESSAGE,
     NGINX_NOT_READY_MESSAGE,
     NGINX_PORT_RANGE_START,
     PEER_RELATION_NAME,
@@ -178,8 +179,7 @@ def test_invalid_integration_data(harness: Harness, charm: ContentCacheCharm):
         remote_app="config",
         app_data=data,
     )
-    assert isinstance(charm.unit.status, ops.BlockedStatus)
-    assert "validation error" in charm.unit.status.message
+    assert charm.unit.status == ops.BlockedStatus(INVALID_CACHE_CONFIG_MESSAGE)
 
 
 def test_empty_integration_data(harness: Harness, charm: ContentCacheCharm):
@@ -632,8 +632,7 @@ def test_https_backends_without_hostname_sets_blocked(harness: Harness, charm: C
         app_data=data,
     )
 
-    assert isinstance(charm.unit.status, ops.BlockedStatus)
-    assert "backend_hostname is required" in charm.unit.status.message
+    assert charm.unit.status == ops.BlockedStatus(INVALID_CACHE_CONFIG_MESSAGE)
 
 
 def test_https_backend_with_hostname_stays_active(
