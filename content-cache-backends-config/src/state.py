@@ -82,8 +82,8 @@ class HealthcheckConfig(pydantic.BaseModel):
             raise ConfigurationError(f"Config error: {err_msg}") from err
 
 
-class Configuration(pydantic.BaseModel):
-    """Represents the configuration.
+class CharmState(pydantic.BaseModel):
+    """Represents the charm state.
 
     Attributes:
         backends: The backends for this configuration as full URLs.
@@ -106,7 +106,7 @@ class Configuration(pydantic.BaseModel):
     cache_max_size: str
 
     @classmethod
-    def from_charm(cls, charm: ops.CharmBase) -> "Configuration":
+    def from_charm(cls, charm: ops.CharmBase) -> "CharmState":
         """Parse configuration values from the charm.
 
         Args:

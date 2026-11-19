@@ -14,11 +14,11 @@ from src.state import (
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
-    Configuration,
+    CharmState,
 )
 
 # Field-level validation is covered by content-cache's test_cache_config_lib.py. These tests
-# cover Configuration's job: parsing charm config into a typed local representation.
+# cover CharmState's job: parsing charm config into a typed local representation.
 
 
 def test_valid_config():
@@ -29,7 +29,7 @@ def test_valid_config():
     """
     charm = MockCharmFactory()
 
-    config = Configuration.from_charm(charm)
+    config = CharmState.from_charm(charm)
 
     assert config.backends == ("http://10.10.1.1:80", "http://10.10.2.2:80")
     assert config.fail_timeout == "30s"
@@ -48,7 +48,7 @@ def test_https_backends():
     charm.config[BACKENDS_CONFIG_NAME] = "https://10.10.1.1:443,https://10.10.2.2:443"
     charm.config["backend-hostname"] = "backend.example.com"
 
-    config = Configuration.from_charm(charm)
+    config = CharmState.from_charm(charm)
 
     assert config.backends == ("https://10.10.1.1:443", "https://10.10.2.2:443")
     assert config.backend_hostname == "backend.example.com"
@@ -64,7 +64,7 @@ def test_empty_backends_raises():
     charm.config[BACKENDS_CONFIG_NAME] = ""
 
     with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
+        CharmState.from_charm(charm)
 
     assert "Empty backends configuration found" in str(err.value)
 
@@ -79,7 +79,7 @@ def test_invalid_format_proxy_cache_valid():
     charm.config[PROXY_CACHE_VALID_CONFIG_NAME] = "invalid"
 
     with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
+        CharmState.from_charm(charm)
 
     assert "Unable to parse proxy_cache_valid: invalid" in str(err.value)
 
@@ -94,7 +94,7 @@ def test_non_list_proxy_cache_valid_raises():
     charm.config[PROXY_CACHE_VALID_CONFIG_NAME] = '{"hello": 10}'
 
     with pytest.raises(ConfigurationError) as err:
-        Configuration.from_charm(charm)
+        CharmState.from_charm(charm)
 
     assert 'The proxy_cache_valid is not a list: {"hello": 10}' in str(err.value)
 
@@ -108,7 +108,7 @@ def test_valid_proxy_cache_valid_passthrough():
     charm = MockCharmFactory()
     charm.config[PROXY_CACHE_VALID_CONFIG_NAME] = '["200 302 2h", "400 1m"]'
 
-    config = Configuration.from_charm(charm)
+    config = CharmState.from_charm(charm)
 
     assert config.proxy_cache_valid == ("200 302 2h", "400 1m")
 
@@ -123,7 +123,7 @@ def test_invalid_healthcheck_interval_raises():
     charm.config[HEALTHCHECK_INTERVAL_CONFIG_NAME] = "notanumber"
 
     with pytest.raises(ConfigurationError):
-        Configuration.from_charm(charm)
+        CharmState.from_charm(charm)
 
 
 def test_healthcheck_path_passthrough():
@@ -135,7 +135,7 @@ def test_healthcheck_path_passthrough():
     charm = MockCharmFactory()
     charm.config[HEALTHCHECK_PATH_CONFIG_NAME] = "{"
 
-    config = Configuration.from_charm(charm)
+    config = CharmState.from_charm(charm)
 
     assert config.healthcheck.path == "{"
 
@@ -150,7 +150,7 @@ def test_cache_inactive_passthrough(value: str):
     charm = MockCharmFactory()
     charm.config[CACHE_INACTIVE_CONFIG_NAME] = value
 
-    config = Configuration.from_charm(charm)
+    config = CharmState.from_charm(charm)
 
     assert config.cache_inactive == value
 
@@ -164,7 +164,7 @@ def test_cache_max_size_empty_allowed():
     charm = MockCharmFactory()
     charm.config[CACHE_MAX_SIZE_CONFIG_NAME] = ""
 
-    config = Configuration.from_charm(charm)
+    config = CharmState.from_charm(charm)
 
     assert config.cache_max_size == ""
 
@@ -175,7 +175,7 @@ def test_configuration_flattens_for_cache_config_library():
     act: Convert it to cache-config library keyword arguments.
     assert: Nested healthcheck values are flattened without wire serialization.
     """
-    config = Configuration.from_charm(MockCharmFactory())
+    config = CharmState.from_charm(MockCharmFactory())
 
     kwargs = config.to_cache_config_kwargs()
 

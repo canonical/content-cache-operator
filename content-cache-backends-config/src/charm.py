@@ -14,7 +14,7 @@ from cache_config.v0 import (
     CacheConfigRequirer,
 )
 from errors import ConfigurationError
-from state import Configuration
+from state import CharmState
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class ContentCacheBackendsConfigCharm(ops.CharmBase):
 
         logger.info("Loading configuration")
         try:
-            config = Configuration.from_charm(self)
+            config = CharmState.from_charm(self)
         except ConfigurationError as err:
             logger.error("Configuration error: %s", err)
             self.unit.status = ops.BlockedStatus(str(err))
