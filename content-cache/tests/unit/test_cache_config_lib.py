@@ -304,13 +304,11 @@ def test_requirer_publishes_validated_wire_data():
 
     databag = harness.get_relation_data(relation_id, harness.model.app.name)
     assert json.loads(databag["backends"]) == ["http://10.0.0.1:80"]
-    assert json.loads(databag["fail_timeout"]) == "30s"
-    assert json.loads(databag["healthcheck_interval"]) == 1000
-    assert json.loads(databag["healthcheck_path"]) == "/healthz"
-    assert json.loads(databag["healthcheck_ssl_verify"]) is True
-    assert json.loads(databag["cache_inactive"]) == "10m"
-    assert json.loads(databag["cache_max_size"]) == ""
-    assert json.loads(databag["backend_hostname"]) is None
+    assert databag["fail_timeout"] == "30s"
+    assert databag["healthcheck_interval"] == "1000"
+    assert databag["healthcheck_ssl_verify"] == "true"
+    assert databag["cache_inactive"] == "10m"
+    assert "cache_max_size" not in databag
 
 
 def test_requirer_wraps_validation_errors():
@@ -450,8 +448,9 @@ def test_provider_publishes_and_clears_cache_backend():
     relation_id = harness.add_relation("cache-config", "backend")
 
     harness.charm.cache_config.publish_cache_backend(relation_id, "http://10.0.0.1:8080")
-    databag = harness.get_relation_data(relation_id, harness.model.unit.name)
-    assert json.loads(databag["cache-backend"]) == "http://10.0.0.1:8080"
+    assert harness.get_relation_data(relation_id, harness.model.unit.name) == {
+        "cache-backend": "http://10.0.0.1:8080"
+    }
 
     harness.charm.cache_config.clear_cache_backend(relation_id)
     assert harness.get_relation_data(relation_id, harness.model.unit.name) == {}
