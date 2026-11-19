@@ -187,7 +187,7 @@ def test_configuration_flattens_for_cache_config_library():
         "healthcheck_valid_status": [200],
         "healthcheck_ssl_verify": False,
         "proxy_cache_valid": [],
-        "backend_hostname": None,
+        "backend_hostname": "",
         "cache_inactive": "10m",
         "cache_max_size": "",
     }

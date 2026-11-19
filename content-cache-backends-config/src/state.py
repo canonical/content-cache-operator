@@ -102,7 +102,7 @@ class CharmState(pydantic.BaseModel):
     fail_timeout: str
     proxy_cache_valid: tuple[str, ...]
     healthcheck: HealthcheckConfig
-    backend_hostname: str | None
+    backend_hostname: str
     cache_inactive: str
     cache_max_size: str
 
@@ -126,30 +126,32 @@ class CharmState(pydantic.BaseModel):
         proxy_cache_valid_str = typing.cast(
             str, charm.config.get(PROXY_CACHE_VALID_CONFIG_NAME, "")
         ).strip()
-        try:
-            proxy_cache_valid = json.loads(proxy_cache_valid_str) if proxy_cache_valid_str else []
-        except json.JSONDecodeError as err:
-            raise ConfigurationError(
-                f"Unable to parse proxy_cache_valid: {proxy_cache_valid_str}"
-            ) from err
-        if not isinstance(proxy_cache_valid, list):
-            raise ConfigurationError(
-                f"The proxy_cache_valid is not a list: {proxy_cache_valid_str}"
-            )
+        if proxy_cache_valid_str:
+            try:
+                parsed_proxy_cache_valid = json.loads(proxy_cache_valid_str)
+            except json.JSONDecodeError as err:
+                raise ConfigurationError(
+                    f"Unable to parse proxy_cache_valid: {proxy_cache_valid_str}"
+                ) from err
+            if not isinstance(parsed_proxy_cache_valid, list):
+                raise ConfigurationError(
+                    f"The proxy_cache_valid is not a list: {proxy_cache_valid_str}"
+                )
+            proxy_cache_valid = tuple(parsed_proxy_cache_valid)
+        else:
+            proxy_cache_valid = ()
 
         return cls(
             backends=tuple(url.strip() for url in backends_str.split(",")),
             fail_timeout=typing.cast(str, charm.config.get(FAIL_TIMEOUT_CONFIG_NAME, "")).strip(),
-            proxy_cache_valid=tuple(proxy_cache_valid),
+            proxy_cache_valid=proxy_cache_valid,
             healthcheck=HealthcheckConfig.from_charm(charm),
             backend_hostname=typing.cast(
                 str, charm.config.get(BACKEND_HOSTNAME_CONFIG_NAME, "")
-            ).strip()
-            or None,
+            ).strip(),
             cache_inactive=typing.cast(
                 str, charm.config.get(CACHE_INACTIVE_CONFIG_NAME, "10m")
-            ).strip()
-            or "10m",
+            ).strip(),
             cache_max_size=typing.cast(
                 str, charm.config.get(CACHE_MAX_SIZE_CONFIG_NAME, "")
             ).strip(),
