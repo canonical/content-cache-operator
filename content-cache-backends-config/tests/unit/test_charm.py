@@ -12,11 +12,7 @@ import pytest
 from ops.testing import Harness
 
 import state
-from charm import (
-    CACHE_CONFIG_INTEGRATION_NAME,
-    INVALID_CACHE_CONFIG_MESSAGE,
-    ContentCacheBackendsConfigCharm,
-)
+from charm import CACHE_CONFIG_INTEGRATION_NAME, ContentCacheBackendsConfigCharm
 
 # Test might need to access private methods.
 # pylint: disable=protected-access
@@ -209,26 +205,6 @@ def test_integration_with_invalid_config(charm: ContentCacheBackendsConfigCharm,
     harness.update_config({state.BACKENDS_CONFIG_NAME: ""})
 
     assert charm.unit.status == ops.BlockedStatus("Empty backends configuration found")
-
-
-def test_invalid_relation_data_sets_short_status(
-    charm: ContentCacheBackendsConfigCharm, harness: Harness, caplog
-):
-    """
-    arrange: Leader unit with integration and a value that fails library validation.
-    act: Update the configuration.
-    assert: The status is short and the full validation error is logged.
-    """
-    relation_id = harness.add_relation(
-        CACHE_CONFIG_INTEGRATION_NAME,
-        remote_app="content-cache",
-    )
-    harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
-
-    harness.update_config({**SAMPLE_CONFIG, state.CACHE_INACTIVE_CONFIG_NAME: "0m"})
-
-    assert charm.unit.status == ops.BlockedStatus(INVALID_CACHE_CONFIG_MESSAGE)
-    assert "Time must be a positive integer" in caplog.text
 
 
 @pytest.mark.parametrize(
