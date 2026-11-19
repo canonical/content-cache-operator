@@ -211,7 +211,7 @@ def test_integration_with_invalid_config(charm: ContentCacheBackendsConfigCharm,
     assert charm.unit.status == ops.BlockedStatus("Empty backends configuration found")
 
 
-def test_integration_with_invalid_relation_data(
+def test_invalid_relation_data_sets_short_status(
     charm: ContentCacheBackendsConfigCharm, harness: Harness, caplog
 ):
     """
