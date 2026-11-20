@@ -3,6 +3,7 @@
 
 """Test the charm state."""
 
+import ipaddress
 from unittest.mock import MagicMock
 
 import pytest
@@ -155,6 +156,28 @@ def test_get_cache_backend_url_http():
 
     assert result == "http://10.1.2.3:8080"
     charm.model.get_binding.assert_called_once_with(rel)
+
+
+@pytest.mark.parametrize(
+    "bind_address",
+    [
+        pytest.param(ipaddress.IPv6Address("2001:db8::1"), id="ipv6-address"),
+        pytest.param("2001:db8::1", id="ipv6-string"),
+    ],
+)
+def test_get_cache_backend_url_brackets_ipv6(bind_address):
+    """
+    arrange: A mock charm with an IPv6 bind address.
+    act: Call get_cache_backend_url.
+    assert: Returns a URL with the IPv6 address in brackets.
+    """
+    charm = MagicMock()
+    charm.model.get_binding.return_value.network.bind_address = bind_address
+    relation = MagicMock()
+
+    result = get_cache_backend_url(charm, relation, 30000)
+
+    assert result == "http://[2001:db8::1]:30000"
 
 
 def _charm_with_config(config: dict) -> MagicMock:
