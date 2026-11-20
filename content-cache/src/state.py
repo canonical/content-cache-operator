@@ -10,8 +10,8 @@ import ops
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from cache_config.v0 import (
-    CacheConfigIntegrationDataError,
     CacheConfigProvider,
+    CacheConfigRelationDataError,
     CacheConfigRequirerAppData,
     parse_requirer_app_data,
 )
@@ -207,7 +207,7 @@ def get_nginx_config(cache_config: CacheConfigProvider) -> NginxConfig:
     """
     try:
         requirers_data = cache_config.get_requirers_data()
-    except CacheConfigIntegrationDataError as err:
+    except CacheConfigRelationDataError as err:
         raise IntegrationDataError(str(err)) from err
 
     if not requirers_data:

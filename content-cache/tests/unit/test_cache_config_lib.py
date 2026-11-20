@@ -12,11 +12,10 @@ from ops.testing import Harness
 from pydantic import TypeAdapter, ValidationError
 
 from cache_config.v0 import (
-    CacheConfigIntegrationDataError,
-    CacheConfigInvalidRelationDataError,
     CacheConfigProvider,
     CacheConfigProviderUnitData,
     CacheConfigProviderUnitsData,
+    CacheConfigRelationDataError,
     CacheConfigRequirer,
     CacheConfigRequirerAppData,
     InvalidCacheBackendDataError,
@@ -271,7 +270,7 @@ def test_requirer_wraps_validation_errors():
     harness.add_relation("cache-config", "content-cache")
     invalid_data: RequirerData = {**VALID_REQUIRER_DATA, "backends": []}
 
-    with pytest.raises(CacheConfigInvalidRelationDataError, match="backends"):
+    with pytest.raises(CacheConfigRelationDataError, match="backends"):
         harness.charm.cache_config.publish_cache_config(**invalid_data)
 
 
@@ -319,7 +318,7 @@ def test_provider_wraps_invalid_requirer_data():
         {**VALID_REQUIRER_DATABAG, "backends": "[]"},
     )
 
-    with pytest.raises(CacheConfigIntegrationDataError):
+    with pytest.raises(CacheConfigRelationDataError):
         harness.charm.cache_config.get_requirers_data()
 
 

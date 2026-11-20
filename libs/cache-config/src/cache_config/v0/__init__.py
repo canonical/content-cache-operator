@@ -178,8 +178,8 @@ class CacheConfigError(Exception):
     """Base error for the cache-config interface library."""
 
 
-class CacheConfigInvalidRelationDataError(CacheConfigError):
-    """Raised when cache-config relation data fails validation on write (requirer side)."""
+class CacheConfigRelationDataError(CacheConfigError):
+    """Raised when cache-config relation data fails validation on read or write."""
 
 
 class InvalidCacheBackendDataError(CacheConfigError):
@@ -188,10 +188,6 @@ class InvalidCacheBackendDataError(CacheConfigError):
 
 class InvalidCacheBackendsDataError(CacheConfigError):
     """Raised when the provider units' cache_backend data is invalid as a whole."""
-
-
-class CacheConfigIntegrationDataError(CacheConfigError):
-    """Raised when a requirer's app databag fails validation (provider side)."""
 
 
 def _encode(value: typing.Any) -> str:
@@ -590,8 +586,8 @@ class CacheConfigRequirer(Object):
             cache_max_size: Maximum total disk space used by the cache.
 
         Raises:
-            CacheConfigInvalidRelationDataError: When the data fails validation or
-                cannot be written to the databag.
+            CacheConfigRelationDataError: When the data fails validation or cannot be
+                written to the databag.
         """
         if not (relation := self.relation) or not self.charm.unit.is_leader():
             return
@@ -611,7 +607,7 @@ class CacheConfigRequirer(Object):
             )
             relation.save(app_data, self.charm.app, encoder=_encode)
         except (ValidationError, RelationDataTypeError) as exc:
-            raise CacheConfigInvalidRelationDataError(
+            raise CacheConfigRelationDataError(
                 f"Failed to publish cache-config requirer data: {exc}"
             ) from exc
 
@@ -681,9 +677,9 @@ class CacheConfigProvider(Object):
         is the normal state before the remote charm has finished its own configuration.
 
         Raises:
-            CacheConfigIntegrationDataError: When a requirer's app databag fails
-                validation. This fails the whole call on the first bad relation, rather
-                than silently skipping it, since a misconfigured backend must block
+            CacheConfigRelationDataError: When a requirer's app databag fails validation.
+                This fails the whole call on the first bad relation, rather than
+                silently skipping it, since a misconfigured backend must block
                 reconciliation rather than be dropped.
 
         Returns:
@@ -699,7 +695,7 @@ class CacheConfigProvider(Object):
                     CacheConfigRequirerAppData, relation.app, decoder=_decode
                 )
             except ValidationError as exc:
-                raise CacheConfigIntegrationDataError(
+                raise CacheConfigRelationDataError(
                     f"Faulty cache-config data from relation {relation.id}: {exc}"
                 ) from exc
         return configurations
