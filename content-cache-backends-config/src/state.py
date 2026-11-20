@@ -27,6 +27,23 @@ CACHE_INACTIVE_CONFIG_NAME = "cache-inactive"
 CACHE_MAX_SIZE_CONFIG_NAME = "cache-max-size"
 
 
+def _format_validation_error(err: pydantic.ValidationError) -> str:
+    """Format a pydantic validation error for logging and charm status.
+
+    Args:
+        err: The pydantic validation error.
+
+    Returns:
+        A compact, human-readable error description.
+    """
+    return str(
+        [
+            f"{error['loc'][0] if error['loc'] else 'model'} = {error['input']}: {error['msg']}"
+            for error in err.errors()
+        ]
+    )
+
+
 class HealthcheckConfig(pydantic.BaseModel):
     """Represents the configuration for healthchecks.
 
@@ -76,9 +93,7 @@ class HealthcheckConfig(pydantic.BaseModel):
                 valid_status=valid_status,
             )
         except pydantic.ValidationError as err:
-            err_msg = [
-                f"{error['loc'][0]} = {error['input']}: {error['msg']}" for error in err.errors()
-            ]
+            err_msg = _format_validation_error(err)
             logger.error("Found config error: %s", err_msg)
             raise ConfigurationError(f"Config error: {err_msg}") from err
 
@@ -141,21 +156,28 @@ class CharmState(pydantic.BaseModel):
         else:
             proxy_cache_valid = ()
 
-        return cls(
-            backends=tuple(url.strip() for url in backends_str.split(",")),
-            fail_timeout=typing.cast(str, charm.config.get(FAIL_TIMEOUT_CONFIG_NAME, "")).strip(),
-            proxy_cache_valid=proxy_cache_valid,
-            healthcheck=HealthcheckConfig.from_charm(charm),
-            backend_hostname=typing.cast(
-                str, charm.config.get(BACKEND_HOSTNAME_CONFIG_NAME, "")
-            ).strip(),
-            cache_inactive=typing.cast(
-                str, charm.config.get(CACHE_INACTIVE_CONFIG_NAME, "10m")
-            ).strip(),
-            cache_max_size=typing.cast(
-                str, charm.config.get(CACHE_MAX_SIZE_CONFIG_NAME, "")
-            ).strip(),
-        )
+        try:
+            return cls(
+                backends=tuple(url.strip() for url in backends_str.split(",")),
+                fail_timeout=typing.cast(
+                    str, charm.config.get(FAIL_TIMEOUT_CONFIG_NAME, "")
+                ).strip(),
+                proxy_cache_valid=proxy_cache_valid,
+                healthcheck=HealthcheckConfig.from_charm(charm),
+                backend_hostname=typing.cast(
+                    str, charm.config.get(BACKEND_HOSTNAME_CONFIG_NAME, "")
+                ).strip(),
+                cache_inactive=typing.cast(
+                    str, charm.config.get(CACHE_INACTIVE_CONFIG_NAME, "10m")
+                ).strip(),
+                cache_max_size=typing.cast(
+                    str, charm.config.get(CACHE_MAX_SIZE_CONFIG_NAME, "")
+                ).strip(),
+            )
+        except pydantic.ValidationError as err:
+            err_msg = _format_validation_error(err)
+            logger.error("Found config error: %s", err_msg)
+            raise ConfigurationError(f"Config error: {err_msg}") from err
 
     def to_cache_config_kwargs(self) -> dict[str, typing.Any]:
         """Flatten this local configuration for ``publish_cache_config``.
