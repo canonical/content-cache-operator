@@ -3,11 +3,12 @@
 
 """The charm state and configurations."""
 
+import ipaddress
 import logging
 import typing
 
 import ops
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, TypeAdapter, ValidationError
+import pydantic
 
 from cache_config.v0 import (
     CacheConfigProvider,
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 CACHE_CONFIG_INTEGRATION_NAME = "cache-config"
 CLIENT_IP_HASH_SALT_CONFIG_NAME = "client-ip-hash-salt"
 
-_URL_ADAPTER: TypeAdapter[AnyHttpUrl] = TypeAdapter(AnyHttpUrl)
+_URL_ADAPTER: pydantic.TypeAdapter[pydantic.AnyHttpUrl] = pydantic.TypeAdapter(pydantic.AnyHttpUrl)
 
 _SALT_DISALLOWED_CHARACTERS = frozenset({'"', "\\", "$"})
 
@@ -92,7 +93,7 @@ def is_client_ip_hash_salt_secret(charm: ops.CharmBase, secret_id: str) -> bool:
         return False
 
 
-class HealthcheckConfig(BaseModel):
+class HealthcheckConfig(pydantic.BaseModel):
     """Represents the configuration for healthchecks.
 
     Attributes:
@@ -102,7 +103,7 @@ class HealthcheckConfig(BaseModel):
         ssl_verify: Should we check SSL certificates during health checks.
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config = pydantic.ConfigDict(frozen=True)
 
     interval: int
     path: str
@@ -110,7 +111,7 @@ class HealthcheckConfig(BaseModel):
     ssl_verify: bool
 
 
-class LocationConfig(BaseModel):
+class LocationConfig(pydantic.BaseModel):
     """Represents the configuration for a location.
 
     Attributes:
@@ -124,9 +125,9 @@ class LocationConfig(BaseModel):
         cache_max_size: Maximum total disk size for the cache; empty string means no limit.
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config = pydantic.ConfigDict(frozen=True)
 
-    backends: tuple[AnyHttpUrl, ...]
+    backends: tuple[pydantic.AnyHttpUrl, ...]
     fail_timeout: str
     proxy_cache_valid: tuple[str, ...]
     healthcheck_config: HealthcheckConfig
@@ -153,7 +154,7 @@ class LocationConfig(BaseModel):
         """
         try:
             app_data = parse_requirer_app_data(data)
-        except ValidationError as exc:
+        except pydantic.ValidationError as exc:
             raise IntegrationDataError(str(exc)) from exc
         return _to_location_config(app_data)
 
@@ -185,7 +186,7 @@ def _to_location_config(data: CacheConfigRequirerAppData) -> LocationConfig:
             cache_inactive=data.cache_inactive,
             cache_max_size=data.cache_max_size,
         )
-    except ValidationError as exc:
+    except pydantic.ValidationError as exc:
         raise IntegrationDataError(str(exc)) from exc
 
 
@@ -232,8 +233,13 @@ def get_cache_backend_url(
             whether to use https or http in the returned URL.
 
     Returns:
-        A URL in the form protocol://ip:port.
+        A URL in the form protocol://ip:port. IPv6 addresses are bracketed.
     """
-    ip = charm.model.get_binding(relation).network.bind_address
+    bind_address = charm.model.get_binding(relation).network.bind_address
+    if isinstance(bind_address, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
+        ip = bind_address
+    else:
+        ip = ipaddress.ip_address(str(bind_address).strip())
+    host = f"[{ip.compressed}]" if ip.version == 6 else ip.compressed
     protocol = "https" if has_cache_cert else "http"
-    return f"{protocol}://{ip}:{port}"
+    return f"{protocol}://{host}:{port}"

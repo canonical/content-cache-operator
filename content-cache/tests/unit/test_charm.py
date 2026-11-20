@@ -454,6 +454,32 @@ def test_load_nginx_config_writes_cache_backend(
     assert cache_backend == "http://10.0.0.1:8080"
 
 
+def test_load_nginx_config_writes_ipv6_cache_backend(
+    harness: Harness,
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+    monkeypatch,
+):
+    """
+    arrange: A working charm publishing an IPv6 cache-backend URL.
+    act: Add a cache-config relation with valid data.
+    assert: The bracketed IPv6 URL is accepted and written to the unit databag.
+    """
+    monkeypatch.setattr(
+        "charm.get_cache_backend_url",
+        MagicMock(return_value="http://[2001:db8::1]:8080"),
+    )
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+
+    assert charm.unit.status == ops.ActiveStatus()
+    rel_data = harness.get_relation_data(relation_id, charm.unit.name)
+    assert rel_data.get("cache-backend") == "http://[2001:db8::1]:8080"
+
+
 def test_relation_broken_clears_cache_backends(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):
