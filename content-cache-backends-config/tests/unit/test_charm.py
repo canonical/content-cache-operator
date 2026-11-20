@@ -3,6 +3,7 @@
 
 """Unit test for the charm."""
 
+import json
 from typing import Mapping
 from unittest.mock import MagicMock
 
@@ -129,7 +130,7 @@ def test_integration_data(charm: ContentCacheBackendsConfigCharm, harness: Harne
 
     data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
     assert charm.unit.status == ops.ActiveStatus()
-    backends = __import__("json").loads(data["backends"])
+    backends = json.loads(data["backends"])
     assert len(backends) == 2
     assert any("10.10.1.1" in b for b in backends)
     assert any("10.1.1.2" in b for b in backends)
@@ -138,11 +139,55 @@ def test_integration_data(charm: ContentCacheBackendsConfigCharm, harness: Harne
     assert data["healthcheck_interval"] == "2000"
     assert data["healthcheck_path"] == "/health"
     assert data["healthcheck_ssl_verify"] == "true"
-    assert data["healthcheck_valid_status"] == "[200]"
+    assert json.loads(data["healthcheck_valid_status"]) == [200]
     assert data["fail_timeout"] == "30s"
-    assert data["proxy_cache_valid"] == '["200 302 1h", "404 1m"]'
-    assert data[state.CACHE_INACTIVE_FIELD_NAME] == "10m"
-    assert data.get(state.CACHE_MAX_SIZE_FIELD_NAME, "") == ""
+    assert json.loads(data["proxy_cache_valid"]) == ["200 302 1h", "404 1m"]
+    assert data["cache_inactive"] == "10m"
+    assert data.get("cache_max_size", "") == ""
+
+
+def test_relation_created_publishes_configuration(
+    charm: ContentCacheBackendsConfigCharm, harness: Harness
+):
+    """
+    arrange: Leader unit with configurations and no integration.
+    act: Add the integration relation.
+    assert: The configuration is published without another config change.
+    """
+    harness.update_config(SAMPLE_CONFIG)
+
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="content-cache",
+    )
+
+    data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
+    assert data["fail_timeout"] == "30s"
+
+
+def test_leader_elected_publishes_configuration(
+    charm: ContentCacheBackendsConfigCharm, harness: Harness
+):
+    """
+    arrange: Follower unit with configurations and integration.
+    act: The unit becomes leader.
+    assert: The configuration is published.
+    """
+    harness.set_leader(False)
+    harness.update_config(SAMPLE_CONFIG)
+
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="content-cache",
+    )
+    harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
+
+    assert harness.get_relation_data(relation_id, app_or_unit=charm.app.name) == {}
+
+    harness.set_leader(True)
+
+    data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
+    assert data["fail_timeout"] == "30s"
 
 
 def test_integration_with_invalid_config(charm: ContentCacheBackendsConfigCharm, harness: Harness):
