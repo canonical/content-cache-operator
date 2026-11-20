@@ -145,7 +145,7 @@ class LocationConfig:
                 keyed by the same field names ``CacheConfigRequirerAppData`` uses.
 
         Raises:
-            ConfigurationError: The data fails the library's validation.
+            IntegrationDataError: The data fails the library's validation.
 
         Returns:
             The equivalent LocationConfig.
@@ -153,7 +153,7 @@ class LocationConfig:
         try:
             app_data = parse_requirer_app_data(data)
         except ValidationError as exc:
-            raise ConfigurationError(str(exc)) from exc
+            raise IntegrationDataError(str(exc)) from exc
         return _to_location_config(app_data)
 
 
