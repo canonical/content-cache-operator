@@ -3,12 +3,11 @@
 
 """The charm state and configurations."""
 
-import dataclasses
 import logging
 import typing
 
 import ops
-from pydantic import AnyHttpUrl, TypeAdapter, ValidationError
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from cache_config.v0 import (
     CacheConfigIntegrationDataError,
@@ -93,8 +92,7 @@ def is_client_ip_hash_salt_secret(charm: ops.CharmBase, secret_id: str) -> bool:
         return False
 
 
-@dataclasses.dataclass(frozen=True)
-class HealthcheckConfig:
+class HealthcheckConfig(BaseModel):
     """Represents the configuration for healthchecks.
 
     Attributes:
@@ -104,14 +102,15 @@ class HealthcheckConfig:
         ssl_verify: Should we check SSL certificates during health checks.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     interval: int
     path: str
     valid_status: tuple[int, ...]
     ssl_verify: bool
 
 
-@dataclasses.dataclass(frozen=True)
-class LocationConfig:
+class LocationConfig(BaseModel):
     """Represents the configuration for a location.
 
     Attributes:
@@ -124,6 +123,8 @@ class LocationConfig:
         cache_inactive: Time after which an unaccessed item is evicted from the disk cache.
         cache_max_size: Maximum total disk size for the cache; empty string means no limit.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     backends: tuple[AnyHttpUrl, ...]
     fail_timeout: str
@@ -160,30 +161,32 @@ class LocationConfig:
 def _to_location_config(data: CacheConfigRequirerAppData) -> LocationConfig:
     """Convert validated cache-config requirer data into nginx_manager's rendering shape.
 
-    All field-level and cross-field validation (nginx time/size formats, https requiring a
-    backend hostname, consistent backend schemes, etc.) already happened in the cache_config
-    library when the requirer's data was parsed, so this is a pure reshape, not a revalidation.
-
     Args:
         data: The validated requirer app data for one relation.
 
     Returns:
         The equivalent LocationConfig.
+
+    Raises:
+        IntegrationDataError: The data cannot be converted into a LocationConfig.
     """
-    return LocationConfig(
-        backends=tuple(_URL_ADAPTER.validate_python(backend) for backend in data.backends),
-        fail_timeout=data.fail_timeout,
-        proxy_cache_valid=tuple(data.proxy_cache_valid),
-        healthcheck_config=HealthcheckConfig(
-            interval=data.healthcheck_interval,
-            path=data.healthcheck_path,
-            valid_status=tuple(data.healthcheck_valid_status),
-            ssl_verify=data.healthcheck_ssl_verify,
-        ),
-        backend_hostname=data.backend_hostname or "",
-        cache_inactive=data.cache_inactive,
-        cache_max_size=data.cache_max_size,
-    )
+    try:
+        return LocationConfig(
+            backends=tuple(_URL_ADAPTER.validate_python(backend) for backend in data.backends),
+            fail_timeout=data.fail_timeout,
+            proxy_cache_valid=tuple(data.proxy_cache_valid),
+            healthcheck_config=HealthcheckConfig(
+                interval=data.healthcheck_interval,
+                path=data.healthcheck_path,
+                valid_status=tuple(data.healthcheck_valid_status),
+                ssl_verify=data.healthcheck_ssl_verify,
+            ),
+            backend_hostname=data.backend_hostname or "",
+            cache_inactive=data.cache_inactive,
+            cache_max_size=data.cache_max_size,
+        )
+    except ValidationError as exc:
+        raise IntegrationDataError(str(exc)) from exc
 
 
 RelationId = int
