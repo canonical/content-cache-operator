@@ -101,10 +101,10 @@ def test_get_nginx_config_wraps_library_error():
     assert: The charm's own IntegrationDataError is raised instead, so callers only need to
         catch content-cache's error types.
     """
-    from cache_config.v0 import CacheConfigIntegrationDataError
+    from cache_config.v0 import CacheConfigRelationDataError
 
     provider = MagicMock()
-    provider.get_requirers_data.side_effect = CacheConfigIntegrationDataError("bad data")
+    provider.get_requirers_data.side_effect = CacheConfigRelationDataError("bad data")
 
     with pytest.raises(IntegrationDataError, match="bad data"):
         get_nginx_config(provider)
