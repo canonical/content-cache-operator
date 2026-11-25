@@ -170,4 +170,5 @@ async def test_ingress_configurator_integrates_with_content_cache(
     )
     assert json.loads(haproxy_data["hosts"]) == [cache_backend.hostname]
     assert json.loads(haproxy_data["ports"]) == [cache_backend.port]
-    assert str(haproxy_data["protocol"]) == cache_backend.scheme
+    # haproxy-route omits fields equal to their defaults, so protocol is absent for http.
+    assert json.loads(haproxy_data.get("protocol", '"http"')) == cache_backend.scheme
