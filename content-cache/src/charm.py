@@ -10,7 +10,6 @@ import logging
 from pathlib import Path
 
 import ops
-import pydantic
 from charmlibs.interfaces.certificate_transfer import (
     CertificateTransferRequires,
 )
@@ -40,7 +39,10 @@ from errors import (
 )
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
+    NEXT_OFFSET_FIELD,
+    PORT_MAP_FIELD,
     NginxConfig,
+    PeerData,
     get_cache_backend_url,
     get_client_ip_hash_salt,
     get_nginx_config,
@@ -62,17 +64,6 @@ NGINX_PORT_RANGE_START = 30000
 NGINX_PORT_RANGE_SIZE = 200
 
 PEER_RELATION_NAME = "content-cache-peers"
-PORT_MAP_FIELD = "port-map"
-NEXT_OFFSET_FIELD = "next-offset"
-
-
-class PeerData(pydantic.BaseModel):
-    """Content-cache peer application databag write schema."""
-
-    model_config = pydantic.ConfigDict(populate_by_name=True)
-
-    port_map: dict[str, int] = pydantic.Field(alias=PORT_MAP_FIELD)  # type: ignore[literal-required]
-    next_offset: int = pydantic.Field(alias=NEXT_OFFSET_FIELD)  # type: ignore[literal-required]
 
 
 class ContentCacheCharm(ops.CharmBase):

@@ -18,7 +18,6 @@ from charm import (
     NGINX_NOT_READY_MESSAGE,
     NGINX_PORT_RANGE_START,
     PEER_RELATION_NAME,
-    PORT_MAP_FIELD,
     WAIT_FOR_CONFIG_MESSAGE,
     WAIT_FOR_TLS_CERT_MESSAGE,
     ContentCacheCharm,
@@ -36,7 +35,7 @@ def _peer_port_map(harness: Harness, charm: ContentCacheCharm) -> dict:
     peer_rel = harness.model.get_relation(PEER_RELATION_NAME)
     assert peer_rel is not None
     peer_rel_id = peer_rel.id
-    raw = harness.get_relation_data(peer_rel_id, charm.app.name).get(PORT_MAP_FIELD, "")
+    raw = harness.get_relation_data(peer_rel_id, charm.app.name).get(state.PORT_MAP_FIELD, "")
     return json.loads(raw) if raw else {}
 
 
@@ -356,14 +355,14 @@ def test_follower_uses_shared_port_from_peer_databag(
     )
     shared_port = NGINX_PORT_RANGE_START + 5
     harness.update_relation_data(
-        peer_rel_id, charm.app.name, {PORT_MAP_FIELD: json.dumps({str(rel_id): shared_port})}
+        peer_rel_id, charm.app.name, {state.PORT_MAP_FIELD: json.dumps({str(rel_id): shared_port})}
     )
     harness.charm.on.update_status.emit()
 
     args, _ = mock_nginx_manager.update_and_load_config.call_args
     ported_config = args[0]
     assert ported_config[rel_id][0] == shared_port
-    raw = harness.get_relation_data(peer_rel_id, charm.app.name).get(PORT_MAP_FIELD, "")
+    raw = harness.get_relation_data(peer_rel_id, charm.app.name).get(state.PORT_MAP_FIELD, "")
     assert json.loads(raw) == {str(rel_id): shared_port}
 
 
