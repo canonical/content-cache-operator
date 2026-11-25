@@ -95,7 +95,7 @@ provides:
         interface: content-cache-config
 ```
 
-The provider supports multiple requirer applications. Initialise `CacheConfigProvider`, read
+The provider class supports multiple requirers. Initialise `CacheConfigProvider`, read
 the validated configuration for each relation, and publish the cache backend URL for that
 relation:
 
@@ -157,7 +157,7 @@ _DEFAULT_CACHE_INACTIVE = "10m"
 _DEFAULT_CACHE_MAX_SIZE = ""
 
 _MIN_STATUS_CODE = 100
-_MAX_STATUS_CODE = 999
+_MAX_STATUS_CODE = 599
 
 # nginx's ngx_parse_time/ngx_parse_size accept only ASCII digits. \d also matches
 # Unicode decimal digits, which int() accepts but nginx rejects, so use [0-9] to match
@@ -180,6 +180,11 @@ class CacheConfigError(Exception):
 
 class CacheConfigRelationDataError(CacheConfigError):
     """Raised when cache-config relation data fails validation on read or write."""
+
+
+# Backwards-compatible aliases for the pre-merge exception names.
+CacheConfigInvalidRelationDataError = CacheConfigRelationDataError
+CacheConfigIntegrationDataError = CacheConfigRelationDataError
 
 
 class InvalidCacheBackendDataError(CacheConfigError):
@@ -216,7 +221,9 @@ def _decode(value: str) -> typing.Any:
 
     Only list fields are JSON encoded on the wire. Scalars stay raw so that a string such
     as a numeric hostname is not silently converted to a different type; Pydantic coerces
-    raw booleans and integers for their declared fields.
+    raw booleans and integers for their declared fields. This is deliberately not a full
+    JSON decoder: decoding scalars would break compatibility with databags written by
+    older versions of the library, which store scalar values as raw strings.
 
     Args:
         value: The raw databag value.
