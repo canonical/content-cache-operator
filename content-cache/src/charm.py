@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 
 import ops
+import pydantic
 from charmlibs.interfaces.certificate_transfer import (
     CertificateTransferRequires,
 )
@@ -63,6 +64,15 @@ NGINX_PORT_RANGE_SIZE = 200
 PEER_RELATION_NAME = "content-cache-peers"
 PORT_MAP_FIELD = "port-map"
 NEXT_OFFSET_FIELD = "next-offset"
+
+
+class PeerData(pydantic.BaseModel):
+    """Content-cache peer application databag write schema."""
+
+    model_config = pydantic.ConfigDict(populate_by_name=True)
+
+    port_map: dict[str, int] = pydantic.Field(alias=PORT_MAP_FIELD)  # type: ignore[literal-required]
+    next_offset: int = pydantic.Field(alias=NEXT_OFFSET_FIELD)  # type: ignore[literal-required]
 
 
 class ContentCacheCharm(ops.CharmBase):
@@ -587,8 +597,7 @@ class ContentCacheCharm(ops.CharmBase):
             next_offset = 0
 
         if changed:
-            rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map, sort_keys=True)
-            rel.data[self.app][NEXT_OFFSET_FIELD] = str(next_offset)
+            rel.save(PeerData(port_map=port_map, next_offset=next_offset), self.app)
         return port_map
 
     def _release_port(self, relation_id: int) -> None:
@@ -609,8 +618,7 @@ class ContentCacheCharm(ops.CharmBase):
             return
         del port_map[str(relation_id)]
         next_offset = 0 if not port_map else self._read_next_offset()
-        rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map, sort_keys=True)
-        rel.data[self.app][NEXT_OFFSET_FIELD] = str(next_offset)
+        rel.save(PeerData(port_map=port_map, next_offset=next_offset), self.app)
 
     def _nginx_initialize(self) -> None:
         """Initialize the nginx instance.
