@@ -204,13 +204,28 @@ def test_mixed_backend_schemes_are_rejected():
 
 def test_parse_requirer_app_data_decodes_legacy_raw_values():
     """Legacy raw databag strings decode into typed requirer data."""
-    data = parse_requirer_app_data(VALID_REQUIRER_DATABAG)
+    data = parse_requirer_app_data(
+        {
+            **VALID_REQUIRER_DATABAG,
+            "fail_timeout": " 30s ",
+            "healthcheck_path": " /healthz ",
+            "healthcheck_ssl_verify": " true ",
+            "cache_inactive": " 10m ",
+            "cache_max_size": " 1g ",
+            "backend_hostname": " 123 ",
+        }
+    )
 
     assert data.backends == ["http://10.0.0.1:80"]
+    assert data.fail_timeout == "30s"
     assert data.healthcheck_interval == 1000
+    assert data.healthcheck_path == "/healthz"
     assert data.healthcheck_ssl_verify is True
     assert data.healthcheck_valid_status == [200]
     assert data.proxy_cache_valid == ["200 1h"]
+    assert data.cache_inactive == "10m"
+    assert data.cache_max_size == "1g"
+    assert data.backend_hostname == "123"
 
 
 def test_provider_unit_data_parses_ipv6_cache_backend():
