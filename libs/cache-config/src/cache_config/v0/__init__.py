@@ -75,9 +75,8 @@ class RequirerCharm(ops.CharmBase):
         try:
             provider_data = self.cache_config.fetch_provider_units_data()
         except InvalidCacheBackendsDataError:
-            # Provider data is invalid; wait for the next relation update.
-            provider_data = None
-        if provider_data and provider_data.cache_backends:
+            return
+        if provider_data.cache_backends:
             cache_backend_hosts = provider_data.cache_backend_hosts
             cache_backend_ports = provider_data.cache_backend_ports
 ```
