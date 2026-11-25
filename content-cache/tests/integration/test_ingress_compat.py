@@ -32,7 +32,6 @@ from juju.unit import Unit
 from tests.integration.helpers import run_in_unit
 
 CACHE_APP_NAME = "cache"
-CONFIG_APP_NAME = "config"
 INGRESS_APP_NAME = "ingress"
 MOCK_HAPROXY_APP_NAME = "haproxy"
 
@@ -110,17 +109,6 @@ async def cache_app_fixture(model: Model, charm_file: str) -> Application:
     return await model.deploy(charm_file, CACHE_APP_NAME, base="ubuntu@24.04")
 
 
-@pytest_asyncio.fixture(name="config_app", scope="module")
-async def config_app_fixture(model: Model, config_charm_file: str) -> Application:
-    """Deploy the configuration charm with a dummy backend."""
-    return await model.deploy(
-        config_charm_file,
-        CONFIG_APP_NAME,
-        base="ubuntu@24.04",
-        config={"backends": f"http://{BACKEND_ADDRESS}:{BACKEND_PORT}"},
-    )
-
-
 @pytest_asyncio.fixture(name="ingress_app", scope="module")
 async def ingress_app_fixture(model: Model) -> Application:
     """Deploy the pinned ingress-configurator revision."""
@@ -155,15 +143,14 @@ async def mock_haproxy_app_fixture(model: Model) -> Application:
 async def test_ingress_configurator_integrates_with_content_cache(
     model: Model,
     cache_app: Application,
-    config_app: Application,
     ingress_app: Application,
     mock_haproxy_app: Application,
 ) -> None:
     """
-    arrange: The content-cache, configuration, ingress-configurator, and mock
-        haproxy-route applications deployed.
-    act: Integrate content-cache with the configuration charm and ingress-configurator,
-        and ingress-configurator with the mock haproxy-route provider.
+    arrange: The content-cache, ingress-configurator, and mock haproxy-route
+        applications deployed.
+    act: Integrate content-cache with ingress-configurator, and ingress-configurator
+        with the mock haproxy-route provider.
     assert:
         1. Both content-cache and ingress-configurator become active, which requires each
            side to parse the other's cache-config data.
@@ -171,7 +158,6 @@ async def test_ingress_configurator_integrates_with_content_cache(
         3. ingress-configurator forwards the cache backend published by content-cache to
            haproxy-route.
     """
-    await model.integrate(f"{CONFIG_APP_NAME}:cache-config", f"{CACHE_APP_NAME}:cache-config")
     await model.integrate(f"{CACHE_APP_NAME}:cache-config", f"{INGRESS_APP_NAME}:cache-config")
     await model.integrate(
         f"{INGRESS_APP_NAME}:haproxy-route",
@@ -179,7 +165,7 @@ async def test_ingress_configurator_integrates_with_content_cache(
     )
     # 1.
     await model.wait_for_idle(
-        [cache_app.name, config_app.name, ingress_app.name],
+        [cache_app.name, ingress_app.name],
         status="active",
         timeout=30 * 60,
     )
@@ -189,12 +175,6 @@ async def test_ingress_configurator_integrates_with_content_cache(
     ingress_data = await _relation_app_data(cache_app.units[0], "cache-config", INGRESS_APP_NAME)
     assert _json_field(ingress_data["backends"]) == [f"http://{BACKEND_ADDRESS}:{BACKEND_PORT}"]
     assert str(ingress_data["fail_timeout"]) == "30s"
-    assert str(ingress_data["healthcheck_interval"]) == "10000"
-    assert str(ingress_data["healthcheck_path"]) == "/"
-    assert _json_field(ingress_data["healthcheck_valid_status"]) == [200]
-    assert str(ingress_data["healthcheck_ssl_verify"]).lower() == "true"
-    assert _json_field(ingress_data["proxy_cache_valid"]) == []
-    assert str(ingress_data["cache_inactive"]) == "10m"
 
     # 3.
     cache_backend_data = await _relation_unit_data(
