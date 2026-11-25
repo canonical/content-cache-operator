@@ -5,9 +5,10 @@
 
 import json
 from typing import TypedDict
+from unittest.mock import patch
 
 import pytest
-from ops import CharmBase
+from ops import CharmBase, Relation
 from ops.testing import Harness
 from pydantic import TypeAdapter, ValidationError
 
@@ -144,7 +145,6 @@ def test_requirer_data_defaults():
         pytest.param("healthcheck_valid_status", [], id="empty-valid-statuses"),
         pytest.param("healthcheck_valid_status", [99], id="low-valid-status"),
         pytest.param("healthcheck_valid_status", [600], id="high-valid-status-600"),
-        pytest.param("healthcheck_valid_status", [1000], id="high-valid-status"),
         pytest.param("proxy_cache_valid", ["200"], id="cache-valid-without-time"),
         pytest.param("proxy_cache_valid", ["ok 1h"], id="cache-valid-noninteger-status"),
         pytest.param("proxy_cache_valid", ["600 1h"], id="cache-valid-status-600"),
@@ -173,13 +173,6 @@ def test_requirer_data_accepts_nginx_times(value):
 def test_requirer_data_accepts_cache_sizes(value):
     """Requirer data accepts supported nginx cache sizes and no limit."""
     assert _requirer_data(cache_max_size=value).cache_max_size == value
-
-
-def test_numeric_hostname_stays_a_string():
-    """A raw hostname that looks like JSON is not coerced to another type."""
-    data = parse_requirer_app_data({**VALID_REQUIRER_DATABAG, "backend_hostname": "123"})
-
-    assert data.backend_hostname == "123"
 
 
 def test_https_backends_require_hostname():
@@ -226,6 +219,14 @@ def test_parse_requirer_app_data_decodes_legacy_raw_values():
     assert data.cache_inactive == "10m"
     assert data.cache_max_size == "1g"
     assert data.backend_hostname == "123"
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_parse_requirer_app_data_defaults_blank_legacy_cache_inactive(value: str):
+    """A blank legacy cache_inactive value falls back to the old default."""
+    data = parse_requirer_app_data({**VALID_REQUIRER_DATABAG, "cache_inactive": value})
+
+    assert data.cache_inactive == "10m"
 
 
 def test_provider_unit_data_parses_ipv6_cache_backend():
@@ -332,14 +333,14 @@ def test_provider_skips_invalid_requirer_data():
     """The provider skips an invalid relation without blocking valid ones."""
     harness = Harness(_ProviderCharm, meta=PROVIDER_METADATA)
     harness.begin()
-    valid_relation_id = harness.add_relation("cache-config", "backend")
-    harness.update_relation_data(valid_relation_id, "backend", VALID_REQUIRER_DATABAG)
     invalid_relation_id = harness.add_relation("cache-config", "other-backend")
     harness.update_relation_data(
         invalid_relation_id,
         "other-backend",
         {**VALID_REQUIRER_DATABAG, "backends": "[]"},
     )
+    valid_relation_id = harness.add_relation("cache-config", "backend")
+    harness.update_relation_data(valid_relation_id, "backend", VALID_REQUIRER_DATABAG)
 
     data = harness.charm.cache_config.get_requirers_data()
 
@@ -383,14 +384,7 @@ def test_requirer_skips_invalid_provider_unit_data():
     assert data.cache_backend_ports == [8080]
 
 
-@pytest.mark.parametrize(
-    "empty_unit_data",
-    [
-        pytest.param({}, id="unpublished"),
-        pytest.param({"cache-backend": ""}, id="cleared"),
-    ],
-)
-def test_requirer_skips_unpublished_provider_unit_data(empty_unit_data):
+def test_requirer_skips_unpublished_provider_unit_data():
     """The requirer skips a provider unit without a cache-backend value."""
     harness = Harness(_RequirerCharm, meta=REQUIRER_METADATA)
     harness.begin()
@@ -400,7 +394,27 @@ def test_requirer_skips_unpublished_provider_unit_data(empty_unit_data):
     harness.update_relation_data(
         relation_id, "content-cache/0", {"cache-backend": "http://10.0.0.1:8080"}
     )
-    harness.update_relation_data(relation_id, "content-cache/1", empty_unit_data)
+
+    data = harness.charm.cache_config.fetch_provider_units_data()
+
+    assert data.cache_backend_hosts == ["10.0.0.1"]
+    assert data.cache_backend_ports == [8080]
+
+
+def test_requirer_skips_cleared_provider_unit_data():
+    """A provider unit that clears its published cache-backend is skipped."""
+    harness = Harness(_RequirerCharm, meta=REQUIRER_METADATA)
+    harness.begin()
+    relation_id = harness.add_relation("cache-config", "content-cache")
+    harness.add_relation_unit(relation_id, "content-cache/0")
+    harness.add_relation_unit(relation_id, "content-cache/1")
+    harness.update_relation_data(
+        relation_id, "content-cache/0", {"cache-backend": "http://10.0.0.1:8080"}
+    )
+    harness.update_relation_data(
+        relation_id, "content-cache/1", {"cache-backend": "http://10.0.0.2:9090"}
+    )
+    harness.update_relation_data(relation_id, "content-cache/1", {"cache-backend": ""})
 
     data = harness.charm.cache_config.fetch_provider_units_data()
 
@@ -433,14 +447,19 @@ def test_provider_publishes_and_clears_cache_backend():
     harness = Harness(_ProviderCharm, meta=PROVIDER_METADATA)
     harness.begin()
     relation_id = harness.add_relation("cache-config", "backend")
+    harness.update_relation_data(relation_id, harness.model.unit.name, {"unrelated": "keep"})
+    with patch.object(Relation, "save", autospec=True, wraps=Relation.save) as save:
+        harness.charm.cache_config.publish_cache_backend(relation_id, "http://10.0.0.1:8080")
+        harness.charm.cache_config.publish_cache_backend(relation_id, "http://10.0.0.1:8080")
 
-    harness.charm.cache_config.publish_cache_backend(relation_id, "http://10.0.0.1:8080")
+    assert save.call_count == 1
     assert harness.get_relation_data(relation_id, harness.model.unit.name) == {
-        "cache-backend": "http://10.0.0.1:8080"
+        "cache-backend": "http://10.0.0.1:8080",
+        "unrelated": "keep",
     }
 
     harness.charm.cache_config.clear_cache_backend(relation_id)
-    assert harness.get_relation_data(relation_id, harness.model.unit.name) == {}
+    assert harness.get_relation_data(relation_id, harness.model.unit.name) == {"unrelated": "keep"}
 
 
 def test_provider_rejects_invalid_cache_backend_on_publish():

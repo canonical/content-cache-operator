@@ -51,17 +51,6 @@ def test_to_location_config_reshapes_requirer_data():
     assert config.healthcheck_config.ssl_verify is False
     assert config.healthcheck_config.path == "/"
     assert config.healthcheck_config.interval == 2000
-
-
-def test_to_location_config_defaults():
-    """
-    arrange: Requirer app data relying on backend_hostname/cache_inactive/cache_max_size
-        defaults.
-    act: Convert to LocationConfig.
-    assert: Defaults are carried over correctly.
-    """
-    config = _to_location_config(SAMPLE_APP_DATA)
-
     assert config.backend_hostname == ""
     assert config.cache_inactive == "10m"
     assert config.cache_max_size == ""
@@ -148,22 +137,7 @@ def test_get_cache_backend_url_uses_https_when_has_cache_cert():
 
     result = get_cache_backend_url(charm, relation, 30000, has_cache_cert=True)
 
-    assert result.startswith("https://")
-
-
-def test_get_cache_backend_url_uses_http_by_default():
-    """
-    arrange: A mock charm with a bind address and has_cache_cert=False (default).
-    act: Call get_cache_backend_url.
-    assert: Returns an http:// URL.
-    """
-    charm = MagicMock()
-    charm.model.get_binding.return_value.network.bind_address = "10.0.0.1"
-    relation = MagicMock()
-
-    result = get_cache_backend_url(charm, relation, 30000)
-
-    assert result.startswith("http://")
+    assert result == "https://10.0.0.1:30000"
 
 
 def test_get_cache_backend_url_http():

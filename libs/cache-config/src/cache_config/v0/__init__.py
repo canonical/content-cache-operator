@@ -141,6 +141,7 @@ from pydantic import (
     AfterValidator,
     AnyHttpUrl,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     TypeAdapter,
@@ -387,6 +388,18 @@ def _validate_proxy_cache_valid(value: str) -> str:
     return value
 
 
+def _default_cache_inactive(value: typing.Any) -> typing.Any:
+    """Return the default for a blank cache-inactive value.
+
+    The previous content-cache provider treated a blank value as unset:
+    ``data.get("cache_inactive", "10m").strip() or "10m"``. Keep accepting legacy
+    databags that contain only whitespace.
+    """
+    if not isinstance(value, str):
+        return value
+    return value.strip() or _DEFAULT_CACHE_INACTIVE
+
+
 _Backend = typing.Annotated[str, AfterValidator(_validate_http_url)]
 _StatusCode = typing.Annotated[int, Field(ge=_MIN_STATUS_CODE, le=_MAX_STATUS_CODE)]
 _ProxyCacheValid = typing.Annotated[str, AfterValidator(_validate_proxy_cache_valid)]
@@ -418,9 +431,11 @@ class CacheConfigRequirerAppData(BaseModel):
     healthcheck_ssl_verify: bool
     proxy_cache_valid: list[_ProxyCacheValid]
     backend_hostname: typing.Annotated[str, AfterValidator(_validate_hostname)] | None = None
-    cache_inactive: typing.Annotated[str, AfterValidator(_validate_nginx_time)] = (
-        _DEFAULT_CACHE_INACTIVE
-    )
+    cache_inactive: typing.Annotated[
+        str,
+        BeforeValidator(_default_cache_inactive),
+        AfterValidator(_validate_nginx_time),
+    ] = _DEFAULT_CACHE_INACTIVE
     cache_max_size: typing.Annotated[str, AfterValidator(_validate_nginx_size)] = (
         _DEFAULT_CACHE_MAX_SIZE
     )

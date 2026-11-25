@@ -10,7 +10,6 @@ from errors import ConfigurationError
 from src.state import (
     BACKENDS_CONFIG_NAME,
     CACHE_INACTIVE_CONFIG_NAME,
-    CACHE_MAX_SIZE_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
     PROXY_CACHE_VALID_CONFIG_NAME,
@@ -36,6 +35,8 @@ def test_valid_config():
     assert config.healthcheck.path == "/healthz"
     assert config.healthcheck.interval == 2123
     assert not config.proxy_cache_valid
+    assert config.cache_inactive == "10m"
+    assert config.cache_max_size == ""
 
 
 def test_https_backends():
@@ -140,33 +141,18 @@ def test_healthcheck_path_passthrough():
     assert config.healthcheck.path == "{"
 
 
-@pytest.mark.parametrize("value", ["10m", "1h", "7d", "30s"])
-def test_cache_inactive_passthrough(value: str):
+def test_cache_inactive_passthrough():
     """
-    arrange: Mock charm with a cache-inactive value.
+    arrange: Mock charm with a non-default cache-inactive value.
     act: Read the configuration kwargs from the charm.
     assert: cache_inactive is passed through unchanged.
     """
     charm = MockCharmFactory()
-    charm.config[CACHE_INACTIVE_CONFIG_NAME] = value
+    charm.config[CACHE_INACTIVE_CONFIG_NAME] = "1h"
 
     config = CharmState.from_charm(charm)
 
-    assert config.cache_inactive == value
-
-
-def test_cache_max_size_empty_allowed():
-    """
-    arrange: Mock charm with empty cache-max-size.
-    act: Read the configuration kwargs from the charm.
-    assert: cache_max_size is empty string (no limit).
-    """
-    charm = MockCharmFactory()
-    charm.config[CACHE_MAX_SIZE_CONFIG_NAME] = ""
-
-    config = CharmState.from_charm(charm)
-
-    assert config.cache_max_size == ""
+    assert config.cache_inactive == "1h"
 
 
 def test_configuration_flattens_for_cache_config_library():

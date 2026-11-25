@@ -479,6 +479,47 @@ def test_load_nginx_config_writes_ipv6_cache_backend(
     assert rel_data.get("cache-backend") == "http://[2001:db8::1]:8080"
 
 
+def test_invalid_relation_is_cleared_and_recovers(
+    harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
+):
+    """
+    arrange: A charm with two valid cache-config relations.
+    act: Make one relation invalid, then valid again.
+    assert: The invalid relation's cache backend is cleared while the other keeps
+        serving, and the invalid relation is restored after recovery.
+    """
+    rel_id_1 = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config1",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    rel_id_2 = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config2",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+    assert charm.unit.status == ops.ActiveStatus()
+    assert harness.get_relation_data(rel_id_1, charm.unit.name).get("cache-backend")
+    assert harness.get_relation_data(rel_id_2, charm.unit.name).get("cache-backend")
+
+    harness.update_relation_data(rel_id_1, "config1", {"backends": "[]"})
+    harness.charm.on.update_status.emit()
+
+    assert charm.unit.status == ops.ActiveStatus()
+    assert not harness.get_relation_data(rel_id_1, charm.unit.name).get("cache-backend")
+    assert harness.get_relation_data(rel_id_2, charm.unit.name).get("cache-backend")
+    args, _ = mock_nginx_manager.update_and_load_config.call_args
+    assert set(args[0]) == {rel_id_2}
+
+    harness.update_relation_data(rel_id_1, "config1", SAMPLE_INTEGRATION_DATA)
+    harness.charm.on.update_status.emit()
+
+    assert charm.unit.status == ops.ActiveStatus()
+    assert harness.get_relation_data(rel_id_1, charm.unit.name).get("cache-backend")
+    args, _ = mock_nginx_manager.update_and_load_config.call_args
+    assert set(args[0]) == {rel_id_1, rel_id_2}
+
+
 def test_relation_broken_clears_cache_backends(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):
