@@ -73,9 +73,9 @@ class RequirerCharm(ops.CharmBase):
 
     def _on_cache_config_relation_changed(self, _: ops.RelationChangedEvent) -> None:
         try:
-            provider_data = self.cache_config.get_provider_units_data()
+            provider_data = self.cache_config.fetch_provider_units_data()
         except InvalidCacheBackendsDataError:
-            # Valid provider units have inconsistent cache backend protocols.
+            # Provider data is invalid; wait for the next relation update.
             provider_data = None
         if provider_data and provider_data.cache_backends:
             cache_backend_hosts = provider_data.cache_backend_hosts
@@ -612,7 +612,7 @@ class CacheConfigRequirer(Object):
                 f"Failed to publish cache-config requirer data: {exc}"
             ) from exc
 
-    def get_provider_units_data(self) -> CacheConfigProviderUnitsData:
+    def fetch_provider_units_data(self) -> CacheConfigProviderUnitsData:
         """Fetch the cache backend URLs published by the provider units.
 
         Invalid or unpublished provider units are skipped. This allows a unit to join,

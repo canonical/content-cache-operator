@@ -332,7 +332,7 @@ def test_requirer_loads_legacy_provider_unit_data():
         relation_id, "content-cache/0", {"cache-backend": "http://10.0.0.1:8080"}
     )
 
-    data = harness.charm.cache_config.get_provider_units_data()
+    data = harness.charm.cache_config.fetch_provider_units_data()
 
     assert data.cache_backend_hosts == ["10.0.0.1"]
     assert data.cache_backend_ports == [8080]
@@ -352,7 +352,7 @@ def test_requirer_skips_invalid_provider_unit_data():
         relation_id, "content-cache/1", {"cache-backend": "http://cache.example.com:8080"}
     )
 
-    data = harness.charm.cache_config.get_provider_units_data()
+    data = harness.charm.cache_config.fetch_provider_units_data()
 
     assert data.cache_backend_hosts == ["10.0.0.1"]
     assert data.cache_backend_ports == [8080]
@@ -377,7 +377,7 @@ def test_requirer_skips_unpublished_provider_unit_data(empty_unit_data):
     )
     harness.update_relation_data(relation_id, "content-cache/1", empty_unit_data)
 
-    data = harness.charm.cache_config.get_provider_units_data()
+    data = harness.charm.cache_config.fetch_provider_units_data()
 
     assert data.cache_backend_hosts == ["10.0.0.1"]
     assert data.cache_backend_ports == [8080]
@@ -400,7 +400,7 @@ def test_requirer_rejects_mixed_provider_protocols():
     with pytest.raises(
         InvalidCacheBackendsDataError, match="Inconsistent cache backend protocols"
     ):
-        harness.charm.cache_config.get_provider_units_data()
+        harness.charm.cache_config.fetch_provider_units_data()
 
 
 def test_provider_publishes_and_clears_cache_backend():
