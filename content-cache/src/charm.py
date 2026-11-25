@@ -39,10 +39,7 @@ from errors import (
 )
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
-    NEXT_OFFSET_FIELD,
-    PORT_MAP_FIELD,
     NginxConfig,
-    PeerData,
     get_cache_backend_url,
     get_client_ip_hash_salt,
     get_nginx_config,
@@ -64,6 +61,8 @@ NGINX_PORT_RANGE_START = 30000
 NGINX_PORT_RANGE_SIZE = 200
 
 PEER_RELATION_NAME = "content-cache-peers"
+PORT_MAP_FIELD = "port-map"
+NEXT_OFFSET_FIELD = "next-offset"
 
 
 class ContentCacheCharm(ops.CharmBase):
@@ -588,7 +587,8 @@ class ContentCacheCharm(ops.CharmBase):
             next_offset = 0
 
         if changed:
-            rel.save(PeerData(port_map=port_map, next_offset=next_offset), self.app)
+            rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map, sort_keys=True)
+            rel.data[self.app][NEXT_OFFSET_FIELD] = str(next_offset)
         return port_map
 
     def _release_port(self, relation_id: int) -> None:
@@ -609,7 +609,8 @@ class ContentCacheCharm(ops.CharmBase):
             return
         del port_map[str(relation_id)]
         next_offset = 0 if not port_map else self._read_next_offset()
-        rel.save(PeerData(port_map=port_map, next_offset=next_offset), self.app)
+        rel.data[self.app][PORT_MAP_FIELD] = json.dumps(port_map, sort_keys=True)
+        rel.data[self.app][NEXT_OFFSET_FIELD] = str(next_offset)
 
     def _nginx_initialize(self) -> None:
         """Initialize the nginx instance.
