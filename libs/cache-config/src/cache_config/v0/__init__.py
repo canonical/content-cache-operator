@@ -224,6 +224,7 @@ def _decode(value: str) -> typing.Any:
     Returns:
         The decoded list, or the raw string for every other value.
     """
+    value = value.strip()
     try:
         decoded = json.loads(value)
     except json.JSONDecodeError:
