@@ -19,12 +19,10 @@ never contacted because only relation data is checked.
 
 import json
 import platform
-from typing import Any
 from urllib.parse import urlparse
 
 import pytest
 import pytest_asyncio
-import yaml
 from juju.application import Application
 from juju.model import Model
 from juju.unit import Unit
@@ -47,21 +45,7 @@ BACKEND_ADDRESS = "10.0.0.1"
 BACKEND_PORT = 80
 
 
-def _json_field(value: Any) -> Any:
-    """Decode a databag field that holds JSON, tolerating YAML pre-parsing.
-
-    Args:
-        value: The field value, either still JSON text or already decoded by YAML.
-
-    Returns:
-        The decoded value.
-    """
-    if isinstance(value, str):
-        return json.loads(value)
-    return value
-
-
-async def _relation_app_data(unit: Unit, endpoint: str, remote_app: str) -> dict[str, Any]:
+async def _relation_app_data(unit: Unit, endpoint: str, remote_app: str) -> dict[str, str]:
     """Read the application databag a remote app publishes over a relation.
 
     Args:
@@ -74,15 +58,15 @@ async def _relation_app_data(unit: Unit, endpoint: str, remote_app: str) -> dict
     """
     return_code, stdout, stderr = await run_in_unit(
         unit=unit,
-        command=f"relation-get --app -r $(relation-ids {endpoint}) - {remote_app}",
+        command=(f"relation-get --format=json --app -r $(relation-ids {endpoint}) - {remote_app}"),
     )
     assert return_code == 0, f"Failed to read {endpoint} application data: {stderr}"
-    data = yaml.safe_load(stdout or "")
+    data = json.loads(stdout or "{}")
     assert isinstance(data, dict), f"Unexpected {endpoint} application data: {stdout}"
     return data
 
 
-async def _relation_unit_data(unit: Unit, endpoint: str, remote_unit: str) -> dict[str, Any]:
+async def _relation_unit_data(unit: Unit, endpoint: str, remote_unit: str) -> dict[str, str]:
     """Read a remote unit's databag over a relation.
 
     Args:
@@ -95,10 +79,10 @@ async def _relation_unit_data(unit: Unit, endpoint: str, remote_unit: str) -> di
     """
     return_code, stdout, stderr = await run_in_unit(
         unit=unit,
-        command=f"relation-get -r $(relation-ids {endpoint}) - {remote_unit}",
+        command=f"relation-get --format=json -r $(relation-ids {endpoint}) - {remote_unit}",
     )
     assert return_code == 0, f"Failed to read {endpoint} unit data: {stderr}"
-    data = yaml.safe_load(stdout or "")
+    data = json.loads(stdout or "{}")
     assert isinstance(data, dict), f"Unexpected {endpoint} unit data: {stdout}"
     return data
 
@@ -173,7 +157,7 @@ async def test_ingress_configurator_integrates_with_content_cache(
 
     # 2.
     ingress_data = await _relation_app_data(cache_app.units[0], "cache-config", INGRESS_APP_NAME)
-    assert _json_field(ingress_data["backends"]) == [f"http://{BACKEND_ADDRESS}:{BACKEND_PORT}"]
+    assert json.loads(ingress_data["backends"]) == [f"http://{BACKEND_ADDRESS}:{BACKEND_PORT}"]
     assert str(ingress_data["fail_timeout"]) == "30s"
 
     # 3.
@@ -184,6 +168,6 @@ async def test_ingress_configurator_integrates_with_content_cache(
     haproxy_data = await _relation_app_data(
         mock_haproxy_app.units[0], "provide-haproxy-route", INGRESS_APP_NAME
     )
-    assert _json_field(haproxy_data["hosts"]) == [cache_backend.hostname]
-    assert _json_field(haproxy_data["ports"]) == [cache_backend.port]
+    assert json.loads(haproxy_data["hosts"]) == [cache_backend.hostname]
+    assert json.loads(haproxy_data["ports"]) == [cache_backend.port]
     assert str(haproxy_data["protocol"]) == cache_backend.scheme
