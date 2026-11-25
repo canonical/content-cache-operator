@@ -12,7 +12,6 @@ import pydantic
 
 from cache_config.v0 import (
     CacheConfigProvider,
-    CacheConfigRelationDataError,
     CacheConfigRequirerAppData,
     parse_requirer_app_data,
 )
@@ -209,24 +208,37 @@ NginxConfig = dict[RelationId, LocationConfig]
 def get_nginx_config(cache_config: CacheConfigProvider) -> NginxConfig:
     """Get the nginx locations configuration from cache-config integration data.
 
+    Relations with invalid data are skipped so that they do not block valid ones. Their
+    published cache backend is cleared so no traffic is routed to a relation whose
+    configuration could not be applied.
+
     Args:
         cache_config: The charm's CacheConfigProvider instance.
 
     Raises:
-        IntegrationDataError: Invalid cache configurations in integration data.
+        IntegrationDataError: All relations with data failed validation.
 
     Returns:
         A mapping of relation ID to location configuration.
     """
-    try:
-        requirers_data = cache_config.get_requirers_data()
-    except CacheConfigRelationDataError as err:
-        raise IntegrationDataError(str(err)) from err
+    requirers_data = cache_config.get_requirers_data()
+    if requirers_data.invalid_relation_ids:
+        if not requirers_data.requirers:
+            raise IntegrationDataError(
+                "Invalid cache-config data for relation(s): "
+                f"{sorted(requirers_data.invalid_relation_ids)}"
+            )
+        logger.warning(
+            "Ignoring invalid cache-config data for relation(s): %s",
+            sorted(requirers_data.invalid_relation_ids),
+        )
+        for relation_id in requirers_data.invalid_relation_ids:
+            cache_config.clear_cache_backend(relation_id)
 
-    if not requirers_data:
+    if not requirers_data.requirers:
         logger.info("Found no configuration integrations")
 
-    return {rel_id: _to_location_config(data) for rel_id, data in requirers_data.items()}
+    return {rel_id: _to_location_config(data) for rel_id, data in requirers_data.requirers.items()}
 
 
 def get_cache_backend_url(

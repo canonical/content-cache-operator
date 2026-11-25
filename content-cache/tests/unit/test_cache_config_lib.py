@@ -296,8 +296,9 @@ def test_provider_loads_requirer_data():
 
     data = harness.charm.cache_config.get_requirers_data()
 
-    assert set(data) == {relation_id}
-    assert data[relation_id].healthcheck_interval == 1000
+    assert set(data.requirers) == {relation_id}
+    assert data.requirers[relation_id].healthcheck_interval == 1000
+    assert data.invalid_relation_ids == set()
 
 
 def test_provider_ignores_empty_requirer_data():
@@ -306,22 +307,29 @@ def test_provider_ignores_empty_requirer_data():
     harness.begin()
     harness.add_relation("cache-config", "backend")
 
-    assert harness.charm.cache_config.get_requirers_data() == {}
+    data = harness.charm.cache_config.get_requirers_data()
+
+    assert data.requirers == {}
+    assert data.invalid_relation_ids == set()
 
 
-def test_provider_wraps_invalid_requirer_data():
-    """The provider raises its public error for invalid requirer data."""
+def test_provider_skips_invalid_requirer_data():
+    """The provider skips an invalid relation without blocking valid ones."""
     harness = Harness(_ProviderCharm, meta=PROVIDER_METADATA)
     harness.begin()
-    relation_id = harness.add_relation("cache-config", "backend")
+    valid_relation_id = harness.add_relation("cache-config", "backend")
+    harness.update_relation_data(valid_relation_id, "backend", VALID_REQUIRER_DATABAG)
+    invalid_relation_id = harness.add_relation("cache-config", "other-backend")
     harness.update_relation_data(
-        relation_id,
-        "backend",
+        invalid_relation_id,
+        "other-backend",
         {**VALID_REQUIRER_DATABAG, "backends": "[]"},
     )
 
-    with pytest.raises(CacheConfigRelationDataError):
-        harness.charm.cache_config.get_requirers_data()
+    data = harness.charm.cache_config.get_requirers_data()
+
+    assert set(data.requirers) == {valid_relation_id}
+    assert data.invalid_relation_ids == {invalid_relation_id}
 
 
 def test_requirer_loads_legacy_provider_unit_data():

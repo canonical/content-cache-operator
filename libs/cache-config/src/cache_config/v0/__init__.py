@@ -96,7 +96,8 @@ provides:
 
 The provider class supports multiple requirers. Initialise `CacheConfigProvider`, read
 the validated configuration for each relation, and publish the cache backend URL for that
-relation:
+relation. Relations whose data fails validation are reported separately in
+`invalid_relation_ids` instead of blocking the others:
 
 ```python
 from ops import CharmBase
@@ -110,9 +111,12 @@ class ContentCacheCharm(CharmBase):
         self.cache_config = CacheConfigProvider(self)
 
     def _reconcile(self) -> None:
-        for relation_id, configuration in self.cache_config.get_requirers_data().items():
+        requirers_data = self.cache_config.get_requirers_data()
+        for relation_id, configuration in requirers_data.requirers.items():
             cache_backend_url = self._configure_backend(configuration)
             self.cache_config.publish_cache_backend(relation_id, cache_backend_url)
+        for relation_id in requirers_data.invalid_relation_ids:
+            self.cache_config.clear_cache_backend(relation_id)
 ```
 
 ## Maintaining this library
@@ -143,6 +147,7 @@ from pydantic import (
     ValidationError,
     model_validator,
 )
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 # Interface API/patch version. The distribution version lives in pyproject.toml.
 LIBAPI = 0
@@ -179,7 +184,7 @@ class CacheConfigError(Exception):
 
 
 class CacheConfigRelationDataError(CacheConfigError):
-    """Raised when cache-config relation data fails validation on read or write."""
+    """Raised when cache-config relation data fails validation on write."""
 
 
 # Backwards-compatible aliases for the pre-merge exception names.
@@ -438,6 +443,20 @@ class CacheConfigRequirerAppData(BaseModel):
         return self
 
 
+@pydantic_dataclass(frozen=True)
+class CacheConfigRequirersData:
+    """Validated requirer data for every cache-config relation.
+
+    Attributes:
+        requirers: The validated application data keyed by relation id.
+        invalid_relation_ids: Relation ids whose application data failed validation.
+            Their data is skipped so that one invalid relation does not block the rest.
+    """
+
+    requirers: dict[int, CacheConfigRequirerAppData]
+    invalid_relation_ids: set[int]
+
+
 class CacheConfigProviderUnitData(BaseModel):
     """Provider unit databag schema.
 
@@ -477,7 +496,7 @@ class CacheConfigProviderUnitData(BaseModel):
 # model with model_dump(mode="json"), so an AnyHttpUrl field would be normalised before
 # _encode sees it (for example by adding a trailing slash). Keeping the URL as a plain
 # string here preserves exactly the validated value the caller passed in.
-@dataclasses.dataclass(frozen=True)
+@pydantic_dataclass(frozen=True, config=ConfigDict(populate_by_name=True))
 class _CacheBackendUnitDatabag:
     """Provider unit databag write schema."""
 
@@ -689,22 +708,19 @@ class CacheConfigProvider(Object):
         self.charm = charm
         self.relation_name = relation_name
 
-    def get_requirers_data(self) -> dict[int, CacheConfigRequirerAppData]:
+    def get_requirers_data(self) -> CacheConfigRequirersData:
         """Read and validate every related requirer's app databag.
 
         Relations with no data published yet are omitted rather than errored, since that
         is the normal state before the remote charm has finished its own configuration.
-
-        Raises:
-            CacheConfigRelationDataError: When a requirer's app databag fails validation.
-                This fails the whole call on the first bad relation, rather than
-                silently skipping it, since a misconfigured backend must block
-                reconciliation rather than be dropped.
+        Relations whose data fails validation are skipped and their ids are reported in
+        ``invalid_relation_ids``, so one invalid relation does not block the others.
 
         Returns:
-            A mapping of relation id to the requirer's validated app data.
+            The validated requirer data and the ids of the relations with invalid data.
         """
         configurations: dict[int, CacheConfigRequirerAppData] = {}
+        invalid_relation_ids: set[int] = set()
         for relation in self.charm.model.relations[self.relation_name]:
             relation_data = relation.data[relation.app]
             if not relation_data:
@@ -714,10 +730,16 @@ class CacheConfigProvider(Object):
                     CacheConfigRequirerAppData, relation.app, decoder=_decode
                 )
             except ValidationError as exc:
-                raise CacheConfigRelationDataError(
-                    f"Faulty cache-config data from relation {relation.id}: {exc}"
-                ) from exc
-        return configurations
+                logger.warning(
+                    "Skipping invalid cache-config data from relation %s: %s",
+                    relation.id,
+                    exc,
+                )
+                invalid_relation_ids.add(relation.id)
+        return CacheConfigRequirersData(
+            requirers=configurations,
+            invalid_relation_ids=invalid_relation_ids,
+        )
 
     def publish_cache_backend(self, relation_id: int, cache_backend_url: str) -> None:
         """Publish the resolved cache-backend URL to a relation's unit databag.

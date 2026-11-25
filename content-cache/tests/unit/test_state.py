@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from cache_config.v0 import CacheConfigRequirerAppData
+from cache_config.v0 import CacheConfigRequirerAppData, CacheConfigRequirersData
 from errors import ConfigurationError, IntegrationDataError
 from state import (
     LocationConfig,
@@ -74,7 +74,10 @@ def test_get_nginx_config_returns_per_relation_dict():
     assert: Returns a dict keyed by relation id with the reshaped LocationConfig.
     """
     provider = MagicMock()
-    provider.get_requirers_data.return_value = {7: SAMPLE_APP_DATA}
+    provider.get_requirers_data.return_value = CacheConfigRequirersData(
+        requirers={7: SAMPLE_APP_DATA},
+        invalid_relation_ids=set(),
+    )
 
     config = get_nginx_config(provider)
 
@@ -90,24 +93,46 @@ def test_get_nginx_config_empty_when_no_requirers():
     assert: Returns an empty dict.
     """
     provider = MagicMock()
-    provider.get_requirers_data.return_value = {}
+    provider.get_requirers_data.return_value = CacheConfigRequirersData(
+        requirers={},
+        invalid_relation_ids=set(),
+    )
 
     assert get_nginx_config(provider) == {}
 
 
-def test_get_nginx_config_wraps_library_error():
+def test_get_nginx_config_skips_invalid_relations():
     """
-    arrange: A fake CacheConfigProvider whose get_requirers_data raises the library's error.
+    arrange: A fake CacheConfigProvider with one valid and one invalid relation.
+    act: Call get_nginx_config.
+    assert: The valid relation is returned and the invalid relation's backend is cleared.
+    """
+    provider = MagicMock()
+    provider.get_requirers_data.return_value = CacheConfigRequirersData(
+        requirers={7: SAMPLE_APP_DATA},
+        invalid_relation_ids={8},
+    )
+
+    config = get_nginx_config(provider)
+
+    assert set(config) == {7}
+    provider.clear_cache_backend.assert_called_once_with(8)
+
+
+def test_get_nginx_config_raises_when_all_requirers_invalid():
+    """
+    arrange: A fake CacheConfigProvider whose only relation has invalid data.
     act: Call get_nginx_config.
     assert: The charm's own IntegrationDataError is raised instead, so callers only need to
         catch content-cache's error types.
     """
-    from cache_config.v0 import CacheConfigRelationDataError
-
     provider = MagicMock()
-    provider.get_requirers_data.side_effect = CacheConfigRelationDataError("bad data")
+    provider.get_requirers_data.return_value = CacheConfigRequirersData(
+        requirers={},
+        invalid_relation_ids={8},
+    )
 
-    with pytest.raises(IntegrationDataError, match="bad data"):
+    with pytest.raises(IntegrationDataError, match="8"):
         get_nginx_config(provider)
 
 
