@@ -123,6 +123,7 @@ charms use a commit-pinned git dependency. Increment `LIBPATCH` for a backwards-
 change and the package's major version together with `LIBAPI` for a breaking change.
 """
 
+import dataclasses
 import ipaddress
 import json
 import logging
@@ -472,6 +473,17 @@ class CacheConfigProviderUnitData(BaseModel):
         return str(ipaddress.ip_address(host))
 
 
+# Write-only schema for the provider unit databag. Relation.save serialises a pydantic
+# model with model_dump(mode="json"), so an AnyHttpUrl field would be normalised before
+# _encode sees it (for example by adding a trailing slash). Keeping the URL as a plain
+# string here preserves exactly the validated value the caller passed in.
+@dataclasses.dataclass(frozen=True)
+class _CacheBackendUnitDatabag:
+    """Provider unit databag write schema."""
+
+    cache_backend: str | None = dataclasses.field(metadata={"alias": _CACHE_BACKEND_FIELD_NAME})
+
+
 class CacheConfigProviderUnitsData(BaseModel):
     """Provider units databag.
 
@@ -730,7 +742,11 @@ class CacheConfigProvider(Object):
                 f"Invalid cache-backend URL: {cache_backend_url!r}: {exc}"
             ) from exc
         if relation.data[self.charm.unit].get(_CACHE_BACKEND_FIELD_NAME) != cache_backend_url:
-            relation.data[self.charm.unit][_CACHE_BACKEND_FIELD_NAME] = cache_backend_url
+            relation.save(
+                _CacheBackendUnitDatabag(cache_backend=cache_backend_url),
+                self.charm.unit,
+                encoder=_encode,
+            )
 
     def clear_cache_backend(self, relation_id: int) -> None:
         """Clear the cache-backend value from a relation's unit databag.
@@ -742,4 +758,8 @@ class CacheConfigProvider(Object):
         if relation is None:
             return
         if relation.data[self.charm.unit].get(_CACHE_BACKEND_FIELD_NAME):
-            relation.data[self.charm.unit][_CACHE_BACKEND_FIELD_NAME] = ""
+            relation.save(
+                _CacheBackendUnitDatabag(cache_backend=None),
+                self.charm.unit,
+                encoder=_encode,
+            )
