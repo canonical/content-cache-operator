@@ -19,6 +19,8 @@ from juju.model import Model
 
 from tests.integration.helpers import (
     BACKENDS_CONFIG_NAME,
+    CACHE_INACTIVE_CONFIG_NAME,
+    CACHE_MAX_SIZE_CONFIG_NAME,
     FAIL_TIMEOUT_CONFIG_NAME,
     HEALTHCHECK_INTERVAL_CONFIG_NAME,
     HEALTHCHECK_PATH_CONFIG_NAME,
@@ -81,6 +83,8 @@ async def test_new_config_charm_integrates_with_old_content_cache(
         {
             BACKENDS_CONFIG_NAME: f"http://{http_ok_ip}:80",
             FAIL_TIMEOUT_CONFIG_NAME: "30s",
+            CACHE_INACTIVE_CONFIG_NAME: "1h",
+            CACHE_MAX_SIZE_CONFIG_NAME: "1g",
             HEALTHCHECK_INTERVAL_CONFIG_NAME: "2123",
             HEALTHCHECK_PATH_CONFIG_NAME: "/",
             HEALTHCHECK_SSL_VERIFY_CONFIG_NAME: "false",
