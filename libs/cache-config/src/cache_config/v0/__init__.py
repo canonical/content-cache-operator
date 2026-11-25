@@ -45,7 +45,7 @@ from cache_config.v0 import (
 )
 
 
-class SomeCharm(ops.CharmBase):
+class RequirerCharm(ops.CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self.cache_config = CacheConfigRequirer(self)
