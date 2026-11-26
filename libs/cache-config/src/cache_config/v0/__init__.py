@@ -146,6 +146,7 @@ from pydantic import (
     Field,
     TypeAdapter,
     ValidationError,
+    field_validator,
     model_validator,
 )
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -517,6 +518,14 @@ class _CacheBackendUnitDatabag:
 
     cache_backend: str | None = dataclasses.field(metadata={"alias": _CACHE_BACKEND_FIELD_NAME})
 
+    @field_validator("cache_backend")
+    @classmethod
+    def _validate_cache_backend(cls, value: str | None) -> str | None:
+        """Validate the URL while preserving its original string form."""
+        if value is not None:
+            CacheConfigProviderUnitData(cache_backend=value)  # type: ignore[arg-type]
+        return value
+
 
 class CacheConfigProviderUnitsData(BaseModel):
     """Provider units databag.
@@ -773,14 +782,14 @@ class CacheConfigProvider(Object):
         if relation is None:
             return
         try:
-            CacheConfigProviderUnitData(cache_backend=cache_backend_url)  # type: ignore[arg-type]
+            unit_data = _CacheBackendUnitDatabag(cache_backend=cache_backend_url)
         except ValidationError as exc:
             raise InvalidCacheBackendDataError(
                 f"Invalid cache-backend URL: {cache_backend_url!r}: {exc}"
             ) from exc
         if relation.data[self.charm.unit].get(_CACHE_BACKEND_FIELD_NAME) != cache_backend_url:
             relation.save(
-                _CacheBackendUnitDatabag(cache_backend=cache_backend_url),
+                unit_data,
                 self.charm.unit,
                 encoder=_encode,
             )
