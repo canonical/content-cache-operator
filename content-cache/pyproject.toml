@@ -17,6 +17,7 @@ classifiers = [
 ]
 dependencies = [
     "charmlibs-interfaces-certificate-transfer>=1.0.0,<2.0.0",
+    "content-cache-config",
     "cosl==1.11.3",
     "cryptography==50.0.2",
     "ops==3.9.0",
@@ -27,6 +28,9 @@ dependencies = [
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+content-cache-config = { workspace = true }
 
 [tool.pytest.ini_options]
 minversion = "6.0"

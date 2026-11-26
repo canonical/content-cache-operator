@@ -3,31 +3,45 @@
 
 """Test the charm state."""
 
-import json
+import ipaddress
 from unittest.mock import MagicMock
 
 import pytest
 
-from errors import ConfigurationError
+from cache_config.v0 import CacheConfigRequirerAppData, CacheConfigRequirersData
+from errors import ConfigurationError, IntegrationDataError
 from state import (
-    BACKENDS_FIELD_NAME,
-    PROXY_CACHE_VALID_FIELD_NAME,
     LocationConfig,
+    _to_location_config,
     get_cache_backend_url,
     get_client_ip_hash_salt,
+    get_nginx_config,
     is_client_ip_hash_salt_secret,
 )
-from tests.unit.conftest import SAMPLE_INTEGRATION_DATA
+
+# Field-level validation is covered by test_cache_config_lib.py. The tests here cover this
+# charm's responsibilities: reshaping validated data and wiring get_nginx_config to the provider.
+
+SAMPLE_APP_DATA = CacheConfigRequirerAppData(
+    backends=["http://10.10.1.1:80", "http://10.10.2.2:80"],
+    fail_timeout="30s",
+    healthcheck_interval=2000,
+    healthcheck_path="/",
+    healthcheck_valid_status=[200],
+    healthcheck_ssl_verify=False,
+    proxy_cache_valid=["200 302 1h", "404 1m"],
+)
 
 
-def test_config_from_integration_data():
+def test_to_location_config_reshapes_requirer_data():
     """
-    arrange: Valid sample integration data with URL-format backends.
-    act: Create the config from the data.
-    assert: The configurations are correctly parsed.
+    arrange: Validated cache-config requirer app data.
+    act: Convert to LocationConfig.
+    assert: The nginx-rendering shape has the equivalent, correctly-typed fields.
     """
-    config = LocationConfig.from_integration_data(SAMPLE_INTEGRATION_DATA)
+    config = _to_location_config(SAMPLE_APP_DATA)
 
+    assert isinstance(config, LocationConfig)
     assert len(config.backends) == 2
     assert config.backends[0].host == "10.10.1.1"
     assert config.backends[0].scheme == "http"
@@ -35,86 +49,80 @@ def test_config_from_integration_data():
     assert config.fail_timeout == "30s"
     assert config.proxy_cache_valid == ("200 302 1h", "404 1m")
     assert config.healthcheck_config.ssl_verify is False
+    assert config.healthcheck_config.path == "/"
+    assert config.healthcheck_config.interval == 2000
+    assert config.backend_hostname == ""
+    assert config.cache_inactive == "10m"
+    assert config.cache_max_size == ""
 
 
-@pytest.mark.parametrize(
-    "invalid_backends, error_message",
-    [
-        pytest.param("[]", "backends config cannot be empty.", id="empty backends"),
-        pytest.param(
-            "value", "Unable to parse backends config as json: value", id="none json value"
-        ),
-        pytest.param(
-            '{"value": 1}',
-            'Unable to convert backends config to list: {"value": 1}',
-            id="incorrect backends format",
-        ),
-        pytest.param(
-            '["10.10.1.1"]',
-            "Config error: ['backends = 10.10.1.1:",
-            id="bare IP rejected",
-        ),
-    ],
-)
-def test_config_with_invalid_backends_integration_data(invalid_backends, error_message):
+def test_get_nginx_config_returns_per_relation_dict():
     """
-    arrange: Sample integration data with invalid backends.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
+    arrange: A fake CacheConfigProvider returning data for one relation.
+    act: Call get_nginx_config.
+    assert: Returns a dict keyed by relation id with the reshaped LocationConfig.
     """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[BACKENDS_FIELD_NAME] = invalid_backends
+    provider = MagicMock()
+    provider.get_requirers_data.return_value = CacheConfigRequirersData(
+        requirers={7: SAMPLE_APP_DATA},
+        invalid_relation_ids=set(),
+    )
 
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
+    config = get_nginx_config(provider)
 
-    assert error_message in str(err.value)
+    assert set(config) == {7}
+    assert isinstance(config[7], LocationConfig)
+    assert config[7].backends[0].host == "10.10.1.1"
 
 
-def test_config_https_backends_integration_data():
+def test_get_nginx_config_empty_when_no_requirers():
     """
-    arrange: Valid sample integration data with https URL backends and required HTTPS fields.
-    act: Create the config from the data.
-    assert: The configurations are correctly parsed with https scheme.
+    arrange: A fake CacheConfigProvider with no requirer data.
+    act: Call get_nginx_config.
+    assert: Returns an empty dict.
     """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443", "https://10.10.2.2:443"]'
-    data["backend_hostname"] = "test.example.com"
-    config = LocationConfig.from_integration_data(data)
+    provider = MagicMock()
+    provider.get_requirers_data.return_value = CacheConfigRequirersData(
+        requirers={},
+        invalid_relation_ids=set(),
+    )
 
-    assert len(config.backends) == 2
-    assert config.backends[0].scheme == "https"
-    assert config.backends[1].scheme == "https"
+    assert get_nginx_config(provider) == {}
 
 
-def test_config_https_backends_require_backend_fields():
+def test_get_nginx_config_skips_invalid_relations():
     """
-    arrange: HTTPS integration data without backend-hostname.
-    act: Create the config from the data.
-    assert: ConfigurationError is raised.
+    arrange: A fake CacheConfigProvider with one valid and one invalid relation.
+    act: Call get_nginx_config.
+    assert: The valid relation is returned and the invalid relation's backend is cleared.
     """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[BACKENDS_FIELD_NAME] = '["https://10.10.1.1:443"]'
+    provider = MagicMock()
+    provider.get_requirers_data.return_value = CacheConfigRequirersData(
+        requirers={7: SAMPLE_APP_DATA},
+        invalid_relation_ids={8},
+    )
 
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
+    config = get_nginx_config(provider)
 
-    assert "backend-hostname is required" in str(err.value)
+    assert set(config) == {7}
+    provider.clear_cache_backend.assert_called_once_with(8)
 
 
-def test_config_mixed_scheme_raises():
+def test_get_nginx_config_raises_when_all_requirers_invalid():
     """
-    arrange: Integration data with backends of mixed http/https schemes.
-    act: Create the config from the data.
-    assert: ConfigurationError is raised.
+    arrange: A fake CacheConfigProvider whose only relation has invalid data.
+    act: Call get_nginx_config.
+    assert: The charm's own IntegrationDataError is raised instead, so callers only need to
+        catch content-cache's error types.
     """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[BACKENDS_FIELD_NAME] = '["http://10.10.1.1:80", "https://10.10.2.2:443"]'
+    provider = MagicMock()
+    provider.get_requirers_data.return_value = CacheConfigRequirersData(
+        requirers={},
+        invalid_relation_ids={8},
+    )
 
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
-
-    assert "mixed" in str(err.value).lower() or "scheme" in str(err.value).lower()
+    with pytest.raises(IntegrationDataError, match="8"):
+        get_nginx_config(provider)
 
 
 def test_get_cache_backend_url_uses_https_when_has_cache_cert():
@@ -129,22 +137,7 @@ def test_get_cache_backend_url_uses_https_when_has_cache_cert():
 
     result = get_cache_backend_url(charm, relation, 30000, has_cache_cert=True)
 
-    assert result.startswith("https://")
-
-
-def test_get_cache_backend_url_uses_http_by_default():
-    """
-    arrange: A mock charm with a bind address and has_cache_cert=False (default).
-    act: Call get_cache_backend_url.
-    assert: Returns an http:// URL.
-    """
-    charm = MagicMock()
-    charm.model.get_binding.return_value.network.bind_address = "10.0.0.1"
-    relation = MagicMock()
-
-    result = get_cache_backend_url(charm, relation, 30000)
-
-    assert result.startswith("http://")
+    assert result == "https://10.0.0.1:30000"
 
 
 def test_get_cache_backend_url_http():
@@ -165,101 +158,25 @@ def test_get_cache_backend_url_http():
 
 
 @pytest.mark.parametrize(
-    "invalid_proxy_cache_valid, error_message",
+    "bind_address",
     [
-        pytest.param(
-            "invalid",
-            "Unable to parse proxy_cache_valid config as json: invalid",
-            id="invalid format",
-        ),
-        pytest.param(
-            '["200"]',
-            "The proxy_cache_valid requires at least one status code and a time: 200",
-            id="no time",
-        ),
-        pytest.param(
-            '{"hello": 10}',
-            'Unable to convert proxy_cache_valid config to list: {"hello": 10}',
-            id="non list",
-        ),
-        pytest.param(
-            '["200 302 1y"]',
-            "Invalid time unit for proxy_cache_valid: 1y",
-            id="Invalid time unit",
-        ),
-        pytest.param(
-            '["200 tenm"]',
-            "Non-int time in proxy_cache_valid: tenm",
-            id="non-int time",
-        ),
-        pytest.param(
-            '["200 -10h"]',
-            "Time must be positive int for proxy_cache_valid: -10h",
-            id="negative time",
-        ),
-        pytest.param(
-            '["ok 30m"]',
-            "Non-int status code in proxy_cache_valid: ok",
-            id="non-int status code",
-        ),
-        pytest.param(
-            '["200 99 30m"]',
-            "Invalid status code in proxy_cache_valid: 99",
-            id="invalid status code",
-        ),
+        pytest.param(ipaddress.IPv6Address("2001:db8::1"), id="ipv6-address"),
+        pytest.param("2001:db8::1", id="ipv6-string"),
     ],
 )
-def test_config_invalid_proxy_cache_valid_integration_data(
-    invalid_proxy_cache_valid: str, error_message: str
-):
+def test_get_cache_backend_url_brackets_ipv6(bind_address):
     """
-    arrange: Sample integration data with invalid proxy_cache_valid.
-    act: Create the config from the data.
-    assert: Exception raised with the correct error message.
+    arrange: A mock charm with an IPv6 bind address.
+    act: Call get_cache_backend_url.
+    assert: Returns a URL with the IPv6 address in brackets.
     """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = invalid_proxy_cache_valid
+    charm = MagicMock()
+    charm.model.get_binding.return_value.network.bind_address = bind_address
+    relation = MagicMock()
 
-    with pytest.raises(ConfigurationError) as err:
-        LocationConfig.from_integration_data(data)
+    result = get_cache_backend_url(charm, relation, 30000)
 
-    assert error_message in str(err.value)
-
-
-@pytest.mark.parametrize(
-    "proxy_cache_valid",
-    [
-        pytest.param("[]", id="empty"),
-        pytest.param(
-            '["200 302 2h", "400 1m"]',
-            id="common",
-        ),
-        pytest.param('["200 1m"]', id="single item"),
-        pytest.param('["200 1s"]', id="seconds in time"),
-        pytest.param('["200 1h"]', id="hours in time"),
-        pytest.param('["100 200 302 404 1h"]', id="long item"),
-        pytest.param(
-            '["100 200 302 404 1h", "300 500 502 2m", "202 201 401 402 403 1s"]',
-            id="multiple long in proxy-cache-valid",
-        ),
-    ],
-)
-def test_config_valid_proxy_cache_valid_integration_data(proxy_cache_valid: str):
-    """
-    arrange: Sample integration data with valid proxy_cache_valid.
-    act: Create the config from the data.
-    assert: Configuration parsed correctly with expected proxy_cache_valid.
-    """
-    data = dict(SAMPLE_INTEGRATION_DATA)
-    data[PROXY_CACHE_VALID_FIELD_NAME] = proxy_cache_valid
-
-    config = LocationConfig.from_integration_data(data)
-
-    assert len(config.backends) == 2
-    assert config.fail_timeout == "30s"
-    assert config.healthcheck_config.path == "/"
-    assert config.healthcheck_config.interval == 2000
-    assert config.proxy_cache_valid == tuple(json.loads(proxy_cache_valid))
+    assert result == "http://[2001:db8::1]:30000"
 
 
 def _charm_with_config(config: dict) -> MagicMock:

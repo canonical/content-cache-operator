@@ -45,9 +45,8 @@ Build the charm in this git repository using:
 CHARMCRAFT_EXPERIMENTAL_MONOREPO=1 charmcraft pack
 ```
 
-Charmcraft 4.5 or later is required. The experimental build mode gives the build access to
-files outside the charm directory while the `uv` plugin installs the locked Python
-dependencies.
+Charmcraft 4.5 or later is required. The experimental build mode gives `uv` access to the
+local `../libs/cache-config` package and installs the locked Python dependencies.
 
 ### Deploy
 

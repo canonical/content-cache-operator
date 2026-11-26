@@ -527,16 +527,16 @@ def test_get_location_config_keys_https_without_hostname_has_no_ssl_directives(
     """
     arrange: A LocationConfig with https backends but no backend_hostname.
     act: Attempt to build the config (validator should block it).
-    assert: ConfigurationError raised because backend_hostname is required for HTTPS.
+    assert: IntegrationDataError raised because backend_hostname is required for HTTPS.
     """
-    from errors import ConfigurationError
+    from errors import IntegrationDataError
 
     data = {
         **SAMPLE_INTEGRATION_DATA,
         "backends": '["https://10.10.1.1:443"]',
         # No backend_hostname set
     }
-    with pytest.raises(ConfigurationError, match="backend-hostname is required"):
+    with pytest.raises(IntegrationDataError, match="backend_hostname is required"):
         LocationConfig.from_integration_data(data)
 
 

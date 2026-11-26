@@ -11,7 +11,11 @@ import pytest
 from ops.testing import Harness
 
 import state
-from charm import CACHE_CONFIG_INTEGRATION_NAME, ContentCacheBackendsConfigCharm
+from charm import (
+    CACHE_CONFIG_INTEGRATION_NAME,
+    INVALID_CACHE_CONFIG_MESSAGE,
+    ContentCacheBackendsConfigCharm,
+)
 
 # Test might need to access private methods.
 # pylint: disable=protected-access
@@ -52,39 +56,58 @@ def test_config_no_integration(charm: ContentCacheBackendsConfigCharm, harness: 
     assert charm.unit.status == ops.BlockedStatus("Waiting for integration")
 
 
-@pytest.mark.parametrize(
-    "event",
-    [
-        pytest.param("_on_config_changed", id="config_changed"),
-        pytest.param("_on_cache_config_relation_changed", id="config_relation_changed"),
-    ],
-)
-def test_integration_config_missing(charm: ContentCacheBackendsConfigCharm, event: str):
-    """
-    arrange: Charm with no integration.
-    act: Trigger events.
-    assert: Charm in block state.
-    """
-    mock_event = MagicMock()
-    getattr(charm, event)(mock_event)
-
-    assert isinstance(charm.unit.status, ops.BlockedStatus)
-
-
-@pytest.mark.parametrize(
-    "event",
-    [
-        pytest.param("_on_config_changed", id="config_changed"),
-        pytest.param("_on_cache_config_relation_changed", id="config_relation_changed"),
-    ],
-)
-def test_integration_data_not_leader(
-    charm: ContentCacheBackendsConfigCharm, harness: Harness, event: str
+def test_config_changed_republishes_configuration(
+    charm: ContentCacheBackendsConfigCharm, harness: Harness
 ):
     """
-    arrange: Follow unit with configurations and integration.
-    act: Trigger events.
-    assert: The integration has no data.
+    arrange: Leader unit with configuration and integration.
+    act: Change a configuration value after the initial publication.
+    assert: The updated configuration is published.
+    """
+    harness.update_config(SAMPLE_CONFIG)
+
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="content-cache",
+    )
+    harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
+
+    data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
+    assert data["fail_timeout"] == "30s"
+
+    harness.update_config({**SAMPLE_CONFIG, state.FAIL_TIMEOUT_CONFIG_NAME: "1h"})
+
+    data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
+    assert data["fail_timeout"] == "1h"
+    assert charm.unit.status == ops.ActiveStatus()
+
+
+def test_relation_created_publishes_configuration(
+    charm: ContentCacheBackendsConfigCharm, harness: Harness
+):
+    """
+    arrange: Leader unit with configurations and no integration.
+    act: Add the integration relation.
+    assert: The configuration is published without another config change.
+    """
+    harness.update_config(SAMPLE_CONFIG)
+
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="content-cache",
+    )
+
+    data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
+    assert data["fail_timeout"] == "30s"
+
+
+def test_leader_elected_publishes_configuration(
+    charm: ContentCacheBackendsConfigCharm, harness: Harness
+):
+    """
+    arrange: Follower unit with configurations and integration.
+    act: The unit becomes leader.
+    assert: The configuration is published.
     """
     harness.set_leader(False)
     harness.update_config(SAMPLE_CONFIG)
@@ -95,54 +118,12 @@ def test_integration_data_not_leader(
     )
     harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
 
-    mock_event = MagicMock()
-    getattr(charm, event)(mock_event)
+    assert harness.get_relation_data(relation_id, app_or_unit=charm.app.name) == {}
+
+    harness.set_leader(True)
 
     data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
-    assert charm.unit.status == ops.ActiveStatus()
-    assert data == {}
-
-
-@pytest.mark.parametrize(
-    "event",
-    [
-        pytest.param("_on_config_changed", id="config_changed"),
-        pytest.param("_on_cache_config_relation_changed", id="config_relation_changed"),
-    ],
-)
-def test_integration_data(charm: ContentCacheBackendsConfigCharm, harness: Harness, event: str):
-    """
-    arrange: Leader unit with configurations and integration.
-    act: Trigger events.
-    assert: The configuration is in the databag.
-    """
-    harness.update_config(SAMPLE_CONFIG)
-
-    relation_id = harness.add_relation(
-        CACHE_CONFIG_INTEGRATION_NAME,
-        remote_app="content-cache",
-    )
-    harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
-
-    mock_event = MagicMock()
-    getattr(charm, event)(mock_event)
-
-    data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
-    assert charm.unit.status == ops.ActiveStatus()
-    backends = __import__("json").loads(data["backends"])
-    assert len(backends) == 2
-    assert any("10.10.1.1" in b for b in backends)
-    assert any("10.1.1.2" in b for b in backends)
-    assert all(b.startswith("http://") for b in backends)
-    assert "protocol" not in data
-    assert data["healthcheck_interval"] == "2000"
-    assert data["healthcheck_path"] == "/health"
-    assert data["healthcheck_ssl_verify"] == "true"
-    assert data["healthcheck_valid_status"] == "[200]"
     assert data["fail_timeout"] == "30s"
-    assert data["proxy_cache_valid"] == '["200 302 1h", "404 1m"]'
-    assert data[state.CACHE_INACTIVE_FIELD_NAME] == "10m"
-    assert data.get(state.CACHE_MAX_SIZE_FIELD_NAME, "") == ""
 
 
 def test_integration_with_invalid_config(charm: ContentCacheBackendsConfigCharm, harness: Harness):
@@ -160,6 +141,25 @@ def test_integration_with_invalid_config(charm: ContentCacheBackendsConfigCharm,
     harness.update_config({state.BACKENDS_CONFIG_NAME: ""})
 
     assert charm.unit.status == ops.BlockedStatus("Empty backends configuration found")
+
+
+def test_integration_with_invalid_library_config(
+    charm: ContentCacheBackendsConfigCharm, harness: Harness
+):
+    """
+    arrange: Leader unit with integration and an otherwise valid configuration.
+    act: Update a value the shared library rejects.
+    assert: The unit is blocked with the short cache-config status message.
+    """
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="content-cache",
+    )
+    harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
+
+    harness.update_config({**SAMPLE_CONFIG, state.FAIL_TIMEOUT_CONFIG_NAME: "0s"})
+
+    assert charm.unit.status == ops.BlockedStatus(INVALID_CACHE_CONFIG_MESSAGE)
 
 
 @pytest.mark.parametrize(

@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Each revision is versioned by the date of the revision.
 
+## 2026-11-11
+
+### Added
+
+- Published the `content-cache-config` library, which implements both sides of the
+  `content-cache-config` interface. It is shared by the `content-cache` and
+  `content-cache-backends-config` charms and can be used by other charms that need to
+  publish cache configuration to `content-cache` or read its cache backend URLs.
+
+### Fixed
+
+- Reject non-ASCII digits in nginx time and size configuration values, so invalid values
+  are reported during relation validation instead of failing nginx configuration validation.
+- Publish the cache configuration when a `cache-config` relation is created and when a unit
+  becomes leader, rather than waiting for another config change.
+
 ## 2026-10-19
 
 ### Changed
