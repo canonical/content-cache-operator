@@ -146,7 +146,6 @@ from pydantic import (
     Field,
     TypeAdapter,
     ValidationError,
-    field_validator,
     model_validator,
 )
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -473,8 +472,19 @@ class CacheConfigRequirersData:
     invalid_relation_ids: set[int]
 
 
-def _validate_cache_backend_parts(url: AnyHttpUrl) -> None:
-    """Validate the parsed cache backend URL's port and host."""
+def _validate_cache_backend(value: typing.Any) -> typing.Any:
+    """Validate a cache backend URL, preserving the input representation.
+
+    Pydantic's URL constraints do not express an explicit port requirement or an
+    IP-literal host, so parse with AnyHttpUrl and enforce those rules here. The original
+    value is returned so raw strings remain raw.
+    """
+    if value is None:
+        return None
+    try:
+        url = value if isinstance(value, AnyHttpUrl) else _URL_ADAPTER.validate_python(value)
+    except ValidationError as exc:
+        raise ValueError(f"Invalid cache backend URL: {value!r}") from exc
     if url.port is None or not (0 < url.port <= 65535):
         raise ValueError(f"Invalid cache backend port: {url.port}")
     host = str(url.host).removeprefix("[").removesuffix("]")
@@ -482,15 +492,6 @@ def _validate_cache_backend_parts(url: AnyHttpUrl) -> None:
         ipaddress.ip_address(host)
     except ValueError as exc:
         raise ValueError(f"Invalid cache backend host, expected an IP address: {host!r}") from exc
-
-
-def _validate_cache_backend_url(value: str) -> str:
-    """Validate a raw cache backend URL, returning it unchanged."""
-    try:
-        url = _URL_ADAPTER.validate_python(value)
-    except ValidationError as exc:
-        raise ValueError(f"Invalid cache backend URL: {value!r}") from exc
-    _validate_cache_backend_parts(url)
     return value
 
 
@@ -505,18 +506,16 @@ class CacheConfigProviderUnitData(BaseModel):
     # Allow construction by field name as well as by the Juju databag alias.
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
-    cache_backend: typing.Annotated[AnyHttpUrl, Field(alias=_CACHE_BACKEND_FIELD_NAME)]
-
-    @model_validator(mode="after")
-    def _validate_cache_backend(self) -> "CacheConfigProviderUnitData":
-        """Validate the cache backend URL."""
-        _validate_cache_backend_parts(self.cache_backend)
-        return self
+    cache_backend: typing.Annotated[
+        AnyHttpUrl,
+        Field(alias=_CACHE_BACKEND_FIELD_NAME),
+        AfterValidator(_validate_cache_backend),
+    ]
 
     @property
     def cache_backend_host(self) -> str:
         """Return the cache backend host, with IPv6 brackets removed."""
-        # IP address validation should already be handled by the model validator.
+        # The field validator already checks that the host is an IP address.
         host = str(self.cache_backend.host).removeprefix("[").removesuffix("]")
         return str(ipaddress.ip_address(host))
 
@@ -529,15 +528,10 @@ class CacheConfigProviderUnitData(BaseModel):
 class _CacheBackendUnitDatabag:
     """Provider unit databag write schema."""
 
-    cache_backend: str | None = dataclasses.field(metadata={"alias": _CACHE_BACKEND_FIELD_NAME})
-
-    @field_validator("cache_backend")
-    @classmethod
-    def _validate_cache_backend(cls, value: str | None) -> str | None:
-        """Validate the URL while preserving its original string form."""
-        if value is not None:
-            _validate_cache_backend_url(value)
-        return value
+    cache_backend: typing.Annotated[
+        str | None,
+        AfterValidator(_validate_cache_backend),
+    ] = dataclasses.field(metadata={"alias": _CACHE_BACKEND_FIELD_NAME})
 
 
 class CacheConfigProviderUnitsData(BaseModel):
