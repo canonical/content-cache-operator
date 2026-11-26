@@ -49,7 +49,7 @@ def test_config_no_integration(charm: ContentCacheBackendsConfigCharm, harness: 
     """
     arrange: Charm with no integration.
     act: Update the configuration with valid values.
-    assert: The charm in active status.
+    assert: The charm remains blocked waiting for integration.
     """
     harness.update_config(SAMPLE_CONFIG)
 

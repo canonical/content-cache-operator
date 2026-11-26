@@ -14,7 +14,7 @@ jobs:
     with:
       juju-channel: 3.6/stable
       provider: lxd
-      modules: '["test_basic", "test_tls_cert", "test_healthchecks", "test_metric"]'
+      modules: '["test_basic", "test_tls_cert", "test_healthchecks", "test_metric", "test_ingress_compat", "test_old_content_cache_compat"]'
       pre-build-script: scripts/enable-charmcraft-monorepo.sh
       working-directory: ./content-cache/
       self-hosted-runner: false
