@@ -473,6 +473,27 @@ class CacheConfigRequirersData:
     invalid_relation_ids: set[int]
 
 
+def _validate_cache_backend_parts(url: AnyHttpUrl) -> None:
+    """Validate the parsed cache backend URL's port and host."""
+    if url.port is None or not (0 < url.port <= 65535):
+        raise ValueError(f"Invalid cache backend port: {url.port}")
+    host = str(url.host).removeprefix("[").removesuffix("]")
+    try:
+        ipaddress.ip_address(host)
+    except ValueError as exc:
+        raise ValueError(f"Invalid cache backend host, expected an IP address: {host!r}") from exc
+
+
+def _validate_cache_backend_url(value: str) -> str:
+    """Validate a raw cache backend URL, returning it unchanged."""
+    try:
+        url = _URL_ADAPTER.validate_python(value)
+    except ValidationError as exc:
+        raise ValueError(f"Invalid cache backend URL: {value!r}") from exc
+    _validate_cache_backend_parts(url)
+    return value
+
+
 class CacheConfigProviderUnitData(BaseModel):
     """Provider unit databag schema.
 
@@ -489,15 +510,7 @@ class CacheConfigProviderUnitData(BaseModel):
     @model_validator(mode="after")
     def _validate_cache_backend(self) -> "CacheConfigProviderUnitData":
         """Validate the cache backend URL."""
-        if self.cache_backend.port is None or not (0 < self.cache_backend.port <= 65535):
-            raise ValueError(f"Invalid cache backend port: {self.cache_backend.port}")
-        host = str(self.cache_backend.host).removeprefix("[").removesuffix("]")
-        try:
-            ipaddress.ip_address(host)
-        except ValueError as exc:
-            raise ValueError(
-                f"Invalid cache backend host, expected an IP address: {host!r}"
-            ) from exc
+        _validate_cache_backend_parts(self.cache_backend)
         return self
 
     @property
@@ -523,7 +536,7 @@ class _CacheBackendUnitDatabag:
     def _validate_cache_backend(cls, value: str | None) -> str | None:
         """Validate the URL while preserving its original string form."""
         if value is not None:
-            CacheConfigProviderUnitData(cache_backend=value)  # type: ignore[arg-type]
+            _validate_cache_backend_url(value)
         return value
 
 
