@@ -521,6 +521,28 @@ def test_invalid_relation_is_cleared_and_recovers(
     assert set(args[0]) == {rel_id_1, rel_id_2}
 
 
+def test_load_nginx_config_without_network_address_waits(
+    harness: Harness,
+    charm: ContentCacheCharm,
+    mock_nginx_manager: MagicMock,
+    monkeypatch,
+):
+    """
+    arrange: A working charm with no usable cache-config binding address.
+    act: Add a cache-config relation with valid data.
+    assert: The unit waits for a network address and publishes no cache backend.
+    """
+    monkeypatch.setattr("charm.get_cache_backend_url", MagicMock(return_value=None))
+    relation_id = harness.add_relation(
+        CACHE_CONFIG_INTEGRATION_NAME,
+        remote_app="config",
+        app_data=SAMPLE_INTEGRATION_DATA,
+    )
+
+    assert charm.unit.status == ops.WaitingStatus("Waiting for network address")
+    assert not harness.get_relation_data(relation_id, charm.unit.name).get("cache-backend")
+
+
 def test_relation_broken_clears_cache_backends(
     harness: Harness, charm: ContentCacheCharm, mock_nginx_manager: MagicMock
 ):

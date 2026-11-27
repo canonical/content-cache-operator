@@ -240,7 +240,7 @@ def _decode(value: str) -> typing.Any:
     value = value.strip()
     try:
         decoded = json.loads(value)
-    except json.JSONDecodeError:
+    except (ValueError, RecursionError):
         return value
     return decoded if isinstance(decoded, list) else value
 
@@ -482,7 +482,7 @@ def _validate_cache_backend(value: typing.Any) -> typing.Any:
     if value is None:
         return None
     try:
-        url = value if isinstance(value, AnyHttpUrl) else _URL_ADAPTER.validate_python(value)
+        url = _URL_ADAPTER.validate_python(value)
     except ValidationError as exc:
         raise ValueError(f"Invalid cache backend URL: {value!r}") from exc
     if url.port is None or not (0 < url.port <= 65535):

@@ -179,6 +179,27 @@ def test_get_cache_backend_url_brackets_ipv6(bind_address):
     assert result == "http://[2001:db8::1]:30000"
 
 
+@pytest.mark.parametrize(
+    "bind_address",
+    [
+        pytest.param(None, id="none"),
+        pytest.param("not-an-address", id="hostname"),
+        pytest.param("", id="empty"),
+    ],
+)
+def test_get_cache_backend_url_returns_none_for_unusable_address(bind_address):
+    """
+    arrange: A mock charm with no usable IP binding address.
+    act: Call get_cache_backend_url.
+    assert: Returns None instead of raising.
+    """
+    charm = MagicMock()
+    charm.model.get_binding.return_value.network.bind_address = bind_address
+    relation = MagicMock()
+
+    assert get_cache_backend_url(charm, relation, 30000) is None
+
+
 def _charm_with_config(config: dict) -> MagicMock:
     """Build a mock charm exposing the given .config dict."""
     charm = MagicMock()

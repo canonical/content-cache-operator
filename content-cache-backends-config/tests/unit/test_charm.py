@@ -73,12 +73,24 @@ def test_config_changed_republishes_configuration(
     harness.add_relation_unit(relation_id, remote_unit_name="content-cache/0")
 
     data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
-    assert data["fail_timeout"] == "30s"
+    expected_data = {
+        "backends": '["http://10.10.1.1:80", "http://10.1.1.2:80"]',
+        "cache_inactive": "10m",
+        "fail_timeout": "30s",
+        "healthcheck_interval": "2000",
+        "healthcheck_path": "/health",
+        "healthcheck_ssl_verify": "true",
+        "healthcheck_valid_status": "[200]",
+        "proxy_cache_valid": '["200 302 1h", "404 1m"]',
+    }
+    # Empty cache-max-size is erased from the databag, so it must not be present.
+    assert data == expected_data
 
     harness.update_config({**SAMPLE_CONFIG, state.FAIL_TIMEOUT_CONFIG_NAME: "1h"})
 
     data = harness.get_relation_data(relation_id, app_or_unit=charm.app.name)
-    assert data["fail_timeout"] == "1h"
+    expected_data["fail_timeout"] = "1h"
+    assert data == expected_data
     assert charm.unit.status == ops.ActiveStatus()
 
 

@@ -234,7 +234,7 @@ def get_cache_backend_url(
     relation: ops.Relation,
     port: int,
     has_cache_cert: bool = False,
-) -> str:
+) -> str | None:
     """Return the cache-backend URL for a given relation and port.
 
     Args:
@@ -246,12 +246,21 @@ def get_cache_backend_url(
 
     Returns:
         A URL in the form protocol://ip:port. IPv6 addresses are bracketed.
+        None when the relation has no usable IP binding address.
     """
     bind_address = charm.model.get_binding(relation).network.bind_address
     if isinstance(bind_address, (ipaddress.IPv4Address, ipaddress.IPv6Address)):
         ip = bind_address
     else:
-        ip = ipaddress.ip_address(str(bind_address).strip())
+        try:
+            ip = ipaddress.ip_address(str(bind_address).strip())
+        except ValueError:
+            logger.warning(
+                "No usable bind address for relation %s: %r",
+                relation.id,
+                bind_address,
+            )
+            return None
     host = f"[{ip.compressed}]" if ip.version == 6 else ip.compressed
     protocol = "https" if has_cache_cert else "http"
     return f"{protocol}://{host}:{port}"

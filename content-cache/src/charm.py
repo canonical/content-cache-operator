@@ -56,6 +56,7 @@ CERTIFICATE_TRANSFER_INTEGRATION_NAME = "receive-ca-cert"
 CERTIFICATE_INTEGRATION_NAME = "certificates"
 WAIT_FOR_TLS_CERT_MESSAGE = "Waiting for TLS certificate"
 WAIT_FOR_PORT_MESSAGE = "Waiting for port assignment"
+WAIT_FOR_NETWORK_ADDRESS_MESSAGE = "Waiting for network address"
 
 NGINX_PORT_RANGE_START = 30000
 NGINX_PORT_RANGE_SIZE = 200
@@ -486,6 +487,10 @@ class ContentCacheCharm(ops.CharmBase):
             url = get_cache_backend_url(
                 self, rel, port, has_cache_cert=cache_cert_path is not None
             )
+            if url is None:
+                self._cache_config.clear_cache_backend(rel_id)
+                self.unit.status = ops.WaitingStatus(WAIT_FOR_NETWORK_ADDRESS_MESSAGE)
+                continue
             self._cache_config.publish_cache_backend(rel_id, url)
 
     def _clear_cache_backend(self) -> None:
