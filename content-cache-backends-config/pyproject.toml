@@ -13,8 +13,8 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "ops==3.9.0",
-    "pydantic==2.14.1",
+    "ops==3.10.0",
+    "pydantic==2.14.4",
 ]
 
 [tool.uv]
