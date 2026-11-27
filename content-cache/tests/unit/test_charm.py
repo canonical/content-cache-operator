@@ -133,7 +133,7 @@ def test_add_integration(harness: Harness, charm: ContentCacheCharm):
     assert charm.unit.status == ops.ActiveStatus()
 
     # Test the integration data is correct
-    config = state.get_nginx_config(charm._cache_config)
+    config = state.get_nginx_config(charm._cache_config).configs
     assert len(config) == 1
     assert relation_id in config
     location_config = config[relation_id]
@@ -162,7 +162,7 @@ def test_remove_integration(harness: Harness, charm: ContentCacheCharm):
     assert charm.unit.status == ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
 
     # Test no data
-    config = state.get_nginx_config(charm._cache_config)
+    config = state.get_nginx_config(charm._cache_config).configs
     assert not config
 
 
@@ -194,7 +194,7 @@ def test_empty_integration_data(harness: Harness, charm: ContentCacheCharm):
     """
     harness.add_relation(CACHE_CONFIG_INTEGRATION_NAME, remote_app="config", app_data={})
 
-    config = state.get_nginx_config(charm._cache_config)
+    config = state.get_nginx_config(charm._cache_config).configs
     assert not config
 
 
@@ -260,7 +260,7 @@ def test_get_nginx_config_returns_flat_per_relation_dict(
         app_data=SAMPLE_INTEGRATION_DATA,
     )
 
-    config = get_nginx_config(charm._cache_config)
+    config = get_nginx_config(charm._cache_config).configs
 
     assert relation_id in config
     assert isinstance(config[relation_id], LocationConfig)
@@ -506,7 +506,9 @@ def test_invalid_relation_is_cleared_and_recovers(
     harness.update_relation_data(rel_id_1, "config1", {"backends": "[]"})
     harness.charm.on.update_status.emit()
 
-    assert charm.unit.status == ops.ActiveStatus()
+    assert charm.unit.status == ops.ActiveStatus(
+        f"Ignoring invalid cache-config data from relation(s): {rel_id_1}"
+    )
     assert not harness.get_relation_data(rel_id_1, charm.unit.name).get("cache-backend")
     assert harness.get_relation_data(rel_id_2, charm.unit.name).get("cache-backend")
     args, _ = mock_nginx_manager.update_and_load_config.call_args

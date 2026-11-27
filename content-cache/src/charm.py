@@ -40,6 +40,7 @@ from errors import (
 from state import (
     CACHE_CONFIG_INTEGRATION_NAME,
     NginxConfig,
+    NginxConfigResult,
     get_cache_backend_url,
     get_client_ip_hash_salt,
     get_nginx_config,
@@ -375,7 +376,7 @@ class ContentCacheCharm(ops.CharmBase):
             self._clear_cache_backend()
             return
 
-        resolved = self._resolve_ported_config(nginx_config, broken_relation_id)
+        resolved = self._resolve_ported_config(nginx_config.configs, broken_relation_id)
         if resolved is None:
             return
         ported_config, awaiting_port = resolved
@@ -400,11 +401,24 @@ class ContentCacheCharm(ops.CharmBase):
             if awaiting_port:
                 self.unit.status = ops.WaitingStatus(WAIT_FOR_PORT_MESSAGE)
             else:
+                status_message = self._with_invalid_relations_status(
+                    status_message, nginx_config.invalid_relation_ids
+                )
                 self.unit.status = ops.ActiveStatus(status_message)
             self.unit.set_ports(*{port for port, _ in ported_config.values()})
             self._write_cache_backends(ported_config, cache_cert_path)
         else:
             self._clear_cache_backend()
+
+    @staticmethod
+    def _with_invalid_relations_status(status_message: str, invalid_ids: set[int]) -> str:
+        """Add invalid cache-config relations to the active status message."""
+        if not invalid_ids:
+            return status_message
+        invalid_message = "Ignoring invalid cache-config data from relation(s): " + ", ".join(
+            str(relation_id) for relation_id in sorted(invalid_ids)
+        )
+        return f"{invalid_message}; {status_message}" if status_message else invalid_message
 
     def _apply_nginx_config(
         self,
@@ -498,11 +512,11 @@ class ContentCacheCharm(ops.CharmBase):
         for rel in self.model.relations[CACHE_CONFIG_INTEGRATION_NAME]:
             self._cache_config.clear_cache_backend(rel.id)
 
-    def _get_config_and_update_status(self) -> NginxConfig | None:
+    def _get_config_and_update_status(self) -> NginxConfigResult | None:
         """Attempt to get nginx config, updates charm status on failure.
 
         Returns:
-            The nginx configuration if found and valid.
+            The valid nginx configuration and invalid relation ids if any were found.
         """
         try:
             nginx_config = get_nginx_config(self._cache_config)
@@ -510,7 +524,7 @@ class ContentCacheCharm(ops.CharmBase):
             logger.error("Invalid cache-config data: %s", err)
             self.unit.status = ops.BlockedStatus(INVALID_CACHE_CONFIG_MESSAGE)
             return None
-        if not nginx_config:
+        if not nginx_config.configs:
             self.unit.status = ops.BlockedStatus(WAIT_FOR_CONFIG_MESSAGE)
             return None
         self.unit.status = ops.MaintenanceStatus(RECEIVED_NGINX_CONFIG_MESSAGE)

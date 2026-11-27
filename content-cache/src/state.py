@@ -9,6 +9,7 @@ import typing
 
 import ops
 import pydantic
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from cache_config.v0 import (
     CacheConfigProvider,
@@ -193,7 +194,15 @@ RelationId = int
 NginxConfig = dict[RelationId, LocationConfig]
 
 
-def get_nginx_config(cache_config: CacheConfigProvider) -> NginxConfig:
+@pydantic_dataclass(frozen=True)
+class NginxConfigResult:  # pylint: disable=too-few-public-methods
+    """Valid nginx configuration and relations with invalid cache-config data."""
+
+    configs: NginxConfig
+    invalid_relation_ids: set[int]
+
+
+def get_nginx_config(cache_config: CacheConfigProvider) -> NginxConfigResult:
     """Get the nginx locations configuration from cache-config integration data.
 
     Relations with invalid data are skipped so that they do not block valid ones. Their
@@ -207,7 +216,7 @@ def get_nginx_config(cache_config: CacheConfigProvider) -> NginxConfig:
         IntegrationDataError: All relations with data failed validation.
 
     Returns:
-        A mapping of relation ID to location configuration.
+        The valid configurations and the ids of relations with invalid data.
     """
     requirers_data = cache_config.get_requirers_data()
     if requirers_data.invalid_relation_ids:
@@ -226,7 +235,12 @@ def get_nginx_config(cache_config: CacheConfigProvider) -> NginxConfig:
     if not requirers_data.requirers:
         logger.info("Found no configuration integrations")
 
-    return {rel_id: _to_location_config(data) for rel_id, data in requirers_data.requirers.items()}
+    return NginxConfigResult(
+        configs={
+            rel_id: _to_location_config(data) for rel_id, data in requirers_data.requirers.items()
+        },
+        invalid_relation_ids=requirers_data.invalid_relation_ids,
+    )
 
 
 def get_cache_backend_url(

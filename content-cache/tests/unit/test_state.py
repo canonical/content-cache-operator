@@ -68,11 +68,12 @@ def test_get_nginx_config_returns_per_relation_dict():
         invalid_relation_ids=set(),
     )
 
-    config = get_nginx_config(provider)
+    result = get_nginx_config(provider)
 
-    assert set(config) == {7}
-    assert isinstance(config[7], LocationConfig)
-    assert config[7].backends[0].host == "10.10.1.1"
+    assert set(result.configs) == {7}
+    assert isinstance(result.configs[7], LocationConfig)
+    assert result.configs[7].backends[0].host == "10.10.1.1"
+    assert result.invalid_relation_ids == set()
 
 
 def test_get_nginx_config_empty_when_no_requirers():
@@ -87,7 +88,10 @@ def test_get_nginx_config_empty_when_no_requirers():
         invalid_relation_ids=set(),
     )
 
-    assert get_nginx_config(provider) == {}
+    result = get_nginx_config(provider)
+
+    assert result.configs == {}
+    assert result.invalid_relation_ids == set()
 
 
 def test_get_nginx_config_skips_invalid_relations():
@@ -102,9 +106,10 @@ def test_get_nginx_config_skips_invalid_relations():
         invalid_relation_ids={8},
     )
 
-    config = get_nginx_config(provider)
+    result = get_nginx_config(provider)
 
-    assert set(config) == {7}
+    assert set(result.configs) == {7}
+    assert result.invalid_relation_ids == {8}
     provider.clear_cache_backend.assert_called_once_with(8)
 
 

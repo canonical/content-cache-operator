@@ -23,6 +23,8 @@ Each revision is versioned by the date of the revision.
   are reported during relation validation instead of failing nginx configuration validation.
 - Publish the cache configuration when a `cache-config` relation is created and when a unit
   becomes leader, rather than waiting for another config change.
+- Skip relations with invalid cache-config data instead of blocking valid relations, and
+  report the affected relation IDs in the content-cache status.
 
 ## 2026-10-19
 
